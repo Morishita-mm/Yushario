@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-import type { Application } from "pixi.js";
+import type { Application, WebGLRenderer } from "pixi.js";
 import type { Cubism4InternalModel, Live2DModel, MotionPriority } from "@jannchie/pixi-live2d-display/cubism4";
 import type { Expression, Gesture } from "../../core/decider";
 import type { MotionParams } from "../../core/motion";
@@ -7,7 +7,7 @@ import type { Renderer } from "./renderer";
 import { loadMapping, type ModelMapping } from "./mapping";
 
 export class Live2DRenderer implements Renderer {
-  private app?: Application;
+  private app?: Application<WebGLRenderer>;
   private model?: Live2DModel;
   private internal?: Cubism4InternalModel;
   private mapping?: ModelMapping;
@@ -38,7 +38,7 @@ export class Live2DRenderer implements Renderer {
     const [{ Application }, { Live2DModel, Cubism4InternalModel, MotionPriority }] = await Promise.all([
       import("pixi.js"), import("@jannchie/pixi-live2d-display/cubism4"),
     ]);
-    const app = new Application();
+    const app = new Application<WebGLRenderer>();
     let initialized = false;
     let model: Live2DModel | undefined;
     try {
@@ -143,6 +143,10 @@ export class Live2DRenderer implements Renderer {
     this.internal.physics?.evaluate(core, dt);
     // Only explicit gestures use model motions; core still owns idle/blink/gaze.
     core.update();
+    // Cubism's mask pass leaves transparent white as GL's clear color, but Pixi caches
+    // transparent black and skips resetting it. Restore it before Pixi clears the canvas:
+    // white RGB with zero alpha otherwise turns fading drawables into white silhouettes.
+    this.app.renderer.gl.clearColor(0, 0, 0, 0);
     this.app.render();
     core.loadParameters();
   }
