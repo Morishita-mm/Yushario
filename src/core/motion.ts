@@ -86,10 +86,12 @@ export class MotionGenerator {
       ? Math.sin(Math.PI * blinkAge / BLINK_DURATION_MS) ** 2
       : 0;
     const time = this.timeMs / 1000;
-    // Random-phase low-frequency waves add bounded sway, separate from the spring.
-    const swayX = 0.012 * Math.sin(time * 0.7 + this.swayPhaseX)
-      + 0.006 * Math.sin(time * 0.31 + this.swayPhaseY);
-    const swayY = 0.012 * Math.sin(time * 0.53 + this.swayPhaseY);
+    // Random-phase low-frequency waves add a visible, bounded idle sway (|x| <= 0.2, |y| <= 0.09),
+    // separate from the spring. Incommensurate periods (~5-17 s) keep it from looking looped.
+    const swayX = 0.14 * Math.sin(time * 0.9 + this.swayPhaseX)
+      + 0.06 * Math.sin(time * 0.37 + this.swayPhaseY);
+    const swayY = 0.06 * Math.sin(time * 0.67 + this.swayPhaseY)
+      + 0.03 * Math.sin(time * 1.3 + this.swayPhaseX);
     // Ease changing usage into the body; integrate slowed breathing to avoid phase jumps.
     const fatigueBlend = 1 - Math.exp(-3 * dt);
     const fatigueIntegral = this.fatigue * dt + (this.currentFatigue - this.fatigue) * fatigueBlend / 3;

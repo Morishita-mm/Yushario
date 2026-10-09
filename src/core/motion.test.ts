@@ -25,8 +25,8 @@ describe("MotionGenerator", () => {
     expect(params.mouthSmile).toBeCloseTo(0.9, 4);
     expect(params.eyeOpen).toBeCloseTo(0.8, 4);
     expect(params.brow).toBeCloseTo(0.3, 4);
-    expect(Math.abs(params.headX - 0.45)).toBeLessThanOrEqual(0.019);
-    expect(Math.abs(params.headY - 0.1)).toBeLessThanOrEqual(0.019);
+    expect(Math.abs(params.headX - 0.45)).toBeLessThanOrEqual(0.201);
+    expect(Math.abs(params.headY - 0.1)).toBeLessThanOrEqual(0.097);
     expect(Math.abs(params.bodyX - 0.15)).toBeLessThanOrEqual(0.021);
     expectWithinRange(params);
   });
@@ -89,12 +89,12 @@ describe("MotionGenerator", () => {
     expect(laterBlink.update(2590).eyeOpen).toBeCloseTo(0.9);
   });
 
-  it("keeps zero fatigue identical to legacy breathing and sway", () => {
+  it("keeps zero fatigue identical to the unfatigued breathing and sway", () => {
     const motion = new MotionGenerator(() => 0);
     motion.setFatigue(0);
     expect(motion.update(1000)).toEqual({
-      headX: 0.012 * Math.sin(0.7) + 0.006 * Math.sin(0.31),
-      headY: 0.012 * Math.sin(0.53) + Math.sin(Math.PI / 2) * 0.006,
+      headX: 0.14 * Math.sin(0.9) + 0.06 * Math.sin(0.37),
+      headY: 0.06 * Math.sin(0.67) + 0.03 * Math.sin(1.3) + Math.sin(Math.PI / 2) * 0.006,
       bodyX: Math.sin(Math.PI / 2) * 0.02,
       eyeOpen: 0.9, mouthSmile: 0.15, brow: 0,
     });
