@@ -73,6 +73,69 @@ curl -i -X POST http://localhost:8790/event \
 フックは状態イベントを送るだけです。ハーネス本体やログ解析は行いません。
 relayを起動してから利用してください。
 
+## フック連携
+
+`adapters/` のアダプタは状態を送るだけで、ログ解析・LLM呼び出し・再送はしません。
+送信先は `AGENT_CHARACTER_URL`（既定 `http://127.0.0.1:8790/event`）です。
+変更する場合はClaude Code / piを起動するシェルで `export AGENT_CHARACTER_URL=http://127.0.0.1:8792/event` のように指定します。
+送信は500msでタイムアウトし、relay不在や送信失敗は無視します。
+`source` は `claude-code` / `pi`、`tool` はツール名（任意）で、どちらも最大200文字です。
+プロンプト・ツール入力・結果本文は送らず、`detail` は短い固定文言だけです。
+
+### Claude Code
+
+上の単発の `emit.sh` 例の代わりに、`~/.claude/settings.json`（またはプロジェクトの `.claude/settings.json`）の既存設定に以下をマージしてください。
+**全ての `/absolute/path/agent-character` を実際の絶対パスに置き換えます**。
+`node` がフックのPATHで見つからない場合は、こちらもNodeの絶対パスに置き換えます。
+`timeout` は秒単位で、スクリプトの送信タイムアウトとは別の安全策です。
+
+```json
+{
+  "hooks": {
+    "SessionStart": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node \"/absolute/path/agent-character/adapters/claude-code/hook.mjs\"", "timeout": 1 }] }],
+    "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "node \"/absolute/path/agent-character/adapters/claude-code/hook.mjs\"", "timeout": 1 }] }],
+    "PreToolUse": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node \"/absolute/path/agent-character/adapters/claude-code/hook.mjs\"", "timeout": 1 }] }],
+    "PostToolUse": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node \"/absolute/path/agent-character/adapters/claude-code/hook.mjs\"", "timeout": 1 }] }],
+    "Notification": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node \"/absolute/path/agent-character/adapters/claude-code/hook.mjs\"", "timeout": 1 }] }],
+    "Stop": [{ "hooks": [{ "type": "command", "command": "node \"/absolute/path/agent-character/adapters/claude-code/hook.mjs\"", "timeout": 1 }] }],
+    "SubagentStop": [{ "hooks": [{ "type": "command", "command": "node \"/absolute/path/agent-character/adapters/claude-code/hook.mjs\"", "timeout": 1 }] }]
+  }
+}
+```
+
+SessionStart→`idle`、UserPromptSubmit→`thinking`、PreToolUse / PostToolUse→`working`（`tool_name` 付き）、Notification→`waiting_input`、Stop→`success` です。
+PostToolUseは `tool_response` に明示的なエラーフラグ・エラー値・非ゼロの終了コードがある場合だけ `error` にします（自由文からは推測しません）。
+SubagentStopと未知のイベントは何もしません。スクリプトは失敗してもexit 0、stdout / stderrへの出力なしで終了します。
+
+### pi
+
+まず1回だけ読み込む場合:
+
+```sh
+pi --extension /absolute/path/agent-character/adapters/pi/agent-character.ts
+```
+
+継続して使う場合は、`~/.pi/agent/settings.json` の `extensions` に絶対パスを追加して再起動、または `/reload` してください（既存の項目は残します）。
+プロジェクトだけで使うなら `.pi/settings.json` に同じ項目を置きます。プロジェクト設定はtrust承認後に読み込まれます。
+
+```json
+{
+  "extensions": ["/absolute/path/agent-character/adapters/pi/agent-character.ts"]
+}
+```
+
+代わりに `pi install /absolute/path/agent-character/adapters/pi/agent-character.ts` でも登録できます（プロジェクト限定は `--local`）。どちらか一方で登録してください。
+piがTypeScript拡張を直接読み込み、拡張APIの型はpi自身が提供するので、このリポジトリへの依存追加は不要です。
+登録方法はpi同梱の `docs/extensions.md` / `docs/settings.md` / `docs/packages.md` に準拠します。
+`agent_start`→`thinking`、`tool_call`→`working`、`tool_result`の `isError`→`error`（正常結果は`working`）、`agent_end`→`success` を送ります。
+ブロッキングUIの `ui_prompt_start`→`waiting_input`、`ui_prompt_end`→`thinking` です。
+イベントとフィールドは同梱の `dist/core/extensions/types.d.ts` で確認しています。送信をawaitせず、piの処理を待たせません。
+
+### サンプルで確認
+
+relayを `PORT=8792 npm run dev:relay` で起動し、別ターミナルで `node --input-type=module -e 'import { WebSocket } from "ws"; const ws = new WebSocket("ws://127.0.0.1:8792/ws"); ws.on("message", data => console.log(String(data)));'` を先に接続します。
+`printf '%s' '{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"private"}}' | AGENT_CHARACTER_URL=http://127.0.0.1:8792/event node adapters/claude-code/hook.mjs` を実行し、WSに `working` / `claude-code` / `Bash` のみが届き入力本文がないことを確認します（終わったら両ターミナルをCtrl+Cで停止）。
+
 ## Live2Dを使う（任意）
 
 描画依存は `pixi.js` **8.22.0** と `@jannchie/pixi-live2d-display` **1.4.0** を固定しています。

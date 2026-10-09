@@ -10,7 +10,11 @@ export interface AgentEvent {
   state: AgentState;
   detail?: string;
   ts?: number;
+  source?: string;
+  tool?: string;
 }
+
+export const MAX_EVENT_METADATA_LENGTH = 200;
 
 const STATES: readonly AgentState[] = [
   "idle", "thinking", "working", "waiting_input", "success", "error",
@@ -33,8 +37,22 @@ export function parseAgentEvent(
     return { ok: false, error: "ts must be a finite number" };
   }
 
+  for (const field of ["source", "tool"] as const) {
+    const metadata = value[field];
+    if (metadata !== undefined) {
+      if (typeof metadata !== "string") {
+        return { ok: false, error: `${field} must be a string` };
+      }
+      if (metadata.length > MAX_EVENT_METADATA_LENGTH) {
+        return { ok: false, error: `${field} must be at most ${MAX_EVENT_METADATA_LENGTH} characters` };
+      }
+    }
+  }
+
   const event: AgentEvent = { state: value.state as AgentState };
   if (value.detail !== undefined) event.detail = value.detail as string;
   if (value.ts !== undefined) event.ts = value.ts as number;
+  if (value.source !== undefined) event.source = value.source as string;
+  if (value.tool !== undefined) event.tool = value.tool as string;
   return { ok: true, event };
 }
