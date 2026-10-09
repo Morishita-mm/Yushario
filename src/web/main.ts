@@ -33,16 +33,23 @@ const decider = new MockDecider();
 const motion = new MotionGenerator(Math.random);
 let lastDecisionMs = performance.now();
 let latestEvent = 0;
+const recent: AgentEvent[] = [];
 
 async function acceptEvent(event: AgentEvent): Promise<void> {
   const sequence = ++latestEvent;
   const now = performance.now();
-  const candidates = await decider.decide({ event, previous, elapsedMs: now - lastDecisionMs });
+  recent.push(event);
+  if (recent.length > 10) recent.shift();
+  const candidates = await decider.decide({ event, recent: [...recent], previous, elapsedMs: now - lastDecisionMs });
   // Ignore a stale decision if a newer event arrived while deciding.
   if (sequence !== latestEvent) return;
-  previous = selectCandidate(candidates, Math.random);
-  motion.setTarget(previous);
-  renderer?.setExpression?.(previous.expression);
+  const selected = selectCandidate(candidates, Math.random);
+  const changed = !previous || selected.expression !== previous.expression
+    || selected.posture !== previous.posture || selected.gesture !== previous.gesture;
+  previous = selected;
+  motion.setTarget(selected);
+  renderer?.setExpression?.(selected.expression);
+  if (changed && selected.gesture) renderer?.playGesture?.(selected.gesture);
   lastDecisionMs = now;
   stateLabel.textContent = event.state;
   stateLabel.title = event.detail ?? "";

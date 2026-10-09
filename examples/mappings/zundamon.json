@@ -18,5 +18,13 @@
     "happy": "exp_laugh",
     "troubled": "exp_sad",
     "surprised": "exp_surprise"
+  },
+  "gestures": {
+    "nod": "mtnBody_yes.motion3.json",
+    "shake": "mtnBody_no.motion3.json",
+    "wave": "mtnBody_wave.motion3.json",
+    "think": "mtnBody_think.motion3.json",
+    "cheer": "mtnBody_laugh.motion3.json",
+    "tremble": "mtnBody_tremble.motion3.json"
   }
 }

@@ -1,4 +1,4 @@
-import type { Expression } from "../../core/decider";
+import type { Expression, Gesture } from "../../core/decider";
 import type { MotionParams } from "../../core/motion";
 
 export type ParameterMapping = Record<string, {
@@ -10,9 +10,11 @@ export type ParameterMapping = Record<string, {
 export type ModelMapping = {
   parameters: ParameterMapping;
   expressions?: Partial<Record<Expression, string>>;
+  gestures?: Partial<Record<Gesture, string>>;
 };
 
 const EXPRESSIONS: readonly Expression[] = ["neutral", "focused", "happy", "troubled", "surprised"];
+const GESTURES: readonly Gesture[] = ["nod", "shake", "wave", "think", "cheer", "tremble"];
 
 // Values are applied as source * scale + offset.
 const DEFAULT_MAPPING: ParameterMapping = {
@@ -37,12 +39,12 @@ export async function loadMapping(modelUrl: URL): Promise<ModelMapping> {
   if (!response.ok) throw new Error(`mapping.json を読めません (HTTP ${response.status})`);
   const input: unknown = await response.json();
   if (!input || typeof input !== "object" || Array.isArray(input)) {
-    throw new Error("mapping.json は parameters と任意の expressions を持つオブジェクトにしてください");
+    throw new Error("mapping.json は parameters と任意の expressions/gestures を持つオブジェクトにしてください");
   }
   const config = input as Record<string, unknown>;
   if (!config.parameters || typeof config.parameters !== "object" || Array.isArray(config.parameters)
-    || Object.keys(config).some((key) => !["parameters", "expressions"].includes(key))) {
-    throw new Error("mapping.json: parameters オブジェクトと任意の expressions のみ指定できます");
+    || Object.keys(config).some((key) => !["parameters", "expressions", "gestures"].includes(key))) {
+    throw new Error("mapping.json: parameters オブジェクトと任意の expressions/gestures のみ指定できます");
   }
   const mapping: ParameterMapping = Object.create(null);
   for (const [id, value] of Object.entries(config.parameters)) {
@@ -72,5 +74,18 @@ export async function loadMapping(modelUrl: URL): Promise<ModelMapping> {
       expressions[expression as Expression] = name;
     }
   }
-  return { parameters: mapping, expressions };
+  const gestures: Partial<Record<Gesture, string>> = Object.create(null);
+  if (config.gestures !== undefined) {
+    if (!config.gestures || typeof config.gestures !== "object" || Array.isArray(config.gestures)) {
+      throw new Error("mapping.json: gestures はジェスチャー名をキーとするオブジェクトにしてください");
+    }
+    for (const [gesture, filename] of Object.entries(config.gestures)) {
+      if (!GESTURES.includes(gesture as Gesture) || typeof filename !== "string"
+        || !filename.endsWith(".motion3.json") || filename.includes("/") || filename.includes("\\")) {
+        throw new Error(`mapping.json の gestures.${gesture} が不正です`);
+      }
+      gestures[gesture as Gesture] = filename;
+    }
+  }
+  return { parameters: mapping, expressions, gestures };
 }

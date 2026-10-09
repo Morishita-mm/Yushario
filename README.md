@@ -181,7 +181,13 @@ Core、モデル、関連ファイル、WebGL初期化のいずれかが読め�
 `parameters` 内の各キーはモデルのパラメータID、`source` は抽象パラメータ名です。
 任意の `expressions` は抽象表情名から `.model3.json` の `FileReferences.Expressions[].Name` への対応表です。
 表情が変わったときだけプラグインの表情機能で設定します。未指定の表情は何もしません。
-既定表には `expressions` はありません。
+任意の `gestures` は `nod` / `shake` / `wave` / `think` / `cheer` / `tremble` から
+`.motion3.json` のファイル名（パスを除いた名前）への対応表です。
+`.model3.json` の `FileReferences.Motions` から一致するファイルのgroup/indexを探し、状態の変わり目に一度だけ再生します。
+未指定のジェスチャーは何もしません。再生中の新しいジェスチャーは前の動きを置き換えます。
+直近10件（今回を含む）のイベントを判断に渡し、同じstateの連打では表情・姿勢を維持して再生しません。
+errorへの遷移時に履歴中のerrorが1件ならshake、2件以上ならtremble、errorを含む履歴の後のsuccessはhappy + cheerです。
+既定表には `expressions` / `gestures` はありません。
 値は **`params[source] * scale + offset`**。`scale` の省略値は1、`offset` は0です。
 それ以外の変換・設定はありません。Coreはモデル側のパラメータ範囲に値を収めます。
 
@@ -203,6 +209,10 @@ Core、モデル、関連ファイル、WebGL初期化のいずれかが読め�
   "expressions": {
     "happy": "モデル内の笑顔のName",
     "troubled": "モデル内の困り顔のName"
+  },
+  "gestures": {
+    "think": "mtnBody_think.motion3.json",
+    "cheer": "mtnBody_laugh.motion3.json"
   }
 }
 ```
@@ -213,7 +223,8 @@ Core、モデル、関連ファイル、WebGL初期化のいずれかが読め�
 `expressions` のキーは `neutral` / `focused` / `happy` / `troubled` / `surprised` のみです。
 表が不正な場合も理由付きで簡易顔にフォールバックします。
 プラグインの自動モーション・瞬き・追視は停止し、抽象パラメータとcore側の呼吸・瞬きを毎フレーム適用します。
-モデル表情と `.physics3.json` の物理演算だけを手動更新するため、髪や小物は姿勢変化に追従して揺れます（モーション再生はしません）。
+抽象パラメータ → 指定された単発モーション → モデル表情 → `.physics3.json` の物理演算の順に手動更新します。
+髪や小物は姿勢変化に追従して揺れます。アイドルモーションの自動再生は行いません。
 
 ずんだもんを `models/default/` に配置した場合の対応表は同梱しています：
 
@@ -223,7 +234,9 @@ cp examples/mappings/zundamon.json models/default/mapping.json
 
 ページを再読み込みすると、neutral→`exp_smile`、focused→`pose_Jaw`、happy→`exp_laugh`、
 troubled→`exp_sad`、surprised→`exp_surprise` を使います。
-別バージョンのモデルでは実際の `Expressions[].Name` を確認してください。
+ジェスチャーはnod→`mtnBody_yes`、shake→`mtnBody_no`、wave→`mtnBody_wave`、think→`mtnBody_think`、
+cheer→`mtnBody_laugh`、tremble→`mtnBody_tremble`（すべて `.motion3.json`）です。
+別バージョンのモデルでは実際の `Expressions[].Name` と `Motions` のファイル名を確認してください。
 この対応表だけがコミット対象で、`models/default/mapping.json` を含むモデル一式・Coreは除外対象です。
 
 ## 検証

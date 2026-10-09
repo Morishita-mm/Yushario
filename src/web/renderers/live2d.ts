@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 import type { Application } from "pixi.js";
-import type { Cubism4InternalModel, Live2DModel } from "@jannchie/pixi-live2d-display/cubism4";
-import type { Expression } from "../../core/decider";
+import type { Cubism4InternalModel, Live2DModel, MotionPriority } from "@jannchie/pixi-live2d-display/cubism4";
+import type { Expression, Gesture } from "../../core/decider";
 import type { MotionParams } from "../../core/motion";
 import type { Renderer } from "./renderer";
 import { loadMapping, type ModelMapping } from "./mapping";
@@ -13,6 +13,8 @@ export class Live2DRenderer implements Renderer {
   private mapping?: ModelMapping;
   private expression?: Expression;
   private lastFrameMs?: number;
+  private forcePriority?: MotionPriority;
+  private gestureSequence = 0;
 
   constructor(private readonly canvas: HTMLCanvasElement) {}
 
@@ -33,7 +35,7 @@ export class Live2DRenderer implements Renderer {
     const mapping = await loadMapping(url);
 
     // Cubism's module checks the global Core at import time; never import it before the check above.
-    const [{ Application }, { Live2DModel, Cubism4InternalModel }] = await Promise.all([
+    const [{ Application }, { Live2DModel, Cubism4InternalModel, MotionPriority }] = await Promise.all([
       import("pixi.js"), import("@jannchie/pixi-live2d-display/cubism4"),
     ]);
     const app = new Application();
@@ -67,6 +69,7 @@ export class Live2DRenderer implements Renderer {
       this.model = model;
       this.internal = model.internalModel;
       this.mapping = mapping;
+      this.forcePriority = MotionPriority.FORCE;
       this.app = app;
     } catch (error) {
       model?.destroy();
@@ -84,6 +87,27 @@ export class Live2DRenderer implements Renderer {
     }
   }
 
+  playGesture(gesture: Gesture): void {
+    const filename = this.mapping?.gestures?.[gesture];
+    if (!filename || !this.internal || this.forcePriority === undefined) return;
+    const manager = this.internal.motionManager;
+    const sequence = ++this.gestureSequence;
+    const priority = this.forcePriority;
+    for (const [group, motions] of Object.entries(manager.definitions)) {
+      const index = motions?.findIndex((motion) => motion.File.split("/").at(-1) === filename) ?? -1;
+      if (index < 0) continue;
+      void (async () => {
+        const motion = await manager.loadMotion(group, index);
+        if (!motion || sequence !== this.gestureSequence) return;
+        // Model files may mark gestures as loops; this API is always one-shot.
+        motion.setIsLoop(false);
+        await manager.startMotion(group, index, priority);
+      })().catch((error) => console.warn(`ジェスチャー ${filename} を読めません:`, error));
+      return;
+    }
+    console.warn(`ジェスチャー ${filename} が model3.json の Motions にありません`);
+  }
+
   apply(params: MotionParams): void {
     if (!this.app || !this.internal || !this.mapping) return;
     const now = performance.now();
@@ -96,9 +120,16 @@ export class Live2DRenderer implements Renderer {
     }
     // Restore this baseline after drawing so additive expressions/physics never accumulate.
     core.saveParameters();
-    this.internal.motionManager.expressionManager?.update(core, now / 1000);
+    const manager = this.internal.motionManager;
+    // Calling update on an empty queue requests a random idle motion; never do that.
+    if (!manager.isFinished()) manager.update(core, now / 1000);
+    else if (manager.playing) {
+      manager.stopAllMotions();
+      manager.playing = false;
+    }
+    manager.expressionManager?.update(core, now / 1000);
     this.internal.physics?.evaluate(core, dt);
-    // The core motion layer owns idle motion: no plugin motion/blink/gaze ticker.
+    // Only explicit gestures use model motions; core still owns idle/blink/gaze.
     core.update();
     this.app.render();
     core.loadParameters();
