@@ -1,0 +1,22 @@
+{
+  "parameters": {
+    "ParamAngleX": { "source": "headX", "scale": 30, "offset": 0 },
+    "ParamAngleY": { "source": "headY", "scale": 30, "offset": 0 },
+    "ParamAngleZ": { "source": "headX", "scale": 20, "offset": 0 },
+    "ParamBodyAngleX": { "source": "bodyX", "scale": 10, "offset": 0 },
+    "ParamBodyAngleX2": { "source": "bodyX", "scale": 10, "offset": 0 },
+    "ParamBodyAngleY2": { "source": "headY", "scale": 8, "offset": 0 },
+    "ParamEyeLOpen": { "source": "eyeOpen", "scale": 1, "offset": 0 },
+    "ParamEyeROpen": { "source": "eyeOpen", "scale": 1, "offset": 0 },
+    "ParamMouthForm": { "source": "mouthSmile", "scale": 1, "offset": 0 },
+    "ParamBrowLY": { "source": "brow", "scale": 1, "offset": 0 },
+    "ParamBrowRY": { "source": "brow", "scale": 1, "offset": 0 }
+  },
+  "expressions": {
+    "neutral": "exp_smile",
+    "focused": "pose_Jaw",
+    "happy": "exp_laugh",
+    "troubled": "exp_sad",
+    "surprised": "exp_surprise"
+  }
+}

@@ -13,11 +13,13 @@ const stateLabel = document.querySelector<HTMLElement>("#state")!;
 const connectionLabel = document.querySelector<HTMLElement>("#connection")!;
 const rendererLabel = document.querySelector<HTMLElement>("#renderer-status")!;
 let renderer: Renderer | undefined;
+let previous: Candidate | undefined;
 void (async () => {
   try {
     const live2d = new Live2DRenderer(canvas);
     await live2d.init(new URLSearchParams(location.search).get("model") ?? undefined);
     renderer = live2d;
+    if (previous) renderer.setExpression?.(previous.expression);
     rendererLabel.textContent = "Live2D";
   } catch (error) {
     // A canvas that has acquired WebGL cannot acquire 2D; replace it before falling back.
@@ -29,7 +31,6 @@ void (async () => {
 })();
 const decider = new MockDecider();
 const motion = new MotionGenerator(Math.random);
-let previous: Candidate | undefined;
 let lastDecisionMs = performance.now();
 let latestEvent = 0;
 
@@ -41,6 +42,7 @@ async function acceptEvent(event: AgentEvent): Promise<void> {
   if (sequence !== latestEvent) return;
   previous = selectCandidate(candidates, Math.random);
   motion.setTarget(previous);
+  renderer?.setExpression?.(previous.expression);
   lastDecisionMs = now;
   stateLabel.textContent = event.state;
   stateLabel.title = event.detail ?? "";

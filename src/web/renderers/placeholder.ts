@@ -49,7 +49,7 @@ export class PlaceholderRenderer implements Renderer {
       ctx.stroke();
     }
 
-    // A bowed curve changes the mouth corners from neutral to a smile.
+    // Signed curvature: positive raises the corners, negative lowers them into a frown.
     ctx.beginPath();
     ctx.moveTo(-37, 58 - params.mouthSmile * 14);
     ctx.quadraticCurveTo(0, 61 + params.mouthSmile * 28, 37, 58 - params.mouthSmile * 14);

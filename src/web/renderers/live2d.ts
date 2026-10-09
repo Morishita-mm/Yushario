@@ -1,14 +1,18 @@
 /// <reference types="vite/client" />
 import type { Application } from "pixi.js";
 import type { Cubism4InternalModel, Live2DModel } from "@jannchie/pixi-live2d-display/cubism4";
+import type { Expression } from "../../core/decider";
 import type { MotionParams } from "../../core/motion";
 import type { Renderer } from "./renderer";
-import { loadMapping, type ParameterMapping } from "./mapping";
+import { loadMapping, type ModelMapping } from "./mapping";
 
 export class Live2DRenderer implements Renderer {
   private app?: Application;
-  private core?: Cubism4InternalModel["coreModel"];
-  private mapping?: ParameterMapping;
+  private model?: Live2DModel;
+  private internal?: Cubism4InternalModel;
+  private mapping?: ModelMapping;
+  private expression?: Expression;
+  private lastFrameMs?: number;
 
   constructor(private readonly canvas: HTMLCanvasElement) {}
 
@@ -52,12 +56,16 @@ export class Live2DRenderer implements Renderer {
         autoStart: false,
       });
       initialized = true;
+      // This plugin caches raw GL textures and only touches Pixi's legacy textureGC.
+      // Keep this model's textures resident so Pixi 8.22 GC cannot delete them after 60s.
+      for (const texture of model.textures) texture.source.autoGarbageCollect = false;
       const scale = Math.min(this.canvas.width * 0.9 / model.width, this.canvas.height * 0.9 / model.height);
       model.scale.set(scale);
       model.anchor.set(0.5, 0.5);
       model.position.set(this.canvas.width / 2, this.canvas.height / 2);
       app.stage.addChild(model);
-      this.core = model.internalModel.coreModel;
+      this.model = model;
+      this.internal = model.internalModel;
       this.mapping = mapping;
       this.app = app;
     } catch (error) {
@@ -67,13 +75,32 @@ export class Live2DRenderer implements Renderer {
     }
   }
 
-  apply(params: MotionParams): void {
-    if (!this.app || !this.core || !this.mapping) return;
-    for (const [id, binding] of Object.entries(this.mapping)) {
-      this.core.setParameterValueById(id, params[binding.source] * binding.scale + binding.offset);
+  setExpression(expression: Expression): void {
+    if (expression === this.expression) return;
+    this.expression = expression;
+    const name = this.mapping?.expressions?.[expression];
+    if (name && this.model) {
+      void this.model.expression(name).catch((error) => console.warn(`表情 ${name} を読めません:`, error));
     }
-    // The core motion layer owns idle motion: do not run the plugin's blink/motion/gaze ticker.
-    this.core.update();
+  }
+
+  apply(params: MotionParams): void {
+    if (!this.app || !this.internal || !this.mapping) return;
+    const now = performance.now();
+    // Avoid a physics backlog after a hidden tab resumes; Cubism expects seconds.
+    const dt = this.lastFrameMs === undefined ? 0 : Math.min((now - this.lastFrameMs) / 1000, 0.1);
+    this.lastFrameMs = now;
+    const core = this.internal.coreModel;
+    for (const [id, binding] of Object.entries(this.mapping.parameters)) {
+      core.setParameterValueById(id, params[binding.source] * binding.scale + binding.offset);
+    }
+    // Restore this baseline after drawing so additive expressions/physics never accumulate.
+    core.saveParameters();
+    this.internal.motionManager.expressionManager?.update(core, now / 1000);
+    this.internal.physics?.evaluate(core, dt);
+    // The core motion layer owns idle motion: no plugin motion/blink/gaze ticker.
+    core.update();
     this.app.render();
+    core.loadParameters();
   }
 }

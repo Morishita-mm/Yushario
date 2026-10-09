@@ -7,7 +7,7 @@ const happyTilt: Candidate = { expression: "happy", posture: "tilt", score: 1 };
 function expectWithinRange(params: MotionParams): void {
   for (const [key, value] of Object.entries(params)) {
     expect(Number.isFinite(value)).toBe(true);
-    expect(value).toBeGreaterThanOrEqual(key === "eyeOpen" || key === "mouthSmile" ? 0 : -1);
+    expect(value).toBeGreaterThanOrEqual(key === "eyeOpen" ? 0 : -1);
     expect(value).toBeLessThanOrEqual(1);
   }
 }
@@ -25,10 +25,21 @@ describe("MotionGenerator", () => {
     expect(params.mouthSmile).toBeCloseTo(0.9, 4);
     expect(params.eyeOpen).toBeCloseTo(0.8, 4);
     expect(params.brow).toBeCloseTo(0.3, 4);
-    expect(Math.abs(params.headX - 0.3)).toBeLessThanOrEqual(0.019);
+    expect(Math.abs(params.headX - 0.45)).toBeLessThanOrEqual(0.019);
     expect(Math.abs(params.headY - 0.1)).toBeLessThanOrEqual(0.019);
-    expect(Math.abs(params.bodyX - 0.1)).toBeLessThanOrEqual(0.021);
+    expect(Math.abs(params.bodyX - 0.15)).toBeLessThanOrEqual(0.021);
     expectWithinRange(params);
+  });
+
+  it("transitions from a smile to a negative troubled mouth and back", () => {
+    const motion = new MotionGenerator(() => 0.5);
+    expect(motion.update(0).mouthSmile).toBeGreaterThan(0);
+    motion.setTarget({ expression: "troubled", posture: "slump", score: 1 });
+    const troubled = motion.update(2000);
+    expect(troubled.mouthSmile).toBeCloseTo(-0.8, 4);
+    expectWithinRange(troubled);
+    motion.setTarget(happyTilt);
+    expect(motion.update(2000).mouthSmile).toBeCloseTo(0.9, 4);
   });
 
   it("keeps every expression/posture combination bounded during repeated transitions", () => {

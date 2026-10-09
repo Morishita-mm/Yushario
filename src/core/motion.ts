@@ -1,6 +1,6 @@
 import type { Candidate, Expression, Posture } from "./decider";
 
-// Signed parameters use [-1, 1]; eyeOpen and mouthSmile use [0, 1].
+// Signed parameters (including mouthSmile: negative = frown) use [-1, 1]; eyeOpen uses [0, 1].
 export interface MotionParams {
   headX: number;
   headY: number;
@@ -12,17 +12,17 @@ export interface MotionParams {
 
 const EXPRESSIONS: Record<Expression, Pick<MotionParams, "eyeOpen" | "mouthSmile" | "brow">> = {
   neutral: { eyeOpen: 0.9, mouthSmile: 0.15, brow: 0 },
-  focused: { eyeOpen: 0.7, mouthSmile: 0.05, brow: -0.35 },
+  focused: { eyeOpen: 0.7, mouthSmile: -0.15, brow: -0.35 },
   happy: { eyeOpen: 0.8, mouthSmile: 0.9, brow: 0.3 },
-  troubled: { eyeOpen: 0.65, mouthSmile: 0, brow: -0.7 },
+  troubled: { eyeOpen: 0.65, mouthSmile: -0.8, brow: -0.7 },
   surprised: { eyeOpen: 1, mouthSmile: 0.1, brow: 0.8 },
 };
 
 const POSTURES: Record<Posture, Pick<MotionParams, "headX" | "headY" | "bodyX">> = {
   upright: { headX: 0, headY: 0, bodyX: 0 },
-  lean_forward: { headX: 0, headY: -0.25, bodyX: 0.35 },
-  tilt: { headX: 0.3, headY: 0.1, bodyX: 0.1 },
-  slump: { headX: -0.1, headY: -0.45, bodyX: -0.3 },
+  lean_forward: { headX: 0, headY: -0.4, bodyX: 0.5 },
+  tilt: { headX: 0.45, headY: 0.1, bodyX: 0.15 },
+  slump: { headX: -0.2, headY: -0.6, bodyX: -0.45 },
 };
 
 const KEYS: readonly (keyof MotionParams)[] = [
@@ -90,7 +90,7 @@ export class MotionGenerator {
       headY: clamp(this.current.headY + swayY + breath * 0.006, -1, 1),
       bodyX: clamp(this.current.bodyX + breath * 0.02, -1, 1),
       eyeOpen: clamp(this.current.eyeOpen * (1 - blink), 0, 1),
-      mouthSmile: clamp(this.current.mouthSmile, 0, 1),
+      mouthSmile: clamp(this.current.mouthSmile, -1, 1),
       brow: clamp(this.current.brow, -1, 1),
     };
   }

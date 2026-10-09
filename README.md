@@ -82,7 +82,7 @@ Core・モデルは自動取得せず、音声・リップシンク機能も使�
 ### Cubism Core
 
 1. [公式Cubism SDK for Web](https://www.live2d.com/sdk/download/web/) からSDKを利用者自身で入手し、利用条件を確認してください。
-2. SDKの `Core/live2dcubismcore.min.js` を、このプロジェクトの `public/live2dcubismcore.min.js` へコピーしてください（`public/` が無ければ作成）。
+2. **Cubism Core は Cubism 5.2 系を使ってください**（[公式配布のCore](https://cubism.live2d.com/sdk-web/core/05/live2dcubismcore.min.js) 等。取得後にバージョンを確認）。**5.3 は現行の描画ライブラリと非互換**です（描画順APIが変わり、描画時に例外になります）。対応するSDKの `Core/live2dcubismcore.min.js` を、このプロジェクトの `public/live2dcubismcore.min.js` へコピーしてください（`public/` が無ければ作成）。
 3. `index.html` がこのローカルファイルを読み込みます。外部CDNは使用しません。
 
 **SDK・モデルの利用規約、再配布条件の確認は利用者の責任です。**
@@ -115,7 +115,10 @@ Core、モデル、関連ファイル、WebGL初期化のいずれかが読め�
 
 モデル設定と同じフォルダに `mapping.json` があれば、その表全体を使用します。
 無ければ標準Cubism ID（`ParamAngleX/Y/Z`、`ParamBodyAngleX`、左右の目・眉、`ParamMouthForm`）の既定表を使います。
-各キーはモデルのパラメータID、`source` は抽象パラメータ名です。
+`parameters` 内の各キーはモデルのパラメータID、`source` は抽象パラメータ名です。
+任意の `expressions` は抽象表情名から `.model3.json` の `FileReferences.Expressions[].Name` への対応表です。
+表情が変わったときだけプラグインの表情機能で設定します。未指定の表情は何もしません。
+既定表には `expressions` はありません。
 値は **`params[source] * scale + offset`**。`scale` の省略値は1、`offset` は0です。
 それ以外の変換・設定はありません。Coreはモデル側のパラメータ範囲に値を収めます。
 
@@ -123,22 +126,42 @@ Core、モデル、関連ファイル、WebGL初期化のいずれかが読め�
 
 ```json
 {
-  "ParamAngleX": { "source": "headX", "scale": 30, "offset": 0 },
-  "ParamAngleY": { "source": "headY", "scale": 30 },
-  "ParamAngleZ": { "source": "headX", "scale": 15 },
-  "ParamBodyAngleX": { "source": "bodyX", "scale": 10 },
-  "ParamEyeLOpen": { "source": "eyeOpen" },
-  "ParamEyeROpen": { "source": "eyeOpen" },
-  "ParamMouthForm": { "source": "mouthSmile" },
-  "ParamBrowLY": { "source": "brow" },
-  "ParamBrowRY": { "source": "brow" }
+  "parameters": {
+    "ParamAngleX": { "source": "headX", "scale": 30, "offset": 0 },
+    "ParamAngleY": { "source": "headY", "scale": 30 },
+    "ParamAngleZ": { "source": "headX", "scale": 15 },
+    "ParamBodyAngleX": { "source": "bodyX", "scale": 10 },
+    "ParamEyeLOpen": { "source": "eyeOpen" },
+    "ParamEyeROpen": { "source": "eyeOpen" },
+    "ParamMouthForm": { "source": "mouthSmile" },
+    "ParamBrowLY": { "source": "brow" },
+    "ParamBrowRY": { "source": "brow" }
+  },
+  "expressions": {
+    "happy": "モデル内の笑顔のName",
+    "troubled": "モデル内の困り顔のName"
+  }
 }
 ```
 
 `source` は `headX` / `headY` / `bodyX` / `eyeOpen` / `mouthSmile` / `brow` のみです。
 独自IDのモデルではキーをそのIDへ置き換え、必要に応じてスケールとオフセットを変更してください。
+`eyeOpen` は `[0, 1]`、その他は `[-1, 1]` です。`mouthSmile` は正で笑顔、負でへの字口です。
+`expressions` のキーは `neutral` / `focused` / `happy` / `troubled` / `surprised` のみです。
 表が不正な場合も理由付きで簡易顔にフォールバックします。
-プラグインの自動モーション・追視は停止し、抽象パラメータとcore側の呼吸・瞬きを毎フレーム適用します。
+プラグインの自動モーション・瞬き・追視は停止し、抽象パラメータとcore側の呼吸・瞬きを毎フレーム適用します。
+モデル表情と `.physics3.json` の物理演算だけを手動更新するため、髪や小物は姿勢変化に追従して揺れます（モーション再生はしません）。
+
+ずんだもんを `models/default/` に配置した場合の対応表は同梱しています：
+
+```sh
+cp examples/mappings/zundamon.json models/default/mapping.json
+```
+
+ページを再読み込みすると、neutral→`exp_smile`、focused→`pose_Jaw`、happy→`exp_laugh`、
+troubled→`exp_sad`、surprised→`exp_surprise` を使います。
+別バージョンのモデルでは実際の `Expressions[].Name` を確認してください。
+この対応表だけがコミット対象で、`models/default/mapping.json` を含むモデル一式・Coreは除外対象です。
 
 ## 検証
 
