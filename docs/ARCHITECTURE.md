@@ -1,16 +1,25 @@
 # Architecture (PoC)
 
-開発用AIエージェントの状態を受け取り、Live2Dキャラクターの表情・動きとして表示する **表示専用レイヤー**。
-ハーネスは作らない。どのエージェント／ハーネスからでも「状態イベント」を送れれば良い。
+コーディングエージェントに **Live2D の肉体と、活動する場所** を与えるアプリ。
+ハーネスは作らない。利用者の好きな CLI エージェント（Claude Code / pi / Codex など）を埋め込みターミナルでそのまま動かし、
+フックから届く「状態イベント」でキャラクターの表情・動きを制御する。
+
+配布方針: フェーズ1は GitHub から clone / npx で動くローカル Web アプリ（1プロセス）。フェーズ2で同じ Web 画面を Tauri で包み、
+透過・最前面のキャラクター窓と GitHub Releases 配布にする。Web 部分はフェーズ2でも共通に使う。
 
 ## データフロー
 
 ```
-[任意のハーネス] --HTTP POST /event--> [relay (Node)] --WebSocket--> [web (ブラウザ)]
-                                                                      |
-                     AgentEvent ─▶ Decider ─▶ Selector ─▶ MotionGenerator ─▶ Renderer
-                                  (Jev枠)    (候補→1つ)   (手続き的・毎フレーム)  (Live2D / Placeholder)
+                 ┌──────────── server (Node, 127.0.0.1 の1プロセス) ────────────┐
+[フック/拡張] ─POST /event─▶ AgentEvent ─▶ Decider ─▶ Selector ──WS /ws (decision)──▶ [web]
+                 │                         (Jev / Mock)  (候補→1つ)                      │  MotionGenerator ─▶ Renderer
+                 │                                                                        │
+[CLI エージェント] ◀─PTY─ pty ◀──────────────WS /pty (入出力)────────────────────── [web] 埋め込みターミナル(xterm.js)
+                 └────────────────────────────────────────────────────────────────┘
 ```
+
+- 判断（Decider/Selector）は **server 側** で行う。Jev の API キーをブラウザに渡さないため。web は決定結果を受けて動かすだけ。
+- server は本番では build 済みの web を自分で配信する（開発時は Vite）。
 
 各段は **インタフェースだけで繋ぐ**。差し替え対象は主に Decider（Jev → 生体模倣アルゴリズム等）と Renderer。
 
@@ -20,11 +29,13 @@
 |---|---|---|
 | `src/core/events.ts` | `AgentEvent` 型と実行時バリデーション | なし |
 | `src/core/decider.ts` | `Decider` インタフェース、`Candidate` 型 | events |
-| `src/core/mock-decider.ts` | ルール表で候補とスコアを返すモック | decider |
+| `src/core/mock-decider.ts` | ルール表で候補とスコアを返すモック（Jev 不在時のフォールバック） | decider |
 | `src/core/selector.ts` | 候補リストから1つ選ぶ（最高スコア、同点・ゆらぎは seed 付き乱数） | decider |
 | `src/core/motion.ts` | 目標（表情・姿勢）＋アイドル層（呼吸・瞬き・揺れ）から毎フレームの抽象パラメータを生成 | decider の型のみ |
-| `src/server/relay.ts` | `POST /event` を受けて検証し WS で配信 | events |
-| `src/web/*` | WS受信 → core を回す → Renderer に流す | core |
+| `src/server/relay.ts` | `POST /event` を受けて検証 → Decider → Selector → WS で決定を配信 | core |
+| `src/server/jev-decider.ts` | Jev（TypeSafe System One API）を呼ぶ `Decider` 実装。キーが無ければ使わない | core |
+| `src/server/pty.ts` | 埋め込みターミナル用の PTY と WS /pty の中継 | なし |
+| `src/web/*` | WS で決定を受信 → MotionGenerator → Renderer、埋め込みターミナル | core |
 | `src/web/renderers/*` | `Renderer` 実装。抽象パラメータ → モデル固有パラメータの対応表で適用 | core の型のみ |
 
 `src/core` は DOM・Node API に依存しない純粋 TypeScript とし、単体テストする。
@@ -73,6 +84,20 @@ interface Renderer {
 `adapters/<harness>/` に、各ハーネスのフック／拡張から `POST /event` するだけの薄いアダプタを置く。
 アダプタはエージェントの動作を絶対に妨げない（短いタイムアウト、失敗しても黙って終了、標準出力に何も出さない）。
 
+## Jev 連携
+
+- `POST https://api.typesafe.ai/v1/systemone`、`Authorization: Bearer $TYPESAFE_API_KEY`、`model: "jev-latest"`。
+- 1イベント1リクエスト。`state` に {event, recent, previous}、`questions` に expression / posture / gesture（"none" を含む）の choice を入れる。
+- choice の `confidence` が閾値未満なら previous を維持する（confidence-gated）。直前と同じ state の繰り返しは API を呼ばずに previous を返す。
+- `TYPESAFE_API_KEY` が無い、または API が失敗した場合は MockDecider にフォールバックする。
+- プロンプト本文やツール入出力は送らない（アダプタが送らない）。発話内容を使う拡張は将来の opt-in。
+
+## 埋め込みターミナルとセキュリティ
+
+- server は 127.0.0.1 のみで待ち受ける。起動時にランダムなトークンを生成し、`http://127.0.0.1:<port>/?token=...` を表示する。
+- WS /pty と WS /ws はトークン必須かつ Origin が自分自身の場合のみ許可する（他サイトのページからのシェル乗っ取りを防ぐ）。`POST /event` は従来通りローカルからの受付でよい。
+- PTY の子プロセスには `AGENT_CHARACTER_URL` を環境変数で渡し、中で起動したエージェントのフックが自動で server に届くようにする。
+
 ## 動きの生成
 
 - 目標値への遷移はばね（臨界減衰）で滑らかに補間する。
@@ -89,6 +114,5 @@ interface Renderer {
 ## PoC でやらないこと
 
 - ハーネス本体、エージェントのログ解析、LLM 呼び出し
-- 本物の Jev 連携（モックのみ。API 確定後に `Decider` 実装を1つ足す）
-- デスクトップ常駐（透過ウィンドウ、Electron/Tauri）
-- 音声・リップシンク、複数キャラ、設定 UI、認証、永続化
+- デスクトップ常駐（透過ウィンドウ、Tauri）— フェーズ2
+- 音声・リップシンク、複数キャラ、設定 UI、ユーザー認証、永続化
