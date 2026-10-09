@@ -68,6 +68,10 @@ const server = createServer(async (request, response) => {
     return;
   }
 
+  if (process.env.AGENT_CHARACTER_DEBUG === "1") {
+    const { state, source, tool, ts } = result.event;
+    console.log(JSON.stringify({ state, source, tool, ts }));
+  }
   response.writeHead(204).end();
   const sequence = ++latestEvent;
   const now = performance.now();

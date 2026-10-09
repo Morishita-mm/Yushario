@@ -14,13 +14,14 @@ function toEvent(hook) {
     UserPromptSubmit: "thinking",
     PreToolUse: "working",
     PostToolUse: "working",
+    PostToolUseFailure: "error",
     Notification: "waiting_input",
     Stop: "success",
   };
   const state = Object.hasOwn(states, hook.hook_event_name) ? states[hook.hook_event_name] : undefined;
   if (!state) return;
   const event = { state, source: "claude-code", ts: Date.now() };
-  if (hook.hook_event_name === "PreToolUse" || hook.hook_event_name === "PostToolUse") {
+  if (["PreToolUse", "PostToolUse", "PostToolUseFailure"].includes(hook.hook_event_name)) {
     if (typeof hook.tool_name === "string") event.tool = hook.tool_name.slice(0, 200);
     if (hook.hook_event_name === "PostToolUse" && toolFailed(hook.tool_response)) {
       event.state = "error";

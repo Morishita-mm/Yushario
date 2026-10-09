@@ -7,7 +7,9 @@ import { WebSocket, WebSocketServer } from "ws";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
 const presets = ["shell", "claude", "pi", "codex"] as const;
-const serverOnlyEnvironment = ["TYPESAFE_API_KEY", "AGENT_CHARACTER_TOKEN"];
+// Claude Code 2.1.295 uses these two markers to detect an inherited child session.
+// Keep user configuration (e.g. CLAUDE_CODE_USE_BEDROCK) intact.
+const serverOnlyEnvironment = ["TYPESAFE_API_KEY", "AGENT_CHARACTER_TOKEN", "CLAUDE_CODE_CHILD_SESSION", "CLAUDECODE"];
 
 function executable(command: string): string | undefined {
   const paths = command.includes("/") ? [command]
@@ -31,7 +33,7 @@ export function createPtyServer(port: number): { sockets: WebSocketServer; dispo
   const settings = join(temporary, "claude-settings.json");
   const command = `${quote(process.execPath)} ${quote(join(root, "adapters/claude-code/hook.mjs"))}`;
   const hooks = Object.fromEntries([
-    "SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "Notification", "Stop",
+    "SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "PostToolUseFailure", "Notification", "Stop",
   ].map((event) => [event, [{ matcher: "*", hooks: [{ type: "command", command, timeout: 1 }] }]]));
   writeFileSync(settings, JSON.stringify({ hooks }), { mode: 0o600 });
   const sockets = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 });
