@@ -7,6 +7,7 @@ import { MockDecider } from "../core/mock-decider";
 import { selectCandidate } from "../core/selector";
 import { JevDecider } from "./jev-decider";
 import { serveStatic } from "./static";
+import { createPtyServer } from "./pty";
 
 const port = Number(process.env.PORT ?? 8790);
 if (!Number.isInteger(port) || port < 1 || port > 65535) {
@@ -97,6 +98,7 @@ const server = createServer(async (request, response) => {
 });
 
 const sockets = new WebSocketServer({ noServer: true });
+const pty = createPtyServer(port);
 server.on("upgrade", (request, socket, head) => {
   let url: URL;
   try {
@@ -107,12 +109,13 @@ server.on("upgrade", (request, socket, head) => {
   }
   const origin = request.headers.origin;
   const ownOrigin = origin === `http://127.0.0.1:${port}` || origin === `http://localhost:${port}`;
-  if (url.pathname !== "/ws" || url.searchParams.get("token") !== token
+  if (!["/ws", "/pty"].includes(url.pathname) || url.searchParams.get("token") !== token
     || !origin || !(ownOrigin || (development && localOrigin(origin)))) {
     socket.end("HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n");
     return;
   }
-  sockets.handleUpgrade(request, socket, head, (client) => sockets.emit("connection", client, request));
+  const target = url.pathname === "/pty" ? pty.sockets : sockets;
+  target.handleUpgrade(request, socket, head, (client) => target.emit("connection", client, request));
 });
 sockets.on("error", (error) => {
   console.error("WebSocket server error:", error.message);
@@ -125,6 +128,16 @@ server.on("error", (error) => {
   console.error("Relay error:", error.message);
   process.exitCode = 1;
 });
+function shutdown(): void {
+  pty.dispose();
+  for (const client of sockets.clients) client.terminate();
+  sockets.close();
+  server.close(() => process.exit());
+}
+process.once("SIGINT", shutdown);
+process.once("SIGTERM", shutdown);
+process.once("exit", () => pty.dispose());
+
 server.listen(port, "127.0.0.1", () => {
   console.log(`Decider: ${decider.constructor.name}`);
   console.log(`Open http://127.0.0.1:${port}/?token=${token}`);

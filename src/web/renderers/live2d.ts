@@ -51,8 +51,9 @@ export class Live2DRenderer implements Renderer {
       }
       await app.init({
         canvas: this.canvas,
-        width: this.canvas.width,
-        height: this.canvas.height,
+        // Use backing pixels throughout: the Live2D plugin assumes screen and GL viewport agree.
+        width: Math.max(1, Math.round(this.canvas.clientWidth * (window.devicePixelRatio || 1))),
+        height: Math.max(1, Math.round(this.canvas.clientHeight * (window.devicePixelRatio || 1))),
         preference: "webgl",
         backgroundAlpha: 0,
         autoStart: false,
@@ -61,21 +62,31 @@ export class Live2DRenderer implements Renderer {
       // This plugin caches raw GL textures and only touches Pixi's legacy textureGC.
       // Keep this model's textures resident so Pixi 8.22 GC cannot delete them after 60s.
       for (const texture of model.textures) texture.source.autoGarbageCollect = false;
-      const scale = Math.min(this.canvas.width * 0.9 / model.width, this.canvas.height * 0.9 / model.height);
-      model.scale.set(scale);
       model.anchor.set(0.5, 0.5);
-      model.position.set(this.canvas.width / 2, this.canvas.height / 2);
       app.stage.addChild(model);
       this.model = model;
       this.internal = model.internalModel;
       this.mapping = mapping;
       this.forcePriority = MotionPriority.FORCE;
       this.app = app;
+      this.resize();
     } catch (error) {
       model?.destroy();
       if (initialized) app.destroy(false, { children: true });
       throw error;
     }
+  }
+
+  private resize(): void {
+    if (!this.app || !this.model || !this.internal) return;
+    const ratio = window.devicePixelRatio || 1;
+    const width = Math.max(1, Math.round(this.canvas.clientWidth * ratio));
+    const height = Math.max(1, Math.round(this.canvas.clientHeight * ratio));
+    if (this.app.screen.width !== width || this.app.screen.height !== height) this.app.renderer.resize(width, height);
+    const modelWidth = this.internal.width;
+    const modelHeight = this.internal.height;
+    this.model.scale.set(Math.min(width * 0.9 / modelWidth, height * 0.9 / modelHeight));
+    this.model.position.set(width / 2, height / 2);
   }
 
   setExpression(expression: Expression): void {
@@ -110,6 +121,7 @@ export class Live2DRenderer implements Renderer {
 
   apply(params: MotionParams): void {
     if (!this.app || !this.internal || !this.mapping) return;
+    this.resize();
     const now = performance.now();
     // Avoid a physics backlog after a hidden tab resumes; Cubism expects seconds.
     const dt = this.lastFrameMs === undefined ? 0 : Math.min((now - this.lastFrameMs) / 1000, 0.1);

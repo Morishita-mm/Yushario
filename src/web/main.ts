@@ -5,6 +5,7 @@ import { PlaceholderRenderer } from "./renderers/placeholder";
 import { Live2DRenderer } from "./renderers/live2d";
 import type { Renderer } from "./renderers/renderer";
 import "./style.css";
+import { initTerminal } from "./terminal";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#character")!;
 const stateLabel = document.querySelector<HTMLElement>("#state")!;
@@ -83,5 +84,6 @@ function frame(now: number): void {
 }
 
 stateLabel.textContent = "idle";
+initTerminal();
 connect();
 requestAnimationFrame(frame);

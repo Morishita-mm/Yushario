@@ -6,14 +6,33 @@
     <title>Agent Character</title>
   </head>
   <body>
+    <header>
+      <h1>Agent Character</h1>
+      <label for="preset">プリセット</label>
+      <select id="preset">
+        <option value="shell">shell</option>
+        <option value="claude">Claude Code</option>
+        <option value="pi">pi</option>
+        <option value="codex">Codex</option>
+      </select>
+      <button id="start" type="button">起動</button>
+      <span id="terminal-status" aria-live="polite">未起動</span>
+    </header>
     <main>
-      <canvas id="character" width="640" height="640" role="img" aria-label="エージェントの表情と姿勢"></canvas>
+      <section id="character-panel" aria-label="キャラクター">
+        <div id="character-view">
+          <canvas id="character" width="640" height="640" role="img" aria-label="エージェントの表情と姿勢"></canvas>
+        </div>
+        <aside id="status" aria-live="polite">
+          <span id="state">idle</span>
+          <span id="connection">接続中…</span>
+          <span id="renderer-status">Live2D 読込中…</span>
+        </aside>
+      </section>
+      <section id="terminal-panel" aria-label="エージェントのターミナル">
+        <div id="terminal"></div>
+      </section>
     </main>
-    <aside id="status" aria-live="polite">
-      <span id="state">idle</span>
-      <span id="connection">接続中…</span>
-      <span id="renderer-status">Live2D 読込中…</span>
-    </aside>
     <script src="/live2dcubismcore.min.js"></script>
     <script type="module" src="/src/web/main.ts"></script>
   </body>

@@ -5,18 +5,37 @@ server側のJev（APIキー未設定・失敗時は `MockDecider`）が判断し
 Cubism Core・モデルは利用者が配置します。未配置・読込失敗時は簡易顔へフォールバックし、画面隅に理由を表示します。
 Core・モデルをこのリポジトリには含めません。
 
-## 起動
+## 使い方
 
-Node.js 22.12以上とnpm、イベント送信用にcurlが必要です。
+Node.js 22.12以上とnpmが必要です。Claude Code / pi / Codex は使いたいCLIだけ別途インストールし、PATHに追加してください。
 
 ```sh
 npm install
-npm run build && npm start
+npm run build
+npm start
 ```
 
-serverが表示する `http://127.0.0.1:8790/?token=...` のURLを開いてください。
+1. serverが表示する `http://127.0.0.1:8790/?token=...` のURLをブラウザで開きます。
+2. 上部のプリセットを選び、「起動」を押します。左がキャラクター、右がエージェントのターミナルです（狭い画面では縦積み）。
+3. ターミナルで普段通りCLIを使います。「再起動」は現在のプロセスを終了して選択中のプリセットを起動します。ページを閉じると子プロセスも終了します。
+
+| プリセット | 起動内容 |
+| --- | --- |
+| shell | `$SHELL`（未設定なら `/bin/sh`） |
+| claude | `claude --settings <一時JSON>`。SessionStart / UserPromptSubmit / PreToolUse / PostToolUse / Notification / Stop に、絶対パスのアダプタと1秒のtimeoutを設定。既存の設定ファイルは変更しません |
+| pi | `pi -e <アダプタの絶対パス>` |
+| codex | `codex`。フックは信頼登録が必要なので自動設定しません（下記の手動手順を参照） |
+
+PATHにCLIが無ければターミナルに起動エラーを表示します。ブラウザからはプリセット名だけを受け付け、任意の起動コマンドは受け付けません。
+作業ディレクトリは `AGENT_CHARACTER_CWD` → npmの `INIT_CWD` → serverの `process.cwd()` の順です。
+子プロセスには `AGENT_CHARACTER_URL=http://127.0.0.1:<port>/event` を自動設定します。
+
 1プロセスで `dist/` のweb、`models/` のモデル一式、`public/` のCore等を配信します。
-`PORT=8791 npm start` でポートを変更できます。`Ctrl+C` で停止します。
+`PORT=8791 AGENT_CHARACTER_CWD=/path/to/project npm start` でポートと作業ディレクトリを変更できます。`Ctrl+C` でPTY・serverを停止し、一時JSONを削除します。
+
+PTYはMicrosoftの `node-pty` **1.2.0-beta.15** を使用します。Node 26.4/macOS arm64で入出力・リサイズを確認済みです。
+安定版1.1.0はmacOSの配布済み `spawn-helper` に実行権限がなく `posix_spawnp failed` となったため、修正済みのこの版を固定しています。
+新しいnpmでinstall scriptの承認を要求された場合は `npm approve-scripts node-pty` を実行してください。
 
 開発時は `npm run dev` でViteとrelayを同時起動し、スクリプトが表示するトークン付きVite URLを開きます。
 `PORT=8791 VITE_PORT=5175 npm run dev` のように両ポートを変更できます。
@@ -24,7 +43,7 @@ serverが表示する `http://127.0.0.1:8790/?token=...` のURLを開いてく�
 別々に起動する場合は、`PORT=8791 AGENT_CHARACTER_TOKEN=local-dev npm run dev:relay` と
 `PORT=8791 npm run dev:web -- --port 5175` を実行し、`http://localhost:5175/?token=local-dev` を開きます。
 **両方のターミナルに同じ `PORT`** を渡してください。
-webは開発時のみViteの `/ws` プロキシ経由でrelayへ接続します。
+webは開発時のみViteの `/ws`・`/pty` プロキシ経由でrelayへ接続します。
 切断時は3秒後に再接続しますが、接続前・切断中のイベントは保持されません。
 画面左下に現在のstateと接続状態を表示します。
 
@@ -47,7 +66,9 @@ Jevには `{event, recent, previous}`（状態・ツール名等のイベント�
 ### ローカルトークン
 
 起動ごとに暗号学的乱数でトークンを作り、表示URLに含めます。URLは外部へ共有しないでください。
-WS `/ws` は正しい `?token=` とserver自身のOriginが必要です（開発時のみlocalhost/127.0.0.1の任意ポートを許可）。
+**serverは127.0.0.1限定で待ち受け、WS `/ws` と `/pty` はトークン必須です。URLを他人に共有しないでください。** ターミナルはローカル利用者と同じ権限で動きます。リバースプロキシ等で外部へ公開しないでください。
+ターミナル内のプロセスには Jev の API キー（`TYPESAFE_API_KEY`）と server トークン（`AGENT_CHARACTER_TOKEN`）を渡しません。
+両WSは正しい `?token=` とserver自身のOriginが必要です（開発時のみlocalhost/127.0.0.1の任意ポートを許可）。
 開発時は `AGENT_CHARACTER_TOKEN=local-dev npm run dev` で固定できます。本番起動では固定値を使いません。
 フック向け `POST /event` はトークン不要ですが、Origin付きのブラウザ発リクエストはローカル以外を拒否します。
 
@@ -111,7 +132,7 @@ relayを起動してから利用してください。
 
 ### Claude Code
 
-上の単発の `emit.sh` 例の代わりに、`~/.claude/settings.json`（またはプロジェクトの `.claude/settings.json`）の既存設定に以下をマージしてください。
+埋め込みターミナルのclaudeプリセットは自動で設定するため、以下の作業は不要です。**外部ターミナルで使う場合のみ**、上の単発の `emit.sh` 例の代わりに、`~/.claude/settings.json`（またはプロジェクトの `.claude/settings.json`）の既存設定に以下をマージしてください。
 **全ての `/absolute/path/agent-character` を実際の絶対パスに置き換えます**。
 `node` がフックのPATHで見つからない場合は、こちらもNodeの絶対パスに置き換えます。
 `timeout` は秒単位で、スクリプトの送信タイムアウトとは別の安全策です。
@@ -136,6 +157,8 @@ SubagentStopと未知のイベントは何もしません。スクリプトは�
 
 ### pi
 
+埋め込みターミナルのpiプリセットは拡張を自動で読み込みます。以下は外部ターミナルで使う場合の手順です。
+
 まず1回だけ読み込む場合:
 
 ```sh
@@ -157,6 +180,25 @@ piがTypeScript拡張を直接読み込み、拡張APIの型はpi自身が提供
 `agent_start`→`thinking`、`tool_call`→`working`、`tool_result`の `isError`→`error`（正常結果は`working`）、`agent_end`→`success` を送ります。
 ブロッキングUIの `ui_prompt_start`→`waiting_input`、`ui_prompt_end`→`thinking` です。
 イベントとフィールドは同梱の `dist/core/extensions/types.d.ts` で確認しています。送信をawaitせず、piの処理を待たせません。
+
+### Codex（手動の信頼登録）
+
+codexプリセットはフック設定や信頼登録を自動では変更しません。[公式Hooksドキュメント](https://developers.openai.com/codex/hooks) に対応したCodexで、利用者が次を行います。
+
+1. `~/.codex/hooks.json`（または信頼済みプロジェクトの `.codex/hooks.json`）に以下をマージします。既存のフックは残してください。
+2. codexプリセットを起動し、`/hooks` でコマンド内容を確認してこのフックを信頼登録します。定義を変更したら再承認が必要です。
+3. 次のプロンプトからthinking、ターン終了時にsuccessが送られます。信頼チェックを迂回するオプションは使いません。
+
+```json
+{
+  "hooks": {
+    "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "curl --silent --max-time 0.5 -X POST \"$AGENT_CHARACTER_URL\" -H 'Content-Type: application/json' -d '{\"state\":\"thinking\",\"source\":\"codex\"}' >/dev/null 2>&1 || true", "timeout": 1 }] }],
+    "Stop": [{ "hooks": [{ "type": "command", "command": "curl --silent --max-time 0.5 -X POST \"$AGENT_CHARACTER_URL\" -H 'Content-Type: application/json' -d '{\"state\":\"success\",\"source\":\"codex\"}' >/dev/null 2>&1 || true", "timeout": 1 }] }]
+  }
+}
+```
+
+外部ターミナルからCodexを起動する場合は、先に `AGENT_CHARACTER_URL` をexportしてください。curlが必要です。プロンプトやツール内容は送信しません。
 
 ### サンプルで確認
 
@@ -278,7 +320,7 @@ npm run build
 モデルを使うビルドでは、ビルド前にモデルを配置してください。`models/` はserverが直接配信するため、`dist/` へのコピーは不要です。
 既定モデルのファイル名一覧はビルド時に決まります。新しいモデルを追加したら再ビルドするか `?model=` で明示します。
 Coreは `public/` からViteがコピーします。Core未配置のビルドで出る非moduleスクリプトの警告は、Coreをバンドルせず利用者配置のファイルとして読み込むためのものです。
-静的ファイルだけを別のサーバーへ配置する場合、`/ws` のWebSocketプロキシも必要です。
+静的ファイルだけを別配信する構成は本番のOrigin検査に合いません。通常は `npm start` の同一Origin配信を使ってください。
 
 これはローカル用PoCです。serverは `127.0.0.1` のみで待ち受けます。
 トークンはローカルWS接続の保護用で、ユーザー認証ではありません。履歴はメモリ上の直近10件だけで、永続化・再送はしません。

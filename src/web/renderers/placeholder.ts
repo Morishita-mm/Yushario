@@ -12,7 +12,13 @@ export class PlaceholderRenderer implements Renderer {
 
   apply(params: MotionParams): void {
     const ctx = this.context;
-    const { width, height } = this.canvas;
+    const ratio = window.devicePixelRatio || 1;
+    const width = Math.max(1, Math.round(this.canvas.clientWidth * ratio));
+    const height = Math.max(1, Math.round(this.canvas.clientHeight * ratio));
+    if (this.canvas.width !== width || this.canvas.height !== height) {
+      this.canvas.width = width;
+      this.canvas.height = height;
+    }
     ctx.clearRect(0, 0, width, height);
     ctx.save();
     ctx.translate(width / 2, height / 2);
