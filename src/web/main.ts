@@ -4,13 +4,29 @@ import { MockDecider } from "../core/mock-decider";
 import { MotionGenerator } from "../core/motion";
 import { selectCandidate } from "../core/selector";
 import { PlaceholderRenderer } from "./renderers/placeholder";
+import { Live2DRenderer } from "./renderers/live2d";
 import type { Renderer } from "./renderers/renderer";
 import "./style.css";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#character")!;
 const stateLabel = document.querySelector<HTMLElement>("#state")!;
 const connectionLabel = document.querySelector<HTMLElement>("#connection")!;
-const renderer: Renderer = new PlaceholderRenderer(canvas);
+const rendererLabel = document.querySelector<HTMLElement>("#renderer-status")!;
+let renderer: Renderer | undefined;
+void (async () => {
+  try {
+    const live2d = new Live2DRenderer(canvas);
+    await live2d.init(new URLSearchParams(location.search).get("model") ?? undefined);
+    renderer = live2d;
+    rendererLabel.textContent = "Live2D";
+  } catch (error) {
+    // A canvas that has acquired WebGL cannot acquire 2D; replace it before falling back.
+    const fallbackCanvas = canvas.cloneNode(false) as HTMLCanvasElement;
+    canvas.replaceWith(fallbackCanvas);
+    renderer = new PlaceholderRenderer(fallbackCanvas);
+    rendererLabel.textContent = `Placeholder: ${error instanceof Error ? error.message : String(error)}`;
+  }
+})();
 const decider = new MockDecider();
 const motion = new MotionGenerator(Math.random);
 let previous: Candidate | undefined;
@@ -56,7 +72,7 @@ function connect(): void {
 
 let lastFrameMs: number | undefined;
 function frame(now: number): void {
-  renderer.apply(motion.update(lastFrameMs === undefined ? 0 : now - lastFrameMs));
+  renderer?.apply(motion.update(lastFrameMs === undefined ? 0 : now - lastFrameMs));
   lastFrameMs = now;
   requestAnimationFrame(frame);
 }
