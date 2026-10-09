@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto";
+import { randomUUID, randomBytes } from "node:crypto";
 import { createServer } from "node:http";
 import { WebSocket, WebSocketServer } from "ws";
 import type { Candidate } from "../core/decider";
@@ -8,6 +8,15 @@ import { selectCandidate } from "../core/selector";
 import { JevDecider } from "./jev-decider";
 import { serveStatic } from "./static";
 import { createPtyServer } from "./pty";
+import { PermissionWaiter, permissionOutput, permissionSummary } from "./permissions";
+
+const permissions = new PermissionWaiter();
+function broadcast(message: object): void {
+  const json = JSON.stringify(message);
+  for (const client of sockets.clients) {
+    if (client.readyState === WebSocket.OPEN) client.send(json);
+  }
+}
 
 const port = Number(process.env.PORT ?? 8790);
 if (!Number.isInteger(port) || port < 1 || port > 65535) {
@@ -28,7 +37,7 @@ function localOrigin(origin: string): boolean {
 }
 
 const server = createServer(async (request, response) => {
-  if (request.url !== "/event") {
+  if (request.url !== "/event" && request.url !== "/hooks/permission") {
     await serveStatic(request, response);
     return;
   }
@@ -56,10 +65,29 @@ const server = createServer(async (request, response) => {
   try {
     request.setEncoding("utf8");
     let body = "";
-    for await (const chunk of request) body += chunk;
+    for await (const chunk of request) {
+      body += chunk;
+      if (body.length > 1_048_576) { response.writeHead(413).end(); return; }
+    }
     input = JSON.parse(body);
   } catch {
     response.writeHead(400, { "Content-Type": "application/json" }).end(JSON.stringify({ error: "Invalid JSON body" }));
+    return;
+  }
+  if (request.url === "/hooks/permission") {
+    const summary = permissionSummary(input);
+    if (!summary) { response.writeHead(400).end(); return; }
+    const permission = { type: "permission" as const, id: randomUUID(), ...summary };
+    const connected = [...sockets.clients].some((client) => client.readyState === WebSocket.OPEN);
+    const waiting = permissions.wait(permission, connected);
+    if (connected) broadcast(permission);
+    const disconnected = (): void => { permissions.decide(permission.id, "terminal"); };
+    response.once("close", disconnected);
+    const decision = await waiting;
+    response.off("close", disconnected);
+    broadcast({ type: "permission-resolved", id: permission.id });
+    if (!response.destroyed) response.writeHead(200, { "Content-Type": "application/json" })
+      .end(JSON.stringify(permissionOutput(decision)));
     return;
   }
   const result = parseAgentEvent(input);
@@ -68,6 +96,7 @@ const server = createServer(async (request, response) => {
     return;
   }
 
+  permissions.observe(result.event);
   if (process.env.AGENT_CHARACTER_DEBUG === "1") {
     const { state, source, tool, ts } = result.event;
     console.log(JSON.stringify({ state, source, tool, ts }));
@@ -101,7 +130,7 @@ const server = createServer(async (request, response) => {
   });
 });
 
-const sockets = new WebSocketServer({ noServer: true });
+const sockets = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 });
 const pty = createPtyServer(port);
 server.on("upgrade", (request, socket, head) => {
   let url: URL;
@@ -127,12 +156,24 @@ sockets.on("error", (error) => {
 });
 sockets.on("connection", (client) => {
   client.on("error", (error) => console.error("WebSocket error:", error.message));
+  if (permissions.current) client.send(JSON.stringify(permissions.current));
+  client.on("message", (data, binary) => {
+    if (binary) return;
+    try {
+      const message = JSON.parse(String(data));
+      if (message?.type === "permission-decision") permissions.decide(message.id, message.decision);
+    } catch { /* Ignore malformed or stale decisions. */ }
+  });
+  client.once("close", () => {
+    if (![...sockets.clients].some((socket) => socket.readyState === WebSocket.OPEN)) permissions.cancel();
+  });
 });
 server.on("error", (error) => {
   console.error("Relay error:", error.message);
   process.exitCode = 1;
 });
 function shutdown(): void {
+  permissions.cancel();
   pty.dispose();
   for (const client of sockets.clients) client.terminate();
   sockets.close();

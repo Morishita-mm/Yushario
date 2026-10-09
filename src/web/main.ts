@@ -6,6 +6,22 @@ import { Live2DRenderer } from "./renderers/live2d";
 import type { Renderer } from "./renderers/renderer";
 import "./style.css";
 import { initTerminal } from "./terminal";
+import { Bubble } from "./bubble";
+import { trackAbsence } from "./absence";
+
+const bubble = new Bubble(document.querySelector<HTMLElement>("#character-view")!);
+const countAbsentEvent = trackAbsence((text) => bubble.show(text));
+let permissionId: string | undefined;
+let latestDecision: { event: AgentEvent; candidate: Candidate } | undefined;
+
+function finishPermission(): void {
+  bubble.close(permissionId);
+  permissionId = undefined;
+  if (latestDecision && latestDecision.event.state !== "waiting_input") {
+    acceptDecision(latestDecision.event, latestDecision.candidate);
+  }
+  else acceptDecision({ state: "idle" }, { expression: "neutral", posture: "upright", score: 1 });
+}
 
 const canvas = document.querySelector<HTMLCanvasElement>("#character")!;
 const stateLabel = document.querySelector<HTMLElement>("#state")!;
@@ -59,18 +75,44 @@ function connect(): void {
   socket.onmessage = (message) => {
     try {
       const decision = JSON.parse(message.data);
+      if (decision.type === "permission" && typeof decision.id === "string"
+        && typeof decision.tool === "string" && typeof decision.summary === "string") {
+        permissionId = decision.id;
+        const id = permissionId;
+        const respond = (answer: string): void => {
+          if (socket.readyState !== WebSocket.OPEN) return;
+          socket.send(JSON.stringify({ type: "permission-decision", id, decision: answer }));
+          if (answer === "terminal") document.querySelector<HTMLTextAreaElement>(".xterm-helper-textarea")?.focus();
+        };
+        bubble.show(`実行してもいいですか？\n${decision.summary}`, [
+          { label: "許可", action: () => respond("allow") },
+          { label: "拒否", action: () => respond("deny") },
+          { label: "ターミナルで答える", action: () => respond("terminal") },
+        ], id);
+        acceptDecision({ state: "waiting_input" }, {
+          expression: "surprised", posture: "upright", gesture: "wave", score: 1,
+        });
+        return;
+      }
+      if (decision.type === "permission-resolved") {
+        if (decision.id === permissionId) finishPermission();
+        return;
+      }
       const result = parseAgentEvent(decision.event);
       if (decision.type !== "decision" || !result.ok || !validCandidate(decision.candidate)) {
         console.warn("Invalid relay decision");
         return;
       }
-      acceptDecision(result.event, decision.candidate);
+      countAbsentEvent(result.event);
+      latestDecision = { event: result.event, candidate: decision.candidate };
+      if (!permissionId) acceptDecision(result.event, decision.candidate);
     } catch (error) {
       console.warn("Invalid relay message:", error);
     }
   };
   socket.onerror = () => socket.close();
   socket.onclose = () => {
+    finishPermission();
     connectionLabel.textContent = "切断・再接続待ち";
     setTimeout(connect, 3000);
   };

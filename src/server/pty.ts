@@ -35,7 +35,11 @@ export function createPtyServer(port: number): { sockets: WebSocketServer; dispo
   const hooks = Object.fromEntries([
     "SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "PostToolUseFailure", "Notification", "Stop",
   ].map((event) => [event, [{ matcher: "*", hooks: [{ type: "command", command, timeout: 1 }] }]]));
-  writeFileSync(settings, JSON.stringify({ hooks }), { mode: 0o600 });
+  writeFileSync(settings, JSON.stringify({ hooks: { ...hooks,
+    PermissionRequest: [{ matcher: "*", hooks: [{
+      type: "http", url: `http://127.0.0.1:${port}/hooks/permission`, timeout: 125,
+    }] }],
+  } }), { mode: 0o600 });
   const sockets = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 });
   const stopping = new Set<() => void>();
   const kills = new Set<ReturnType<typeof setTimeout>>();

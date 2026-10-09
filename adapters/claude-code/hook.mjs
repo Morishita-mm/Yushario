@@ -36,6 +36,7 @@ function toEvent(hook) {
     success: "Agent stopped",
     error: "Tool failed",
   }[event.state];
+  if (hook.hook_event_name === "PostToolUse" && event.state === "working") event.detail = "Tool completed";
   return event;
 }
 
