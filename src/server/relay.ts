@@ -98,8 +98,8 @@ const server = createServer(async (request, response) => {
 
   permissions.observe(result.event);
   if (process.env.AGENT_CHARACTER_DEBUG === "1") {
-    const { state, source, tool, ts } = result.event;
-    console.log(JSON.stringify({ state, source, tool, ts }));
+    const { state, source, tool, ts, context } = result.event;
+    console.log(JSON.stringify({ state, source, tool, ts, context }));
   }
   response.writeHead(204).end();
   const sequence = ++latestEvent;

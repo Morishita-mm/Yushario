@@ -13,6 +13,29 @@ const bubble = new Bubble(document.querySelector<HTMLElement>("#character-view")
 const countAbsentEvent = trackAbsence((text) => bubble.show(text));
 let permissionId: string | undefined;
 let latestDecision: { event: AgentEvent; candidate: Candidate } | undefined;
+const FATIGUE_START = 0.5;
+const FATIGUE_FULL = 0.9;
+const COMPACT_THRESHOLD = 0.8;
+let compactSuggested = false;
+let compactPending = false;
+
+function suggestCompact(): void {
+  if (!compactPending || permissionId) return;
+  compactPending = false;
+  bubble.show("そろそろ頭がいっぱい…会話を整理（/compact）してもいい？");
+}
+
+function updateVitals(event: AgentEvent): void {
+  if (event.context === undefined) return;
+  motion.setFatigue(Math.max(0, Math.min(1,
+    (event.context - FATIGUE_START) / (FATIGUE_FULL - FATIGUE_START))));
+  contextLabel.textContent = `使用率 ${Math.round(event.context * 100)}%`;
+  if (!compactSuggested && event.context > COMPACT_THRESHOLD) {
+    compactSuggested = true;
+    compactPending = true;
+  }
+  suggestCompact();
+}
 
 function finishPermission(): void {
   bubble.close(permissionId);
@@ -21,10 +44,14 @@ function finishPermission(): void {
     acceptDecision(latestDecision.event, latestDecision.candidate);
   }
   else acceptDecision({ state: "idle" }, { expression: "neutral", posture: "upright", score: 1 });
+  suggestCompact();
 }
 
 const canvas = document.querySelector<HTMLCanvasElement>("#character")!;
 const stateLabel = document.querySelector<HTMLElement>("#state")!;
+const contextLabel = document.createElement("small");
+contextLabel.id = "context-usage";
+stateLabel.after(contextLabel);
 const connectionLabel = document.querySelector<HTMLElement>("#connection")!;
 const rendererLabel = document.querySelector<HTMLElement>("#renderer-status")!;
 let renderer: Renderer | undefined;
@@ -103,6 +130,7 @@ function connect(): void {
         console.warn("Invalid relay decision");
         return;
       }
+      updateVitals(result.event);
       countAbsentEvent(result.event);
       latestDecision = { event: result.event, candidate: decision.candidate };
       if (!permissionId) acceptDecision(result.event, decision.candidate);

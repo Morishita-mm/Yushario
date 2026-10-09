@@ -89,6 +89,64 @@ describe("MotionGenerator", () => {
     expect(laterBlink.update(2590).eyeOpen).toBeCloseTo(0.9);
   });
 
+  it("keeps zero fatigue identical to legacy breathing and sway", () => {
+    const motion = new MotionGenerator(() => 0);
+    motion.setFatigue(0);
+    expect(motion.update(1000)).toEqual({
+      headX: 0.012 * Math.sin(0.7) + 0.006 * Math.sin(0.31),
+      headY: 0.012 * Math.sin(0.53) + Math.sin(Math.PI / 2) * 0.006,
+      bodyX: Math.sin(Math.PI / 2) * 0.02,
+      eyeOpen: 0.9, mouthSmile: 0.15, brow: 0,
+    });
+    const unset = new MotionGenerator(() => 0);
+    unset.update(1000);
+    for (let i = 0; i < 1000; i++) expect(motion.update(16)).toEqual(unset.update(16));
+  });
+
+  it("lowers average eyelids and head, reduces sway and deepens/slows breathing", () => {
+    const rested = new MotionGenerator(() => 0);
+    const tired = new MotionGenerator(() => 0);
+    tired.setFatigue(1);
+    rested.update(5000);
+    tired.update(5000);
+    const samples = Array.from({ length: 2000 }, () => ({ rest: rested.update(16), tired: tired.update(16) }));
+    const average = (kind: "rest" | "tired", key: keyof MotionParams): number =>
+      samples.reduce((sum, sample) => sum + sample[kind][key], 0) / samples.length;
+    expect(average("tired", "eyeOpen")).toBeLessThan(average("rest", "eyeOpen") - 0.25);
+    expect(average("tired", "headY")).toBeLessThan(average("rest", "headY") - 0.14);
+    const amplitude = (kind: "rest" | "tired", key: keyof MotionParams): number =>
+      Math.max(...samples.map((s) => s[kind][key])) - Math.min(...samples.map((s) => s[kind][key]));
+    expect(amplitude("tired", "headX")).toBeLessThan(amplitude("rest", "headX"));
+    expect(amplitude("tired", "bodyX")).toBeGreaterThan(amplitude("rest", "bodyX"));
+    const crossings = (kind: "rest" | "tired"): number => samples.slice(1).filter((s, i) =>
+      s[kind].bodyX > 0 && samples[i]![kind].bodyX <= 0).length;
+    expect(crossings("tired")).toBeLessThan(crossings("rest"));
+    for (const sample of samples) expectWithinRange(sample.tired);
+  });
+
+  it("keeps fatigue transitions and breathing independent of frame rate", () => {
+    const large = new MotionGenerator(() => 0.5);
+    const small = new MotionGenerator(() => 0.5);
+    large.setFatigue(1);
+    small.setFatigue(1);
+    const expected = large.update(2000);
+    let actual = small.update(20);
+    for (let i = 0; i < 99; i++) actual = small.update(20);
+    for (const key of Object.keys(expected) as (keyof MotionParams)[]) {
+      expect(actual[key]).toBeCloseTo(expected[key], 10);
+    }
+  });
+
+  it.each([[-10, 0], [10, 1], [-Infinity, 0], [Infinity, 1], [NaN, 0]])(
+    "clamps fatigue %s to %s", (input, clamped) => {
+      const first = new MotionGenerator(() => 0.5);
+      const second = new MotionGenerator(() => 0.5);
+      first.setFatigue(input!);
+      second.setFatigue(clamped!);
+      for (let i = 0; i < 500; i++) expect(first.update(16)).toEqual(second.update(16));
+    },
+  );
+
   it.each([-1, NaN, Infinity])("rejects invalid dtMs %s", (dtMs) => {
     expect(() => new MotionGenerator(() => 0).update(dtMs)).toThrow(RangeError);
   });

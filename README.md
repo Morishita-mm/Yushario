@@ -48,6 +48,8 @@ webは開発時のみViteの `/ws`・`/pty` プロキシ経由でrelayへ接続�
 切断時は3秒後に再接続しますが、接続前・切断中のイベントは保持されません。
 画面左下に現在のstateと接続状態を表示します。
 
+体調はコンテキスト使用率に連動します。50%までは元気、50〜90%で徐々にまぶたが重く、呼吸が遅く深く、頭が少し下がり、揺れが控えめになります。80%を初めて超えると `/compact` による会話整理を一度だけ提案します（許可要求を優先し、自動実行はしません）。体調用に送るのは `context`（0〜1 の使用率の数値）のみです。Claude Code 2.1.295は通常フックに使用率・ウィンドウサイズがないため、ローカルの `transcript_path` の末尾最大256KBから最後のassistantの入力＋キャッシュ読取＋キャッシュ作成トークンを読み取ります（SessionStartのresume/forkでは直接の `context_tokens` を使用）。ウィンドウは `AGENT_CHARACTER_CONTEXT_WINDOW`（既定200000、1M等のモデルでは実際のサイズを指定）で割り、piは拡張API `ctx.getContextUsage().percent` を使用します。本文・トークンの内訳・ファイルパスはアダプタの外へ送らず、取得失敗・不明時は `context` を省略して最後の体調を維持します。
+
 ### Jevと送信内容
 
 `TYPESAFE_API_KEY` があれば起動時に `JevDecider`、なければ `MockDecider` を選び、ログに表示します。
@@ -90,9 +92,9 @@ curl -i -X POST http://localhost:8790/event \
   -d '{"state":"thinking","detail":"コードを確認中"}'
 ```
 
-イベントは `{ state, detail?, ts? }` のJSONです。
+イベントは `{ state, detail?, ts?, source?, tool?, context? }` のJSONです。
 `state` は `idle` / `thinking` / `working` / `waiting_input` / `success` / `error`、
-`detail` は任意の文字列、`ts` は任意の有限な数値です。
+`detail` は任意の文字列、`ts` は任意の有限な数値、`context` は任意の0〜1の有限な数値です。
 正常時は204、不正なJSONやイベントは400と `{"error":"理由"}` を返します。
 serverが検証・判断・候補選択し、`{"type":"decision","event":...,"candidate":...}` を接続中の全WSクライアントへ配信します。
 webはcandidateに従って描画するだけです。
@@ -119,12 +121,12 @@ webはcandidateに従って描画するだけです。
 }
 ```
 
-フックは状態イベントを送るだけです。ハーネス本体やログ解析は行いません。
+フックは状態イベントを送るだけで、ハーネス本体は変更しません。体調用アダプタは使用量の数値だけをローカルで読み取ります。
 relayを起動してから利用してください。
 
 ## フック連携
 
-`adapters/` の状態アダプタは状態を送るだけで、ログ解析・LLM呼び出し・再送はしません。Claude Codeの許可要求だけは別のローカルHTTP経路で応答を待ちます。
+`adapters/` の状態アダプタは状態と取得可能な使用率のみを送り、会話本文の解析・LLM呼び出し・再送はしません。Claude Codeの許可要求だけは別のローカルHTTP経路で応答を待ちます。
 送信先は `AGENT_CHARACTER_URL`（既定 `http://127.0.0.1:8790/event`）です。
 変更する場合はClaude Code / piを起動するシェルで `export AGENT_CHARACTER_URL=http://127.0.0.1:8792/event` のように指定します。
 送信は500msでタイムアウトし、relay不在や送信失敗は無視します。
@@ -158,7 +160,7 @@ SessionStart→`idle`、UserPromptSubmit→`thinking`、PreToolUse / PostToolUse
 Claude Code 2.1.295の同梱フック説明では、PostToolUseは成功時、PostToolUseFailureは失敗時に発火します（存在しないファイルのReadでも実機確認済み）。
 PostToolUseは `tool_response` に明示的なエラーフラグ・エラー値・非ゼロの終了コードがある場合だけ `error` にします（自由文からは推測しません）。
 SubagentStopと未知のイベントは何もしません。スクリプトは失敗してもexit 0、stdout / stderrへの出力なしで終了します。
-`AGENT_CHARACTER_DEBUG=1 npm start` でserverが受信したイベントの `state` / `source` / `tool` / `ts` だけを1行JSONで表示します（本文やツール入出力は記録しません）。
+`AGENT_CHARACTER_DEBUG=1 npm start` でserverが受信したイベントの `state` / `source` / `tool` / `ts` / `context` だけを1行JSONで表示します（本文やツール入出力は記録しません）。
 許可要求はClaude Code **2.1.295** 同梱スキーマで確認した `http` 型を使用し、`POST /hooks/permission` の応答を待ちます。ポートを変える外部ターミナルでは上のHTTPフックURLも変更してください。
 serverはツール名と短い入力要約（Bashはコマンド先頭120文字、Edit/Writeはパス）だけをローカルWSに配信し、Jevや外部へ送りません。要約には機密情報が含まれうるため、画面共有時には注意してください。
 応答JSONは `{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"allow"}}}`、拒否は `behavior: "deny"` と固定の `message` です。ターミナルで答える・120秒の時間切れ・web未接続/全切断では `{}` を返してClaudeの通常プロンプトに戻します。autoモードや既存の許可ルールで自動許可されるツールは吹き出しが出ません。

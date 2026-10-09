@@ -36,6 +36,26 @@ describe("parseAgentEvent", () => {
     }
   });
 
+  it.each([0, 0.2, 0.7, 0.95, 1])("preserves context usage %s", (context) => {
+    expect(parseAgentEvent({ state: "working", context })).toEqual({
+      ok: true, event: { state: "working", context },
+    });
+  });
+
+  it("omits unknown context usage", () => {
+    expect(parseAgentEvent({ state: "idle", context: undefined })).toEqual({
+      ok: true, event: { state: "idle" },
+    });
+  });
+
+  it.each([null, "0.7", false, {}, [], NaN, Infinity, -Infinity, -0.01, 1.01])(
+    "rejects invalid context %j", (context) => {
+      const result = parseAgentEvent({ state: "working", context });
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error).toContain("context");
+    },
+  );
+
   it.each([
     null, undefined, false, 42, "idle", [], {}, { state: "unknown" }, { state: 1 },
     { state: "idle", detail: 1 }, { state: "idle", detail: null },

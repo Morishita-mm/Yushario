@@ -40,6 +40,9 @@ export class MotionGenerator {
   private current: MotionParams = { ...this.target };
   private velocity: MotionParams = { headX: 0, headY: 0, bodyX: 0, eyeOpen: 0, mouthSmile: 0, brow: 0 };
   private timeMs = 0;
+  private fatigue = 0;
+  private currentFatigue = 0;
+  private breathDelay = 0;
   private blinkStartMs = -Infinity;
   private nextBlinkMs: number;
   private readonly swayPhaseX: number;
@@ -54,6 +57,10 @@ export class MotionGenerator {
 
   setTarget(candidate: Candidate): void {
     this.target = { ...POSTURES[candidate.posture], ...EXPRESSIONS[candidate.expression] };
+  }
+
+  setFatigue(f: number): void {
+    this.fatigue = Number.isNaN(f) ? 0 : clamp(f, 0, 1);
   }
 
   update(dtMs: number): MotionParams {
@@ -83,13 +90,20 @@ export class MotionGenerator {
     const swayX = 0.012 * Math.sin(time * 0.7 + this.swayPhaseX)
       + 0.006 * Math.sin(time * 0.31 + this.swayPhaseY);
     const swayY = 0.012 * Math.sin(time * 0.53 + this.swayPhaseY);
-    const breath = Math.sin(time * Math.PI / 2);
+    // Ease changing usage into the body; integrate slowed breathing to avoid phase jumps.
+    const fatigueBlend = 1 - Math.exp(-3 * dt);
+    const fatigueIntegral = this.fatigue * dt + (this.currentFatigue - this.fatigue) * fatigueBlend / 3;
+    this.currentFatigue += (this.fatigue - this.currentFatigue) * fatigueBlend;
+    const f = this.currentFatigue;
+    this.breathDelay += fatigueIntegral * 0.35 * Math.PI / 2;
+    const breath = Math.sin(time * Math.PI / 2 - this.breathDelay);
+    const sway = 1 - 0.55 * f;
 
     return {
-      headX: clamp(this.current.headX + swayX, -1, 1),
-      headY: clamp(this.current.headY + swayY + breath * 0.006, -1, 1),
-      bodyX: clamp(this.current.bodyX + breath * 0.02, -1, 1),
-      eyeOpen: clamp(this.current.eyeOpen * (1 - blink), 0, 1),
+      headX: clamp(this.current.headX + swayX * sway, -1, 1),
+      headY: clamp(this.current.headY + swayY * sway + breath * (0.006 + 0.004 * f) - 0.16 * f, -1, 1),
+      bodyX: clamp(this.current.bodyX + breath * (0.02 + 0.015 * f), -1, 1),
+      eyeOpen: clamp(Math.min(this.current.eyeOpen, 1 - 0.42 * f) * (1 - blink), 0, 1),
       mouthSmile: clamp(this.current.mouthSmile, -1, 1),
       brow: clamp(this.current.brow, -1, 1),
     };
