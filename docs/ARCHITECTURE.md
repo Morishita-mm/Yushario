@@ -50,6 +50,7 @@ interface AgentEvent {
   ts?: number;
   source?: string;   // 送信元ハーネス（"claude-code" / "pi" など）
   tool?: string;     // 関係するツール名（"Bash", "Edit" など）
+  context?: number;  // コンテキスト使用率 0〜1（分かる時だけ）
 }
 
 type Gesture = "nod" | "shake" | "wave" | "think" | "cheer" | "tremble";
@@ -90,6 +91,9 @@ interface Renderer {
   - 不在からの復帰: web がページの可視状態で不在を判定し、戻った時に不在中のイベントを集計して吹き出しで報告する（テンプレート文、LLM は使わない）。
   - 吹き出しの文面やツール入力はローカル（server と web）でのみ扱い、Jev には送らない。
 - **A. 気配で状況がわかる**: 体調（コンテキスト使用率→疲労）、視線・指さし、確信度。
+  - 体調（実装中）: アダプタがエージェントのコンテキスト使用率（0〜1 の数値のみ）を `AgentEvent.context` で送る。
+    web は `MotionGenerator.setFatigue(f)` で継続的に体へ反映する（まぶたが重い・呼吸が遅い・頭が下がる）。Decider の判断とは独立した連続量。
+    使用率が高い閾値を初めて超えた時に、吹き出しで整理（compact）を提案する。会話本文は読み取ってもアダプタの外へ出さない。
 - **C. チームが部屋にいる**: 複数エージェントを1部屋の複数キャラクターとして表示。
 
 ## ハーネス連携（アダプタ）
