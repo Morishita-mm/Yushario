@@ -1,8 +1,6 @@
 import type { Candidate } from "../core/decider";
 import { parseAgentEvent, type AgentEvent } from "../core/events";
-import { MockDecider } from "../core/mock-decider";
 import { MotionGenerator } from "../core/motion";
-import { selectCandidate } from "../core/selector";
 import { PlaceholderRenderer } from "./renderers/placeholder";
 import { Live2DRenderer } from "./renderers/live2d";
 import type { Renderer } from "./renderers/renderer";
@@ -29,45 +27,43 @@ void (async () => {
     rendererLabel.textContent = `Placeholder: ${error instanceof Error ? error.message : String(error)}`;
   }
 })();
-const decider = new MockDecider();
 const motion = new MotionGenerator(Math.random);
-let lastDecisionMs = performance.now();
-let latestEvent = 0;
-const recent: AgentEvent[] = [];
 
-async function acceptEvent(event: AgentEvent): Promise<void> {
-  const sequence = ++latestEvent;
-  const now = performance.now();
-  recent.push(event);
-  if (recent.length > 10) recent.shift();
-  const candidates = await decider.decide({ event, recent: [...recent], previous, elapsedMs: now - lastDecisionMs });
-  // Ignore a stale decision if a newer event arrived while deciding.
-  if (sequence !== latestEvent) return;
-  const selected = selectCandidate(candidates, Math.random);
+function acceptDecision(event: AgentEvent, selected: Candidate): void {
   const changed = !previous || selected.expression !== previous.expression
     || selected.posture !== previous.posture || selected.gesture !== previous.gesture;
   previous = selected;
   motion.setTarget(selected);
   renderer?.setExpression?.(selected.expression);
   if (changed && selected.gesture) renderer?.playGesture?.(selected.gesture);
-  lastDecisionMs = now;
   stateLabel.textContent = event.state;
   stateLabel.title = event.detail ?? "";
 }
 
+function validCandidate(value: unknown): value is Candidate {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Candidate;
+  return ["neutral", "focused", "happy", "troubled", "surprised"].includes(candidate.expression)
+    && ["upright", "lean_forward", "tilt", "slump"].includes(candidate.posture)
+    && (candidate.gesture === undefined || ["nod", "shake", "wave", "think", "cheer", "tremble"].includes(candidate.gesture))
+    && typeof candidate.score === "number" && Number.isFinite(candidate.score);
+}
+
 function connect(): void {
   const protocol = location.protocol === "https:" ? "wss:" : "ws:";
-  const socket = new WebSocket(`${protocol}//${location.host}/ws`);
+  const token = new URLSearchParams(location.search).get("token") ?? "";
+  const socket = new WebSocket(`${protocol}//${location.host}/ws?token=${encodeURIComponent(token)}`);
   connectionLabel.textContent = "接続中…";
   socket.onopen = () => { connectionLabel.textContent = "接続済み"; };
   socket.onmessage = (message) => {
     try {
-      const result = parseAgentEvent(JSON.parse(message.data));
-      if (!result.ok) {
-        console.warn("Invalid relay event:", result.error);
+      const decision = JSON.parse(message.data);
+      const result = parseAgentEvent(decision.event);
+      if (decision.type !== "decision" || !result.ok || !validCandidate(decision.candidate)) {
+        console.warn("Invalid relay decision");
         return;
       }
-      void acceptEvent(result.event).catch((error) => console.error("Decision failed:", error));
+      acceptDecision(result.event, decision.candidate);
     } catch (error) {
       console.warn("Invalid relay message:", error);
     }
@@ -86,6 +82,6 @@ function frame(now: number): void {
   requestAnimationFrame(frame);
 }
 
-void acceptEvent({ state: "idle" });
+stateLabel.textContent = "idle";
 connect();
 requestAnimationFrame(frame);

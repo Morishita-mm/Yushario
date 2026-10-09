@@ -1,7 +1,7 @@
 # Agent Character (PoC)
 
 AIエージェントの状態イベントを受け、キャラクターの表情・姿勢として表示する表示専用レイヤーです。
-Jevの代わりに `MockDecider` を使い、Cubism 4のLive2DモデルまたはCanvasの簡易顔で表示します。
+server側のJev（APIキー未設定・失敗時は `MockDecider`）が判断し、Cubism 4のLive2DモデルまたはCanvasの簡易顔で表示します。
 Cubism Core・モデルは利用者が配置します。未配置・読込失敗時は簡易顔へフォールバックし、画面隅に理由を表示します。
 Core・モデルをこのリポジトリには含めません。
 
@@ -11,19 +11,45 @@ Node.js 22.12以上とnpm、イベント送信用にcurlが必要です。
 
 ```sh
 npm install
-npm run dev
+npm run build && npm start
 ```
 
-Viteが表示するURL（通常 `http://localhost:5173`）を開いてください。
-relayは `http://localhost:8790` で待ち受けます。
-`Ctrl+C` で両方のプロセスを停止します。
-別々のターミナルで起動する場合は、それぞれ `npm run dev:relay` と `npm run dev:web` を実行します。
+serverが表示する `http://127.0.0.1:8790/?token=...` のURLを開いてください。
+1プロセスで `dist/` のweb、`models/` のモデル一式、`public/` のCore等を配信します。
+`PORT=8791 npm start` でポートを変更できます。`Ctrl+C` で停止します。
 
-relayのポートを変更する場合は `PORT=8791 npm run dev` のように指定します。
-別々に起動する場合、**両方のターミナルに同じ `PORT`** を渡してください。
-webはViteの `/ws` プロキシ経由でrelayのWebSocketへ接続します。
+開発時は `npm run dev` でViteとrelayを同時起動し、スクリプトが表示するトークン付きVite URLを開きます。
+`PORT=8791 VITE_PORT=5175 npm run dev` のように両ポートを変更できます。
+`Ctrl+C` で両方のプロセスを停止します。
+別々に起動する場合は、`PORT=8791 AGENT_CHARACTER_TOKEN=local-dev npm run dev:relay` と
+`PORT=8791 npm run dev:web -- --port 5175` を実行し、`http://localhost:5175/?token=local-dev` を開きます。
+**両方のターミナルに同じ `PORT`** を渡してください。
+webは開発時のみViteの `/ws` プロキシ経由でrelayへ接続します。
 切断時は3秒後に再接続しますが、接続前・切断中のイベントは保持されません。
 画面左下に現在のstateと接続状態を表示します。
+
+### Jevと送信内容
+
+`TYPESAFE_API_KEY` があれば起動時に `JevDecider`、なければ `MockDecider` を選び、ログに表示します。
+キーはserverだけが持ち、ブラウザには渡しません。
+
+```sh
+TYPESAFE_API_KEY=your-key npm start
+# JEV_MODEL=jev-latest が既定。別モデルを使う場合だけ設定します。
+```
+
+Jevには `{event, recent, previous}`（状態・ツール名等のイベントメタデータ、今回を含む直近10件の履歴、直前の表情・姿勢）だけを送ります。
+プロンプトやツール入出力はアダプタから送信しません。手動送信の `detail` も送られるため、機密情報は入れないでください。
+表情・姿勢・ジェスチャーを1リクエストで判断し、confidenceが0.5未満の項目は直前の値を維持します。
+同じstateの連続ではAPIを呼ばず、単発ジェスチャーを除いて維持します。
+3秒タイムアウト、HTTPエラー（429含む）、不正な応答では1行警告してMockへフォールバックします。リトライはしません。
+
+### ローカルトークン
+
+起動ごとに暗号学的乱数でトークンを作り、表示URLに含めます。URLは外部へ共有しないでください。
+WS `/ws` は正しい `?token=` とserver自身のOriginが必要です（開発時のみlocalhost/127.0.0.1の任意ポートを許可）。
+開発時は `AGENT_CHARACTER_TOKEN=local-dev npm run dev` で固定できます。本番起動では固定値を使いません。
+フック向け `POST /event` はトークン不要ですが、Origin付きのブラウザ発リクエストはローカル以外を拒否します。
 
 ## イベントを送る
 
@@ -46,7 +72,8 @@ curl -i -X POST http://localhost:8790/event \
 `state` は `idle` / `thinking` / `working` / `waiting_input` / `success` / `error`、
 `detail` は任意の文字列、`ts` は任意の有限な数値です。
 正常時は204、不正なJSONやイベントは400と `{"error":"理由"}` を返します。
-検証済みイベントだけを接続中の全WebSocketクライアント（`ws://localhost:8790/ws`）へ配信します。
+serverが検証・判断・候補選択し、`{"type":"decision","event":...,"candidate":...}` を接続中の全WSクライアントへ配信します。
+webはcandidateに従って描画するだけです。
 
 ### Claude Codeのフック例
 
@@ -133,7 +160,7 @@ piがTypeScript拡張を直接読み込み、拡張APIの型はpi自身が提供
 
 ### サンプルで確認
 
-relayを `PORT=8792 npm run dev:relay` で起動し、別ターミナルで `node --input-type=module -e 'import { WebSocket } from "ws"; const ws = new WebSocket("ws://127.0.0.1:8792/ws"); ws.on("message", data => console.log(String(data)));'` を先に接続します。
+relayを `PORT=8792 AGENT_CHARACTER_TOKEN=local-dev npm run dev:relay` で起動し、別ターミナルで `node --input-type=module -e 'import { WebSocket } from "ws"; const ws = new WebSocket("ws://127.0.0.1:8792/ws?token=local-dev", { origin: "http://127.0.0.1:8792" }); ws.on("message", data => console.log(String(data)));'` を先に接続します。
 `printf '%s' '{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"private"}}' | AGENT_CHARACTER_URL=http://127.0.0.1:8792/event node adapters/claude-code/hook.mjs` を実行し、WSに `working` / `claude-code` / `Bash` のみが届き入力本文がないことを確認します（終わったら両ターミナルをCtrl+Cで停止）。
 
 ## Live2Dを使う（任意）
@@ -169,7 +196,7 @@ models/default/
 ```
 
 持ち込みモデルは、たとえば `models/my-character/Character.model3.json` を配置し、
-`http://localhost:5173/?model=/models/my-character/Character.model3.json` のように指定できます
+起動URLに `&model=/models/my-character/Character.model3.json` を足して指定できます
 （Viteが別ポートを選んだ場合は実際のURLを使用）。
 別オリジンのモデルを指定する場合、モデル配信側でCORS許可が必要です。
 Core、モデル、関連ファイル、WebGL初期化のいずれかが読めなければ簡易顔を使います。
@@ -244,14 +271,15 @@ cheer→`mtnBody_laugh`、tremble→`mtnBody_tremble`（すべて `.motion3.json
 ```sh
 npm run typecheck
 npm test
-npx vite build
+npm run build
 ```
 
-ビルド出力は `dist/` です。`npx vite preview` で確認する場合もrelayを別途起動してください。
-モデルを使うビルドでは、ビルド前にモデルを配置し、ビルド後に `models/` を `dist/models/` へコピーして関連ファイルの相対配置を保ってください。
+ビルド出力は `dist/` です。`npm start` がwebとWSを同じポートで配信します。
+モデルを使うビルドでは、ビルド前にモデルを配置してください。`models/` はserverが直接配信するため、`dist/` へのコピーは不要です。
 既定モデルのファイル名一覧はビルド時に決まります。新しいモデルを追加したら再ビルドするか `?model=` で明示します。
 Coreは `public/` からViteがコピーします。Core未配置のビルドで出る非moduleスクリプトの警告は、Coreをバンドルせず利用者配置のファイルとして読み込むためのものです。
 静的ファイルだけを別のサーバーへ配置する場合、`/ws` のWebSocketプロキシも必要です。
 
-これはローカル開発用PoCです。relayは `127.0.0.1` にのみバインドし、CORSはlocalhost/127.0.0.1のみ許可します。
-認証・履歴・再送はなく、インターネットへ公開する用途は想定していません。
+これはローカル用PoCです。serverは `127.0.0.1` のみで待ち受けます。
+トークンはローカルWS接続の保護用で、ユーザー認証ではありません。履歴はメモリ上の直近10件だけで、永続化・再送はしません。
+インターネットへ公開する用途は想定していません。
