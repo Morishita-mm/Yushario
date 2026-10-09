@@ -33,12 +33,28 @@
 
 ```ts
 type AgentState = "idle" | "thinking" | "working" | "waiting_input" | "success" | "error";
-interface AgentEvent { state: AgentState; detail?: string; ts?: number }
+interface AgentEvent {
+  state: AgentState;
+  detail?: string;
+  ts?: number;
+  source?: string;   // 送信元ハーネス（"claude-code" / "pi" など）
+  tool?: string;     // 関係するツール名（"Bash", "Edit" など）
+}
 
-interface Candidate { expression: Expression; posture: Posture; score: number }
-interface DecisionContext { event: AgentEvent; previous?: Candidate; elapsedMs: number }
+type Gesture = "nod" | "shake" | "wave" | "think" | "cheer" | "tremble";
+interface Candidate { expression: Expression; posture: Posture; gesture?: Gesture; score: number }
+interface DecisionContext {
+  event: AgentEvent;
+  recent: AgentEvent[];  // 直近のイベント（古い順、event を含む、最大10件）。感情の文脈はここから読む
+  previous?: Candidate;
+  elapsedMs: number;
+}
 interface Decider { decide(ctx: DecisionContext): Promise<Candidate[]> }
 ```
+
+- 「エージェントの仕事」は重いモデル（Claude 等）、「肉体の制御」は軽量モデル（Jev 等）に分担させる。
+  Decider は 表情・姿勢・ジェスチャー の選択だけを担い、エージェント本体には何も返さない。
+- gesture は「状態の変わり目」に一度だけ再生する単発の動き。継続的な動きは MotionGenerator が担う。
 
 - `Expression` / `Posture` は少数の文字列ユニオン（例: neutral / focused / happy / troubled / surprised、
   upright / lean_forward / tilt / slump）。モデル依存のパラメータ名はここに出さない。
@@ -48,8 +64,14 @@ interface Decider { decide(ctx: DecisionContext): Promise<Candidate[]> }
 interface Renderer {
   apply(params: MotionParams): void;              // 毎フレーム
   setExpression?(expression: Expression): void;   // 任意。モデル固有の表情（.exp3.json 等）を持つ実装だけが使う
+  playGesture?(gesture: Gesture): void;           // 任意。モデル固有のモーション（.motion3.json 等）を持つ実装だけが使う
 }
 ```
+
+## ハーネス連携（アダプタ）
+
+`adapters/<harness>/` に、各ハーネスのフック／拡張から `POST /event` するだけの薄いアダプタを置く。
+アダプタはエージェントの動作を絶対に妨げない（短いタイムアウト、失敗しても黙って終了、標準出力に何も出さない）。
 
 ## 動きの生成
 
@@ -67,6 +89,6 @@ interface Renderer {
 ## PoC でやらないこと
 
 - ハーネス本体、エージェントのログ解析、LLM 呼び出し
-- 本物の Jev 連携（モックのみ）
+- 本物の Jev 連携（モックのみ。API 確定後に `Decider` 実装を1つ足す）
 - デスクトップ常駐（透過ウィンドウ、Electron/Tauri）
 - 音声・リップシンク、複数キャラ、設定 UI、認証、永続化
