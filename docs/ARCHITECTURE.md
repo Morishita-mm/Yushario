@@ -44,6 +44,13 @@ interface Decider { decide(ctx: DecisionContext): Promise<Candidate[]> }
   upright / lean_forward / tilt / slump）。モデル依存のパラメータ名はここに出さない。
 - Decider は非同期（将来 Jev がリモート推論になる想定）。モックも同じ形で返す。
 
+```ts
+interface Renderer {
+  apply(params: MotionParams): void;              // 毎フレーム
+  setExpression?(expression: Expression): void;   // 任意。モデル固有の表情（.exp3.json 等）を持つ実装だけが使う
+}
+```
+
 ## 動きの生成
 
 - 目標値への遷移はばね（臨界減衰）で滑らかに補間する。
