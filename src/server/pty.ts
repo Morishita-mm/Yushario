@@ -33,7 +33,9 @@ export function createPtyServer(port: number): { sockets: WebSocketServer; dispo
   const settings = join(temporary, "claude-settings.json");
   const command = `${quote(process.execPath)} ${quote(join(root, "adapters/claude-code/hook.mjs"))}`;
   const hooks = Object.fromEntries([
-    "SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "PostToolUseFailure", "Notification", "Stop",
+    "SessionStart", "SessionEnd", "UserPromptSubmit", "PreToolUse", "PostToolUse", "PostToolUseFailure",
+    "Notification", "SubagentStart", "SubagentStop", "TaskCreated", "TaskCompleted", "PreCompact", "PostCompact",
+    "Stop", "StopFailure",
   ].map((event) => [event, [{ matcher: "*", hooks: [{ type: "command", command, timeout: 1 }] }]]));
   writeFileSync(settings, JSON.stringify({ hooks: { ...hooks,
     PermissionRequest: [{ matcher: "*", hooks: [{

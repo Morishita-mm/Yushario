@@ -1,6 +1,7 @@
-# 観察の仕様（柱C：チームが部屋にいる）
+# 観察の仕様（柱C：チームが部屋にいる → エージェントの町）
 
-複数の Claude Code エージェントを、1つの部屋にいるドットキャラクターとして表示する。
+複数の Claude Code エージェントを、RPG 風の町とフィールドにいるドットキャラクター（勇者）として表示する。
+作業はモンスターとの戦い、何もしていない時は宿屋で休む、サブエージェントは勇者パーティーの仲間、という **物語** として見せる。
 売りは **エージェントの様子を細かく描写すること**。「作業中」の一言で済ませず、
 **何を・どう・どれくらい** やっているかを、視界の端でも読み取れる形で見せる。
 
@@ -23,7 +24,7 @@
 
 1. **活動の細かさ**: 読む・探す・直す・テスト・調べもの・計画・手分けを区別し、部屋の **場所** で表す。
 2. **時間の流れから出る様子**: 長い待ち、失敗の連続、立ち直り、テンポ、疲れを、1つのイベントではなく直近の流れから出す。
-3. **計画の見える化**: TodoWrite の内容と進み具合をホワイトボードに出す。
+3. **計画の見える化**: タスク（TaskCreate / TaskUpdate）の内容と進み具合をホワイトボードに出す。
 4. **フックで出勤**: エージェントはアプリの中で起動しなくてよい。自分のターミナルや Orca のワークツリーで動かしている Claude Code が、フック経由で部屋に入ってくる。
 
 ## 観察の3層
@@ -44,11 +45,11 @@ Claude Code 2.1.295 の実行ファイルで、以下のイベント名と入力
 | SessionStart | `source`（startup / resume / clear / compact） | 出勤（clear / compact のときは同じキャラのまま） |
 | SessionEnd | `reason` | 退勤 |
 | UserPromptSubmit | 発生したことのみ（本文は使わない） | 依頼を受けた → 考え始める |
-| PreToolUse | `tool_name`、`tool_input`（下の「対象」の範囲のみ）、`tool_use_id` | 活動の開始 |
-| PostToolUse | `tool_name`、`tool_use_id`、成否 | 活動の終了・成功 |
-| PostToolUseFailure | `tool_name`、`tool_use_id`、`error_type` | 活動の失敗 |
-| PermissionRequest | `tool_name` | 許可待ち（柱Bの吹き出しと同じ） |
-| PermissionDenied | `tool_name` | 断られた |
+| PreToolUse | `tool_name`、`tool_input`（下の「対象」の範囲のみ） | 活動の開始 |
+| PostToolUse | `tool_name`、成否 | 活動の終了・成功 |
+| PostToolUseFailure | `tool_name`、`is_interrupt` | 活動の失敗（中断は失敗に数えない） |
+| PermissionRequest | `tool_name`、`agent_id` | 許可待ち（柱Bの許可要求と同じ HTTP フック） |
+| TaskCreated / TaskCompleted | `task_id`、`task_subject` | ホワイトボード |
 | Notification | `notification_type` | 入力待ち |
 | SubagentStart / SubagentStop | `agent_id`、`agent_type` | 助っ人の入退室 |
 | PreCompact / PostCompact | `trigger` | 整理中（休憩） |
@@ -71,20 +72,20 @@ Claude Code 2.1.295 の実行ファイルで、以下のイベント名と入力
 
 | 活動 | 判定 | 部屋の場所・動作 | 対象（手元の表示） |
 |---|---|---|---|
-| `think` | UserPromptSubmit の後、最初のツールが来るまで | 椅子で考え込む 💭 | — |
-| `read` | Read、NotebookRead | 本棚で本をめくる | ファイル名 |
-| `search` | Grep、Glob、LS 系 | 本棚の前で棚を指でなぞる | 検索パターンは出さない |
-| `edit` | Edit、Write、NotebookEdit | 机でタイピング | ファイル名 |
-| `test` | Bash でコマンドの先頭がテスト系（`npm test`、`vitest`、`jest`、`pytest`、`go test`、`cargo test` など） | 実験台で結果を見守る | コマンドの先頭2語 |
-| `git` | Bash で先頭が `git` / `gh` | ポスト（郵便受け）の前で仕分け | サブコマンド（`commit` など） |
-| `run` | 上以外の Bash | 作業台のターミナルを操作 | コマンドの先頭2語 |
-| `web` | WebSearch、WebFetch | 窓から外を眺める | ドメインのみ |
-| `plan` | TodoWrite | ホワイトボードに書く | TODO の一覧（ボードに表示） |
-| `delegate` | Task / Agent（サブエージェント起動） | 助っ人に指示を出す | `agent_type` |
-| `ask` | AskUserQuestion、PermissionRequest、Notification | こちらを向いて手を振る ❗ | ツール名 |
-| `tool` | MCP ツール（`mcp__*`）など上以外 | 道具箱をいじる | サーバー名（`mcp__<server>__` の部分） |
-| `rest` | PreCompact 〜 PostCompact | ソファで一息 ☕ | — |
-| `idle` | Stop の後 | 自席でくつろぐ／ゆらゆら | — |
+| `think` | UserPromptSubmit の後、最初のツールが来るまで | たき火の前で考え込む（…の吹き出し） | — |
+| `read` | Read、NotebookRead | 図書館の前で本を開く | ファイル名 |
+| `search` | Grep、Glob、LS 系 | 図書館の前で本と周りを見比べる | 検索パターンは出さない |
+| `edit` | Edit、Write、NotebookEdit | フィールドでスライムに斬りかかる（ファイル名のスライム） | ファイル名 |
+| `test` | Bash でコマンドの先頭がテスト・検証系（`npm test`、`npm run typecheck`、`vitest`、`jest`、`pytest`、`go test`、`cargo test`、`tsc`、`eslint` など） | フィールドで「しれんのゴーレム」と対峙し、結果を待つ | コマンドの先頭 |
+| `git` | Bash で先頭が `git` / `gh` | 「ぼうけんのしょ」（セーブクリスタル）に祈って記録する | コマンドの先頭（`git commit -m` など） |
+| `run` | 上以外の Bash | フィールドでおばけに呪文を唱える | コマンドの先頭 |
+| `web` | WebSearch、WebFetch | 物見の塔の上から遠くを見る | ドメインのみ |
+| `plan` | TaskCreate / TaskUpdate / TaskList / TaskGet（旧 TodoWrite も） | クエストボードに依頼書を貼る | タスクの一覧（ボードの依頼書） |
+| `delegate` | Task / Agent（サブエージェント起動） | パーティーでドラゴンに挑む | `agent_type` |
+| `ask` | AskUserQuestion、PermissionRequest、Notification | 画面の手前（あなたの前）に来て手を振る（！の吹き出し） | ツール名 |
+| `tool` | MCP ツール（`mcp__*`）など上以外 | 道具屋の前に立つ | サーバー名（`mcp__<server>__` の部分） |
+| `rest` | PreCompact 〜 PostCompact | 教会で祈る（光の柱、MP 回復） | — |
+| `idle` | Stop の後 | 宿屋の自分のベッドの前で休む（呼吸で小さく揺れる） | — |
 
 分類に迷うものは `tool` にまとめる。種類を増やすのは、実際に使って見分けたくなってからにする。
 
@@ -95,66 +96,78 @@ Claude Code 2.1.295 の実行ファイルで、以下のイベント名と入力
 
 | 様子 | 条件（初期値） | 描写 |
 |---|---|---|
-| 長い待ち | 同じ活動が 30 秒以上続く（特に `test` / `run`） | 時計を見る、⏳ |
-| 苦戦 | 直近 5 分で失敗が 3 回以上 | 頭を抱える、💦 |
-| 立ち直り | 苦戦の後に成功 | 普段より大きく喜ぶ |
-| ノッている | 1 分間に `edit` が 5 回以上で、失敗なし | タイピングが速くなる |
-| 疲れ | `context` が 0.7 以上 | まぶたが重い、動きが遅い、💤（0.9 以上で整理を提案） |
-| 呼んでいる時間 | `ask` が 1 分以上放置 | 手振りが大きくなる、❗ が点滅 |
-| 居眠り | イベントが 10 分以上届かない | 自席で寝る 💤 |
+| 長い待ち | 同じ活動が 30 秒以上続く（特に `test` / `run`） | ⏳ の吹き出し |
+| 苦戦 | 直近 5 分で失敗が 3 回以上 | 汗の吹き出し、HP が減る |
+| 立ち直り | 苦戦の後に成功 | 武器を掲げて喜ぶ（ハートの吹き出し） |
+| ノッている | 1 分間に `edit` が 5 回以上で、失敗なし | 剣を振る速さが上がる、♪ の吹き出し |
+| 疲れ | `context` が 0.7 以上 | 剣を振るのが遅くなる、MP が少ない（MP 1 割以下で教会＝/compact を提案） |
+| 呼んでいる時間 | `ask` が 1 分以上放置 | 手を振る速さが上がる |
+| 居眠り | イベントが 10 分以上届かない | 宿屋のベッドで寝る（Zz の吹き出し） |
 
-表情・姿勢・ジェスチャーの判断は、今の Decider（Jev／モック）をキャラごとに使う。
-上の「様子」は Decider に渡す直近の履歴にも含める。
+Decider（Jev／モック）はエージェントごとに判断を続けている（Live2D 表示で使う）。ドットの町では表情を描き分けず、上の様子で表す。
+
+## RPG としての見せ方（`src/core/story.ts`）
+
+- **勇者と仲間**: セッション＝勇者（エージェントごとに髪・服・マントの色が違う）。サブエージェントは種別で職業が決まる仲間（Explore＝とうぞく、Plan＝そうりょ、general-purpose＝せんし、その他＝まほうつかい）。戦闘中は勇者の後ろに並んで一緒に戦い、町では後ろについて歩く。
+- **ステータス**: Lv＝1＋（成功したツール数＋達成クエスト数×5）÷10、HP＝直近 5 分の失敗で減る、MP＝コンテキストの残り（1−使用率）。
+- **戦闘**: ツールが成功するたびにモンスターへダメージ（数字が跳ねる、HP バーが減る）。テストが通る／仲間の仕事が終わるとモンスターを倒す。失敗すると勇者が赤く点滅してダメージを受ける。
+- **ファンファーレ**: クエスト達成（TaskCompleted）とレベルアップで「クエストクリア！」「レベルアップ！」。
+- **語り**: 出来事をドラクエ風のメッセージウィンドウで1文字ずつ表示する（例：「t12-vitalsの こうげき！ 「room.ts」に きりかかった！」）。ツール出力や本文は使わず、上の「対象」の範囲だけで語る。
+- **出入り**: セッション開始で町の入口（左端の道）から歩いて入り、終了で入口へ帰る。ページを開き直した時は歩かずにその場に現れる。
 
 ## 詳細
 
-- 手元の紙：今触っているファイル名（ベース名のみ）、またはコマンドの先頭2語。
-- ホワイトボード：TodoWrite の最新の一覧と、完了数／全体数。
-- クリックで開く行動ログ：そのキャラの最近 50 件の活動（時刻・活動・対象・成否）。
+- モンスターの名札：戦っている相手（ファイル名・コマンドの先頭・サブエージェント種別）。
+- クエストボード：計画中（またはタスクを持つ）エージェントの依頼書（最大 6 枚、進行中は黄色の印、達成は赤い判）と、完了数／全体数。
+- つよさウィンドウ（右）：Lv・HP・MP・いまの行動・様子・なかま・クエスト一覧。許可要求には「はい／いいえ／ターミナルで こたえる」で答えられる。
+- 勇者かウィンドウをクリックすると「ぼうけんの きろく」（最近の行動、○×つき）を表示する。
 
 ## 扱う情報の範囲（プライバシー）
 
 - アダプタが送るのは上の表の「対象」まで。**プロンプト本文、ツールの出力、ファイルの中身、コマンドの全文は送らない。**
-  - ファイル名はベース名のみ（ディレクトリは送らない）。コマンドは先頭2語まで。Web はドメインまで。
-  - 例外として、TodoWrite の TODO 文はホワイトボード用に送る（各 200 文字、20 件まで）。
+  - ファイル名はベース名のみ（ディレクトリは送らない）。Web はドメインまで。
+  - コマンドは先頭の `cd …` 区間と `FOO=bar` 形式の代入を飛ばし、最大3語まで。パス（`/` を含む語）・引用符・`=` などを含む語が出たらそこで打ち切る（例：`git commit -m "…"` → `git commit -m`、`ls /path` → `ls`）。
+  - 例外として、タスクの件名はホワイトボード用に送る（各 200 文字、1 エージェント 50 件まで）。
 - 対象と TODO はローカルの表示（server のメモリと web）だけで使う。**Jev には送らない**（Jev へは今まで通り活動の種類と状態のみ）。
 - 保存しない。server を再起動すれば消える。
 
-## AgentEvent の拡張案
+## AgentEvent の拡張
 
-既存のフィールドはそのまま残し、以下を足す（詳細な型は実装タスクで決める）。
+既存のフィールドはそのまま残し、以下を足した（`src/core/events.ts`）。
 
 ```ts
 interface AgentEvent {
   // 既存: state, detail, ts, source, tool, context
-  agent?: string;          // session_id。無い場合は従来どおり1体として扱う
+  agent?: string;          // session_id。無い場合は従来どおり1体（"default"）として扱う
   name?: string;           // cwd の末尾
   hook?: string;           // hook_event_name
-  activity?: Activity;     // 上の分類（アダプタではなく core で判定してもよい）
   target?: string;         // 手元の表示（上の範囲に切り詰め済み）
-  toolUseId?: string;      // Pre/Post の対応付け（長い待ちの計測）
   subagent?: { id: string; type?: string };
-  todos?: { text: string; done: boolean }[];
+  task?: { id: string; subject?: string; status: "pending" | "in_progress" | "completed" | "deleted" };
 }
 ```
 
-- 活動の判定は **core 側**（`tool` と `target` から判定）に置き、アダプタは薄く保つ。
+- 活動の判定は **core 側**（`src/core/activity.ts`、`hook`・`tool`・`target` から判定）。アダプタは薄く保つ。
+- 部屋の状態と様子は `src/core/room.ts`。web と同じものを server の再送（接続時の replay）から組み立てる。
 - 出勤・退勤は SessionStart / SessionEnd の `hook` で表す（新しい state は増やさない）。
+- フックは並行して動くので、到着順ではなくアダプタの時刻（`ts`）で前後を判断し、古いイベントで新しい活動を上書きしない。
+- Decider へ渡すイベントからは name / target / task 等を除く（`deciderEvent`）。判断はエージェントごとの直近履歴で行う。
 
-## 実機で確認すること
+## 実機での確認結果（Claude Code 2.1.295）
 
-実装の前に、デバッグ用のイベントログ（`AGENT_CHARACTER_DEBUG=1`）で以下を確かめる。
+`claude -p` に記録用フックを付けて確認した。
 
-1. サブエージェント内のツール実行で、PreToolUse に `agent_id` が入るか（入らないと助っ人の活動を親と区別できない）。
-2. `Task` / `Agent` ツールの名前と、`tool_input` 内のサブエージェント種別の位置。
-3. PostToolUse に `duration_ms` が入るか（入れば長い待ちの計測に使う）。
-4. Notification の `notification_type` の値（入力待ちと許可待ちを区別できるか）。
-5. 複数セッションを同時に動かしたとき、フックの 500ms 予算で取りこぼしがないか。
+1. サブエージェント内のツール実行では、PreToolUse / PostToolUse に `agent_id`・`agent_type` が入る。→ 助っ人の活動を親と区別できる。
+2. サブエージェント起動のツール名は `Agent`、種別は `tool_input.subagent_type`。
+3. PostToolUse / PostToolUseFailure に `duration_ms` が入る（今回は使わず、Pre からの経過で長い待ちを判定）。
+4. このバージョンには **TodoWrite が無く**、TaskCreate / TaskUpdate と TaskCreated / TaskCompleted フックを使う。タスク件名は TaskCreated の `task_subject`、状態の変更は TaskUpdate の `tool_input.status`。
+5. PostToolUseFailure に `is_interrupt` が入る。中断は失敗として数えない。
+6. 未確認：Notification の `notification_type` の値（`-p` では発火しない）、複数セッション同時実行時の取りこぼし。
 
 ## やらないこと（この段階）
 
 - pi / Codex のアダプタ対応（Claude Code で形が固まってから）
-- 部屋のレイアウト編集、家具の配置変更
-- キャラ同士の会話・やりとりの演出
-- 作り込んだドット素材（最初は単色の図形＋記号の仮素材で通す）
+- 町のレイアウト編集
+- キャラ同士の会話・やりとりの演出、効果音・BGM
+- 勇者の表情の描き分け（Decider の表情は Live2D 表示のみで使う）
 - 行動ログの保存・履歴の永続化

@@ -1,0 +1,1401 @@
+[
+ {
+  "id": "hero-model",
+  "group": "キャラクター",
+  "name": "勇者 設定画（正面・背面・横）",
+  "frame": [
+   32,
+   54
+  ],
+  "frames": [
+   "front",
+   "back",
+   "right side"
+  ],
+  "colors": 19,
+  "sub": "勇者（マップ用）",
+  "use": "デザインの基準。町で立ち止まった時（正面・背中・横）"
+ },
+ {
+  "id": "hero-walk",
+  "group": "キャラクター",
+  "name": "勇者 歩き（正面4・横4）",
+  "frame": [
+   32,
+   52
+  ],
+  "frames": [
+   "front contact L",
+   "front pass",
+   "front contact R",
+   "front pass",
+   "right contact L",
+   "right pass",
+   "right contact R",
+   "right pass"
+  ],
+  "colors": 18,
+  "sub": "勇者（マップ用）",
+  "use": "町やフィールドを歩く時（下・左右）"
+ },
+ {
+  "id": "hero-battle",
+  "group": "キャラクター",
+  "name": "勇者 戦闘（構え・振りかぶり・斬撃・詠唱・被弾・勝利）",
+  "frame": [
+   90,
+   73
+  ],
+  "frames": [
+   "ready",
+   "wind-up",
+   "slash",
+   "cast",
+   "hurt",
+   "victory"
+  ],
+  "colors": 17,
+  "warning": "コマが横に重なっていたため、絵の塊ごとに振り分けて切り出した",
+  "sub": "勇者（マップ用）",
+  "use": "フィールドでの戦闘（横向き）。被弾はエラー時、勝利はテスト成功・レベルアップ"
+ },
+ {
+  "id": "hero-town",
+  "group": "キャラクター",
+  "name": "勇者 町での動作（読書・祈り・呼ぶ・書く・遠見）",
+  "frame": [
+   38,
+   53
+  ],
+  "frames": [
+   "read",
+   "pray",
+   "call",
+   "write",
+   "look far"
+  ],
+  "colors": 19,
+  "sub": "勇者（マップ用）",
+  "use": "町での作業：読む・祈る（git／compact）・呼ぶ・書く（計画）・遠見（Web）"
+ },
+ {
+  "id": "hero-sleep",
+  "group": "キャラクター",
+  "name": "勇者 宿屋で眠る",
+  "frame": [
+   56,
+   78
+  ],
+  "frames": [
+   "sleeping"
+  ],
+  "colors": 17,
+  "sub": "勇者（マップ用）",
+  "use": "居眠り（10分動きなし）で宿屋のベッドに入った時"
+ },
+ {
+  "id": "party-warrior",
+  "group": "キャラクター",
+  "name": "せんし（正面・横・歩き・攻撃）",
+  "frame": [
+   68,
+   53
+  ],
+  "frames": [
+   "front",
+   "right",
+   "right walk",
+   "wind-up",
+   "attack"
+  ],
+  "colors": 18,
+  "warning": "コマが横に重なっていたため、絵の塊ごとに振り分けて切り出した",
+  "sub": "仲間（マップ用）",
+  "use": "汎用サブエージェント。勇者について歩き、横向きで一緒に戦う"
+ },
+ {
+  "id": "party-mage",
+  "group": "キャラクター",
+  "name": "まほうつかい（正面・横・歩き・詠唱）",
+  "frame": [
+   76,
+   51
+  ],
+  "frames": [
+   "front",
+   "right",
+   "right walk",
+   "charge",
+   "cast"
+  ],
+  "colors": 19,
+  "sub": "仲間（マップ用）",
+  "use": "その他のサブエージェント"
+ },
+ {
+  "id": "party-thief",
+  "group": "キャラクター",
+  "name": "とうぞく（正面・横・歩き・攻撃）",
+  "frame": [
+   56,
+   48
+  ],
+  "frames": [
+   "front",
+   "right",
+   "right walk",
+   "crouch",
+   "stab"
+  ],
+  "colors": 14,
+  "warning": "コマが横に重なっていたため、絵の塊ごとに振り分けて切り出した",
+  "sub": "仲間（マップ用）",
+  "use": "Explore サブエージェント"
+ },
+ {
+  "id": "party-priest",
+  "group": "キャラクター",
+  "name": "そうりょ（正面・横・歩き・祈り）",
+  "frame": [
+   42,
+   56
+  ],
+  "frames": [
+   "front",
+   "right",
+   "right walk",
+   "pray",
+   "heal"
+  ],
+  "colors": 16,
+  "sub": "仲間（マップ用）",
+  "use": "Plan サブエージェント"
+ },
+ {
+  "id": "monster-slime",
+  "group": "モンスター",
+  "name": "スライム（待機2・被弾）",
+  "frame": [
+   34,
+   30
+  ],
+  "frames": [
+   "idle",
+   "squash",
+   "hurt"
+  ],
+  "colors": 10,
+  "sub": "正面（戦闘フォーカス用）",
+  "use": "戦闘画面：待機・被弾"
+ },
+ {
+  "id": "monster-ghost",
+  "group": "モンスター",
+  "name": "おばけ（待機2・被弾）",
+  "frame": [
+   46,
+   35
+  ],
+  "frames": [
+   "idle",
+   "float",
+   "hurt"
+  ],
+  "colors": 12,
+  "sub": "正面（戦闘フォーカス用）",
+  "use": "戦闘画面：待機・被弾"
+ },
+ {
+  "id": "monster-golem",
+  "group": "モンスター",
+  "name": "しれんのゴーレム（待機2・被弾）",
+  "frame": [
+   78,
+   52
+  ],
+  "frames": [
+   "idle",
+   "breath",
+   "hurt"
+  ],
+  "colors": 15,
+  "sub": "正面（戦闘フォーカス用）",
+  "use": "戦闘画面：待機・被弾"
+ },
+ {
+  "id": "monster-dragon",
+  "group": "モンスター",
+  "name": "ドラゴン（待機2・被弾）",
+  "frame": [
+   110,
+   75
+  ],
+  "frames": [
+   "idle",
+   "wings up",
+   "hurt"
+  ],
+  "colors": 17,
+  "sub": "正面（戦闘フォーカス用）",
+  "use": "戦闘画面：待機・被弾"
+ },
+ {
+  "id": "bld-library",
+  "group": "まち",
+  "name": "としょかん",
+  "frame": [
+   124,
+   104
+  ],
+  "frames": [
+   "building"
+  ],
+  "colors": 16,
+  "sub": "建物",
+  "use": "ファイルを読む・探す時に向かう"
+ },
+ {
+  "id": "bld-church",
+  "group": "まち",
+  "name": "きょうかい",
+  "frame": [
+   90,
+   128
+  ],
+  "frames": [
+   "building"
+  ],
+  "colors": 19,
+  "sub": "建物",
+  "use": "/compact（MP 回復）の時に祈る"
+ },
+ {
+  "id": "bld-tower",
+  "group": "まち",
+  "name": "ものみのとう",
+  "frame": [
+   62,
+   143
+  ],
+  "frames": [
+   "building"
+  ],
+  "colors": 14,
+  "sub": "建物",
+  "use": "Web 検索・取得の時に登る（フィールド側に置く案もあり）"
+ },
+ {
+  "id": "bld-questboard",
+  "group": "まち",
+  "name": "クエストボード",
+  "frame": [
+   78,
+   69
+  ],
+  "frames": [
+   "board"
+  ],
+  "colors": 10,
+  "sub": "建物",
+  "use": "計画：タスクを依頼書として貼る"
+ },
+ {
+  "id": "bld-shop",
+  "group": "まち",
+  "name": "どうぐや（屋台）",
+  "frame": [
+   128,
+   90
+  ],
+  "frames": [
+   "stall"
+  ],
+  "colors": 18,
+  "sub": "建物",
+  "use": "その他のツール（MCP など）を使う時"
+ },
+ {
+  "id": "inn-wall",
+  "group": "まち",
+  "name": "宿屋の奥の壁（窓・扉）",
+  "frame": [
+   266,
+   40
+  ],
+  "frames": [
+   "wall"
+  ],
+  "colors": 11,
+  "sub": "宿屋の中",
+  "use": "宿屋の中の奥の壁"
+ },
+ {
+  "id": "inn-bed",
+  "group": "まち",
+  "name": "宿屋のベッド（空き）",
+  "frame": [
+   56,
+   78
+  ],
+  "frames": [
+   "bed"
+  ],
+  "colors": 15,
+  "sub": "宿屋の中",
+  "use": "空きベッド（寝ている勇者のベッドと同じ大きさ）"
+ },
+ {
+  "id": "inn-rug",
+  "group": "まち",
+  "name": "宿屋のじゅうたん",
+  "frame": [
+   124,
+   30
+  ],
+  "frames": [
+   "rug"
+  ],
+  "colors": 9,
+  "sub": "宿屋の中",
+  "use": "宿屋の中の飾り"
+ },
+ {
+  "id": "obj-crystal",
+  "group": "まち",
+  "name": "ぼうけんのしょ（セーブクリスタル、光る4コマ）",
+  "frame": [
+   26,
+   41
+  ],
+  "frames": [
+   "glow 1",
+   "glow 2",
+   "glow 3",
+   "glow 4"
+  ],
+  "colors": 15,
+  "sub": "広場・小物",
+  "use": "git（冒険の書に記録）の時に祈る"
+ },
+ {
+  "id": "obj-campfire",
+  "group": "まち",
+  "name": "たき火（4コマ）",
+  "frame": [
+   32,
+   35
+  ],
+  "frames": [
+   "fire 1",
+   "fire 2",
+   "fire 3",
+   "fire 4"
+  ],
+  "colors": 16,
+  "sub": "広場・小物",
+  "use": "依頼を受けて考えている間に集まる"
+ },
+ {
+  "id": "obj-nature",
+  "group": "フィールド",
+  "name": "木・茂み・花・岩",
+  "frame": [
+   34,
+   41
+  ],
+  "frames": [
+   "round tree",
+   "pine tree",
+   "bush",
+   "flowers",
+   "rock"
+  ],
+  "colors": 13,
+  "sub": "自然・水辺",
+  "use": "木・茂み・花・岩（町とフィールドの飾り）"
+ },
+ {
+  "id": "obj-fence-sign",
+  "group": "まち",
+  "name": "さく・門柱・立て札",
+  "frame": [
+   54,
+   41
+  ],
+  "frames": [
+   "fence",
+   "gate post",
+   "signboard"
+  ],
+  "colors": 11,
+  "sub": "広場・小物",
+  "use": "庭の柵・門柱・立て札"
+ },
+ {
+  "id": "tile-ground",
+  "group": "フィールド",
+  "name": "地面（町の草・野の草・石畳・土・床板）",
+  "frame": [
+   48,
+   48
+  ],
+  "frames": [
+   "town grass",
+   "wild grass",
+   "cobblestone",
+   "dirt",
+   "wood floor"
+  ],
+  "colors": 12,
+  "sub": "地面",
+  "use": "町の草・野の草・石畳・土・床板（継ぎ目なしに散らして使う）"
+ },
+ {
+  "id": "fx-battle",
+  "group": "演出",
+  "name": "戦闘エフェクト（斬撃3・呪文3・煙3）",
+  "frame": [
+   30,
+   21
+  ],
+  "frames": [
+   "slash 1",
+   "slash 2",
+   "slash 3",
+   "spell 1",
+   "spell 2",
+   "spell 3",
+   "poof 1",
+   "poof 2",
+   "poof 3"
+  ],
+  "colors": 12,
+  "sub": "エフェクト",
+  "use": "勇者の攻撃：斬撃・呪文・モンスターを倒した煙"
+ },
+ {
+  "id": "ui-balloons",
+  "group": "演出",
+  "name": "吹き出しアイコン（！・…・Zz・⏳・♪・汗・ハート）",
+  "frame": [
+   22,
+   20
+  ],
+  "frames": [
+   "exclamation",
+   "thinking dots",
+   "sleep Zz",
+   "hourglass",
+   "music note",
+   "sweat drop",
+   "heart"
+  ],
+  "colors": 18,
+  "sub": "UI",
+  "use": "頭上の吹き出し：！呼ぶ・…考え中・Zz 居眠り・⏳ 長い待ち・♪ 好調・汗 苦戦・ハート 立ち直り"
+ },
+ {
+  "id": "hero-walk-back",
+  "group": "キャラクター",
+  "name": "勇者 歩き（背中・上へ）",
+  "frame": [
+   34,
+   51
+  ],
+  "frames": [
+   "back contact L",
+   "back pass",
+   "back contact R",
+   "back pass"
+  ],
+  "colors": 17,
+  "sub": "勇者（マップ用）",
+  "use": "上（奥）へ歩く時"
+ },
+ {
+  "id": "hero-back-battle",
+  "group": "キャラクター",
+  "name": "勇者 戦闘（背中・フォーカス戦闘用）",
+  "frame": [
+   68,
+   74
+  ],
+  "frames": [
+   "ready",
+   "wind-up",
+   "slash",
+   "cast",
+   "hurt",
+   "victory"
+  ],
+  "colors": 16,
+  "warning": "コマが横に重なっていたため、絵の塊ごとに振り分けて切り出した",
+  "sub": "勇者（戦闘フォーカス用）",
+  "use": "勇者をクリックして開く戦闘画面（背中から見る）"
+ },
+ {
+  "id": "party-warrior-back",
+  "group": "キャラクター",
+  "name": "せんし 戦闘（背中）",
+  "frame": [
+   66,
+   64
+  ],
+  "frames": [
+   "ready",
+   "wind-up",
+   "attack",
+   "hurt"
+  ],
+  "colors": 19,
+  "sub": "仲間（戦闘フォーカス用）",
+  "use": "戦闘画面で勇者と並ぶ（背中）"
+ },
+ {
+  "id": "party-mage-back",
+  "group": "キャラクター",
+  "name": "まほうつかい 戦闘（背中）",
+  "frame": [
+   66,
+   58
+  ],
+  "frames": [
+   "ready",
+   "charge",
+   "cast",
+   "hurt"
+  ],
+  "colors": 17,
+  "sub": "仲間（戦闘フォーカス用）",
+  "use": "戦闘画面で勇者と並ぶ（背中）"
+ },
+ {
+  "id": "party-thief-back",
+  "group": "キャラクター",
+  "name": "とうぞく 戦闘（背中）",
+  "frame": [
+   78,
+   50
+  ],
+  "frames": [
+   "ready",
+   "crouch",
+   "stab",
+   "hurt"
+  ],
+  "colors": 16,
+  "warning": "コマが横に重なっていたため、絵の塊ごとに振り分けて切り出した",
+  "sub": "仲間（戦闘フォーカス用）",
+  "use": "戦闘画面で勇者と並ぶ（背中）"
+ },
+ {
+  "id": "party-priest-back",
+  "group": "キャラクター",
+  "name": "そうりょ 戦闘（背中）",
+  "frame": [
+   60,
+   63
+  ],
+  "frames": [
+   "ready",
+   "pray",
+   "heal",
+   "hurt"
+  ],
+  "colors": 15,
+  "sub": "仲間（戦闘フォーカス用）",
+  "use": "戦闘画面で勇者と並ぶ（背中）"
+ },
+ {
+  "id": "monster-slime-attack",
+  "group": "モンスター",
+  "name": "スライムの攻撃",
+  "frame": [
+   42,
+   30
+  ],
+  "frames": [
+   "wind-up",
+   "pounce",
+   "land"
+  ],
+  "colors": 12,
+  "sub": "正面の攻撃（戦闘フォーカス用）",
+  "use": "戦闘画面：エラー時の反撃"
+ },
+ {
+  "id": "monster-ghost-attack",
+  "group": "モンスター",
+  "name": "おばけの攻撃",
+  "frame": [
+   64,
+   41
+  ],
+  "frames": [
+   "wind-up",
+   "spell",
+   "drift back"
+  ],
+  "colors": 12,
+  "sub": "正面の攻撃（戦闘フォーカス用）",
+  "use": "戦闘画面：エラー時の反撃"
+ },
+ {
+  "id": "monster-golem-attack",
+  "group": "モンスター",
+  "name": "ゴーレムの攻撃",
+  "frame": [
+   60,
+   45
+  ],
+  "frames": [
+   "wind-up",
+   "punch",
+   "recover"
+  ],
+  "colors": 18,
+  "sub": "正面の攻撃（戦闘フォーカス用）",
+  "use": "戦闘画面：エラー時の反撃"
+ },
+ {
+  "id": "monster-dragon-attack",
+  "group": "モンスター",
+  "name": "ドラゴンの攻撃",
+  "frame": [
+   98,
+   68
+  ],
+  "frames": [
+   "inhale",
+   "fire breath",
+   "roar"
+  ],
+  "colors": 18,
+  "sub": "正面の攻撃（戦闘フォーカス用）",
+  "use": "戦闘画面：エラー時の反撃（炎）"
+ },
+ {
+  "id": "fx-enemy",
+  "group": "演出",
+  "name": "敵の攻撃エフェクト（衝撃・ひっかき・炎・呪い・岩）",
+  "frame": [
+   46,
+   34
+  ],
+  "frames": [
+   "impact 1",
+   "impact 2",
+   "claw 1",
+   "claw 2",
+   "fire 1",
+   "fire 2",
+   "curse 1",
+   "curse 2",
+   "rocks 1",
+   "rocks 2"
+  ],
+  "colors": 19,
+  "sub": "エフェクト",
+  "use": "モンスターの反撃が当たった時（衝撃・ひっかき・炎・呪い・岩）"
+ },
+ {
+  "id": "bg-battle-meadow",
+  "group": "フィールド",
+  "name": "戦闘背景：草原",
+  "frame": [
+   557,
+   313
+  ],
+  "frames": [
+   "backdrop"
+  ],
+  "colors": 22,
+  "sub": "戦闘背景（戦闘フォーカス用）",
+  "use": "草原の戦闘画面（小川と滝が流れる）"
+ },
+ {
+  "id": "bg-battle-cave",
+  "group": "フィールド",
+  "name": "戦闘背景：洞窟",
+  "frame": [
+   557,
+   313
+  ],
+  "frames": [
+   "backdrop"
+  ],
+  "colors": 16,
+  "sub": "戦闘背景（戦闘フォーカス用）",
+  "use": "洞窟の戦闘画面（水面と松明がゆらめく）"
+ },
+ {
+  "id": "bg-battle-forest",
+  "group": "フィールド",
+  "name": "戦闘背景：夜の森",
+  "frame": [
+   557,
+   313
+  ],
+  "frames": [
+   "backdrop"
+  ],
+  "colors": 16,
+  "sub": "戦闘背景（戦闘フォーカス用）",
+  "use": "夜の森の戦闘画面（池の月・ホタル）"
+ },
+ {
+  "id": "tile-field",
+  "group": "フィールド",
+  "name": "フィールドの地面（洞窟・夜の森）",
+  "frame": [
+   48,
+   48
+  ],
+  "frames": [
+   "cave floor",
+   "cave rock wall",
+   "cave dark pit",
+   "night grass",
+   "night dirt path",
+   "night moss"
+  ],
+  "colors": 12,
+  "sub": "地面",
+  "use": "洞窟の床・岩壁・穴、夜の草・道・苔"
+ },
+ {
+  "id": "obj-water",
+  "group": "フィールド",
+  "name": "水たまり・池・はす・あし",
+  "frame": [
+   40,
+   38
+  ],
+  "frames": [
+   "puddle",
+   "small pond",
+   "lily pad",
+   "reeds"
+  ],
+  "colors": 17,
+  "sub": "自然・水辺",
+  "use": "水たまり・池・はす・あし"
+ },
+ {
+  "id": "obj-lake",
+  "group": "フィールド",
+  "name": "湖",
+  "frame": [
+   148,
+   98
+  ],
+  "frames": [
+   "lake"
+  ],
+  "colors": 17,
+  "sub": "自然・水辺",
+  "use": "湖（草原や町の水辺）"
+ },
+ {
+  "id": "obj-cave",
+  "group": "フィールド",
+  "name": "洞窟の小物（入口・石筍・岩・松明・鉱石）",
+  "frame": [
+   48,
+   43
+  ],
+  "frames": [
+   "cave entrance",
+   "stalagmite",
+   "boulder",
+   "wall torch",
+   "glowing crystal ore"
+  ],
+  "colors": 19,
+  "sub": "洞窟・夜の森",
+  "use": "洞窟マップ：入口・石筍・岩・松明・鉱石"
+ },
+ {
+  "id": "obj-forest-night",
+  "group": "フィールド",
+  "name": "夜の森の小物（木・切り株・光るキノコ・街灯）",
+  "frame": [
+   36,
+   45
+  ],
+  "frames": [
+   "dark tree",
+   "dark pine",
+   "tree stump",
+   "glowing mushrooms",
+   "lantern post"
+  ],
+  "colors": 17,
+  "sub": "洞窟・夜の森",
+  "use": "夜の森マップ：木・切り株・光るキノコ・街灯"
+ },
+ {
+  "id": "amb-cloud",
+  "group": "フィールド",
+  "name": "雲（3種）",
+  "frame": [
+   60,
+   33
+  ],
+  "frames": [
+   "cloud large",
+   "cloud medium",
+   "cloud small"
+  ],
+  "colors": 9,
+  "sub": "背景の動き",
+  "use": "草原の空を流れる雲"
+ },
+ {
+  "id": "amb-grass",
+  "group": "フィールド",
+  "name": "手前の草（揺れ3コマ）",
+  "frame": [
+   52,
+   32
+  ],
+  "frames": [
+   "sway left",
+   "upright",
+   "sway right"
+  ],
+  "colors": 10,
+  "sub": "背景の動き",
+  "use": "草原の手前で揺れる草"
+ },
+ {
+  "id": "amb-butterfly",
+  "group": "フィールド",
+  "name": "ちょうちょ（羽ばたき2コマ×2色）",
+  "frame": [
+   20,
+   15
+  ],
+  "frames": [
+   "yellow open",
+   "yellow closed",
+   "white open",
+   "white closed"
+  ],
+  "colors": 12,
+  "sub": "背景の動き",
+  "use": "草原を飛ぶちょうちょ"
+ },
+ {
+  "id": "amb-leaf",
+  "group": "フィールド",
+  "name": "舞い落ちる葉（回転4コマ）",
+  "frame": [
+   28,
+   18
+  ],
+  "frames": [
+   "leaf 1",
+   "leaf 2",
+   "leaf 3",
+   "leaf 4"
+  ],
+  "colors": 9,
+  "sub": "背景の動き",
+  "use": "夜の森で舞い落ちる葉"
+ },
+ {
+  "id": "amb-drip",
+  "group": "フィールド",
+  "name": "水滴と波紋（4コマ）",
+  "frame": [
+   32,
+   16
+  ],
+  "frames": [
+   "drop",
+   "splash",
+   "ripple",
+   "ripple wide"
+  ],
+  "colors": 9,
+  "sub": "背景の動き",
+  "use": "洞窟の天井からの水滴と波紋"
+ },
+ {
+  "id": "monster-slime-side",
+  "group": "モンスター",
+  "name": "スライム（横向き：待機2・被弾・溜め・攻撃）",
+  "frame": [
+   44,
+   30
+  ],
+  "frames": [
+   "idle",
+   "squash",
+   "hurt",
+   "wind-up",
+   "pounce"
+  ],
+  "colors": 12,
+  "sub": "横向き（マップ用）",
+  "use": "フィールドの戦闘：ファイル編集の相手。待機・被弾・溜め・攻撃（エラー時）"
+ },
+ {
+  "id": "monster-ghost-side",
+  "group": "モンスター",
+  "name": "おばけ（斜め向き：待機2・被弾・溜め・攻撃）",
+  "frame": [
+   64,
+   35
+  ],
+  "frames": [
+   "idle",
+   "float",
+   "hurt",
+   "wind-up",
+   "spell"
+  ],
+  "colors": 12,
+  "sub": "横向き（マップ用）",
+  "use": "フィールドの戦闘：コマンド実行の相手"
+ },
+ {
+  "id": "monster-golem-side",
+  "group": "モンスター",
+  "name": "ゴーレム（横向き：待機2・被弾・溜め・攻撃）",
+  "frame": [
+   90,
+   64
+  ],
+  "frames": [
+   "idle",
+   "breath",
+   "hurt",
+   "wind-up",
+   "punch"
+  ],
+  "colors": 16,
+  "sub": "横向き（マップ用）",
+  "use": "フィールドの戦闘：テスト・型検査の相手"
+ },
+ {
+  "id": "monster-dragon-side",
+  "group": "モンスター",
+  "name": "ドラゴン（横向き：待機2・被弾・溜め・火を吹く）",
+  "frame": [
+   132,
+   72
+  ],
+  "frames": [
+   "idle",
+   "wings up",
+   "hurt",
+   "inhale",
+   "fire breath"
+  ],
+  "colors": 17,
+  "sub": "横向き（マップ用）",
+  "use": "フィールドの戦闘：サブエージェントに任せた仕事（ボス）"
+ },
+ {
+  "id": "bld-inn",
+  "group": "まち",
+  "name": "やどや（外観、ベッドの看板）",
+  "frame": [
+   116,
+   124
+  ],
+  "frames": [
+   "inn"
+  ],
+  "colors": 15,
+  "sub": "建物",
+  "use": "待機中の居場所。居眠りの人数を出し、クリックで中へ"
+ },
+ {
+  "id": "bld-house",
+  "group": "まち",
+  "name": "民家（赤い屋根・わらぶき）",
+  "frame": [
+   98,
+   90
+  ],
+  "frames": [
+   "red roof house",
+   "thatched house"
+  ],
+  "colors": 18,
+  "sub": "建物",
+  "use": "町の住宅街（飾り）"
+ },
+ {
+  "id": "obj-fountain",
+  "group": "まち",
+  "name": "広場の噴水（水が流れる3コマ）",
+  "frame": [
+   74,
+   74
+  ],
+  "frames": [
+   "water 1",
+   "water 2",
+   "water 3"
+  ],
+  "colors": 14,
+  "sub": "広場・小物",
+  "use": "広場の中心。待機中のエージェントが集まる"
+ },
+ {
+  "id": "obj-town",
+  "group": "まち",
+  "name": "まちの小物（井戸・たる・木箱・ベンチ・街灯・花壇・まき・荷車）",
+  "frame": [
+   50,
+   54
+  ],
+  "frames": [
+   "well",
+   "barrel",
+   "crates",
+   "bench",
+   "lamp post",
+   "flower planter",
+   "firewood pile",
+   "wooden cart"
+  ],
+  "colors": 18,
+  "sub": "広場・小物",
+  "use": "井戸・たる・木箱・ベンチ・街灯・花壇・まき・荷車（飾り）"
+ },
+ {
+  "id": "town-wall",
+  "group": "まち",
+  "name": "まちの城壁（壁・見張り塔・門）",
+  "frame": [
+   140,
+   111
+  ],
+  "frames": [
+   "wall segment",
+   "corner tower",
+   "town gate"
+  ],
+  "colors": 14,
+  "sub": "広場・小物",
+  "use": "町の境目。門からフィールドへ"
+ },
+ {
+  "id": "obj-canal",
+  "group": "まち",
+  "name": "水路と石の橋",
+  "frame": [
+   100,
+   52
+  ],
+  "frames": [
+   "canal segment",
+   "stone bridge"
+  ],
+  "colors": 14,
+  "sub": "広場・小物",
+  "use": "町を横切る水路と橋（飾り）"
+ },
+ {
+  "id": "bld-port",
+  "group": "まち",
+  "name": "海辺の港町の建物（宿屋・道具屋・教会・民家2）",
+  "frame": [
+   124,
+   161
+  ],
+  "frames": [
+   "inn",
+   "item shop",
+   "church",
+   "house",
+   "house 2"
+  ],
+  "colors": 16,
+  "sub": "町のタイプ：海辺の港町",
+  "use": "海辺の港町の建物（宿屋・道具屋・教会・民家2）"
+ },
+ {
+  "id": "bld-snow",
+  "group": "まち",
+  "name": "雪国の町の建物（宿屋・道具屋・教会・民家2）",
+  "frame": [
+   104,
+   133
+  ],
+  "frames": [
+   "inn",
+   "item shop",
+   "church",
+   "house",
+   "house 2"
+  ],
+  "colors": 19,
+  "sub": "町のタイプ：雪国の町",
+  "use": "雪国の町の建物（宿屋・道具屋・教会・民家2）"
+ },
+ {
+  "id": "bld-desert",
+  "group": "まち",
+  "name": "砂漠のオアシスの建物（宿屋・道具屋・教会・民家2）",
+  "frame": [
+   110,
+   149
+  ],
+  "frames": [
+   "inn",
+   "item shop",
+   "church",
+   "house",
+   "house 2"
+  ],
+  "colors": 18,
+  "sub": "町のタイプ：砂漠のオアシス",
+  "use": "砂漠のオアシスの建物（宿屋・道具屋・教会・民家2）"
+ },
+ {
+  "id": "bld-volcano",
+  "group": "まち",
+  "name": "火山の町の建物（宿屋・道具屋・教会・民家2）",
+  "frame": [
+   86,
+   137
+  ],
+  "frames": [
+   "inn",
+   "item shop",
+   "church",
+   "house",
+   "house 2"
+  ],
+  "colors": 14,
+  "sub": "町のタイプ：火山の町",
+  "use": "火山の町の建物（宿屋・道具屋・教会・民家2）"
+ },
+ {
+  "id": "obj-port",
+  "group": "まち",
+  "name": "海辺の港町の小物（lighthouse・docked sailboat・fish market stall・wooden pier with posts・crates of fish・seagull）",
+  "frame": [
+   80,
+   95
+  ],
+  "frames": [
+   "lighthouse",
+   "docked sailboat",
+   "fish market stall",
+   "wooden pier with posts",
+   "crates of fish",
+   "seagull"
+  ],
+  "colors": 17,
+  "sub": "町のタイプ：海辺の港町",
+  "use": "海辺の港町の目印と小物"
+ },
+ {
+  "id": "obj-snow",
+  "group": "まち",
+  "name": "雪国の町の小物（snowy fir tree・snowman・frozen fountain・snowy street lamp・wooden sled・snow-covered well）",
+  "frame": [
+   52,
+   57
+  ],
+  "frames": [
+   "snowy fir tree",
+   "snowman",
+   "frozen fountain",
+   "snowy street lamp",
+   "wooden sled",
+   "snow-covered well"
+  ],
+  "colors": 16,
+  "sub": "町のタイプ：雪国の町",
+  "use": "雪国の町の目印と小物"
+ },
+ {
+  "id": "obj-desert",
+  "group": "まち",
+  "name": "砂漠のオアシスの小物（palm tree・small oasis pond with reeds・camel・striped canvas tent・clay pots・cactus）",
+  "frame": [
+   92,
+   73
+  ],
+  "frames": [
+   "palm tree",
+   "small oasis pond with reeds",
+   "camel",
+   "striped canvas tent",
+   "clay pots",
+   "cactus"
+  ],
+  "colors": 17,
+  "warning": "コマが横に重なっていたため、絵の塊ごとに振り分けて切り出した",
+  "sub": "町のタイプ：砂漠のオアシス",
+  "use": "砂漠のオアシスの目印と小物"
+ },
+ {
+  "id": "obj-volcano",
+  "group": "まち",
+  "name": "火山の町の小物（small lava pool・smoking volcanic vent・obsidian rocks・blacksmith forge with anvil・charred dead tree・glowing magma street lamp）",
+  "frame": [
+   64,
+   77
+  ],
+  "frames": [
+   "small lava pool",
+   "smoking volcanic vent",
+   "obsidian rocks",
+   "blacksmith forge with anvil",
+   "charred dead tree",
+   "glowing magma street lamp"
+  ],
+  "colors": 16,
+  "sub": "町のタイプ：火山の町",
+  "use": "火山の町の目印と小物"
+ },
+ {
+  "id": "tile-port",
+  "group": "フィールド",
+  "name": "海辺の港町の地面（beach sand・wet sand・wooden boardwalk planks・shallow sea water・deep sea water）",
+  "frame": [
+   48,
+   48
+  ],
+  "frames": [
+   "beach sand",
+   "wet sand",
+   "wooden boardwalk planks",
+   "shallow sea water",
+   "deep sea water"
+  ],
+  "colors": 12,
+  "sub": "地面",
+  "use": "海辺の港町の地面（継ぎ目なしに散らして使う）"
+ },
+ {
+  "id": "tile-snow",
+  "group": "フィールド",
+  "name": "雪国の町の地面（fresh snow・trodden snow path・blue ice）",
+  "frame": [
+   48,
+   48
+  ],
+  "frames": [
+   "fresh snow",
+   "trodden snow path",
+   "blue ice"
+  ],
+  "colors": 12,
+  "sub": "地面",
+  "use": "雪国の町の地面（継ぎ目なしに散らして使う）"
+ },
+ {
+  "id": "tile-desert",
+  "group": "フィールド",
+  "name": "砂漠のオアシスの地面（desert sand・sandstone paving・sand dune ripples）",
+  "frame": [
+   48,
+   48
+  ],
+  "frames": [
+   "desert sand",
+   "sandstone paving",
+   "sand dune ripples"
+  ],
+  "colors": 12,
+  "sub": "地面",
+  "use": "砂漠のオアシスの地面（継ぎ目なしに散らして使う）"
+ },
+ {
+  "id": "tile-volcano",
+  "group": "フィールド",
+  "name": "火山の町の地面（volcanic ash ground・basalt paving・cooled black lava rock）",
+  "frame": [
+   48,
+   48
+  ],
+  "frames": [
+   "volcanic ash ground",
+   "basalt paving",
+   "cooled black lava rock"
+  ],
+  "colors": 12,
+  "sub": "地面",
+  "use": "火山の町の地面（継ぎ目なしに散らして使う）"
+ },
+ {
+  "id": "ui-report",
+  "group": "演出",
+  "name": "完了の印（宝箱・巻物・手紙・吹き出し）",
+  "frame": [
+   44,
+   34
+  ],
+  "frames": [
+   "treasure chest closed",
+   "treasure chest open glowing",
+   "rolled parchment scroll",
+   "sealed letter",
+   "speech bubble with lines"
+  ],
+  "colors": 16,
+  "sub": "UI",
+  "use": "作業完了の印：戦闘後の宝箱（閉・開）、調査の巻物、手紙、話しかける吹き出し"
+ },
+ {
+  "id": "world-map",
+  "group": "フィールド",
+  "name": "ワールドマップの地形",
+  "frame": [
+   557,
+   313
+  ],
+  "frames": [
+   "world"
+  ],
+  "colors": 22,
+  "sub": "ワールドマップ",
+  "use": "プロジェクトの町が並ぶワールドマップの地形"
+ },
+ {
+  "id": "world-towns",
+  "group": "フィールド",
+  "name": "ワールドマップの町（村・港町・雪国・砂漠・火山）",
+  "frame": [
+   38,
+   37
+  ],
+  "frames": [
+   "green village",
+   "port town",
+   "snowy town",
+   "desert oasis town",
+   "volcano town"
+  ],
+  "colors": 18,
+  "sub": "ワールドマップ",
+  "use": "ワールドマップ上の町のしるし（町のタイプごと）"
+ },
+ {
+  "id": "amb-gull",
+  "group": "フィールド",
+  "name": "飛ぶカモメ（羽ばたき3コマ）",
+  "frame": [
+   28,
+   21
+  ],
+  "frames": [
+   "wings up",
+   "wings level",
+   "wings down"
+  ],
+  "colors": 11,
+  "sub": "背景の動き",
+  "use": "港町の空を飛ぶカモメ（羽ばたき）"
+ }
+]

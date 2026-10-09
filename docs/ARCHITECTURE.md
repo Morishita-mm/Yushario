@@ -31,11 +31,16 @@
 | `src/core/decider.ts` | `Decider` インタフェース、`Candidate` 型 | events |
 | `src/core/mock-decider.ts` | ルール表で候補とスコアを返すモック（Jev 不在時のフォールバック） | decider |
 | `src/core/selector.ts` | 候補リストから1つ選ぶ（最高スコア、同点・ゆらぎは seed 付き乱数） | decider |
+| `src/core/activity.ts` | フック・ツール名・対象から活動（読む・書く・テスト…）を判定 | events |
+| `src/core/room.ts` | 部屋の状態（エージェントごとの活動・助っ人・タスク・行動ログ）と、直近の流れから様子を算出 | activity, events |
+| `src/core/story.ts` | RPG としての語り（ナレーション）、Lv・HP・MP、仲間の職業、活動ごとのモンスター | activity, events, room |
 | `src/core/motion.ts` | 目標（表情・姿勢）＋アイドル層（呼吸・瞬き・揺れ）から毎フレームの抽象パラメータを生成 | decider の型のみ |
 | `src/server/relay.ts` | `POST /event` を受けて検証 → Decider → Selector → WS で決定を配信 | core |
 | `src/server/jev-decider.ts` | Jev（TypeSafe System One API）を呼ぶ `Decider` 実装。キーが無ければ使わない | core |
 | `src/server/pty.ts` | 埋め込みターミナル用の PTY と WS /pty の中継 | なし |
-| `src/web/*` | WS で決定を受信 → MotionGenerator → Renderer、埋め込みターミナル | core |
+| `src/web/rpg/*` | 町のページ（トップ）。WS のイベントで Room を組み立て、町とフィールドをドット絵で描画。右に「つよさ」、下にメッセージ | core |
+| `src/web/rpg/art/*` | ドット絵のデータ（文字のグリッド）。勇者・仲間は頭・胴・脚・腕のパーツを組み合わせてポーズを作る | なし |
+| `src/web/*` | Live2D のページ（`/live2d.html`）。WS で決定を受信 → MotionGenerator → Renderer、埋め込みターミナル | core |
 | `src/web/renderers/*` | `Renderer` 実装。抽象パラメータ → モデル固有パラメータの対応表で適用 | core の型のみ |
 
 `src/core` は DOM・Node API に依存しない純粋 TypeScript とし、単体テストする。
@@ -94,8 +99,8 @@ interface Renderer {
   - 体調（実装中）: アダプタがエージェントのコンテキスト使用率（0〜1 の数値のみ）を `AgentEvent.context` で送る。
     web は `MotionGenerator.setFatigue(f)` で継続的に体へ反映する（まぶたが重い・呼吸が遅い・頭が下がる）。Decider の判断とは独立した連続量。
     使用率が高い閾値を初めて超えた時に、吹き出しで整理（compact）を提案する。会話本文は読み取ってもアダプタの外へ出さない。
-- **C. チームが部屋にいる**（設計中）: 複数エージェントを1部屋の複数キャラクターとして表示。
-  ドットキャラで、エージェントの様子を細かく描写する方向に進める（Live2D 継続案も保留として残す）。
+- **C. チームが部屋にいる**（実装中）: 複数エージェントを1部屋の複数キャラクターとして表示。
+  RPG 風の町（作業＝戦闘、休み＝宿屋、サブエージェント＝仲間）で、エージェントの様子を細かく描写する（Live2D 継続案も保留として残す）。
   対象は当面 Claude Code のみ。観察の仕様は `docs/OBSERVATION.md`。
 
 ## ハーネス連携（アダプタ）

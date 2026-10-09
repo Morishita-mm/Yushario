@@ -1,4 +1,4 @@
-import type { Candidate } from "../core/decider";
+import { isCandidate, type Candidate } from "../core/decider";
 import { parseAgentEvent, type AgentEvent } from "../core/events";
 import { MotionGenerator } from "../core/motion";
 import { PlaceholderRenderer } from "./renderers/placeholder";
@@ -84,15 +84,6 @@ function acceptDecision(event: AgentEvent, selected: Candidate): void {
   stateLabel.title = event.detail ?? "";
 }
 
-function validCandidate(value: unknown): value is Candidate {
-  if (!value || typeof value !== "object") return false;
-  const candidate = value as Candidate;
-  return ["neutral", "focused", "happy", "troubled", "surprised"].includes(candidate.expression)
-    && ["upright", "lean_forward", "tilt", "slump"].includes(candidate.posture)
-    && (candidate.gesture === undefined || ["nod", "shake", "wave", "think", "cheer", "tremble"].includes(candidate.gesture))
-    && typeof candidate.score === "number" && Number.isFinite(candidate.score);
-}
-
 function connect(): void {
   const protocol = location.protocol === "https:" ? "wss:" : "ws:";
   const token = new URLSearchParams(location.search).get("token") ?? "";
@@ -125,8 +116,9 @@ function connect(): void {
         if (decision.id === permissionId) finishPermission();
         return;
       }
+      if (decision.type === "event" || decision.type === "replay") return; // Room page only.
       const result = parseAgentEvent(decision.event);
-      if (decision.type !== "decision" || !result.ok || !validCandidate(decision.candidate)) {
+      if (decision.type !== "decision" || !result.ok || !isCandidate(decision.candidate)) {
         console.warn("Invalid relay decision");
         return;
       }

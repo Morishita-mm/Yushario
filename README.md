@@ -1,6 +1,9 @@
 # Agent Character (PoC)
 
 AIエージェントの状態イベントを受け、キャラクターの表情・姿勢として表示する表示専用レイヤーです。
+トップページは **エージェントの町**（RPG 風のドット表示）で、フックを設定した複数の Claude Code セッションが勇者として町にやってきて、
+作業はモンスターとの戦い、休みは宿屋、サブエージェントは仲間として、何を・どう・どれくらいやっているかを見せます（仕様は `docs/OBSERVATION.md`）。
+1体を大きく表示する Live2D 版は `/live2d.html` に残しています。
 server側のJev（APIキー未設定・失敗時は `MockDecider`）が判断し、Cubism 4のLive2DモデルまたはCanvasの簡易顔で表示します。
 Cubism Core・モデルは利用者が配置します。未配置・読込失敗時は簡易顔へフォールバックし、画面隅に理由を表示します。
 Core・モデルをこのリポジトリには含めません。
@@ -15,7 +18,22 @@ npm run build
 npm start
 ```
 
+### エージェントの町（トップページ）
+
 1. serverが表示する `http://127.0.0.1:8790/?token=...` のURLをブラウザで開きます。
+2. 下の「フック連携 → Claude Code」の設定を `~/.claude/settings.json` に入れ、普段のターミナル（Orca のワークツリー等）で Claude Code を起動します。
+   セッションごとに1人の勇者が町の入口から歩いてきます（名前は作業ディレクトリ名）。セッションを終えると入口へ帰ります。
+3. 活動ごとに居場所と動作が変わります。
+   - フィールド（右）：ファイル編集＝スライムに斬りかかる、テスト・型検査＝しれんのゴーレム、コマンド＝おばけに呪文、サブエージェント＝仲間とドラゴンに挑む
+   - 町（左）：図書館＝読む・探す、クエストボード＝計画（タスクが依頼書として貼られる）、物見の塔＝Web、ぼうけんのしょ＝git、教会＝整理（/compact）、たき火＝考える、どうぐや＝その他のツール、画面の手前＝あなたを呼んでいる、宿屋＝待機（10分動きがないとベッドで寝る）
+4. 吹き出し（！ … Zz ⏳ ♪ 汗 ハート）で様子を、右の「つよさ」で Lv・HP（最近の失敗）・MP（コンテキストの残り）・仲間・クエストを、下のメッセージウィンドウで出来事を語ります。
+   勇者かウィンドウをクリックすると「ぼうけんの きろく」を表示し、許可要求には「はい／いいえ／ターミナルで こたえる」で答えられます。
+
+文字は DotGothic16（`@fontsource/dotgothic16`、SIL Open Font License）を同梱して使います。
+
+### Live2D 表示（`/live2d.html`）
+
+1. serverが表示する `http://127.0.0.1:8790/live2d.html?token=...` のURLをブラウザで開きます。
 2. 上部のプリセットを選び、「起動」を押します。左がキャラクター、右がエージェントのターミナルです（狭い画面では縦積み）。
 3. ターミナルで普段通りCLIを使います。Claude Codeの許可要求は頭上の吹き出しで「許可 / 拒否 / ターミナルで答える」を選べます。「再起動」は現在のプロセスを終了して選択中のプリセットを起動します。ページを閉じると子プロセスも終了します。
 4. ページを隠すかウィンドウのフォーカスを外して60秒以上経つと、復帰時に受信できた完了・エラー・呼び出しの回数を吹き出しで報告します。7秒後またはクリックで閉じます（許可要求があればそちらを優先します）。
@@ -131,7 +149,10 @@ relayを起動してから利用してください。
 変更する場合はClaude Code / piを起動するシェルで `export AGENT_CHARACTER_URL=http://127.0.0.1:8792/event` のように指定します。
 送信は500msでタイムアウトし、relay不在や送信失敗は無視します。
 `source` は `claude-code` / `pi`、`tool` はツール名（任意）で、どちらも最大200文字です。
-プロンプト・ツール入力・結果本文は送らず、`detail` は短い固定文言だけです。
+プロンプト・ツール出力・ファイルの中身は送らず、`detail` は短い固定文言だけです。
+部屋の表示用に、Claude Code アダプタは `agent`（session_id）・`name`（作業ディレクトリ名）・`hook`（フック名）・`subagent`・`task` と、
+`target`（ファイルのベース名／コマンドの先頭のパスや値を含まない語を最大3語／WebFetch のホスト名／サブエージェント種別）を送ります。
+TaskCreated / TaskCompleted のタスク件名はホワイトボード用に送ります。これらはローカルの表示だけに使い、Jev には送りません（Jev へは従来どおり state・tool・context 等のみ）。
 
 ### Claude Code
 
@@ -144,14 +165,21 @@ relayを起動してから利用してください。
 {
   "hooks": {
     "SessionStart": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node \"/absolute/path/agent-character/adapters/claude-code/hook.mjs\"", "timeout": 1 }] }],
-    "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "node \"/absolute/path/agent-character/adapters/claude-code/hook.mjs\"", "timeout": 1 }] }],
+    "SessionEnd": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node \"/absolute/path/agent-character/adapters/claude-code/hook.mjs\"", "timeout": 1 }] }],
+    "UserPromptSubmit": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node \"/absolute/path/agent-character/adapters/claude-code/hook.mjs\"", "timeout": 1 }] }],
     "PreToolUse": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node \"/absolute/path/agent-character/adapters/claude-code/hook.mjs\"", "timeout": 1 }] }],
     "PostToolUse": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node \"/absolute/path/agent-character/adapters/claude-code/hook.mjs\"", "timeout": 1 }] }],
     "PostToolUseFailure": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node \"/absolute/path/agent-character/adapters/claude-code/hook.mjs\"", "timeout": 1 }] }],
     "Notification": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node \"/absolute/path/agent-character/adapters/claude-code/hook.mjs\"", "timeout": 1 }] }],
     "PermissionRequest": [{ "matcher": "*", "hooks": [{ "type": "http", "url": "http://127.0.0.1:8790/hooks/permission", "timeout": 125 }] }],
-    "Stop": [{ "hooks": [{ "type": "command", "command": "node \"/absolute/path/agent-character/adapters/claude-code/hook.mjs\"", "timeout": 1 }] }],
-    "SubagentStop": [{ "hooks": [{ "type": "command", "command": "node \"/absolute/path/agent-character/adapters/claude-code/hook.mjs\"", "timeout": 1 }] }]
+    "SubagentStart": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node \"/absolute/path/agent-character/adapters/claude-code/hook.mjs\"", "timeout": 1 }] }],
+    "SubagentStop": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node \"/absolute/path/agent-character/adapters/claude-code/hook.mjs\"", "timeout": 1 }] }],
+    "TaskCreated": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node \"/absolute/path/agent-character/adapters/claude-code/hook.mjs\"", "timeout": 1 }] }],
+    "TaskCompleted": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node \"/absolute/path/agent-character/adapters/claude-code/hook.mjs\"", "timeout": 1 }] }],
+    "PreCompact": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node \"/absolute/path/agent-character/adapters/claude-code/hook.mjs\"", "timeout": 1 }] }],
+    "PostCompact": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node \"/absolute/path/agent-character/adapters/claude-code/hook.mjs\"", "timeout": 1 }] }],
+    "Stop": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node \"/absolute/path/agent-character/adapters/claude-code/hook.mjs\"", "timeout": 1 }] }],
+    "StopFailure": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node \"/absolute/path/agent-character/adapters/claude-code/hook.mjs\"", "timeout": 1 }] }]
   }
 }
 ```
@@ -159,12 +187,12 @@ relayを起動してから利用してください。
 SessionStart→`idle`、UserPromptSubmit→`thinking`、PreToolUse / PostToolUse→`working`（`tool_name` 付き）、PostToolUseFailure→`error`（`tool_name` 付き）、Notification→`waiting_input`、Stop→`success` です。
 Claude Code 2.1.295の同梱フック説明では、PostToolUseは成功時、PostToolUseFailureは失敗時に発火します（存在しないファイルのReadでも実機確認済み）。
 PostToolUseは `tool_response` に明示的なエラーフラグ・エラー値・非ゼロの終了コードがある場合だけ `error` にします（自由文からは推測しません）。
-SubagentStopと未知のイベントは何もしません。スクリプトは失敗してもexit 0、stdout / stderrへの出力なしで終了します。
-`AGENT_CHARACTER_DEBUG=1 npm start` でserverが受信したイベントの `state` / `source` / `tool` / `ts` / `context` だけを1行JSONで表示します（本文やツール入出力は記録しません）。
+SessionEnd / SubagentStart / SubagentStop / TaskCreated / TaskCompleted / PreCompact / PostCompact / StopFailure は部屋の表示（退勤・助っ人・ホワイトボード・整理中・異常終了）に使います。ユーザーによる中断（PostToolUseFailure の `is_interrupt`）は失敗に数えません。未知のイベントは何もしません。スクリプトは失敗してもexit 0、stdout / stderrへの出力なしで終了します。
+`AGENT_CHARACTER_DEBUG=1 npm start` でserverが受信したイベントの `state` / `source` / `tool` / `ts` / `context` / `hook` / `agent` / `target` だけを1行JSONで表示します（本文やツール出力は記録しません）。
 許可要求はClaude Code **2.1.295** 同梱スキーマで確認した `http` 型を使用し、`POST /hooks/permission` の応答を待ちます。ポートを変える外部ターミナルでは上のHTTPフックURLも変更してください。
 serverはツール名と短い入力要約（Bashはコマンド先頭120文字、Edit/Writeはパス）だけをローカルWSに配信し、Jevや外部へ送りません。要約には機密情報が含まれうるため、画面共有時には注意してください。
 応答JSONは `{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"allow"}}}`、拒否は `behavior: "deny"` と固定の `message` です。ターミナルで答える・120秒の時間切れ・web未接続/全切断では `{}` を返してClaudeの通常プロンプトに戻します。autoモードや既存の許可ルールで自動許可されるツールは吹き出しが出ません。
-同時に1つだけ表示し、新しい許可要求が来たら古い要求は通常プロンプトに戻します。設定ファイルは書き換えず、一時settingsだけにフックを追加します。
+同時に1つだけ表示し、新しい許可要求が来たら古い要求は通常プロンプトに戻します（複数セッションでも同様）。部屋ではそのセッションのカードに表示し、ターミナル側での回答は同じセッション・同じサブエージェントのツール完了か Stop で検知します。設定ファイルは書き換えず、一時settingsだけにフックを追加します。
 
 埋め込みPTYには親の入れ子セッション判定用 `CLAUDE_CODE_CHILD_SESSION` / `CLAUDECODE` を渡しません。`CLAUDE_CODE_USE_BEDROCK` 等の利用者設定はそのまま渡します。
 

@@ -2,3 +2,4 @@ node_modules/
 dist/
 models/
 public/live2dcubismcore*.js
+.art-work/

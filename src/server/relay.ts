@@ -2,7 +2,7 @@ import { randomUUID, randomBytes } from "node:crypto";
 import { createServer } from "node:http";
 import { WebSocket, WebSocketServer } from "ws";
 import type { Candidate } from "../core/decider";
-import { parseAgentEvent, type AgentEvent } from "../core/events";
+import { deciderEvent, parseAgentEvent, type AgentEvent } from "../core/events";
 import { MockDecider } from "../core/mock-decider";
 import { selectCandidate } from "../core/selector";
 import { JevDecider } from "./jev-decider";
@@ -27,10 +27,22 @@ const token = development && process.env.AGENT_CHARACTER_TOKEN
   ? process.env.AGENT_CHARACTER_TOKEN : randomBytes(32).toString("hex");
 const decider = process.env.TYPESAFE_API_KEY
   ? new JevDecider(process.env.TYPESAFE_API_KEY, process.env.JEV_MODEL ?? "jev-latest") : new MockDecider();
-const recent: AgentEvent[] = [];
-let previous: Candidate | undefined;
-let lastDecisionMs = performance.now();
-let latestEvent = 0;
+// Decisions are made per agent (session); events without an agent share one character.
+type Mind = { recent: AgentEvent[]; previous?: Candidate; lastDecisionMs: number; latestEvent: number };
+const minds = new Map<string, Mind>();
+// Recent events let a newly opened room rebuild who is present and what they are doing.
+const HISTORY_LIMIT = 2000;
+const history: { event: AgentEvent; at: number }[] = [];
+
+function record(event: AgentEvent): void {
+  // Hooks run concurrently, so order by the hook's own clock when it is plausible.
+  const now = Date.now();
+  const at = event.ts !== undefined && Math.abs(event.ts - now) < 60_000 ? event.ts : now;
+  history.push({ event, at });
+  if (history.length > HISTORY_LIMIT) history.shift();
+  broadcast({ type: "event", event, at });
+  if (event.hook === "SessionEnd") minds.delete(event.agent ?? "default");
+}
 
 function localOrigin(origin: string): boolean {
   return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
@@ -78,6 +90,8 @@ const server = createServer(async (request, response) => {
     const summary = permissionSummary(input);
     if (!summary) { response.writeHead(400).end(); return; }
     const permission = { type: "permission" as const, id: randomUUID(), ...summary };
+    record({ state: "waiting_input", source: "claude-code", hook: "PermissionRequest", tool: summary.tool,
+      ...(summary.agent ? { agent: summary.agent } : {}), ...(summary.name ? { name: summary.name } : {}) });
     const connected = [...sockets.clients].some((client) => client.readyState === WebSocket.OPEN);
     const waiting = permissions.wait(permission, connected);
     if (connected) broadcast(permission);
@@ -98,24 +112,30 @@ const server = createServer(async (request, response) => {
 
   permissions.observe(result.event);
   if (process.env.AGENT_CHARACTER_DEBUG === "1") {
-    const { state, source, tool, ts, context } = result.event;
-    console.log(JSON.stringify({ state, source, tool, ts, context }));
+    const { state, source, tool, ts, context, hook, agent, target } = result.event;
+    console.log(JSON.stringify({ state, source, tool, ts, context, hook, agent, target }));
   }
   response.writeHead(204).end();
-  const sequence = ++latestEvent;
+  record(result.event);
+  if (result.event.hook === "SessionEnd") return;
+  const key = result.event.agent ?? "default";
+  const mind = minds.get(key) ?? { recent: [], lastDecisionMs: performance.now(), latestEvent: 0 };
+  minds.set(key, mind);
+  const sequence = ++mind.latestEvent;
   const now = performance.now();
-  recent.push(result.event);
-  if (recent.length > 10) recent.shift();
-  const context = { event: result.event, recent: [...recent], previous, elapsedMs: now - lastDecisionMs };
+  const event = deciderEvent(result.event);
+  mind.recent.push(event);
+  if (mind.recent.length > 10) mind.recent.shift();
+  const context = { event, recent: [...mind.recent], previous: mind.previous, elapsedMs: now - mind.lastDecisionMs };
   // Let the hook response flush before starting potentially slow remote inference.
   setImmediate(async () => {
     try {
       const candidates = await decider.decide(context);
       // Preserve the web's former latest-event-wins behavior, without a queue.
-      if (sequence === latestEvent) {
-        previous = selectCandidate(candidates, Math.random);
-        lastDecisionMs = now;
-        const message = JSON.stringify({ type: "decision", event: result.event, candidate: previous });
+      if (sequence === mind.latestEvent) {
+        mind.previous = selectCandidate(candidates, Math.random);
+        mind.lastDecisionMs = now;
+        const message = JSON.stringify({ type: "decision", event: result.event, candidate: mind.previous });
         for (const client of sockets.clients) {
           if (client.readyState === WebSocket.OPEN) {
             client.send(message, (error) => {
@@ -156,6 +176,7 @@ sockets.on("error", (error) => {
 });
 sockets.on("connection", (client) => {
   client.on("error", (error) => console.error("WebSocket error:", error.message));
+  client.send(JSON.stringify({ type: "replay", events: history }));
   if (permissions.current) client.send(JSON.stringify(permissions.current));
   client.on("message", (data, binary) => {
     if (binary) return;
@@ -186,4 +207,5 @@ process.once("exit", () => pty.dispose());
 server.listen(port, "127.0.0.1", () => {
   console.log(`Decider: ${decider.constructor.name}`);
   console.log(`Open http://127.0.0.1:${port}/?token=${token}`);
+  console.log(`Live2D view: http://127.0.0.1:${port}/live2d.html?token=${token}`);
 });

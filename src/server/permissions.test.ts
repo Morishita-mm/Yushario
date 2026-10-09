@@ -54,6 +54,23 @@ describe("PermissionWaiter", () => {
     waiter.cancel();
     expect(await result).toBe("terminal");
   });
+  it("only clears on progress from the requesting session and subagent", async () => {
+    const waiter = new PermissionWaiter();
+    const scoped = { ...request, agent: "s1", helper: "h1" };
+    const result = waiter.wait(scoped, true);
+    for (const event of [
+      { state: "success" as const, agent: "s2" },
+      { state: "working" as const, tool: "Bash", detail: "Tool completed", agent: "s1" },
+      { state: "working" as const, tool: "Bash", detail: "Tool completed", agent: "s1", subagent: { id: "h2" } },
+      { state: "success" as const, agent: "s1", subagent: { id: "h1" } },
+    ]) waiter.observe({ ...event, source: "claude-code" });
+    expect(waiter.current).toEqual(scoped);
+    waiter.observe({ state: "error", tool: "Bash", agent: "s1", subagent: { id: "h1" }, source: "claude-code" });
+    expect(await result).toBe("terminal");
+    const stopped = waiter.wait(scoped, true);
+    waiter.observe({ state: "success", agent: "s1", source: "claude-code" });
+    expect(await stopped).toBe("terminal");
+  });
   it("replaces without queueing and can cancel on disconnect", async () => {
     const waiter = new PermissionWaiter();
     const first = waiter.wait(request, true);
@@ -81,4 +98,11 @@ it("keeps only short local summaries", () => {
   expect(permissionSummary({ hook_event_name: "PermissionRequest", tool_name: "Edit",
     tool_input: { file_path: "/tmp/example", new_string: "private" } })?.summary).toBe("Edit: /tmp/example");
   expect(permissionSummary({ hook_event_name: "Stop", tool_name: "Bash" })).toBeUndefined();
+});
+
+it("attributes a request to its session, directory name and subagent", () => {
+  expect(permissionSummary({ hook_event_name: "PermissionRequest", tool_name: "Read", session_id: "s1",
+    cwd: "/Users/me/work/t12-vitals", agent_id: "h1", tool_input: { file_path: "a.ts" } })).toEqual({
+    tool: "Read", summary: "Read: a.ts", agent: "s1", name: "t12-vitals", helper: "h1",
+  });
 });

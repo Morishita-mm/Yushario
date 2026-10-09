@@ -42,6 +42,8 @@ export async function serveStatic(request: IncomingMessage, response: ServerResp
       response.writeHead(200, {
         "Content-Type": MIME[extname(file).toLowerCase()] ?? "application/octet-stream",
         "Content-Length": info.size, "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer",
+        // Pages and data change on every build; always revalidate them (bundled assets are content-hashed).
+        ...(/\.(html|json)$/.test(file) ? { "Cache-Control": "no-cache" } : {}),
       }).end(data);
       return;
     } catch {

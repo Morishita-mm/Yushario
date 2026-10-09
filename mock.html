@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Art Mock</title>
+  </head>
+  <body>
+    <header>
+      <h1>組み合わせモック</h1>
+      <nav id="tabs"></nav>
+      <a href="/art.html">コンポーネント一覧</a>
+    </header>
+    <main>
+      <p id="caption"></p>
+      <div class="layout">
+        <div class="stage">
+          <canvas id="mock"></canvas>
+          <div id="report" class="report-layer" hidden></div>
+          <div id="toast" class="toast" role="status" hidden></div>
+        </div>
+        <aside id="herald" aria-label="でんれい"></aside>
+      </div>
+    </main>
+    <script type="module" src="/src/web/art/mock.ts"></script>
+  </body>
+</html>

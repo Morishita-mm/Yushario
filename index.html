@@ -3,37 +3,21 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Agent Character</title>
+    <title>Agent Quest</title>
   </head>
   <body>
     <header>
-      <h1>Agent Character</h1>
-      <label for="preset">プリセット</label>
-      <select id="preset">
-        <option value="shell">shell</option>
-        <option value="claude">Claude Code</option>
-        <option value="pi">pi</option>
-        <option value="codex">Codex</option>
-      </select>
-      <button id="start" type="button">起動</button>
-      <span id="terminal-status" aria-live="polite">未起動</span>
+      <h1>AGENT QUEST</h1>
+      <span id="connection" aria-live="polite">せつぞく中…</span>
+      <a id="live2d-link" href="/live2d.html">Live2D 表示</a>
     </header>
-    <main>
-      <section id="character-panel" aria-label="キャラクター">
-        <div id="character-view">
-          <canvas id="character" width="640" height="640" role="img" aria-label="エージェントの表情と姿勢"></canvas>
-        </div>
-        <aside id="status" aria-live="polite">
-          <span id="state">idle</span>
-          <span id="connection">接続中…</span>
-          <span id="renderer-status">Live2D 読込中…</span>
-        </aside>
+    <main class="quest">
+      <section class="stage">
+        <canvas id="world" role="img" aria-label="エージェントたちの町とフィールド"></canvas>
+        <div id="messages" class="window messages" aria-live="polite"></div>
       </section>
-      <section id="terminal-panel" aria-label="エージェントのターミナル">
-        <div id="terminal"></div>
-      </section>
+      <aside id="party" aria-label="ゆうしゃたちの つよさ"></aside>
     </main>
-    <script src="/live2dcubismcore.min.js"></script>
-    <script type="module" src="/src/web/main.ts"></script>
+    <script type="module" src="/src/web/rpg/main.ts"></script>
   </body>
 </html>

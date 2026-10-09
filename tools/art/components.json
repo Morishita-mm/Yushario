@@ -1,0 +1,1578 @@
+{
+ "_doc": "Pixel art components for the town (docs/ART.md). size = target art pixels per frame (w x h). ref = component whose finished image must be used as the design reference.",
+ "components": [
+  {
+   "id": "hero-model",
+   "group": "キャラクター",
+   "name": "勇者 設定画（正面・背面・横）",
+   "size": [
+    32,
+    40
+   ],
+   "frames": [
+    "front",
+    "back",
+    "right side"
+   ],
+   "prompt": "Character turnaround of the HERO: a young adventurer with spiky brown hair, a gold circlet with a small blue gem, big expressive eyes, blue tunic with a brown belt and gold buckle, short red cape, white sleeves, brown gloves and boots, a short sword in a sheath at the left hip. Three standing views: facing the viewer, facing away (cape visible), facing right in profile.",
+   "fit": {
+    "frame": 0,
+    "h": 53
+   },
+   "sub": "勇者（マップ用）",
+   "use": "デザインの基準。町で立ち止まった時（正面・背中・横）"
+  },
+  {
+   "id": "hero-walk",
+   "group": "キャラクター",
+   "name": "勇者 歩き（正面4・横4）",
+   "size": [
+    32,
+    40
+   ],
+   "ref": "hero-model",
+   "frames": [
+    "front contact L",
+    "front pass",
+    "front contact R",
+    "front pass",
+    "right contact L",
+    "right pass",
+    "right contact R",
+    "right pass"
+   ],
+   "prompt": "Walk cycle of the same hero. First four frames walking toward the viewer, last four frames walking to the right in profile. Contact frames have legs apart, pass frames have legs together and the body one pixel higher. The cape trails one frame behind the body (follow-through).",
+   "sub": "勇者（マップ用）",
+   "use": "町やフィールドを歩く時（下・左右）"
+  },
+  {
+   "id": "hero-battle",
+   "group": "キャラクター",
+   "name": "勇者 戦闘（構え・振りかぶり・斬撃・詠唱・被弾・勝利）",
+   "size": [
+    40,
+    40
+   ],
+   "ref": "hero-model",
+   "frames": [
+    "ready",
+    "wind-up",
+    "slash",
+    "cast",
+    "hurt",
+    "victory"
+   ],
+   "prompt": "Battle poses of the same hero, all facing RIGHT in profile with the sword drawn: (1) ready stance, sword forward; (2) anticipation wind-up, sword raised high behind the head, body leaning back; (3) slash, body lunging forward, arm extended, sword horizontal with a short white smear arc; (4) casting a spell, free hand raised forward with a small purple sparkle; (5) hurt, recoiling backward, eyes squeezed shut; (6) victory, facing the viewer, sword raised overhead.",
+   "sub": "勇者（マップ用）",
+   "use": "フィールドでの戦闘（横向き）。被弾はエラー時、勝利はテスト成功・レベルアップ"
+  },
+  {
+   "id": "hero-town",
+   "group": "キャラクター",
+   "name": "勇者 町での動作（読書・祈り・呼ぶ・書く・遠見）",
+   "size": [
+    32,
+    40
+   ],
+   "ref": "hero-model",
+   "frames": [
+    "read",
+    "pray",
+    "call",
+    "write",
+    "look far"
+   ],
+   "prompt": "Town actions of the same hero, all facing the viewer: (1) reading an open brown book held in both hands; (2) praying with hands together and eyes closed; (3) calling out, one arm waving high above the head, mouth open; (4) writing on a sheet of paper with a quill; (5) looking into the distance, one hand shading the eyes.",
+   "sub": "勇者（マップ用）",
+   "use": "町での作業：読む・祈る（git／compact）・呼ぶ・書く（計画）・遠見（Web）"
+  },
+  {
+   "id": "hero-sleep",
+   "group": "キャラクター",
+   "name": "勇者 宿屋で眠る",
+   "size": [
+    32,
+    40
+   ],
+   "ref": "hero-model",
+   "frames": [
+    "sleeping"
+   ],
+   "prompt": "The same hero asleep in a single wooden inn bed seen from slightly above the foot of the bed: head on a white pillow, eyes closed, peaceful face, a patchwork quilt pulled up to the chin. The bed fills the frame.",
+   "sub": "勇者（マップ用）",
+   "use": "居眠り（10分動きなし）で宿屋のベッドに入った時"
+  },
+  {
+   "id": "party-warrior",
+   "group": "キャラクター",
+   "name": "せんし（正面・横・歩き・攻撃）",
+   "size": [
+    32,
+    40
+   ],
+   "ref": "hero-model",
+   "frames": [
+    "front",
+    "right",
+    "right walk",
+    "wind-up",
+    "attack"
+   ],
+   "prompt": "A WARRIOR party member in the same art style as the hero: sturdy, horned steel helmet, red tunic under steel chest plate, big two-handed axe. Frames: standing facing the viewer; standing facing right; walking right; winding the axe up overhead; chopping forward facing right.",
+   "sub": "仲間（マップ用）",
+   "use": "汎用サブエージェント。勇者について歩き、横向きで一緒に戦う"
+  },
+  {
+   "id": "party-mage",
+   "group": "キャラクター",
+   "name": "まほうつかい（正面・横・歩き・詠唱）",
+   "size": [
+    32,
+    40
+   ],
+   "ref": "hero-model",
+   "frames": [
+    "front",
+    "right",
+    "right walk",
+    "charge",
+    "cast"
+   ],
+   "prompt": "A MAGE party member in the same art style as the hero: tall pointed purple hat with a gold band, long purple robe, silver hair, wooden staff topped with a glowing orb. Frames: standing facing the viewer; standing facing right; walking right; charging the staff with sparkles; casting forward facing right with a burst at the staff tip.",
+   "sub": "仲間（マップ用）",
+   "use": "その他のサブエージェント"
+  },
+  {
+   "id": "party-thief",
+   "group": "キャラクター",
+   "name": "とうぞく（正面・横・歩き・攻撃）",
+   "size": [
+    32,
+    40
+   ],
+   "ref": "hero-model",
+   "frames": [
+    "front",
+    "right",
+    "right walk",
+    "crouch",
+    "stab"
+   ],
+   "prompt": "A THIEF party member in the same art style as the hero: green hood, dark scarf over the mouth, brown leather vest, dagger. Agile. Frames: standing facing the viewer; standing facing right; walking right; crouching ready; quick dagger stab forward facing right.",
+   "sub": "仲間（マップ用）",
+   "use": "Explore サブエージェント"
+  },
+  {
+   "id": "party-priest",
+   "group": "キャラクター",
+   "name": "そうりょ（正面・横・歩き・祈り）",
+   "size": [
+    32,
+    40
+   ],
+   "ref": "hero-model",
+   "frames": [
+    "front",
+    "right",
+    "right walk",
+    "pray",
+    "heal"
+   ],
+   "prompt": "A PRIEST party member in the same art style as the hero: white and gold robe, tall white mitre with a gold cross, blonde hair, holy staff with a cross. Frames: standing facing the viewer; standing facing right; walking right; praying with the staff; casting a healing light upward facing right.",
+   "sub": "仲間（マップ用）",
+   "use": "Plan サブエージェント"
+  },
+  {
+   "id": "monster-slime",
+   "group": "モンスター",
+   "name": "スライム（待機2・被弾）",
+   "size": [
+    24,
+    24
+   ],
+   "frames": [
+    "idle",
+    "squash",
+    "hurt"
+   ],
+   "prompt": "A cute blue slime monster shaped like a teardrop with a curled tip, glossy highlight, big friendly eyes and a wide smile. Frames: idle; squashed wider and lower (breathing); hurt with eyes squeezed shut and recoiling.",
+   "sub": "正面（戦闘フォーカス用）",
+   "use": "戦闘画面：待機・被弾"
+  },
+  {
+   "id": "monster-ghost",
+   "group": "モンスター",
+   "name": "おばけ（待機2・被弾）",
+   "size": [
+    24,
+    28
+   ],
+   "frames": [
+    "idle",
+    "float",
+    "hurt"
+   ],
+   "prompt": "A small mischievous white ghost monster with a wavy tail, dark hollow eyes, open mouth with a little tongue, faint lavender shading. Frames: idle; floating one pixel higher with the tail waving the other way; hurt, flinching.",
+   "sub": "正面（戦闘フォーカス用）",
+   "use": "戦闘画面：待機・被弾"
+  },
+  {
+   "id": "monster-golem",
+   "group": "モンスター",
+   "name": "しれんのゴーレム（待機2・被弾）",
+   "size": [
+    40,
+    44
+   ],
+   "frames": [
+    "idle",
+    "breath",
+    "hurt"
+   ],
+   "prompt": "A stone golem trial guardian: bulky grey stone blocks with moss, glowing red eyes, a golden rune core in the chest, huge fists. Frames: idle; slight breathing with the core glowing brighter; hurt with cracks and recoil.",
+   "sub": "正面（戦闘フォーカス用）",
+   "use": "戦闘画面：待機・被弾"
+  },
+  {
+   "id": "monster-dragon",
+   "group": "モンスター",
+   "name": "ドラゴン（待機2・被弾）",
+   "size": [
+    56,
+    48
+   ],
+   "frames": [
+    "idle",
+    "wings up",
+    "hurt"
+   ],
+   "prompt": "A green dragon boss facing the viewer: spread purple bat wings, cream belly, red eyes, small horns, fangs, claws. Frames: idle; wings raised higher (flapping); hurt, flinching with one eye closed.",
+   "sub": "正面（戦闘フォーカス用）",
+   "use": "戦闘画面：待機・被弾"
+  },
+  {
+   "id": "bld-library",
+   "group": "まち",
+   "name": "としょかん",
+   "size": [
+    80,
+    72
+   ],
+   "frames": [
+    "building"
+   ],
+   "prompt": "A small fantasy town library building seen from the front with a slight top-down angle: cream stone brick walls, blue tiled roof, arched wooden door, two windows showing colourful book spines, a small blank wooden plaque above the door.",
+   "sub": "建物",
+   "use": "ファイルを読む・探す時に向かう"
+  },
+  {
+   "id": "bld-church",
+   "group": "まち",
+   "name": "きょうかい",
+   "size": [
+    72,
+    88
+   ],
+   "frames": [
+    "building"
+   ],
+   "prompt": "A small fantasy village church seen from the front with a slight top-down angle: white walls, red roof, tall steeple with a golden cross, round stained glass window, arched double door.",
+   "sub": "建物",
+   "use": "/compact（MP 回復）の時に祈る"
+  },
+  {
+   "id": "bld-tower",
+   "group": "まち",
+   "name": "ものみのとう",
+   "size": [
+    48,
+    88
+   ],
+   "frames": [
+    "building"
+   ],
+   "prompt": "A wooden watchtower seen from the front: four wooden legs with cross braces, a ladder in the middle, a small hut platform on top with a railing, a green pointed roof and a little red flag.",
+   "sub": "建物",
+   "use": "Web 検索・取得の時に登る（フィールド側に置く案もあり）"
+  },
+  {
+   "id": "bld-questboard",
+   "group": "まち",
+   "name": "クエストボード",
+   "size": [
+    56,
+    40
+   ],
+   "frames": [
+    "board"
+   ],
+   "prompt": "A wooden quest notice board on two posts with a small red shingled roof on top, empty (no papers pinned), seen from the front.",
+   "sub": "建物",
+   "use": "計画：タスクを依頼書として貼る"
+  },
+  {
+   "id": "bld-shop",
+   "group": "まち",
+   "name": "どうぐや（屋台）",
+   "size": [
+    64,
+    56
+   ],
+   "frames": [
+    "stall"
+   ],
+   "prompt": "An item shop market stall seen from the front: red and white striped awning with a scalloped edge, wooden counter, colourful potion bottles and small pots on the counter, a hanging pouch sign.",
+   "sub": "建物",
+   "use": "その他のツール（MCP など）を使う時"
+  },
+  {
+   "id": "inn-wall",
+   "group": "まち",
+   "name": "宿屋の奥の壁（窓・扉）",
+   "size": [
+    176,
+    32
+   ],
+   "frames": [
+    "wall"
+   ],
+   "prompt": "The back interior wall of a cosy medieval inn, a long horizontal strip: warm wooden plank wall, two small windows with warm yellow light, a central doorway, a wall lantern, a small shelf with a mug.",
+   "sub": "宿屋の中",
+   "use": "宿屋の中の奥の壁"
+  },
+  {
+   "id": "inn-bed",
+   "group": "まち",
+   "name": "宿屋のベッド（空き）",
+   "size": [
+    28,
+    40
+   ],
+   "ref": "hero-sleep",
+   "frames": [
+    "bed"
+   ],
+   "fit": {
+    "frame": 0,
+    "like": "hero-sleep",
+    "refFrame": 0,
+    "dim": "h"
+   },
+   "prompt": "Exactly the same wooden inn bed as in the reference, same angle, same size, same red-and-white checkered quilt, but EMPTY: the pillow is plumped and the quilt is neatly folded down, nobody in it.",
+   "sub": "宿屋の中",
+   "use": "空きベッド（寝ている勇者のベッドと同じ大きさ）"
+  },
+  {
+   "id": "inn-rug",
+   "group": "まち",
+   "name": "宿屋のじゅうたん",
+   "size": [
+    64,
+    20
+   ],
+   "frames": [
+    "rug"
+   ],
+   "prompt": "A rectangular red woven rug with a gold border pattern, seen from above, flat.",
+   "sub": "宿屋の中",
+   "use": "宿屋の中の飾り"
+  },
+  {
+   "id": "obj-crystal",
+   "group": "まち",
+   "name": "ぼうけんのしょ（セーブクリスタル、光る4コマ）",
+   "size": [
+    24,
+    40
+   ],
+   "frames": [
+    "glow 1",
+    "glow 2",
+    "glow 3",
+    "glow 4"
+   ],
+   "prompt": "A floating cyan save crystal (a tall diamond-shaped gem) hovering above a small stone pedestal, glowing. Four animation frames: the crystal bobs up and down by one pixel and its inner glint and the surrounding light sparkles rotate.",
+   "sub": "広場・小物",
+   "use": "git（冒険の書に記録）の時に祈る"
+  },
+  {
+   "id": "obj-campfire",
+   "group": "まち",
+   "name": "たき火（4コマ）",
+   "size": [
+    24,
+    24
+   ],
+   "frames": [
+    "fire 1",
+    "fire 2",
+    "fire 3",
+    "fire 4"
+   ],
+   "prompt": "A small campfire on crossed logs surrounded by a ring of stones. Four animation frames of the flames flickering (orange, yellow, white core), with a few sparks.",
+   "sub": "広場・小物",
+   "use": "依頼を受けて考えている間に集まる"
+  },
+  {
+   "id": "obj-nature",
+   "group": "フィールド",
+   "name": "木・茂み・花・岩",
+   "size": [
+    32,
+    40
+   ],
+   "frames": [
+    "round tree",
+    "pine tree",
+    "bush",
+    "flowers",
+    "rock"
+   ],
+   "prompt": "Nature props for a town map, each standing alone: a round leafy tree, a pine tree, a small round bush, a clump of small flowers (white, yellow, pink), a mossy rock.",
+   "sub": "自然・水辺",
+   "use": "木・茂み・花・岩（町とフィールドの飾り）"
+  },
+  {
+   "id": "obj-fence-sign",
+   "group": "まち",
+   "name": "さく・門柱・立て札",
+   "size": [
+    32,
+    32
+   ],
+   "frames": [
+    "fence",
+    "gate post",
+    "signboard"
+   ],
+   "prompt": "Small town props: a short section of wooden picket fence, a sturdy wooden gate post, and a blank wooden signboard on a post (no text).",
+   "sub": "広場・小物",
+   "use": "庭の柵・門柱・立て札"
+  },
+  {
+   "id": "tile-ground",
+   "group": "フィールド",
+   "name": "地面（町の草・野の草・石畳・土・床板）",
+   "size": [
+    32,
+    32
+   ],
+   "frames": [
+    "town grass",
+    "wild grass",
+    "cobblestone",
+    "dirt",
+    "wood floor"
+   ],
+   "prompt": "Five SEAMLESS square ground tiles viewed straight from above, each tile must tile perfectly with itself: bright town grass with tiny tufts; darker wild field grass; light beige cobblestone path; trampled brown dirt; warm wooden floor planks. Low contrast textures, no outlines, no objects.",
+   "kind": "tile",
+   "sub": "地面",
+   "use": "町の草・野の草・石畳・土・床板（継ぎ目なしに散らして使う）"
+  },
+  {
+   "id": "fx-battle",
+   "group": "演出",
+   "name": "戦闘エフェクト（斬撃3・呪文3・煙3）",
+   "size": [
+    24,
+    24
+   ],
+   "frames": [
+    "slash 1",
+    "slash 2",
+    "slash 3",
+    "spell 1",
+    "spell 2",
+    "spell 3",
+    "poof 1",
+    "poof 2",
+    "poof 3"
+   ],
+   "prompt": "Battle effect animation frames: a white crescent sword slash arc growing then fading (3 frames); a purple and white magic sparkle burst expanding (3 frames); a puff of white smoke cloud expanding and dissipating (3 frames).",
+   "sub": "エフェクト",
+   "use": "勇者の攻撃：斬撃・呪文・モンスターを倒した煙"
+  },
+  {
+   "id": "ui-balloons",
+   "group": "演出",
+   "name": "吹き出しアイコン（！・…・Zz・⏳・♪・汗・ハート）",
+   "size": [
+    16,
+    16
+   ],
+   "frames": [
+    "exclamation",
+    "thinking dots",
+    "sleep Zz",
+    "hourglass",
+    "music note",
+    "sweat drop",
+    "heart"
+   ],
+   "prompt": "Small white speech balloon icons with a dark outline and a little tail at the bottom, each containing one symbol: a red exclamation mark; three dark dots; a blue Zz; a sand hourglass; a music note; a blue sweat drop; a red heart.",
+   "sub": "UI",
+   "use": "頭上の吹き出し：！呼ぶ・…考え中・Zz 居眠り・⏳ 長い待ち・♪ 好調・汗 苦戦・ハート 立ち直り"
+  },
+  {
+   "id": "hero-walk-back",
+   "group": "キャラクター",
+   "name": "勇者 歩き（背中・上へ）",
+   "size": [
+    32,
+    40
+   ],
+   "ref": "hero-model",
+   "frames": [
+    "back contact L",
+    "back pass",
+    "back contact R",
+    "back pass"
+   ],
+   "prompt": "Walk cycle of the same hero walking AWAY from the viewer (back view, cape visible, matching the back view in the reference). Contact frames legs apart, pass frames legs together with the body one pixel higher; the cape sways one frame behind the body.",
+   "sub": "勇者（マップ用）",
+   "use": "上（奥）へ歩く時"
+  },
+  {
+   "id": "hero-back-battle",
+   "group": "キャラクター",
+   "name": "勇者 戦闘（背中・フォーカス戦闘用）",
+   "size": [
+    40,
+    48
+   ],
+   "ref": "hero-model",
+   "frames": [
+    "ready",
+    "wind-up",
+    "slash",
+    "cast",
+    "hurt",
+    "victory"
+   ],
+   "prompt": "Battle poses of the same hero seen FROM BEHIND (back view, as in a classic first-person JRPG battle where the party faces the monster at the top of the screen): (1) ready stance, sword held forward; (2) wind-up, sword raised high overhead; (3) slash, lunging forward and up with a white smear arc; (4) casting, one hand thrust forward with a purple sparkle; (5) hurt, knocked back and leaning toward the viewer; (6) victory, turning around slightly and raising the sword overhead.",
+   "sub": "勇者（戦闘フォーカス用）",
+   "use": "勇者をクリックして開く戦闘画面（背中から見る）"
+  },
+  {
+   "id": "party-warrior-back",
+   "group": "キャラクター",
+   "name": "せんし 戦闘（背中）",
+   "size": [
+    40,
+    48
+   ],
+   "ref": "party-warrior",
+   "frames": [
+    "ready",
+    "wind-up",
+    "attack",
+    "hurt"
+   ],
+   "prompt": "The same warrior seen FROM BEHIND facing the monster: ready with the axe; axe raised overhead; chopping forward and down; hurt, knocked back.",
+   "sub": "仲間（戦闘フォーカス用）",
+   "use": "戦闘画面で勇者と並ぶ（背中）"
+  },
+  {
+   "id": "party-mage-back",
+   "group": "キャラクター",
+   "name": "まほうつかい 戦闘（背中）",
+   "size": [
+    40,
+    48
+   ],
+   "ref": "party-mage",
+   "frames": [
+    "ready",
+    "charge",
+    "cast",
+    "hurt"
+   ],
+   "prompt": "The same mage seen FROM BEHIND facing the monster: ready holding the staff; charging the staff with sparkles; casting a burst forward; hurt, knocked back.",
+   "fit": {
+    "frame": 0,
+    "h": 47
+   },
+   "sub": "仲間（戦闘フォーカス用）",
+   "use": "戦闘画面で勇者と並ぶ（背中）"
+  },
+  {
+   "id": "party-thief-back",
+   "group": "キャラクター",
+   "name": "とうぞく 戦闘（背中）",
+   "size": [
+    40,
+    48
+   ],
+   "ref": "party-thief",
+   "frames": [
+    "ready",
+    "crouch",
+    "stab",
+    "hurt"
+   ],
+   "prompt": "The same thief seen FROM BEHIND facing the monster: ready with the dagger; crouching low; leaping forward stabbing; hurt, knocked back.",
+   "sub": "仲間（戦闘フォーカス用）",
+   "use": "戦闘画面で勇者と並ぶ（背中）"
+  },
+  {
+   "id": "party-priest-back",
+   "group": "キャラクター",
+   "name": "そうりょ 戦闘（背中）",
+   "size": [
+    40,
+    48
+   ],
+   "ref": "party-priest",
+   "frames": [
+    "ready",
+    "pray",
+    "heal",
+    "hurt"
+   ],
+   "prompt": "The same priest seen FROM BEHIND facing the monster: ready with the holy staff; praying; raising the staff with a healing light; hurt, knocked back.",
+   "sub": "仲間（戦闘フォーカス用）",
+   "use": "戦闘画面で勇者と並ぶ（背中）"
+  },
+  {
+   "id": "monster-slime-attack",
+   "group": "モンスター",
+   "name": "スライムの攻撃",
+   "size": [
+    24,
+    24
+   ],
+   "ref": "monster-slime",
+   "frames": [
+    "wind-up",
+    "pounce",
+    "land"
+   ],
+   "prompt": "The same blue slime attacking: (1) wind-up, squashed flat with angry eyes; (2) pouncing forward, stretched tall and leaning toward the viewer with an open mouth; (3) landing, splashing wide.",
+   "fit": {
+    "frame": 1,
+    "like": "monster-slime",
+    "refFrame": 0,
+    "dim": "h"
+   },
+   "sub": "正面の攻撃（戦闘フォーカス用）",
+   "use": "戦闘画面：エラー時の反撃"
+  },
+  {
+   "id": "monster-ghost-attack",
+   "group": "モンスター",
+   "name": "おばけの攻撃",
+   "size": [
+    24,
+    28
+   ],
+   "ref": "monster-ghost",
+   "frames": [
+    "wind-up",
+    "spell",
+    "drift back"
+   ],
+   "prompt": "The same cute white ghost doing a playful attack in a kids' fantasy game: (1) wind-up, puffing up with a cheeky grin; (2) swooping forward with its little arms out, tossing a small purple magic spark; (3) drifting back, half see-through, looking pleased.",
+   "fit": {
+    "frame": 2,
+    "like": "monster-ghost",
+    "refFrame": 0,
+    "dim": "h"
+   },
+   "sub": "正面の攻撃（戦闘フォーカス用）",
+   "use": "戦闘画面：エラー時の反撃"
+  },
+  {
+   "id": "monster-golem-attack",
+   "group": "モンスター",
+   "name": "ゴーレムの攻撃",
+   "size": [
+    40,
+    44
+   ],
+   "ref": "monster-golem",
+   "frames": [
+    "wind-up",
+    "punch",
+    "recover"
+   ],
+   "prompt": "The same stone golem attacking: (1) wind-up, one huge fist raised high, eyes flaring; (2) smashing the fist down and forward toward the viewer with flying rock chips; (3) recovering, fist on the ground.",
+   "fit": {
+    "frame": 1,
+    "like": "monster-golem",
+    "refFrame": 0,
+    "dim": "w"
+   },
+   "sub": "正面の攻撃（戦闘フォーカス用）",
+   "use": "戦闘画面：エラー時の反撃"
+  },
+  {
+   "id": "monster-dragon-attack",
+   "group": "モンスター",
+   "name": "ドラゴンの攻撃",
+   "size": [
+    56,
+    48
+   ],
+   "ref": "monster-dragon",
+   "frames": [
+    "inhale",
+    "fire breath",
+    "roar"
+   ],
+   "prompt": "The same green dragon attacking: (1) inhaling, head pulled back, chest glowing orange; (2) breathing a big burst of orange fire toward the viewer; (3) roaring with wings spread.",
+   "fit": {
+    "frame": 2,
+    "like": "monster-dragon",
+    "refFrame": 0,
+    "dim": "w"
+   },
+   "sub": "正面の攻撃（戦闘フォーカス用）",
+   "use": "戦闘画面：エラー時の反撃（炎）"
+  },
+  {
+   "id": "fx-enemy",
+   "group": "演出",
+   "name": "敵の攻撃エフェクト（衝撃・ひっかき・炎・呪い・岩）",
+   "size": [
+    24,
+    24
+   ],
+   "frames": [
+    "impact 1",
+    "impact 2",
+    "claw 1",
+    "claw 2",
+    "fire 1",
+    "fire 2",
+    "curse 1",
+    "curse 2",
+    "rocks 1",
+    "rocks 2"
+   ],
+   "prompt": "Enemy attack hit effects that appear over the hero when the hero takes damage, two frames each: a yellow and white impact star burst; three red claw scratch marks; an orange fireball explosion; a purple ghostly curse swirl; flying grey rock chips.",
+   "sub": "エフェクト",
+   "use": "モンスターの反撃が当たった時（衝撃・ひっかき・炎・呪い・岩）"
+  },
+  {
+   "id": "bg-battle-meadow",
+   "group": "フィールド",
+   "name": "戦闘背景：草原",
+   "kind": "backdrop",
+   "size": [
+    480,
+    270
+   ],
+   "frames": [
+    "backdrop"
+   ],
+   "prompt": "A classic JRPG battle background seen from the party's viewpoint: a sunny green meadow with rolling hills, a few trees on the horizon, white clouds in a blue sky, a small clear stream winding across the foreground from left to right with a few stones in it, and a little waterfall far away on a hill. The ground in the lower half is where the monster stands.",
+   "sub": "戦闘背景（戦闘フォーカス用）",
+   "use": "草原の戦闘画面（小川と滝が流れる）"
+  },
+  {
+   "id": "bg-battle-cave",
+   "group": "フィールド",
+   "name": "戦闘背景：洞窟",
+   "kind": "backdrop",
+   "size": [
+    480,
+    270
+   ],
+   "frames": [
+    "backdrop"
+   ],
+   "prompt": "A classic JRPG battle background seen from the party's viewpoint: inside a dark rocky cave, stalactites hanging from the ceiling, glowing blue crystals in the walls, a flickering torch, a damp stone floor in the lower half where the monster stands.",
+   "sub": "戦闘背景（戦闘フォーカス用）",
+   "use": "洞窟の戦闘画面（水面と松明がゆらめく）"
+  },
+  {
+   "id": "bg-battle-forest",
+   "group": "フィールド",
+   "name": "戦闘背景：夜の森",
+   "kind": "backdrop",
+   "size": [
+    480,
+    270
+   ],
+   "frames": [
+    "backdrop"
+   ],
+   "prompt": "A classic JRPG battle background seen from the party's viewpoint: a deep forest at night, tall dark trees, a big pale moon behind branches, glowing mushrooms, a mossy clearing in the lower half where the monster stands, and a still forest pond on one side of the clearing reflecting the moonlight.",
+   "sub": "戦闘背景（戦闘フォーカス用）",
+   "use": "夜の森の戦闘画面（池の月・ホタル）"
+  },
+  {
+   "id": "tile-field",
+   "group": "フィールド",
+   "name": "フィールドの地面（洞窟・夜の森）",
+   "size": [
+    32,
+    32
+   ],
+   "frames": [
+    "cave floor",
+    "cave rock wall",
+    "cave dark pit",
+    "night grass",
+    "night dirt path",
+    "night moss"
+   ],
+   "prompt": "Six SEAMLESS square ground tiles viewed straight from above, each tiles perfectly with itself: dark grey-brown cave floor with pebbles; rough cave rock wall surface; very dark cave pit; dark blue-green night grass; dark night dirt path; soft night moss. Low contrast, cool night colours, no outlines, no objects.",
+   "kind": "tile",
+   "sub": "地面",
+   "use": "洞窟の床・岩壁・穴、夜の草・道・苔"
+  },
+  {
+   "id": "obj-water",
+   "group": "フィールド",
+   "name": "水たまり・池・はす・あし",
+   "size": [
+    32,
+    24
+   ],
+   "frames": [
+    "puddle",
+    "small pond",
+    "lily pad",
+    "reeds"
+   ],
+   "prompt": "Water props for a top-down map, each alone: a small shallow puddle reflecting the sky; a small round pond with a stone edge; a lily pad with a pink flower floating; a clump of reeds and cattails.",
+   "sub": "自然・水辺",
+   "use": "水たまり・池・はす・あし"
+  },
+  {
+   "id": "obj-lake",
+   "group": "フィールド",
+   "name": "湖",
+   "size": [
+    112,
+    72
+   ],
+   "frames": [
+    "lake"
+   ],
+   "prompt": "A small lake seen from a top-down map view: blue water with lighter ripples and sparkles, a sandy and grassy shoreline, a few rocks and reeds along the edge, a tiny wooden pier on one side.",
+   "sub": "自然・水辺",
+   "use": "湖（草原や町の水辺）"
+  },
+  {
+   "id": "obj-cave",
+   "group": "フィールド",
+   "name": "洞窟の小物（入口・石筍・岩・松明・鉱石）",
+   "size": [
+    32,
+    40
+   ],
+   "frames": [
+    "cave entrance",
+    "stalagmite",
+    "boulder",
+    "wall torch",
+    "glowing crystal ore"
+   ],
+   "prompt": "Cave props for a top-down map, each alone: a dark cave entrance arch in a rocky hillside; a pointed stalagmite; a big boulder; a lit wall torch; a cluster of glowing blue crystal ore.",
+   "sub": "洞窟・夜の森",
+   "use": "洞窟マップ：入口・石筍・岩・松明・鉱石"
+  },
+  {
+   "id": "obj-forest-night",
+   "group": "フィールド",
+   "name": "夜の森の小物（木・切り株・光るキノコ・街灯）",
+   "size": [
+    32,
+    40
+   ],
+   "frames": [
+    "dark tree",
+    "dark pine",
+    "tree stump",
+    "glowing mushrooms",
+    "lantern post"
+   ],
+   "prompt": "Night forest props for a top-down map, each alone, lit by cool blue moonlight: a dark round tree; a dark pine tree; a mossy tree stump; a cluster of glowing teal mushrooms; an old lantern post with a warm light.",
+   "sub": "洞窟・夜の森",
+   "use": "夜の森マップ：木・切り株・光るキノコ・街灯"
+  },
+  {
+   "id": "amb-cloud",
+   "group": "フィールド",
+   "name": "雲（3種）",
+   "size": [
+    48,
+    20
+   ],
+   "frames": [
+    "cloud large",
+    "cloud medium",
+    "cloud small"
+   ],
+   "prompt": "Three fluffy white pixel-art clouds of different sizes with soft lavender shading on the bottom, for a scrolling sky layer.",
+   "sub": "背景の動き",
+   "use": "草原の空を流れる雲"
+  },
+  {
+   "id": "amb-grass",
+   "group": "フィールド",
+   "name": "手前の草（揺れ3コマ）",
+   "size": [
+    48,
+    24
+   ],
+   "frames": [
+    "sway left",
+    "upright",
+    "sway right"
+   ],
+   "prompt": "A foreground clump of tall meadow grass and a couple of small wildflowers, three animation frames of the clump swaying in the wind: leaning left, upright, leaning right.",
+   "sub": "背景の動き",
+   "use": "草原の手前で揺れる草"
+  },
+  {
+   "id": "amb-butterfly",
+   "group": "フィールド",
+   "name": "ちょうちょ（羽ばたき2コマ×2色）",
+   "size": [
+    8,
+    8
+   ],
+   "frames": [
+    "yellow open",
+    "yellow closed",
+    "white open",
+    "white closed"
+   ],
+   "prompt": "Tiny butterflies seen from above for a meadow scene: a yellow butterfly with wings open, the same with wings closed; a white butterfly with wings open, the same with wings closed.",
+   "sub": "背景の動き",
+   "use": "草原を飛ぶちょうちょ"
+  },
+  {
+   "id": "amb-leaf",
+   "group": "フィールド",
+   "name": "舞い落ちる葉（回転4コマ）",
+   "size": [
+    8,
+    8
+   ],
+   "frames": [
+    "leaf 1",
+    "leaf 2",
+    "leaf 3",
+    "leaf 4"
+   ],
+   "prompt": "A small falling autumn-green leaf, four animation frames of it tumbling and rotating in the air.",
+   "sub": "背景の動き",
+   "use": "夜の森で舞い落ちる葉"
+  },
+  {
+   "id": "amb-drip",
+   "group": "フィールド",
+   "name": "水滴と波紋（4コマ）",
+   "size": [
+    16,
+    12
+   ],
+   "frames": [
+    "drop",
+    "splash",
+    "ripple",
+    "ripple wide"
+   ],
+   "prompt": "Cave water drip animation frames: a single falling light-blue water droplet; the droplet splashing with tiny droplets; a small flat oval ripple ring; a wider fading ripple ring.",
+   "sub": "背景の動き",
+   "use": "洞窟の天井からの水滴と波紋"
+  },
+  {
+   "id": "monster-slime-side",
+   "group": "モンスター",
+   "name": "スライム（横向き：待機2・被弾・溜め・攻撃）",
+   "size": [
+    24,
+    24
+   ],
+   "ref": "monster-slime",
+   "frames": [
+    "idle",
+    "squash",
+    "hurt",
+    "wind-up",
+    "pounce"
+   ],
+   "fit": {
+    "frame": 0,
+    "like": "monster-slime",
+    "refFrame": 0,
+    "dim": "h"
+   },
+   "prompt": "The same monster seen from the SIDE in profile, FACING LEFT (toward a hero standing on the left), with exactly the same design, colours and proportions as the reference. Frames: idle; squashed wider (breathing); hurt recoiling to the right with eyes shut; wind-up squashed flat with angry eyes; pouncing to the LEFT stretched forward with an open mouth.",
+   "sub": "横向き（マップ用）",
+   "use": "フィールドの戦闘：ファイル編集の相手。待機・被弾・溜め・攻撃（エラー時）"
+  },
+  {
+   "id": "monster-ghost-side",
+   "group": "モンスター",
+   "name": "おばけ（斜め向き：待機2・被弾・溜め・攻撃）",
+   "size": [
+    24,
+    28
+   ],
+   "ref": "monster-ghost",
+   "frames": [
+    "idle",
+    "float",
+    "hurt",
+    "wind-up",
+    "spell"
+   ],
+   "fit": {
+    "frame": 0,
+    "like": "monster-ghost",
+    "refFrame": 0,
+    "dim": "h"
+   },
+   "prompt": "The same cute white ghost in a THREE-QUARTER view turned toward the LEFT (as if facing a hero standing to the left), so that BOTH eyes are clearly visible, the near eye larger and the far eye slightly smaller and closer to the edge, and the mouth shifted toward the left side of the face. Same design, colours and proportions as the reference. A cute ghost in a kids' fantasy game. Frames: idle floating; floating a little higher with the tail waving; hurt flinching to the right with both eyes squeezed shut; wind-up puffing up with a cheeky grin; swooping LEFT tossing a small purple magic spark.",
+   "sub": "横向き（マップ用）",
+   "use": "フィールドの戦闘：コマンド実行の相手"
+  },
+  {
+   "id": "monster-golem-side",
+   "group": "モンスター",
+   "name": "ゴーレム（横向き：待機2・被弾・溜め・攻撃）",
+   "size": [
+    40,
+    44
+   ],
+   "ref": "monster-golem",
+   "frames": [
+    "idle",
+    "breath",
+    "hurt",
+    "wind-up",
+    "punch"
+   ],
+   "fit": {
+    "frame": 0,
+    "like": "monster-golem",
+    "refFrame": 0,
+    "dim": "h"
+   },
+   "prompt": "The same monster seen from the SIDE in profile, FACING LEFT (toward a hero standing on the left), with exactly the same design, colours and proportions as the reference. Frames: idle; breathing with the chest core glowing brighter; hurt with cracks recoiling to the right; wind-up raising one huge fist high; punching to the LEFT with flying rock chips.",
+   "sub": "横向き（マップ用）",
+   "use": "フィールドの戦闘：テスト・型検査の相手"
+  },
+  {
+   "id": "monster-dragon-side",
+   "group": "モンスター",
+   "name": "ドラゴン（横向き：待機2・被弾・溜め・火を吹く）",
+   "size": [
+    56,
+    48
+   ],
+   "ref": "monster-dragon",
+   "frames": [
+    "idle",
+    "wings up",
+    "hurt",
+    "inhale",
+    "fire breath"
+   ],
+   "fit": {
+    "frame": 0,
+    "like": "monster-dragon",
+    "refFrame": 0,
+    "dim": "h"
+   },
+   "prompt": "The same monster seen from the SIDE in profile, FACING LEFT (toward a hero standing on the left), with exactly the same design, colours and proportions as the reference. Frames: idle with wings half spread; wings raised (flapping); hurt flinching to the right; inhaling with the head pulled back and chest glowing orange; breathing a jet of orange fire to the LEFT. IMPORTANT: the dragon's body is exactly the same size in every frame; only the fire extends further to the left.",
+   "sub": "横向き（マップ用）",
+   "use": "フィールドの戦闘：サブエージェントに任せた仕事（ボス）"
+  },
+  {
+   "id": "bld-inn",
+   "group": "まち",
+   "name": "やどや（外観、ベッドの看板）",
+   "size": [
+    96,
+    104
+   ],
+   "frames": [
+    "inn"
+   ],
+   "fit": {
+    "frame": 0,
+    "h": 118
+   },
+   "prompt": "A cosy two-storey village inn seen from the front with a slight top-down angle: timber frame and cream plaster walls, warm lit windows, a red tiled roof with a chimney, a wooden front door with a lantern, and a hanging signboard showing a small bed icon (no text).",
+   "sub": "建物",
+   "use": "待機中の居場所。居眠りの人数を出し、クリックで中へ"
+  },
+  {
+   "id": "bld-house",
+   "group": "まち",
+   "name": "民家（赤い屋根・わらぶき）",
+   "size": [
+    72,
+    72
+   ],
+   "frames": [
+    "red roof house",
+    "thatched house"
+   ],
+   "fit": {
+    "frame": 0,
+    "h": 92
+   },
+   "prompt": "Two small village houses seen from the front with a slight top-down angle, each alone: a stone cottage with a red tiled roof, a chimney and a flower box under the window; a timber cottage with a thatched straw roof and a small wooden porch.",
+   "sub": "建物",
+   "use": "町の住宅街（飾り）"
+  },
+  {
+   "id": "obj-fountain",
+   "group": "まち",
+   "name": "広場の噴水（水が流れる3コマ）",
+   "size": [
+    48,
+    40
+   ],
+   "frames": [
+    "water 1",
+    "water 2",
+    "water 3"
+   ],
+   "fit": {
+    "frame": 0,
+    "w": 72
+   },
+   "prompt": "A round stone fountain for a town plaza seen with a slight top-down angle: a wide basin with blue water and a tiered centre spout. Three animation frames of the water spraying up and splashing down in the basin, with sparkling highlights.",
+   "sub": "広場・小物",
+   "use": "広場の中心。待機中のエージェントが集まる"
+  },
+  {
+   "id": "obj-town",
+   "group": "まち",
+   "name": "まちの小物（井戸・たる・木箱・ベンチ・街灯・花壇・まき・荷車）",
+   "size": [
+    32,
+    32
+   ],
+   "frames": [
+    "well",
+    "barrel",
+    "crates",
+    "bench",
+    "lamp post",
+    "flower planter",
+    "firewood pile",
+    "wooden cart"
+   ],
+   "fit": {
+    "frame": 4,
+    "h": 56
+   },
+   "prompt": "Town props, each standing alone: a stone well with a little wooden roof and a bucket; a wooden barrel; a stack of wooden crates; a wooden park bench; an iron street lamp post with a warm lit lantern; a rectangular wooden flower planter with red and yellow flowers; a neat pile of firewood logs; a small wooden hand cart.",
+   "sub": "広場・小物",
+   "use": "井戸・たる・木箱・ベンチ・街灯・花壇・まき・荷車（飾り）"
+  },
+  {
+   "id": "town-wall",
+   "group": "まち",
+   "name": "まちの城壁（壁・見張り塔・門）",
+   "size": [
+    48,
+    48
+   ],
+   "frames": [
+    "wall segment",
+    "corner tower",
+    "town gate"
+   ],
+   "fit": {
+    "frame": 2,
+    "h": 96
+   },
+   "prompt": "Town wall pieces seen from the front with a slight top-down angle: a straight segment of grey stone town wall with crenellations on top; a round stone corner tower with a pointed roof; an arched stone town gate with open wooden doors and a small banner.",
+   "sub": "広場・小物",
+   "use": "町の境目。門からフィールドへ"
+  },
+  {
+   "id": "obj-canal",
+   "group": "まち",
+   "name": "水路と石の橋",
+   "size": [
+    64,
+    32
+   ],
+   "frames": [
+    "canal segment",
+    "stone bridge"
+   ],
+   "fit": {
+    "frame": 0,
+    "w": 96
+   },
+   "prompt": "A straight horizontal town water canal segment seen from above at a slight angle, blue water with ripples between stone edges (the left and right ends must join seamlessly); and a small arched stone footbridge that crosses such a canal.",
+   "sub": "広場・小物",
+   "use": "町を横切る水路と橋（飾り）"
+  },
+  {
+   "id": "bld-port",
+   "group": "まち",
+   "sub": "町のタイプ：海辺の港町",
+   "use": "海辺の港町の建物（宿屋・道具屋・教会・民家2）",
+   "name": "海辺の港町の建物（宿屋・道具屋・教会・民家2）",
+   "size": [
+    96,
+    104
+   ],
+   "ref": "bld-inn",
+   "frames": [
+    "inn",
+    "item shop",
+    "church",
+    "house",
+    "house 2"
+   ],
+   "fit": {
+    "frame": 0,
+    "like": "bld-inn",
+    "refFrame": 0,
+    "dim": "h"
+   },
+   "prompt": "Five buildings for a sunny seaside port town: white plaster walls with blue tiled roofs, wooden balconies, nautical details, each standing alone, in exactly the same pixel art style, perspective and scale as the reference building: (1) an inn with a hanging signboard showing a small bed icon; (2) an item shop with a hanging signboard showing a potion bottle; (3) a church or temple fitting the region; (4) a small house; (5) another small house of a different shape. No text."
+  },
+  {
+   "id": "bld-snow",
+   "group": "まち",
+   "sub": "町のタイプ：雪国の町",
+   "use": "雪国の町の建物（宿屋・道具屋・教会・民家2）",
+   "name": "雪国の町の建物（宿屋・道具屋・教会・民家2）",
+   "size": [
+    96,
+    104
+   ],
+   "ref": "bld-inn",
+   "frames": [
+    "inn",
+    "item shop",
+    "church",
+    "house",
+    "house 2"
+   ],
+   "fit": {
+    "frame": 0,
+    "like": "bld-inn",
+    "refFrame": 0,
+    "dim": "h"
+   },
+   "prompt": "Five buildings for a snowy northern town: timber and stone walls, roofs covered in thick snow with icicles, warm glowing windows, each standing alone, in exactly the same pixel art style, perspective and scale as the reference building: (1) an inn with a hanging signboard showing a small bed icon; (2) an item shop with a hanging signboard showing a potion bottle; (3) a church or temple fitting the region; (4) a small house; (5) another small house of a different shape. No text."
+  },
+  {
+   "id": "bld-desert",
+   "group": "まち",
+   "sub": "町のタイプ：砂漠のオアシス",
+   "use": "砂漠のオアシスの建物（宿屋・道具屋・教会・民家2）",
+   "name": "砂漠のオアシスの建物（宿屋・道具屋・教会・民家2）",
+   "size": [
+    96,
+    104
+   ],
+   "ref": "bld-inn",
+   "frames": [
+    "inn",
+    "item shop",
+    "church",
+    "house",
+    "house 2"
+   ],
+   "fit": {
+    "frame": 0,
+    "like": "bld-inn",
+    "refFrame": 0,
+    "dim": "h"
+   },
+   "prompt": "Five buildings for a desert oasis town: sand-coloured mud-brick walls, domed and flat roofs, colourful cloth awnings, each standing alone, in exactly the same pixel art style, perspective and scale as the reference building: (1) an inn with a hanging signboard showing a small bed icon; (2) an item shop with a hanging signboard showing a potion bottle; (3) a church or temple fitting the region; (4) a small house; (5) another small house of a different shape. No text."
+  },
+  {
+   "id": "bld-volcano",
+   "group": "まち",
+   "sub": "町のタイプ：火山の町",
+   "use": "火山の町の建物（宿屋・道具屋・教会・民家2）",
+   "name": "火山の町の建物（宿屋・道具屋・教会・民家2）",
+   "size": [
+    96,
+    104
+   ],
+   "ref": "bld-inn",
+   "frames": [
+    "inn",
+    "item shop",
+    "church",
+    "house",
+    "house 2"
+   ],
+   "fit": {
+    "frame": 0,
+    "like": "bld-inn",
+    "refFrame": 0,
+    "dim": "h"
+   },
+   "prompt": "Five buildings for a volcanic mountain town: dark basalt stone walls, black slate roofs, glowing forge chimneys with smoke and ember light, each standing alone, in exactly the same pixel art style, perspective and scale as the reference building: (1) an inn with a hanging signboard showing a small bed icon; (2) an item shop with a hanging signboard showing a potion bottle; (3) a church or temple fitting the region; (4) a small house; (5) another small house of a different shape. No text."
+  },
+  {
+   "id": "obj-port",
+   "group": "まち",
+   "sub": "町のタイプ：海辺の港町",
+   "use": "海辺の港町の目印と小物",
+   "name": "海辺の港町の小物（lighthouse・docked sailboat・fish market stall・wooden pier with posts・crates of fish・seagull）",
+   "size": [
+    40,
+    48
+   ],
+   "ref": "obj-town",
+   "frames": [
+    "lighthouse",
+    "docked sailboat",
+    "fish market stall",
+    "wooden pier with posts",
+    "crates of fish",
+    "seagull"
+   ],
+   "fit": {
+    "frame": 2,
+    "h": 80
+   },
+   "prompt": "Props for a sunny seaside port town: white plaster walls with blue tiled roofs, wooden balconies, nautical details, each standing alone, in the same pixel art style and scale as the reference props: lighthouse; docked sailboat; fish market stall; wooden pier with posts; crates of fish; seagull."
+  },
+  {
+   "id": "obj-snow",
+   "group": "まち",
+   "sub": "町のタイプ：雪国の町",
+   "use": "雪国の町の目印と小物",
+   "name": "雪国の町の小物（snowy fir tree・snowman・frozen fountain・snowy street lamp・wooden sled・snow-covered well）",
+   "size": [
+    40,
+    48
+   ],
+   "ref": "obj-town",
+   "frames": [
+    "snowy fir tree",
+    "snowman",
+    "frozen fountain",
+    "snowy street lamp",
+    "wooden sled",
+    "snow-covered well"
+   ],
+   "fit": {
+    "frame": 3,
+    "h": 56
+   },
+   "prompt": "Props for a snowy northern town: timber and stone walls, roofs covered in thick snow with icicles, warm glowing windows, each standing alone, in the same pixel art style and scale as the reference props: snowy fir tree; snowman; frozen fountain; snowy street lamp; wooden sled; snow-covered well."
+  },
+  {
+   "id": "obj-desert",
+   "group": "まち",
+   "sub": "町のタイプ：砂漠のオアシス",
+   "use": "砂漠のオアシスの目印と小物",
+   "name": "砂漠のオアシスの小物（palm tree・small oasis pond with reeds・camel・striped canvas tent・clay pots・cactus）",
+   "size": [
+    40,
+    48
+   ],
+   "ref": "obj-town",
+   "frames": [
+    "palm tree",
+    "small oasis pond with reeds",
+    "camel",
+    "striped canvas tent",
+    "clay pots",
+    "cactus"
+   ],
+   "fit": {
+    "frame": 2,
+    "h": 62
+   },
+   "prompt": "Props for a desert oasis town: sand-coloured mud-brick walls, domed and flat roofs, colourful cloth awnings, each standing alone, in the same pixel art style and scale as the reference props: palm tree; small oasis pond with reeds; camel; striped canvas tent; clay pots; cactus."
+  },
+  {
+   "id": "obj-volcano",
+   "group": "まち",
+   "sub": "町のタイプ：火山の町",
+   "use": "火山の町の目印と小物",
+   "name": "火山の町の小物（small lava pool・smoking volcanic vent・obsidian rocks・blacksmith forge with anvil・charred dead tree・glowing magma street lamp）",
+   "size": [
+    40,
+    48
+   ],
+   "ref": "obj-town",
+   "frames": [
+    "small lava pool",
+    "smoking volcanic vent",
+    "obsidian rocks",
+    "blacksmith forge with anvil",
+    "charred dead tree",
+    "glowing magma street lamp"
+   ],
+   "fit": {
+    "frame": 5,
+    "h": 56
+   },
+   "prompt": "Props for a volcanic mountain town: dark basalt stone walls, black slate roofs, glowing forge chimneys with smoke and ember light, each standing alone, in the same pixel art style and scale as the reference props: small lava pool; smoking volcanic vent; obsidian rocks; blacksmith forge with anvil; charred dead tree; glowing magma street lamp."
+  },
+  {
+   "id": "tile-port",
+   "group": "フィールド",
+   "sub": "地面",
+   "use": "海辺の港町の地面（継ぎ目なしに散らして使う）",
+   "name": "海辺の港町の地面（beach sand・wet sand・wooden boardwalk planks・shallow sea water・deep sea water）",
+   "kind": "tile",
+   "size": [
+    32,
+    32
+   ],
+   "frames": [
+    "beach sand",
+    "wet sand",
+    "wooden boardwalk planks",
+    "shallow sea water",
+    "deep sea water"
+   ],
+   "prompt": "5 SEAMLESS square ground tiles viewed straight from above, each tiles perfectly with itself: beach sand; wet sand; wooden boardwalk planks; shallow sea water; deep sea water. Low contrast, no outlines, no objects."
+  },
+  {
+   "id": "tile-snow",
+   "group": "フィールド",
+   "sub": "地面",
+   "use": "雪国の町の地面（継ぎ目なしに散らして使う）",
+   "name": "雪国の町の地面（fresh snow・trodden snow path・blue ice）",
+   "kind": "tile",
+   "size": [
+    32,
+    32
+   ],
+   "frames": [
+    "fresh snow",
+    "trodden snow path",
+    "blue ice"
+   ],
+   "prompt": "3 SEAMLESS square ground tiles viewed straight from above, each tiles perfectly with itself: fresh snow; trodden snow path; blue ice. Low contrast, no outlines, no objects."
+  },
+  {
+   "id": "tile-desert",
+   "group": "フィールド",
+   "sub": "地面",
+   "use": "砂漠のオアシスの地面（継ぎ目なしに散らして使う）",
+   "name": "砂漠のオアシスの地面（desert sand・sandstone paving・sand dune ripples）",
+   "kind": "tile",
+   "size": [
+    32,
+    32
+   ],
+   "frames": [
+    "desert sand",
+    "sandstone paving",
+    "sand dune ripples"
+   ],
+   "prompt": "3 SEAMLESS square ground tiles viewed straight from above, each tiles perfectly with itself: desert sand; sandstone paving; sand dune ripples. Low contrast, no outlines, no objects."
+  },
+  {
+   "id": "tile-volcano",
+   "group": "フィールド",
+   "sub": "地面",
+   "use": "火山の町の地面（継ぎ目なしに散らして使う）",
+   "name": "火山の町の地面（volcanic ash ground・basalt paving・cooled black lava rock）",
+   "kind": "tile",
+   "size": [
+    32,
+    32
+   ],
+   "frames": [
+    "volcanic ash ground",
+    "basalt paving",
+    "cooled black lava rock"
+   ],
+   "prompt": "3 SEAMLESS square ground tiles viewed straight from above, each tiles perfectly with itself: volcanic ash ground; basalt paving; cooled black lava rock. Low contrast, no outlines, no objects."
+  },
+  {
+   "id": "ui-report",
+   "group": "演出",
+   "sub": "UI",
+   "use": "作業完了の印：戦闘後の宝箱（閉・開）、調査の巻物、手紙、話しかける吹き出し",
+   "name": "完了の印（宝箱・巻物・手紙・吹き出し）",
+   "size": [
+    24,
+    24
+   ],
+   "frames": [
+    "treasure chest closed",
+    "treasure chest open glowing",
+    "rolled parchment scroll",
+    "sealed letter",
+    "speech bubble with lines"
+   ],
+   "fit": {
+    "frame": 0,
+    "h": 28
+   },
+   "prompt": "Small JRPG item icons, each alone: a closed wooden treasure chest with gold trim; the same chest open with a golden glow and sparkles; a rolled parchment scroll tied with a red ribbon; a sealed letter envelope with a red wax seal; a white speech bubble with three grey text lines."
+  },
+  {
+   "id": "world-map",
+   "group": "フィールド",
+   "sub": "ワールドマップ",
+   "use": "プロジェクトの町が並ぶワールドマップの地形",
+   "name": "ワールドマップの地形",
+   "kind": "backdrop",
+   "size": [
+    480,
+    270
+   ],
+   "frames": [
+    "world"
+   ],
+   "prompt": "A classic 16-bit JRPG overworld map seen straight from above: one continent surrounded by blue sea, green plains and forests in the middle, a sandy coastline with a bay on the west, snowy mountains in the north, a yellow desert in the south, an active volcano with red lava flows in the east, rivers and a few dirt roads connecting the regions. No towns, no castles, no text, no labels."
+  },
+  {
+   "id": "world-towns",
+   "group": "フィールド",
+   "sub": "ワールドマップ",
+   "use": "ワールドマップ上の町のしるし（町のタイプごと）",
+   "name": "ワールドマップの町（村・港町・雪国・砂漠・火山）",
+   "size": [
+    24,
+    24
+   ],
+   "frames": [
+    "green village",
+    "port town",
+    "snowy town",
+    "desert oasis town",
+    "volcano town"
+   ],
+   "fit": {
+    "frame": 0,
+    "h": 34
+   },
+   "prompt": "Tiny overworld map town icons for a 16-bit JRPG, each alone, seen from above at a slight angle: a green village with red roofs; a port town with blue roofs by a tiny pier; a snowy town with white roofs; a desert oasis town with domes and a palm; a dark volcano town with a glowing forge."
+  },
+  {
+   "id": "amb-gull",
+   "group": "フィールド",
+   "sub": "背景の動き",
+   "use": "港町の空を飛ぶカモメ（羽ばたき）",
+   "name": "飛ぶカモメ（羽ばたき3コマ）",
+   "size": [
+    16,
+    12
+   ],
+   "ref": "obj-port",
+   "frames": [
+    "wings up",
+    "wings level",
+    "wings down"
+   ],
+   "fit": {
+    "frame": 1,
+    "w": 24
+   },
+   "prompt": "The same seagull as in the reference, now FLYING, seen from the side facing RIGHT, wings spread, three animation frames of a flap cycle: wings raised high; wings level and gliding; wings pushed down. Small and simple."
+  }
+ ]
+}

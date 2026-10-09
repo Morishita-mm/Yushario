@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MAX_EVENT_METADATA_LENGTH, parseAgentEvent, type AgentState } from "./events";
+import { MAX_EVENT_METADATA_LENGTH, deciderEvent, parseAgentEvent, type AgentState } from "./events";
 
 const states: AgentState[] = ["idle", "thinking", "working", "waiting_input", "success", "error"];
 
@@ -65,5 +65,32 @@ describe("parseAgentEvent", () => {
     const result = parseAgentEvent(input);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.length).toBeGreaterThan(0);
+  });
+
+  it("accepts room fields: agent, name, hook, target, subagent and task", () => {
+    const event = {
+      state: "working", agent: "s1", name: "t12-vitals", hook: "PreToolUse", target: "room.ts",
+      subagent: { id: "h1", type: "Explore" }, task: { id: "1", subject: "Write tests", status: "in_progress" },
+    };
+    expect(parseAgentEvent(event)).toEqual({ ok: true, event });
+    expect(parseAgentEvent({ state: "working", subagent: { id: "h1" }, task: { id: "2", status: "deleted" } }))
+      .toEqual({ ok: true, event: { state: "working", subagent: { id: "h1" }, task: { id: "2", status: "deleted" } } });
+  });
+
+  it.each([
+    { subagent: "h1" }, { subagent: { id: "" } }, { subagent: { id: "h1", type: 3 } },
+    { task: { id: "1", status: "done" } }, { task: { status: "pending" } },
+    { task: { id: "1", subject: "x".repeat(MAX_EVENT_METADATA_LENGTH + 1), status: "pending" } },
+    { target: "x".repeat(MAX_EVENT_METADATA_LENGTH + 1) }, { agent: 1 },
+  ])("rejects malformed room field %j", (fields) => {
+    expect(parseAgentEvent({ state: "working", ...fields }).ok).toBe(false);
+  });
+
+  it("keeps names, targets and tasks away from the Decider", () => {
+    expect(deciderEvent({
+      state: "working", source: "claude-code", tool: "Read", ts: 1, context: 0.5, detail: "Tool activity",
+      agent: "s1", name: "secret-project", hook: "PreToolUse", target: "secret.ts",
+      subagent: { id: "h1" }, task: { id: "1", subject: "secret", status: "pending" },
+    })).toEqual({ state: "working", source: "claude-code", tool: "Read", ts: 1, context: 0.5, detail: "Tool activity" });
   });
 });

@@ -1,6 +1,11 @@
 import { defineConfig } from "vite";
 
 export default defineConfig({
+  build: {
+    rolldownOptions: {
+      input: { index: "index.html", live2d: "live2d.html", art: "art.html", mock: "mock.html" },
+    },
+  },
   server: {
     proxy: {
       "/ws": {

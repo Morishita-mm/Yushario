@@ -2,9 +2,14 @@ import type { AgentEvent } from "../core/events";
 
 export const PERMISSION_TIMEOUT_MS = 120_000;
 export type PermissionDecision = "allow" | "deny" | "terminal";
-export type Permission = { type: "permission"; id: string; tool: string; summary: string };
+type Summary = { tool: string; summary: string; agent?: string; name?: string; helper?: string };
+export type Permission = { type: "permission"; id: string } & Summary;
 
-export function permissionSummary(input: unknown): { tool: string; summary: string } | undefined {
+function shortText(value: unknown): string | undefined {
+  return typeof value === "string" && value && value.length <= 200 ? value : undefined;
+}
+
+export function permissionSummary(input: unknown): Summary | undefined {
   if (!input || typeof input !== "object") return;
   const hook = input as Record<string, unknown>;
   if (hook.hook_event_name !== "PermissionRequest" || typeof hook.tool_name !== "string"
@@ -12,9 +17,13 @@ export function permissionSummary(input: unknown): { tool: string; summary: stri
   const fields = hook.tool_input && typeof hook.tool_input === "object"
     ? hook.tool_input as Record<string, unknown> : {};
   const detail = hook.tool_name === "Bash" ? fields.command : fields.file_path ?? fields.path;
+  const agent = shortText(hook.session_id);
+  const name = typeof hook.cwd === "string" ? shortText(hook.cwd.split(/[\\/]/).filter(Boolean).pop()) : undefined;
   // No full input, prompt, or tool output is kept or passed to the Decider.
   return { tool: hook.tool_name, summary: `${hook.tool_name}: ${typeof detail === "string"
-    ? detail.replace(/[\u0000-\u001f\u007f]/g, " ").slice(0, 120) : "実行の許可が必要です"}` };
+    ? detail.replace(/[\u0000-\u001f\u007f]/g, " ").slice(0, 120) : "実行の許可が必要です"}`,
+    ...(agent ? { agent } : {}), ...(name ? { name } : {}),
+    ...(shortText(hook.agent_id) ? { helper: shortText(hook.agent_id) } : {}) };
 }
 
 export function permissionOutput(decision: PermissionDecision): object {
@@ -51,13 +60,15 @@ export class PermissionWaiter {
   }
 
   observe(event: AgentEvent): void {
-    // Claude keeps the HTTP hook open after terminal Yes. Only completion of
-    // the pending tool (not another tool's PreToolUse), or Stop, resolves it.
-    if (event.source === "claude-code" && (event.state === "success"
-      || (event.tool === this.current?.tool && (event.state === "error"
-        || (event.state === "working" && event.detail === "Tool completed"))))) {
-      this.cancel();
-    }
+    // Claude keeps the HTTP hook open after terminal Yes. Only completion of the pending
+    // tool by the same session and subagent (not another tool's PreToolUse), or the
+    // session's Stop, resolves it.
+    const current = this.current;
+    if (!current || event.source !== "claude-code" || event.agent !== current.agent) return;
+    const stopped = event.state === "success" && !event.subagent;
+    const sameTool = event.subagent?.id === current.helper && event.tool === current.tool
+      && (event.state === "error" || (event.state === "working" && event.detail === "Tool completed"));
+    if (stopped || sameTool) this.cancel();
   }
 
   cancel(): void { this.finish?.("terminal"); }

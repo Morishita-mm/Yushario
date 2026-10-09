@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Art Gallery</title>
+  </head>
+  <body>
+    <header>
+      <h1>ドット絵コンポーネント</h1>
+      <nav id="sections"></nav>
+      <a href="/mock.html">組み合わせモック</a>
+      <label>背景 <select id="backdrop"><option value="grass">草</option><option value="dark">黒</option><option value="light">白</option></select></label>
+      <label>拡大 <select id="zoom"><option>2</option><option selected>3</option><option>4</option><option>6</option></select></label>
+    </header>
+    <main id="gallery"></main>
+    <script type="module" src="/src/web/art/gallery.ts"></script>
+  </body>
+</html>

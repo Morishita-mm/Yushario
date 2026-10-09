@@ -57,24 +57,82 @@ function toolFailed(response) {
     || (typeof response.exitCode === "number" && response.exitCode !== 0);
 }
 
+// Only short, local-display targets leave the adapter (docs/OBSERVATION.md):
+// file basenames, the first plain words of a command, a URL's host, a subagent type.
+function commandHead(command) {
+  const segments = command.split(/&&|\|\||;|\||\n/).map((part) => part.trim().split(/\s+/));
+  const words = segments.find((part) => part[0] && part[0] !== "cd") ?? [];
+  while (/^[A-Za-z_][A-Za-z0-9_]*=/.test(words[0] ?? "")) words.shift(); // FOO=bar npm test
+  // Stop at the first word that may carry a path, value or secret; a path command keeps its basename.
+  const head = [];
+  for (const [index, word] of words.slice(0, 3).entries()) {
+    if (index === 0 && /^[A-Za-z0-9._/@+-]+$/.test(word)) head.push(word.split("/").pop());
+    else if (/^[A-Za-z0-9._:@+-]+$/.test(word)) head.push(word);
+    else break;
+  }
+  return head.join(" ") || undefined;
+}
+
+function toolTarget(tool, input) {
+  if (!input || typeof input !== "object") return;
+  const path = input.file_path ?? input.notebook_path;
+  if (typeof path === "string") return path.split(/[\\/]/).pop() || undefined;
+  if (tool === "Bash" && typeof input.command === "string") return commandHead(input.command);
+  if (tool === "WebFetch" && typeof input.url === "string") {
+    try { return new URL(input.url).hostname || undefined; } catch { return; }
+  }
+  if ((tool === "Agent" || tool === "Task") && typeof input.subagent_type === "string") return input.subagent_type;
+}
+
+function text(value) {
+  return typeof value === "string" && value ? value.slice(0, 200) : undefined;
+}
+
+function hookTask(hook) {
+  const id = text(hook.task_id);
+  if (id && hook.hook_event_name === "TaskCreated") return { id, subject: text(hook.task_subject), status: "pending" };
+  if (id && hook.hook_event_name === "TaskCompleted") return { id, subject: text(hook.task_subject), status: "completed" };
+  const input = hook.tool_input;
+  if (hook.hook_event_name === "PreToolUse" && hook.tool_name === "TaskUpdate" && input && typeof input === "object"
+    && text(input.taskId) && ["pending", "in_progress", "completed", "deleted"].includes(input.status)) {
+    return { id: text(input.taskId), status: input.status };
+  }
+}
+
 async function toEvent(hook) {
   const states = {
     SessionStart: "idle",
+    SessionEnd: "idle",
     UserPromptSubmit: "thinking",
     PreToolUse: "working",
     PostToolUse: "working",
     PostToolUseFailure: "error",
     Notification: "waiting_input",
+    SubagentStart: "working",
+    SubagentStop: "working",
+    TaskCreated: "working",
+    TaskCompleted: "working",
+    PreCompact: "working",
+    PostCompact: "thinking",
     Stop: "success",
+    StopFailure: "error",
   };
-  const state = Object.hasOwn(states, hook.hook_event_name) ? states[hook.hook_event_name] : undefined;
+  const name = hook.hook_event_name;
+  const state = Object.hasOwn(states, name) ? states[name] : undefined;
   if (!state) return;
-  const event = { state, source: "claude-code", ts: Date.now() };
-  if (["PreToolUse", "PostToolUse", "PostToolUseFailure"].includes(hook.hook_event_name)) {
+  const event = { state, source: "claude-code", ts: Date.now(), hook: name };
+  const agent = text(hook.session_id);
+  if (agent) event.agent = agent;
+  if (typeof hook.cwd === "string") event.name = text(hook.cwd.split(/[\\/]/).filter(Boolean).pop());
+  if (text(hook.agent_id)) event.subagent = { id: text(hook.agent_id), type: text(hook.agent_type) };
+  const task = hookTask(hook);
+  if (task) event.task = task;
+  if (["PreToolUse", "PostToolUse", "PostToolUseFailure"].includes(name)) {
     if (typeof hook.tool_name === "string") event.tool = hook.tool_name.slice(0, 200);
-    if (hook.hook_event_name === "PostToolUse" && toolFailed(hook.tool_response)) {
-      event.state = "error";
-    }
+    const target = text(toolTarget(hook.tool_name, hook.tool_input));
+    if (target) event.target = target;
+    if (name === "PostToolUse" && toolFailed(hook.tool_response)) event.state = "error";
+    if (name === "PostToolUseFailure" && hook.is_interrupt === true) event.state = "idle";
   }
   // Stop can arrive just before Claude flushes the final assistant to disk.
   // Briefly allow that flush within the same 500ms budget (no network retries).
@@ -85,16 +143,16 @@ async function toEvent(hook) {
     context = contextUsage(hook);
   }
   if (context !== undefined) event.context = context;
-  // Never include prompt, notification, tool input, or tool output text.
+  // Never include prompt, notification, or tool output text; tool input only as `target` above.
   event.detail = {
-    idle: "Session started",
+    idle: name === "SessionEnd" ? "Session ended" : name === "PostToolUseFailure" ? "Interrupted" : "Session started",
     thinking: "Prompt received",
     working: "Tool activity",
     waiting_input: "Input requested",
     success: "Agent stopped",
     error: "Tool failed",
   }[event.state];
-  if (hook.hook_event_name === "PostToolUse" && event.state === "working") event.detail = "Tool completed";
+  if (name === "PostToolUse" && event.state === "working") event.detail = "Tool completed";
   return event;
 }
 
