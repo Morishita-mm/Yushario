@@ -14,12 +14,12 @@
 
 ## スタック
 
-- TypeScript (strict), Node 22+, pnpm
+- TypeScript (strict), Node 22+, npm
 - web: Vite（フレームワーク無し）
 - server: Node 標準 `http` + `ws`
 - test: vitest
 
 ## 完了条件の共通項
 
-- `pnpm typecheck` と `pnpm test` が通ること
+- `npm run typecheck` と `npm test` が通ること
 - 変更したファイルと、追加した依存とその理由を報告すること
