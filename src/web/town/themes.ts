@@ -7,7 +7,7 @@ export const THEME_NAMES: Record<TownTheme, string> = {
 };
 
 type Part = [string, number];
-export interface Look {
+interface Look {
   ground: Part;
   street: Part;
   canal?: Part; // texture for the band across the town (water, ice, lava)

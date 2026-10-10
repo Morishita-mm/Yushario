@@ -10,7 +10,7 @@ const token = new URLSearchParams(location.search).get("token") ?? "";
 const canvas = document.querySelector<HTMLCanvasElement>("#world")!;
 const connectionLabel = document.querySelector<HTMLElement>("#connection")!;
 document.querySelector<HTMLAnchorElement>("#live2d-link")!.search = location.search;
-const scene = new Scene(canvas);
+const scene = new Scene(canvas, document.querySelector<HTMLElement>("#town-layer")!);
 const messages = new Messages(document.querySelector<HTMLElement>("#messages")!);
 let room = new Room();
 let socket: WebSocket | undefined;
@@ -19,9 +19,8 @@ const status = new Status(
   (id, decision) => {
     if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: "permission-decision", id, decision }));
   },
-  (agent) => { scene.selected = agent; },
+  (agent) => scene.select(agent),
 );
-canvas.addEventListener("click", (event) => { scene.selected = scene.pick(event); });
 
 function parse(input: unknown, at: unknown): { event: AgentEvent; at: number } | undefined {
   const result = parseAgentEvent(input);
@@ -34,10 +33,10 @@ function live(event: AgentEvent, at: number): void {
   const level = before ? stats(before, at).level : 1;
   const agent = room.apply(event, at);
   const levelUp = agent !== undefined && stats(agent, at).level > level;
-  scene.event(event, agent, levelUp, Date.now());
-  const line = narrate(event);
+  scene.sync(room, at);
+  const line = narrate({ ...event, name: scene.names.get(event.agent ?? "default") ?? event.name });
   if (line) messages.say(line, at);
-  if (levelUp) messages.say(`${agent!.name}は レベル${stats(agent!, at).level}に あがった！`, at);
+  if (levelUp) messages.say(`${scene.names.get(agent!.id) ?? agent!.name}は レベル${stats(agent!, at).level}に あがった！`, at);
 }
 
 function permission(value: Record<string, unknown>): Permission | undefined {
@@ -63,10 +62,11 @@ function connect(): void {
           const parsed = parse(item?.event, item?.at);
           if (!parsed) continue;
           room.apply(parsed.event, parsed.at);
-          const line = narrate(parsed.event);
+          scene.sync(room, parsed.at, true);
+          const line = narrate({ ...parsed.event, name: scene.names.get(parsed.event.agent ?? "default") ?? parsed.event.name });
           if (line) told.push([line, parsed.at]);
         }
-        scene.settle();
+        scene.sync(room, Date.now());
         for (const [line, at] of told.slice(-3)) messages.say(line, at, true);
         if (!told.length) messages.say("ここは エージェントたちの まち。 ゆうしゃの とうちゃくを まっている…", undefined, true);
       } else if (data.type === "event") {
@@ -90,19 +90,23 @@ function connect(): void {
   };
 }
 
-let last: number | undefined;
 let lastStatus = 0;
 function frame(time: number): void {
   const now = Date.now();
-  scene.frame(room, now, last === undefined ? 0 : Math.min(time - last, 100));
-  last = time;
-  messages.tick();
   if (now - lastStatus > 250) {
-    status.render(room, now, scene.selected);
+    scene.sync(room, now);
+    status.render(room, now, scene.selected, scene.names);
     lastStatus = now;
   }
+  scene.frame(time, now);
+  messages.tick();
   requestAnimationFrame(frame);
 }
 
-connect();
-requestAnimationFrame(frame);
+void scene.load().then(() => {
+  connect();
+  requestAnimationFrame(frame);
+}).catch((error: unknown) => {
+  connectionLabel.textContent = "町の絵を よみこめませんでした";
+  console.error(error);
+});

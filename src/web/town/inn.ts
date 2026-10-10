@@ -1,6 +1,6 @@
-import { label } from "./mock-field";
+import { label } from "./field";
 import type { Sheets } from "./sheets";
-import { TOWN_H, TOWN_W } from "./mock-town";
+import { TOWN_H, TOWN_W } from "./town";
 
 // Inside the inn: beds of one size, dozing agents tucked in.
 export function drawInn(ctx: CanvasRenderingContext2D, art: Sheets, t: number, sleepers: string[]): void {
@@ -29,4 +29,5 @@ export function drawInn(ctx: CanvasRenderingContext2D, art: Sheets, t: number, s
     }
   }
   label(ctx, "やどや（なか）", TOWN_W / 2, 120, "#fff7d6", 16);
+  if (sleepers.length > 6) label(ctx, `ほか ${sleepers.length - 6}人`, TOWN_W / 2, 430, "#ffe066", 14);
 }

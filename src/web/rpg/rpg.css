@@ -1,3 +1,4 @@
+@import "../town/windows.css";
 :root {
   color-scheme: dark;
   font-family: "DotGothic16", system-ui, sans-serif;
@@ -13,7 +14,15 @@ a { color: #9fd3ff; font-size: 14px; }
 #connection { font-size: 14px; color: #c9c3dc; }
 .quest { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 16px; padding: 16px; align-items: start; }
 .stage { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-#world { width: 100%; aspect-ratio: 16 / 9; image-rendering: pixelated; border: 3px solid #ffffff; border-radius: 6px; cursor: pointer; background: #000; }
+#world { display: block; width: 100%; image-rendering: pixelated; border: 3px solid #ffffff; border-radius: 6px; cursor: pointer; background: #000; }
+.map-stage { position: relative; }
+.map-nav { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; font-size: 14px; }
+.map-nav button { font: inherit; background: #1d1726; color: #fff; border: 1px solid #6e6a8a; padding: 4px 8px; cursor: pointer; }
+.map-nav button:hover, .map-nav button:focus-visible { color: #ffe066; border-color: #ffe066; }
+.map-nav button[hidden] { display: none; }
+#place-name { color: #ffe7a3; overflow-wrap: anywhere; }
+.hero-picker { width: 100%; font: inherit; color: #fff; background: #1d1726; border: 1px solid #6e6a8a; padding: 8px; }
+.theme-option canvas { display: block; }
 
 /* Classic RPG windows: black, double white frame, rounded corners. */
 .window {

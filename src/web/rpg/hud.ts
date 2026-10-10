@@ -1,13 +1,13 @@
 import type { Activity } from "../../core/activity";
 import { moods, type Mood, type Room, type RoomAgent } from "../../core/room";
 import { JOB_NAMES, jobOf, stats } from "../../core/story";
-import { heroAccent } from "./sprites";
+import { heroAccent } from "../town/appearance";
 
 export type Permission = { id: string; tool: string; summary: string; agent?: string };
 type Decision = "allow" | "deny" | "terminal";
 
 const DOING: Record<Activity, (target: string) => string> = {
-  idle: () => "やどやで やすんでいる", think: () => "たきびの まえで かんがえている",
+  idle: () => "まちで ひとやすみしている", think: () => "たきびの まえで かんがえている",
   read: (t) => `としょかんで ${t || "まどうしょ"}を よんでいる`, search: () => "しょこを さがしまわっている",
   edit: (t) => `${t || "まもの"}と たたかっている`, test: (t) => `しれんの ゴーレムと たたかっている ${t}`,
   run: (t) => `じゅもん「${t || "？"}」を となえている`, git: (t) => `ぼうけんのしょに きろくしている ${t}`,
@@ -39,10 +39,12 @@ function bar(label: string, value: number, color: string): HTMLElement {
   return row;
 }
 
-// Status windows, one per hero; rebuilt only when what they show changes.
+// The selected hero's original status window and permission responses.
 export class Status {
   readonly permissions = new Map<string, Permission>();
   private readonly signatures = new Map<string, string>();
+  private picker: HTMLSelectElement | undefined;
+  private pickerSignature = "";
 
   constructor(
     private readonly root: HTMLElement,
@@ -50,23 +52,46 @@ export class Status {
     private readonly select: (agent: string | undefined) => void,
   ) {}
 
-  render(room: Room, now: number, selected: string | undefined): void {
+  render(room: Room, now: number, selected: string | undefined, names: Map<string, string>): void {
     const cards: HTMLElement[] = [];
-    for (const agent of room.agents.values()) {
+    const agents = [...room.agents.values()];
+    const chosen = room.agents.get(selected ?? "") ?? agents[0];
+    if (agents.length) {
+      const signature = JSON.stringify(agents.map((agent) => [agent.id, names.get(agent.id), agent.project]));
+      if (!this.picker || signature !== this.pickerSignature) {
+        this.picker = element("select", "hero-picker");
+        this.picker.setAttribute("aria-label", "勇者をえらぶ");
+        for (const agent of agents) {
+          const option = element("option", undefined, `${names.get(agent.id) ?? agent.name} — ${agent.project ?? agent.name}`);
+          option.value = agent.id;
+          this.picker.append(option);
+        }
+        this.picker.addEventListener("change", () => this.select(this.picker!.value));
+        this.pickerSignature = signature;
+      }
+      this.picker.value = chosen!.id;
+      cards.push(this.picker);
+    }
+    for (const agent of chosen ? [chosen] : []) {
       const permission = [...this.permissions.values()].find((item) => (item.agent ?? "default") === agent.id);
       const agentMoods = moods(agent, now);
       const agentStats = stats(agent, now);
-      const signature = JSON.stringify([agent.name, agent.activity, agent.target, agentMoods, agentStats,
-        agent.tasks, agent.helpers, permission?.id, agent.id === selected, agent.id === selected && agent.log]);
+      const signature = JSON.stringify([names.get(agent.id), agent.activity, agent.target, agentMoods, agentStats,
+        agent.tasks, agent.helpers, permission?.id, agent.log]);
       let card = this.root.querySelector<HTMLElement>(`[data-agent="${CSS.escape(agent.id)}"]`);
       if (!card || this.signatures.get(agent.id) !== signature) {
-        card = this.card(agent, agentMoods, permission, agent.id === selected, now);
+        card = this.card(agent, agentMoods, permission, now, names.get(agent.id) ?? agent.name);
         this.signatures.set(agent.id, signature);
       }
       cards.push(card);
     }
     for (const permission of this.permissions.values()) {
-      if (!room.agents.has(permission.agent ?? "default")) cards.push(this.permissionBlock(permission));
+      const id = permission.agent ?? "default";
+      if (id === chosen?.id) continue;
+      const agent = room.agents.get(id);
+      const name = names.get(id) ?? agent?.name ?? id;
+      const project = agent?.project ?? agent?.name;
+      cards.push(this.permissionBlock(permission, project === undefined ? name : `${name} — ${project}`));
     }
     if (!cards.length) {
       cards.push(element("p", "empty window", "まだ だれも いない ようだ…\nフックを せっていした Claude Code を きどうすると、ゆうしゃが まちに やってくる。"));
@@ -77,15 +102,15 @@ export class Status {
     for (const id of this.signatures.keys()) if (!room.agents.has(id)) this.signatures.delete(id);
   }
 
-  private card(agent: RoomAgent, agentMoods: Mood[], permission: Permission | undefined, selected: boolean, now: number): HTMLElement {
+  private card(agent: RoomAgent, agentMoods: Mood[], permission: Permission | undefined, now: number, name: string): HTMLElement {
     const { level, hp, mp } = stats(agent, now);
-    const card = element("article", selected ? "window hero selected" : "window hero");
+    const card = element("article", "window hero selected");
     card.dataset.agent = agent.id;
-    card.addEventListener("click", () => this.select(selected ? undefined : agent.id));
+    card.addEventListener("click", () => this.select(agent.id));
     const head = element("header");
     const crest = element("span", "crest");
     crest.style.background = heroAccent(agent.id);
-    head.append(crest, element("strong", undefined, agent.name), element("span", "level", `Lv ${level}`));
+    head.append(crest, element("strong", undefined, name), element("span", "level", `Lv ${level}`));
     card.append(head, bar("HP", hp, hp > 0.5 ? "#7ee08a" : hp > 0.25 ? "#ffd35a" : "#ff6b5b"), bar("MP", mp, "#62b8ff"));
     card.append(element("p", "doing", `▶ ${DOING[agent.activity](agent.target ?? "")}`));
     if (agentMoods.length) {
@@ -111,20 +136,19 @@ export class Status {
       card.append(element("p", "section", `クエスト ${done}/${agent.tasks.length}`), list);
     }
     if (permission) card.append(this.permissionBlock(permission));
-    if (selected) {
-      const log = element("ol", "log");
-      for (const entry of agent.log.slice(-LOG_SHOWN).reverse()) {
-        const time = new Date(entry.at).toLocaleTimeString("ja-JP", { hour12: false });
-        const outcome = entry.outcome === "ok" ? " ○" : entry.outcome === "failed" ? " ×" : "";
-        log.append(element("li", entry.outcome, `${time} ${DOING[entry.activity](entry.target ?? "")}${outcome}`));
-      }
-      card.append(element("p", "section", "ぼうけんの きろく"), log);
+    const log = element("ol", "log");
+    for (const entry of agent.log.slice(-LOG_SHOWN).reverse()) {
+      const time = new Date(entry.at).toLocaleTimeString("ja-JP", { hour12: false });
+      const outcome = entry.outcome === "ok" ? " ○" : entry.outcome === "failed" ? " ×" : "";
+      log.append(element("li", entry.outcome, `${time} ${DOING[entry.activity](entry.target ?? "")}${outcome}`));
     }
+    card.append(element("p", "section", "ぼうけんの きろく"), log);
     return card;
   }
 
-  private permissionBlock(permission: Permission): HTMLElement {
+  private permissionBlock(permission: Permission, heading?: string): HTMLElement {
     const block = element("div", "permission");
+    if (heading) block.append(element("h3", "section", heading));
     block.append(element("p", undefined, `「${permission.summary}」\nを おこなっても よいですか？`));
     const actions = element("div", "actions");
     for (const [label, decision] of [["はい", "allow"], ["いいえ", "deny"], ["ターミナルで こたえる", "terminal"]] as const) {
@@ -157,7 +181,7 @@ export class Messages {
   tick(): void {
     const typing = this.lines.find((line) => line.shown < line.text.length);
     if (typing) typing.shown = Math.min(typing.text.length, typing.shown + 2);
-    const text = this.lines.map((line) => line.time + line.text.slice(0, line.shown)).join("\n");
+    const text = this.lines.filter((line) => line.shown > 0).map((line) => line.time + line.text.slice(0, line.shown)).join("\n");
     if (this.root.textContent !== text) this.root.textContent = text;
   }
 }

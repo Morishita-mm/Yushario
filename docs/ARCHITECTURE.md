@@ -34,12 +34,14 @@
 | `src/core/activity.ts` | フック・ツール名・対象から活動（読む・書く・テスト…）を判定 | events |
 | `src/core/room.ts` | 部屋の状態（エージェントごとの活動・助っ人・タスク・行動ログ）と、直近の流れから様子を算出 | activity, events |
 | `src/core/story.ts` | RPG としての語り（ナレーション）、Lv・HP・MP、仲間の職業、活動ごとのモンスター | activity, events, room |
+| `src/core/town.ts` | Room からプロジェクト別の町・安定した表示名・勇者の居場所・仲間の職業へ変換する純粋関数 | room, story |
 | `src/core/motion.ts` | 目標（表情・姿勢）＋アイドル層（呼吸・瞬き・揺れ）から毎フレームの抽象パラメータを生成 | decider の型のみ |
 | `src/server/relay.ts` | `POST /event` を受けて検証 → Decider → Selector → WS で決定を配信 | core |
 | `src/server/jev-decider.ts` | Jev（TypeSafe System One API）を呼ぶ `Decider` 実装。キーが無ければ使わない | core |
 | `src/server/pty.ts` | 埋め込みターミナル用の PTY と WS /pty の中継 | なし |
-| `src/web/rpg/*` | 町のページ（トップ）。WS のイベントで Room を組み立て、町とフィールドをドット絵で描画。右に「つよさ」、下にメッセージ | core |
-| `src/web/rpg/art/*` | ドット絵のデータ（文字のグリッド）。勇者・仲間は頭・胴・脚・腕のパーツを組み合わせてポーズを作る | なし |
+| `src/web/rpg/*` | メインの町のページ。WS で Room を組み立て、ワールド・町・宿屋・フィールドを地図上で移動。町のすがたは localStorage、右に選んだ勇者の「つよさ」・許可、下に時刻付きメッセージ | core, web/town |
+| `src/web/town/*` | データを受け取る共有描画（ワールド・5種の町・宿屋・フィールド・戦闘フォーカス）、既存 manifest の絵の読み込み・色違い・環境の動き・通りの歩行 | core の型、既存 public/art の絵 |
+| `src/web/art/*` | 絵のギャラリーと `/mock.html` の入口・偽データ。メインと同じ町の描画を使う | web/town |
 | `src/web/*` | Live2D のページ（`/live2d.html`）。WS で決定を受信 → MotionGenerator → Renderer、埋め込みターミナル | core |
 | `src/web/renderers/*` | `Renderer` 実装。抽象パラメータ → モデル固有パラメータの対応表で適用 | core の型のみ |
 

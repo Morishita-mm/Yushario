@@ -1,10 +1,10 @@
-import type { Departed } from "./mock-town";
+import type { Departed } from "./walkers";
 
 // Mock: the command window that opens next to a hero you click (docs/PLATFORM.md).
 // In the real app each command goes to that hero's embedded terminal or hook; here they only
 // show what would happen.
-export interface HeroState { name: string; fighting: boolean; hasReport: boolean; at: [number, number] } // at: CSS px in the stage
-export interface Handlers {
+interface HeroState { name: string; fighting: boolean; hasReport: boolean; at: [number, number] } // at: CSS px in the stage
+interface Handlers {
   watch?: () => void; // たたかいを みる (fields only)
   report: () => void; // きろく
   farewell: () => void; // みおくる

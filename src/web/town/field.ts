@@ -1,30 +1,11 @@
 import type { Theme } from "./ambient";
 import type { Sheets } from "./sheets";
 
-// Mock: one field map (960×540) where working agents fight. Each theme is its own little world.
+// One field map (960×540), composed from the supplied battles.
 export const FIELD_W = 960;
 export const FIELD_H = 540;
 
-export interface Fight { x: number; y: number; name: string; variant: number; monster: string; target: string; party: string[]; fx: number; done?: boolean }
-
-export const FIGHTS: Record<Theme, Fight[]> = {
-  meadow: [
-    { x: 250, y: 210, name: "t12-vitals", variant: 0, monster: "monster-slime", target: "room.ts", party: [], fx: 2 },
-    { x: 560, y: 190, name: "t3-ui", variant: 2, monster: "monster-slime", target: "scene.ts", party: [], fx: 2 },
-    { x: 360, y: 430, name: "t8-terminal", variant: 1, monster: "monster-dragon", target: "Explore", party: ["party-warrior", "party-mage"], fx: 4 },
-    { x: 640, y: 440, name: "t19-search", variant: 3, monster: "monster-slime", target: "room.ts", party: [], fx: 2, done: true },
-  ],
-  cave: [
-    { x: 260, y: 230, name: "t1-core", variant: 3, monster: "monster-golem", target: "npm test", party: [], fx: 8 },
-    { x: 520, y: 420, name: "t5-hooks", variant: 4, monster: "monster-golem", target: "npm run typecheck", party: ["party-thief"], fx: 8 },
-    { x: 700, y: 250, name: "t20-tests", variant: 2, monster: "monster-golem", target: "npm run typecheck", party: [], fx: 8, done: true },
-  ],
-  forest: [
-    { x: 300, y: 250, name: "t10-render", variant: 1, monster: "monster-ghost", target: "npm run build", party: [], fx: 6 },
-    { x: 560, y: 430, name: "t7-server", variant: 2, monster: "monster-ghost", target: "git push", party: ["party-priest"], fx: 6 },
-    { x: 640, y: 170, name: "t21-build", variant: 4, monster: "monster-ghost", target: "npm run build", party: [], fx: 6, done: true },
-  ],
-};
+export type Fight = { id?: string; x: number; y: number; name: string; variant: number; monster: string; target: string; party: string[]; fx: number; done?: boolean; level: number; demo?: boolean; counter?: boolean; damage?: { hero: number; enemy: number } };
 
 export function label(ctx: CanvasRenderingContext2D, value: string, x: number, y: number, color = "#ffffff", size = 10): void {
   ctx.font = `${size}px "DotGothic16", monospace`;
@@ -50,7 +31,7 @@ const REACH: Record<string, number> = { "monster-slime": 50, "monster-ghost": 54
 function battle(ctx: CanvasRenderingContext2D, art: Sheets, fight: Fight, t: number): void {
   const { x, y } = fight;
   const cycle = t % 4200;
-  const enemyTurn = cycle > 2600 && cycle < 3600;
+  const enemyTurn = fight.demo ? cycle > 2600 && cycle < 3600 : Boolean(fight.counter);
   const heroFrame = enemyTurn ? (cycle > 2950 ? 4 : 0) : cycle % 1400 < 700 ? 0 : cycle % 1400 < 1000 ? 1 : 2;
   const mx = x + (REACH[fight.monster] ?? 60);
   const side = `${fight.monster}-side`;
@@ -63,17 +44,17 @@ function battle(ctx: CanvasRenderingContext2D, art: Sheets, fight: Fight, t: num
     const strike = cycle > 2950 && cycle < 3350;
     art.draw(ctx, side, strike ? 4 : 3, mx - (strike && fight.monster !== "monster-dragon" ? 8 : 0), y);
     if (strike) art.draw(ctx, "fx-enemy", fight.fx + (Math.floor(t / 120) % 2), x + 4, y - 18);
-    if (cycle > 3000) label(ctx, "-12", x, y - 62 - Math.min(12, (cycle - 3000) / 20), "#ff6b5b", 14);
+    if (cycle > 3000 && fight.damage) label(ctx, `-${fight.damage.enemy}`, x, y - 62 - Math.min(12, (cycle - 3000) / 20), "#ff6b5b", 14);
   } else {
     const hurt = heroFrame === 2;
     art.draw(ctx, side, hurt ? 2 : Math.floor(t / 450) % 2, mx + (hurt ? 3 : 0), y);
     if (hurt) {
       art.draw(ctx, "fx-battle", Math.floor((cycle % 300) / 100), mx - 8, y - 18);
-      label(ctx, "23", mx, y - 66, "#ffffff", 14);
+      if (fight.damage) label(ctx, String(fight.damage.hero), mx, y - 66, "#ffffff", 14);
     }
   }
   label(ctx, fight.target, mx, y + 14, "#ffe7a3");
-  label(ctx, `${fight.name} Lv4`, x - 6, y + 28);
+  label(ctx, `${fight.name} Lv${fight.level}`, x - 6, y + 28);
 }
 
 // A won battle: the hero stands in victory and a chest is left where the monster fell.
@@ -87,7 +68,7 @@ function victory(ctx: CanvasRenderingContext2D, art: Sheets, fight: Fight, t: nu
     art.draw(ctx, "ui-balloons", 0, cx, fight.y - 34 - (Math.floor(t / 400) % 2));
   }
   label(ctx, read ? "かくにん ずみ" : "しょうり！", cx, fight.y + 14, read ? "#c9c3dc" : "#ffe066");
-  label(ctx, `${fight.name} Lv5`, fight.x - 6, fight.y + 28);
+  label(ctx, `${fight.name} Lv${fight.level}`, fight.x - 6, fight.y + 28);
 }
 
 // Ways out of each field: back to town and over to the other fields.
@@ -97,8 +78,7 @@ export const FIELD_EXITS: Record<Theme, { to: "town" | Theme; text: string; x: n
   forest: [{ to: "town", text: "◀ まち", x: 46, y: 270 }, { to: "meadow", text: "そうげん ▶", x: 906, y: 200 }, { to: "cave", text: "どうくつ ▶", x: 906, y: 340 }],
 };
 
-export function drawField(ctx: CanvasRenderingContext2D, art: Sheets, theme: Theme, t: number, read: Set<string>): void {
-  const fights = FIGHTS[theme];
+export function drawField(ctx: CanvasRenderingContext2D, art: Sheets, theme: Theme, t: number, fights: Fight[], read = new Set<string>(), overflow = 0): void {
   if (theme === "meadow") {
     art.texture(ctx, "tile-ground", 1, 0, 0, FIELD_W, FIELD_H);
     art.texture(ctx, "tile-ground", 0, 0, 270, 120, 40);
@@ -146,4 +126,5 @@ export function drawField(ctx: CanvasRenderingContext2D, art: Sheets, theme: The
     ctx.restore();
   }
   label(ctx, theme === "meadow" ? "そうげん" : theme === "cave" ? "どうくつ" : "よるのもり", FIELD_W / 2, 26, "#fff7d6", 14);
+  if (overflow) label(ctx, `ほか ${overflow}人`, FIELD_W / 2, FIELD_H - 18, "#ffe066", 14);
 }

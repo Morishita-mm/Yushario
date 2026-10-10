@@ -1,30 +1,12 @@
-import type { TownTheme } from "./mock-themes";
+import type { TownTheme } from "./themes";
 import type { Sheets } from "./sheets";
 
-// Mock: the world map. Every project (repository) is a town in the region of its kind.
+// The world map. Every project (repository) is a town in the region of its kind.
 // Only towns with agents in them are on the map; quiet ones sleep in a list. When one region has
 // too many towns, they are shown as one bundle that opens a list.
 export interface Project { repo: string; theme?: TownTheme; heroes: number; fighting: number; unread: number; calling: boolean }
 
-export const PROJECTS: Project[] = [
-  { repo: "agent-character", theme: "village", heroes: 18, fighting: 7, unread: 5, calling: true },
-  { repo: "blog", theme: "village", heroes: 1, fighting: 0, unread: 1, calling: false },
-  { repo: "shop-front", theme: "port", heroes: 3, fighting: 1, unread: 1, calling: false },
-  { repo: "shop-api", theme: "port", heroes: 2, fighting: 2, unread: 0, calling: true },
-  { repo: "shop-admin", theme: "port", heroes: 1, fighting: 0, unread: 2, calling: false },
-  { repo: "payments", theme: "port", heroes: 2, fighting: 1, unread: 0, calling: false },
-  { repo: "mail-worker", theme: "port", heroes: 1, fighting: 1, unread: 0, calling: false },
-  { repo: "search-index", theme: "port", heroes: 1, fighting: 0, unread: 1, calling: false },
-  { repo: "infra-tools", theme: "snow", heroes: 2, fighting: 0, unread: 0, calling: false },
-  { repo: "data-pipeline", theme: "desert", heroes: 4, fighting: 2, unread: 2, calling: false },
-  { repo: "game-engine", theme: "volcano", heroes: 1, fighting: 1, unread: 0, calling: true },
-  { repo: "old-site", theme: "village", heroes: 0, fighting: 0, unread: 0, calling: false },
-  { repo: "ml-notebooks", theme: "desert", heroes: 0, fighting: 0, unread: 0, calling: false },
-  { repo: "dotfiles", theme: "snow", heroes: 0, fighting: 0, unread: 0, calling: false },
-  { repo: "legacy-batch", theme: "volcano", heroes: 0, fighting: 0, unread: 0, calling: false },
-  { repo: "new-mobile-app", heroes: 1, fighting: 0, unread: 0, calling: false }, // just arrived: no kind chosen yet
-];
-export const BUNDLE_AT = 5; // this many active towns in one region become one bundle
+const BUNDLE_AT = 5; // this many active towns in one region become one bundle
 export const ICON: Record<TownTheme, number> = { village: 0, port: 1, snow: 2, desert: 3, volcano: 4 };
 // Places for towns in each region (fractions of the map); the first is also where a bundle sits.
 const SLOTS: Record<TownTheme, [number, number][]> = {
@@ -35,16 +17,15 @@ const SLOTS: Record<TownTheme, [number, number][]> = {
   volcano: [[0.83, 0.42], [0.88, 0.58], [0.78, 0.3], [0.75, 0.55]],
 };
 
-export interface Marker { x: number; y: number; theme: TownTheme; projects: Project[] }
+interface Marker { x: number; y: number; theme: TownTheme; projects: Project[] }
 
-export const active = (p: Project) => p.heroes > 0 && p.theme !== undefined;
-export const sleeping = () => PROJECTS.filter((p) => p.heroes === 0 && p.theme);
+export const sleeping = (projects: Project[]) => projects.filter((p) => p.heroes === 0);
 
 // One marker per town, or one per crowded region.
-export function markers(w: number, h: number): Marker[] {
+export function markers(w: number, h: number, projects: Project[]): Marker[] {
   const result: Marker[] = [];
   for (const theme of Object.keys(SLOTS) as TownTheme[]) {
-    const towns = PROJECTS.filter((p) => active(p) && p.theme === theme);
+    const towns = projects.filter((p) => p.heroes > 0 && p.theme === theme);
     if (towns.length >= BUNDLE_AT) {
       const [fx, fy] = SLOTS[theme][0];
       result.push({ x: Math.round(fx * w), y: Math.round(fy * h), theme, projects: towns });
@@ -90,11 +71,11 @@ export function regionName(theme: TownTheme): string {
 }
 
 // Draws the map; returns the box of the "sleeping towns" plate so it can be clicked.
-export function drawWorld(ctx: CanvasRenderingContext2D, art: Sheets, t: number, w: number, h: number): { x: number; y: number; w: number; h: number } {
+export function drawWorld(ctx: CanvasRenderingContext2D, art: Sheets, t: number, w: number, h: number, towns: Project[]): { x: number; y: number; w: number; h: number } {
   art.draw(ctx, "world-map", 0, w / 2, h);
   ctx.fillStyle = "rgba(10, 10, 26, 0.18)"; // soften the terrain so towns and plates stand out
   ctx.fillRect(0, 0, w, h);
-  for (const marker of markers(w, h)) {
+  for (const marker of markers(w, h, towns)) {
     const { x, y, projects } = marker;
     const bundle = projects.length > 1;
     const rx = bundle ? 28 : 20;
@@ -118,5 +99,5 @@ export function drawWorld(ctx: CanvasRenderingContext2D, art: Sheets, t: number,
     if (projects.some((p) => p.calling)) art.draw(ctx, "ui-balloons", 0, x + 16, y - 22 - (Math.floor(t / 400) % 2));
   }
   plate(ctx, [["ワールドマップ", "#fff7d6", 12]], w / 2, 6);
-  return plate(ctx, [[`💤 ねむっている町 ${sleeping().length}`, "#c9c3dc", 9]], w - 72, h - 24);
+  return plate(ctx, [[`💤 ねむっている町 ${sleeping(towns).length}`, "#c9c3dc", 9]], w - 72, h - 24);
 }

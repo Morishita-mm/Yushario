@@ -1,5 +1,5 @@
 // Loads the packed pixel-art components (public/art) and draws single frames.
-export interface Entry { id: string; group: string; name: string; frame: [number, number]; frames: string[]; colors: number; warning?: string }
+type Entry = { id: string; frame: [number, number]; frames: string[] };
 
 // Hero colour variants: the tunic (blue ramp) and cape (red ramp) swapped for other palette ramps.
 const TUNIC = ["#323353", "#484a77", "#4d65b4", "#4d9be6"];
@@ -18,7 +18,7 @@ function rgb(hex: string): number {
 
 export class Sheets {
   private readonly images = new Map<string, Source>();
-  readonly entries = new Map<string, Entry>();
+  private readonly entries = new Map<string, Entry>();
 
   async load(): Promise<void> {
     const entries: Entry[] = await (await fetch("/art/manifest.json", { cache: "no-store" })).json();
@@ -63,10 +63,6 @@ export class Sheets {
     this.images.set(key, canvas);
     this.entries.set(key, entry);
     return key;
-  }
-
-  has(id: string): boolean {
-    return this.entries.has(id);
   }
 
   size(id: string): [number, number] {
@@ -150,17 +146,4 @@ export class Sheets {
     return canvas;
   }
 
-  // Fills a rectangle with a tile frame.
-  tile(ctx: CanvasRenderingContext2D, id: string, index: number, x: number, y: number, w: number, h: number): void {
-    const entry = this.entries.get(id);
-    const image = this.images.get(id);
-    if (!entry || !image) return;
-    const [tw, th] = entry.frame;
-    for (let ty = y; ty < y + h; ty += th) {
-      for (let tx = x; tx < x + w; tx += tw) {
-        const cw = Math.min(tw, x + w - tx), ch = Math.min(th, y + h - ty);
-        ctx.drawImage(image, index * tw, 0, cw, ch, tx, ty, cw, ch);
-      }
-    }
-  }
 }

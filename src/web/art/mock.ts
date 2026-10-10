@@ -1,22 +1,24 @@
 import "@fontsource/dotgothic16/400.css";
 import "./gallery.css";
-import { Ambient, type Theme } from "./ambient";
-import { drawFocus, type Focus } from "./mock-battle";
-import { drawField, FIELD_EXITS, FIELD_H, FIELD_W, FIGHTS, label } from "./mock-field";
-import { REPORTS, showReport } from "./mock-report";
-import type { TownTheme } from "./mock-themes";
-import { showCommands, showRoster } from "./mock-command";
-import { drawInn } from "./mock-inn";
-import { drawTown, farewell, recall, ROSTER, TOWN_H, TOWN_REPORTS, TOWN_SPOTS, TOWN_W, townHeroes } from "./mock-town";
-import { renderHerald, showTownList, showThemeChooser, type Notice } from "./mock-herald";
-import { drawWorld, ICON, markers, plate, PROJECTS, regionName, sleeping, type Project } from "./mock-world";
-import { Sheets } from "./sheets";
+import { Ambient, type Theme } from "../town/ambient";
+import { drawFocus, type Focus } from "../town/battle";
+import { drawField, FIELD_EXITS, FIELD_H, FIELD_W, label } from "../town/field";
+import { REPORTS } from "./mock-report";
+import { showReport } from "../town/report";
+import type { TownTheme } from "../town/themes";
+import { showCommands, showRoster } from "../town/command";
+import { drawInn } from "../town/inn";
+import { drawTown, TOWN_H, TOWN_SPOTS, TOWN_W } from "../town/town";
+import { FIGHTS, PROJECTS, farewell, recall, ROSTER, SLEEPERS, TOWN_REPORTS, townHeroes, walkers, townReports, CALLER, walkTown } from "./mock-data";
+import { notices } from "./mock-notices";
+import { renderHerald, showTownList, showThemeChooser, type Notice } from "../town/herald";
+import { drawWorld, markers, plate, regionName, sleeping, type Project } from "../town/world";
+import { Sheets } from "../town/sheets";
+import { drawNavigation } from "../town/navigation";
+import { focusData as FOCUS, battleBeat } from "./mock-battle-data";
 
-// Composed mock of the diorama: the town, the inn, three fields, and focused battles.
 type Place = "world" | "town" | "inn" | Theme;
 type Scene = { id: string; label: string; caption: string; place?: Place; focus?: Focus };
-const FOCUS = (backdrop: string, theme: Theme, monster: string, enemyFx: number, name: string, party: string[]): Focus =>
-  ({ backdrop, theme, monster, enemyFx, name, party });
 const SCENES: Scene[] = [
   { id: "world", label: "ワールド", place: "world", caption: "ワールドマップ。プロジェクト（リポジトリ）ごとに町がある。町の種類は5つ（草原の村・海辺の港町・雪国・砂漠のオアシス・火山）。人数・戦闘中・未読の報告・呼び出しを町の上に表示。クリックで町へ。" },
   { id: "town", label: "まち", place: "town", caption: "待機中のエージェントが暮らす町。広場の噴水を中心に宿屋・店が向き合い、通りに沿って歩く。宿屋をクリックで中へ、南の門から各フィールドへ。" },
@@ -29,7 +31,6 @@ const SCENES: Scene[] = [
   { id: "b-forest", label: "戦闘：夜の森", focus: FOCUS("bg-battle-forest", "forest", "monster-ghost", 6, "おばけ", ["hero-back-battle", "party-priest-back"]), caption: "戦闘フォーカス（夜の森）。" },
   { id: "b-boss", label: "戦闘：ボス", focus: FOCUS("bg-battle-meadow", "meadow", "monster-dragon", 4, "ドラゴン", ["hero-back-battle", "party-warrior-back", "party-mage-back", "party-thief-back", "party-priest-back"]), caption: "任せた仕事（ドラゴン）にパーティー全員で挑む。" },
 ];
-const SLEEPERS = ["t15-infra", "t16-ops"];
 const SCALE = 2;
 const canvas = document.querySelector<HTMLCanvasElement>("#mock")!;
 const ctx = canvas.getContext("2d")!;
@@ -52,25 +53,15 @@ const herald = document.querySelector<HTMLElement>("#herald")!;
 // Entering a town; a town whose kind is not chosen yet asks first.
 function enter(project: Project): void {
   if (!project.theme) {
-    showThemeChooser(reportRoot, project, townIcon, (theme) => { project.theme = theme; refreshHerald(); enter(project); }, () => undefined);
+    showThemeChooser(reportRoot, project, art, (theme) => { project.theme = theme; refreshHerald(); enter(project); }, () => undefined);
     return;
   }
   town = { theme: project.theme, repo: project.repo };
   go(byId("town"));
 }
 
-function townIcon(theme: TownTheme): HTMLCanvasElement {
-  const canvas = document.createElement("canvas");
-  const [w, h] = art.size("world-towns");
-  canvas.width = w * 2; canvas.height = h * 2;
-  const c = canvas.getContext("2d")!;
-  c.imageSmoothingEnabled = false;
-  art.draw(c, "world-towns", ICON[theme], w, h * 2, false, 2);
-  return canvas;
-}
-
 function refreshHerald(): void {
-  renderHerald(herald, (notice: Notice) => {
+  renderHerald(herald, notices(), (notice: Notice) => {
     const project = PROJECTS.find((p) => p.repo === notice.repo);
     if (project) enter(project);
   });
@@ -84,7 +75,6 @@ function openReport(name: string): void {
   report = name;
   showReport(reportRoot, name, REPORTS[name], () => { read.add(name); report = undefined; });
 }
-// Clicking outside the window (on the dimmed map) or pressing Escape closes it, like the close button.
 function closeLayer(): void {
   reportRoot.hidden = true;
   reportRoot.classList.remove("menu-layer");
@@ -117,7 +107,6 @@ function show(scene: Scene): void {
   for (const button of tabs.querySelectorAll<HTMLButtonElement>("button")) button.classList.toggle("on", button.dataset.id === scene.id);
 }
 
-// Moving between maps fades through black; battles open with a white flash.
 function go(scene: Scene, from?: Scene): void {
   returnTo = scene.focus ? from : undefined;
   if (scene.focus || current.focus) { fadeAt = performance.now(); show(scene); return; }
@@ -149,20 +138,19 @@ function commands(name: string, x: number, y: number, fighting: boolean, watch?:
   });
 }
 
-// Clickable regions of the current scene (map pixels).
 interface Hot { x: number; y: number; w: number; h: number; text?: string; act: () => void }
 function hotspots(): Hot[] {
   const place = current.place;
   if (report) return [];
   if (place === "world") {
     const [w, h] = size(current);
-    const spots: Hot[] = markers(w, h).map((m) => ({
+    const spots: Hot[] = markers(w, h, PROJECTS).map((m) => ({
       x: m.x - 34, y: m.y - 22, w: 68, h: 60,
       act: () => m.projects.length > 1
         ? showTownList(reportRoot, `${regionName(m.theme)}の 町（${m.projects.length}）`, m.projects, enter, () => undefined)
         : enter(m.projects[0]),
     }));
-    spots.push({ ...sleepingPlate, act: () => showTownList(reportRoot, `ねむっている町（${sleeping().length}）`, sleeping(), enter, () => undefined) });
+    spots.push({ ...sleepingPlate, act: () => showTownList(reportRoot, `ねむっている町（${sleeping(PROJECTS).length}）`, sleeping(PROJECTS), enter, () => undefined) });
     return spots;
   }
   if (current.focus) return [{ x: 0, y: 0, w: 9999, h: 9999, act: () => go(returnTo ?? byId(current.focus!.theme), undefined) }];
@@ -202,21 +190,6 @@ function hit(x: number, y: number): Hot | undefined {
   return hotspots().find((h) => x >= h.x && x <= h.x + h.w && y >= h.y && y <= h.y + h.h);
 }
 
-function drawHotspots(): void {
-  for (const h of hotspots()) {
-    if (!h.text) continue;
-    const hover = pointer[0] >= h.x && pointer[0] <= h.x + h.w && pointer[1] >= h.y && pointer[1] <= h.y + h.h;
-    ctx.fillStyle = "rgba(10, 10, 26, 0.85)";
-    ctx.fillRect(h.x, h.y, h.w, h.h);
-    ctx.strokeStyle = hover ? "#ffe066" : "#ffffff";
-    ctx.lineWidth = 1;
-    ctx.strokeRect(h.x + 1.5, h.y + 1.5, h.w - 3, h.h - 3);
-    label(ctx, h.text, h.x + h.w / 2, h.y + h.h / 2 + 4, hover ? "#ffe066" : "#ffffff", 11);
-  }
-  if (gateMenu) label(ctx, "どこへ いく？", 480, 396, "#fff7d6", 12);
-}
-
-// Tabs: fixed width; a sword count of who is fighting there, and a ❗ slot that only lights up.
 function updateTabs(now: number): void {
   for (const button of tabs.querySelectorAll<HTMLButtonElement>("button")) {
     const scene = byId(button.dataset.id!);
@@ -246,15 +219,16 @@ function frame(now: number): void {
   ctx.setTransform(SCALE, 0, 0, SCALE, 0, 0);
   ctx.imageSmoothingEnabled = false;
   ctx.clearRect(0, 0, w, h);
-  if (current.place === "world") sleepingPlate = drawWorld(ctx, art, now, w, h);
+  if (current.place === "world") sleepingPlate = drawWorld(ctx, art, now, w, h, PROJECTS);
   else if (current.place === "town") {
-    drawTown(ctx, art, now, SLEEPERS.length, town.theme, town.repo, read);
+    walkTown(now);
+    drawTown(ctx, art, now, { sleepers: SLEEPERS.length, theme: town.theme, name: town.repo, walkers, reports: townReports(), caller: CALLER, read });
     rosterPlate = plate(ctx, [[`📖 ぼうけんしゃの めいぼ ${ROSTER.length}`, "#fff7d6", 10]], w - 92, 8);
   }
   else if (current.place === "inn") drawInn(ctx, art, now, SLEEPERS);
-  else if (current.place) drawField(ctx, art, current.place, now, read);
-  else if (current.focus && ambient) drawFocus(ctx, art, current.focus, ambient, now, dt, w, h);
-  drawHotspots();
+  else if (current.place) drawField(ctx, art, current.place, now, FIGHTS[current.place], read);
+  else if (current.focus && ambient) drawFocus(ctx, art, battleBeat(current.focus, now), ambient, now, dt, w, h);
+  drawNavigation(ctx, hotspots(), pointer, gateMenu);
 
   if (current.focus && returnTo) label(ctx, "クリックで もどる", w - 60, 58, "#ffe066", 9);
   const flash = (now - fadeAt) / 300;

@@ -1,287 +1,211 @@
-import type { AgentEvent } from "../../core/events";
-import { moods, type Room, type RoomAgent } from "../../core/room";
-import { battleMonster, damage, jobOf, stats, type MonsterKind } from "../../core/story";
-import { FRAME_H, FRAME_W, type Pose } from "./art/people";
-import { battleLook, destination, isBattle, look, move, Places, walkLook, type Actor, type Look } from "./actors";
-import { drawBalloon, Effects, outlined } from "./effects";
-import { heroColors, monster, person, silhouette } from "./sprites";
-import { drawWorld, H, SIGNS, SPOTS, W } from "./world";
+import type { Room } from "../../core/room";
+import { JOB_NAMES, stats } from "../../core/story";
+import { townView, type HeroPlace, type TownHero, type TownNames } from "../../core/town";
+import { Ambient, type Theme } from "../town/ambient";
+import { appearance, heroVariant, saveAppearance } from "../town/appearance";
+import { drawFocus, type Focus } from "../town/battle";
+import { drawField, FIELD_EXITS, label, type Fight } from "../town/field";
+import { showThemeChooser, showTownList } from "../town/herald";
+import { drawInn } from "../town/inn";
+import { Sheets } from "../town/sheets";
+import { drawNavigation } from "../town/navigation";
+import type { TownTheme } from "../town/themes";
+import { drawTown, TOWN_H, TOWN_SPOTS, TOWN_W } from "../town/town";
+import { makeWalker, stepWalkers, type Walker } from "../town/walkers";
+import { drawWorld, markers, regionName, sleeping, type Project } from "../town/world";
 
-const SCALE = 3;
-const PARTY = [[-24, -12], [-24, 12], [-42, -4], [-42, 10]];
-interface Foe { kind: MonsterKind; target?: string; hp: number; hitAt: number; born: number; x: number; y: number; dyingAt?: number }
+type Place = "world" | HeroPlace;
+type Hot = { x: number; y: number; w: number; h: number; text?: string; act: () => void };
+const SLOTS: [number, number][] = [[250, 210], [560, 190], [360, 430], [640, 440]];
+const MONSTER_NAMES = { slime: "スライム", golem: "ゴーレム", ghost: "おばけ", dragon: "ドラゴン" };
+const FX = { slime: 2, golem: 8, ghost: 6, dragon: 4 };
+const FIELD_NAMES = { meadow: "そうげん", cave: "どうくつ", forest: "よるのもり" };
 
+// Page-local drawing state only. Room remains the source of agent state.
 export class Scene {
-  private readonly ctx: CanvasRenderingContext2D;
-  private readonly world = drawWorld();
-  private readonly actors = new Map<string, Actor>();
-  private readonly foes = new Map<string, Foe>();
-  private dying: Foe[] = [];
-  private readonly places = new Places();
-  private readonly effects = new Effects();
-  private readonly hurtAt = new Map<string, number>();
-  private readonly cheerAt = new Map<string, number>();
   selected: string | undefined;
-  private settling = false;
+  readonly names = new Map<string, string>();
+  private history: TownNames = [];
+  private heroes: TownHero[] = [];
+  private readonly towns = new Map<string, Project>();
+  private readonly looks = new Map<string, TownTheme>();
+  private walkers: Walker[] = [];
+  private readonly art = new Sheets();
+  private readonly ctx: CanvasRenderingContext2D;
+  private place: Place = "world";
+  private project: string | undefined;
+  private focused: string | undefined;
+  private ambient: Ambient | undefined;
+  private gateMenu = false;
+  private sleepingPlate = { x: 0, y: 0, w: 0, h: 0 };
+  private pointer: [number, number] = [-1, -1];
+  private last = 0;
+  private flashAt = -Infinity;
 
-  constructor(private readonly canvas: HTMLCanvasElement) {
-    canvas.width = W * SCALE;
-    canvas.height = H * SCALE;
+  constructor(private readonly canvas: HTMLCanvasElement, private readonly layer: HTMLElement) {
     this.ctx = canvas.getContext("2d")!;
-  }
-
-  // Live events become hits, wounds and fanfares.
-  event(event: AgentEvent, agent: RoomAgent | undefined, levelUp: boolean, now: number): void {
-    if (!agent) return;
-    const key = event.subagent ? `${agent.id}/${event.subagent.id}` : agent.id;
-    const actor = this.actors.get(key) ?? this.actors.get(agent.id);
-    const failed = event.state === "error"
-      && ["PostToolUse", "PostToolUseFailure", "StopFailure"].includes(event.hook ?? "");
-    if (failed && actor) {
-      this.hurtAt.set(key, now);
-      this.effects.add({ kind: "number", text: `-${damage(event)}`, color: "#ff6b5b", x: actor.x, y: actor.y - 22, born: now });
-    }
-    const foe = this.foes.get(agent.id);
-    if (event.hook === "PostToolUse" && !failed && !event.subagent && foe) {
-      foe.hitAt = now;
-      foe.hp = Math.max(0.08, foe.hp - 0.22);
-      this.effects.add({ kind: "number", text: String(damage(event)), x: foe.x, y: foe.y - 20, born: now });
-      if (agent.activity === "test" || agent.activity === "delegate") this.defeat(agent.id, now);
-    }
-    if (event.hook === "PreToolUse" && agent.activity === "git") {
-      this.effects.add({ kind: "sparkle", color: "#9fe8ff", x: SPOTS.crystal.x, y: SPOTS.crystal.y - 18, born: now });
-    }
-    if (event.hook === "TaskCompleted" && actor) {
-      this.cheerAt.set(agent.id, now);
-      this.effects.add({ kind: "text", text: "クエストクリア！", color: "#ffe066", x: actor.x, y: actor.y - 28, born: now, life: 1600 });
-    }
-    if (levelUp && actor) {
-      this.cheerAt.set(agent.id, now);
-      this.effects.add({ kind: "text", text: "レベルアップ！", color: "#ffe066", x: actor.x, y: actor.y - 34, born: now, life: 1800 });
-      this.effects.add({ kind: "sparkle", x: actor.x, y: actor.y - 12, born: now });
-    }
-    if (event.hook === "SubagentStart" && actor) this.effects.add({ kind: "sparkle", color: "#c8f0ff", x: actor.x, y: actor.y - 10, born: now });
-    if (event.hook === "PreCompact") this.effects.add({ kind: "pillar", x: SPOTS.church.x, y: SPOTS.church.y, born: now, life: 2500 });
-    if (event.hook === "PostCompact" && actor) {
-      this.effects.add({ kind: "text", text: "MP かいふく", color: "#7fd4ff", x: actor.x, y: actor.y - 28, born: now, life: 1500 });
-    }
-  }
-
-  // After a reload, characters already in town appear in place instead of walking in from the gate.
-  settle(): void {
-    this.settling = true;
-  }
-
-  pick(event: MouseEvent): string | undefined {
-    const rect = this.canvas.getBoundingClientRect();
-    const x = (event.clientX - rect.left) * W / rect.width;
-    const y = (event.clientY - rect.top) * H / rect.height;
-    for (const [key, actor] of this.actors) {
-      if (!key.includes("/") && Math.abs(actor.x - x) <= 8 && y <= actor.y + 2 && y >= actor.y - 24) return key;
-    }
-  }
-
-  private defeat(id: string, now: number): void {
-    const foe = this.foes.get(id);
-    if (!foe) return;
-    foe.dyingAt = now;
-    this.dying.push(foe);
-    this.foes.delete(id);
-    this.effects.add({ kind: "poof", x: foe.x, y: foe.y - 8, born: now, life: 600 });
-  }
-
-  frame(room: Room, now: number, dtMs: number): void {
-    const present = new Set(room.agents.keys());
-    this.places.release(present);
-    const targets = new Map<string, { x: number; y: number }>();
-    const slots = new Map<string, number>();
-    for (const agent of room.agents.values()) {
-      const agentMoods = moods(agent, now);
-      const slot = slots.get(agent.activity) ?? 0;
-      slots.set(agent.activity, slot + 1);
-      const target = destination(agent, agentMoods, this.places, slot);
-      targets.set(agent.id, target);
-      agent.helpers.forEach((helper, index) => {
-        const [dx, dy] = isBattle(agent.activity) ? PARTY[index % PARTY.length] : [-12 * (index + 1), 2];
-        targets.set(`${agent.id}/${helper.id}`, { x: target.x + dx, y: target.y + dy });
-      });
-    }
-    for (const [key, target] of targets) {
-      let actor = this.actors.get(key);
-      if (!actor) {
-        const leader = this.actors.get(key.split("/")[0]);
-        const start = this.settling ? target : key.includes("/") && leader ? { x: leader.x, y: leader.y } : SPOTS.gate;
-        actor = { ...start, walking: false, dx: 1, dy: 0, seed: key.length * 977 % 2000 };
-        this.actors.set(key, actor);
-      }
-      move(actor, target, dtMs);
-    }
-    for (const [key, actor] of this.actors) {
-      if (targets.has(key)) continue;
-      if (key.includes("/")) {
-        this.effects.add({ kind: "poof", x: actor.x, y: actor.y - 8, born: now, life: 400 });
-        this.actors.delete(key);
-        continue;
-      }
-      move(actor, SPOTS.gate, dtMs);
-      if (!actor.walking) this.actors.delete(key);
-    }
-    this.settling = false;
-    this.updateFoes(room, now);
-    this.draw(room, now);
-  }
-
-  private updateFoes(room: Room, now: number): void {
-    for (const [id] of this.foes) if (!room.agents.has(id)) this.defeat(id, now);
-    for (const agent of room.agents.values()) {
-      const kind = battleMonster(agent.activity);
-      const actor = this.actors.get(agent.id);
-      const foe = this.foes.get(agent.id);
-      const arrived = actor && !actor.walking && kind;
-      if (foe && (!arrived || foe.kind !== kind || foe.target !== agent.target)) this.defeat(agent.id, now);
-      if (arrived && !this.foes.has(agent.id)) {
-        this.foes.set(agent.id, { kind, target: agent.target, hp: 1, hitAt: -Infinity, born: now, x: actor.x + 80, y: actor.y });
-      }
-    }
-    this.dying = this.dying.filter((foe) => now - foe.dyingAt! < 450);
-  }
-
-  private draw(room: Room, now: number): void {
-    const ctx = this.ctx;
-    ctx.setTransform(SCALE, 0, 0, SCALE, 0, 0);
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(this.world, 0, 0);
-    this.drawProps(room, now);
-    const items: { y: number; draw: () => void }[] = [];
-    for (const foe of [...this.foes.values(), ...this.dying]) items.push({ y: foe.y, draw: () => this.drawFoe(foe, now) });
-    for (const [key, actor] of this.actors) items.push({ y: actor.y, draw: () => this.drawActor(room, key, actor, now) });
-    for (const item of items.sort((a, b) => a.y - b.y)) item.draw();
-    this.effects.draw(ctx, now);
-    for (const sign of SIGNS) outlined(ctx, sign.text, sign.x, sign.y + 8, "#fff7d6", 5);
-    for (const [key, actor] of this.actors) this.drawLabel(room, key, actor);
-    for (const foe of this.foes.values()) {
-      if (foe.target) outlined(ctx, foe.target.length > 14 ? `${foe.target.slice(0, 13)}…` : foe.target, foe.x, foe.y - 25, "#ffe7a3", 5);
-    }
-    this.effects.drawText(ctx, now);
-  }
-
-  private drawActor(room: Room, key: string, actor: Actor, now: number): void {
-    const ctx = this.ctx;
-    const [id, helperId] = key.split("/");
-    const agent = room.agents.get(id);
-    const helper = helperId ? agent?.helpers.find((item) => item.id === helperId) : undefined;
-    let view: Look;
-    if (!agent) view = walkLook(actor, now);
-    else if (helper) {
-      const battling = isBattle(agent.activity) && !actor.walking;
-      const pose: Pose = actor.walking ? walkLook(actor, now).pose
-        : battling ? (jobOf(helper.type) === "mage" || jobOf(helper.type) === "priest" ? (Math.floor((now + actor.seed) / 700) % 2 ? "cast" : "side")
-          : battleLook("edit", [], now, actor.seed)) : helper.activity === "read" ? "read" : "stand";
-      view = { pose, flip: actor.walking && actor.dx < 0, bob: 0 };
-    } else view = look(agent, actor, now, now - (this.cheerAt.get(id) ?? -Infinity) < 1500);
-    const job = helper ? jobOf(helper.type) : "hero";
-    let sprite = person(job, view.pose, helper ? 0 : heroColors(id));
-    const hurt = now - (this.hurtAt.get(key) ?? -Infinity);
-    const knock = hurt < 400 ? -2 : 0;
-    const lunge = view.pose === "slash" ? 6 : view.pose === "windup" ? 2 : 0; // step in on the swing
-    if (hurt < 500 && Math.floor(hurt / 80) % 2 === 0) sprite = silhouette(sprite, `${job}:${view.pose}:${id}`, "#ff5b4f");
-    const x = Math.round(actor.x + knock + lunge);
-    const y = Math.round(actor.y);
-    if (view.pose !== "sleep") {
-      ctx.fillStyle = "rgba(20, 16, 28, 0.25)";
-      ctx.beginPath();
-      ctx.ellipse(x, y - 1, 6, 2, 0, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    if (key === this.selected) {
-      ctx.strokeStyle = "#ffe066";
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.ellipse(x, y - 1, 9, 3, 0, 0, Math.PI * 2);
-      ctx.stroke();
-    }
-    ctx.save();
-    ctx.translate(x, y - FRAME_H - view.bob);
-    if (view.flip) ctx.scale(-1, 1);
-    ctx.drawImage(sprite, -FRAME_W / 2, 0);
-    ctx.restore();
-    const foe = agent && !helper ? this.foes.get(id) : undefined;
-    if (foe && view.pose === "slash") this.effects.add({ kind: "slash", x: foe.x - 4, y: foe.y - 10, born: now, life: 160 });
-    if (foe && view.pose === "cast") {
-      const t = ((now + actor.seed) % 700) / 700;
-      ctx.fillStyle = Math.floor(now / 60) % 2 ? "#d6a6ff" : "#ffffff";
-      for (let i = 0; i < 3; i++) ctx.fillRect(Math.round(x + 10 + (foe.x - x - 16) * t) - i * 3, Math.round(y - 16 + Math.sin(t * Math.PI) * -6) + i, 2, 2);
-    }
-    if (view.balloon) drawBalloon(ctx, view.balloon, view.pose === "sleep" ? x + 8 : x, y - (view.pose === "sleep" ? 18 : 25));
-  }
-
-  private drawFoe(foe: Foe, now: number): void {
-    const ctx = this.ctx;
-    let sprite = monster(foe.kind, Math.floor((now + foe.born) / 500) % 2 as 0 | 1);
-    const hit = now - foe.hitAt;
-    if (foe.dyingAt !== undefined || hit < 150) sprite = silhouette(sprite, `monster:${foe.kind}`, "#ffffff");
-    const shake = hit < 250 ? (Math.floor(hit / 40) % 2 ? 2 : -2) : 0;
-    const appear = Math.min(1, (now - foe.born) / 300);
-    ctx.globalAlpha = foe.dyingAt !== undefined ? Math.max(0, 1 - (now - foe.dyingAt) / 450) : appear;
-    ctx.fillStyle = "rgba(20, 16, 28, 0.25)";
-    ctx.beginPath();
-    ctx.ellipse(foe.x, foe.y - 1, sprite.width / 2.5, 2.5, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.drawImage(sprite, Math.round(foe.x - sprite.width / 2 + shake), Math.round(foe.y - sprite.height));
-    ctx.globalAlpha = 1;
-    if (foe.dyingAt === undefined) {
-      ctx.fillStyle = "#1d1726";
-      ctx.fillRect(foe.x - 11, foe.y + 2, 22, 4);
-      ctx.fillStyle = foe.hp > 0.5 ? "#7ee08a" : foe.hp > 0.25 ? "#ffd35a" : "#ff6b5b";
-      ctx.fillRect(foe.x - 10, foe.y + 3, Math.max(1, Math.round(20 * foe.hp)), 2);
-    }
-  }
-
-  private drawLabel(room: Room, key: string, actor: Actor): void {
-    const [id, helperId] = key.split("/");
-    const agent = room.agents.get(id);
-    if (!agent) return;
-    if (helperId) {
-      const helper = agent.helpers.find((item) => item.id === helperId);
-      outlined(this.ctx, helper?.type ?? "なかま", actor.x, actor.y + 7, "#d8f0ff", 4);
-      return;
-    }
-    const sleeping = moods(agent, Date.now()).includes("dozing");
-    outlined(this.ctx, `${agent.name} Lv${stats(agent, Date.now()).level}`, actor.x, actor.y + (sleeping ? 4 : 8), "#ffffff", 5);
-  }
-
-  private drawProps(room: Room, now: number): void {
-    const ctx = this.ctx;
-    // Campfire flames.
-    const flicker = Math.floor(now / 120) % 3;
-    const fx = SPOTS.campfire.x, fy = 150;
-    ctx.fillStyle = "#ff7b2e"; ctx.fillRect(fx - 3, fy - 6 - flicker, 6, 6 + flicker);
-    ctx.fillStyle = "#ffd35a"; ctx.fillRect(fx - 2 + (flicker % 2), fy - 4 - flicker, 3, 4 + flicker);
-    ctx.fillStyle = "#fff6c8"; ctx.fillRect(fx - 1, fy - 2, 2, 2);
-    // Floating crystal of records.
-    const cy = SPOTS.crystal.y - 28 + Math.round(Math.sin(now / 400) * 1.5);
-    const cx = SPOTS.crystal.x;
-    ctx.fillStyle = "rgba(120, 220, 255, 0.25)"; ctx.fillRect(cx - 6, cy - 2, 12, 14);
-    ctx.fillStyle = "#1d1726"; ctx.fillRect(cx - 4, cy, 8, 10); ctx.fillRect(cx - 2, cy - 2, 4, 14);
-    ctx.fillStyle = "#62d0ff"; ctx.fillRect(cx - 3, cy + 1, 6, 8); ctx.fillRect(cx - 1, cy - 1, 2, 12);
-    ctx.fillStyle = "#c8f4ff"; ctx.fillRect(cx - 2, cy + 2, 2, 3);
-    // Quest notes: the planner's (or anyone's) tasks pinned to the board.
-    const agents = [...room.agents.values()].filter((agent) => agent.tasks.length);
-    const owner = agents.find((agent) => agent.activity === "plan") ?? agents[0];
-    owner?.tasks.slice(0, 6).forEach((task, index) => {
-      const nx = 115 + (index % 3) * 16, ny = 53 + Math.floor(index / 3) * 11;
-      ctx.fillStyle = "#1d1726"; ctx.fillRect(nx, ny, 14, 10);
-      ctx.fillStyle = task.status === "completed" ? "#d9d2bd" : "#f4ead0"; ctx.fillRect(nx + 1, ny + 1, 12, 8);
-      ctx.fillStyle = "#c0504d"; ctx.fillRect(nx + 6, ny, 2, 2);
-      ctx.fillStyle = "#8a7a5a";
-      for (let line = 0; line < 3; line++) ctx.fillRect(nx + 3, ny + 3 + line * 2, 8 - line * 2, 1);
-      if (task.status === "completed") { ctx.fillStyle = "#d24a3c"; ctx.fillRect(nx + 8, ny + 5, 3, 3); }
-      if (task.status === "in_progress") { ctx.fillStyle = "#ffd35a"; ctx.fillRect(nx + 1, ny + 1, 2, 8); }
+    canvas.addEventListener("mousemove", (event) => {
+      this.pointer = this.point(event);
+      canvas.style.cursor = this.hit(...this.pointer) ? "pointer" : "default";
     });
-    if (owner) {
-      const done = owner.tasks.filter((task) => task.status === "completed").length;
-      outlined(ctx, `${done}/${owner.tasks.length}`, 137, 82, "#ffe7a3", 5);
+    canvas.addEventListener("click", (event) => {
+      const hot = this.hit(...this.point(event));
+      if (hot) hot.act(); else this.gateMenu = false;
+    });
+    layer.addEventListener("click", (event) => { if (event.target === layer) layer.hidden = true; });
+    document.addEventListener("keydown", (event) => { if (event.key === "Escape") layer.hidden = true; });
+    document.querySelector("#world-back")!.addEventListener("click", () => this.go("world"));
+    document.querySelector("#town-look")!.addEventListener("click", () => {
+      const town = this.project === undefined ? undefined : this.towns.get(this.project);
+      if (town) this.chooseLook(town); else this.go("world");
+    });
+  }
+
+  async load(): Promise<void> {
+    await this.art.load();
+    await document.fonts.load('10px "DotGothic16"');
+  }
+
+  sync(room: Room, now: number, replaying = false): void {
+    const view = townView(room, now, this.history);
+    this.history = view.names;
+    for (const entry of view.names) this.names.set(entry.id, entry.name);
+    this.heroes = view.projects.flatMap((town) => town.heroes);
+    for (const town of this.towns.values()) { town.heroes = 0; town.fighting = 0; }
+    for (const town of view.projects) {
+      const look = this.looks.get(town.name) ?? appearance(town.name);
+      if (look) this.looks.set(town.name, look);
+      this.towns.set(town.name, { repo: town.name, theme: look ?? "village", heroes: town.heroes.length,
+        fighting: town.heroes.filter((hero) => hero.monster).length, unread: 0, calling: false });
     }
+    // Replay first rebuilds naming/town history; validate navigation only against the final Room.
+    if (replaying) return;
+    if (this.place !== "world" && (this.project === undefined || !this.towns.has(this.project))) {
+      this.project = undefined;
+      this.go("world");
+    }
+    const strolling = this.heroes.filter((hero) => hero.place === "town");
+    this.walkers = this.walkers.filter((walker) => strolling.some((hero) => hero.id === walker.id));
+    for (const hero of strolling) {
+      let walker = this.walkers.find((w) => w.id === hero.id);
+      if (!walker) { walker = makeWalker(hero.id, hero.name, heroVariant(hero.id), this.walkers.length); this.walkers.push(walker); }
+      walker.name = hero.name;
+      walker.party = hero.party.map((job) => `party-${job}`);
+    }
+    if (this.selected && !room.agents.has(this.selected)) this.selected = undefined;
+    if (!this.selected) this.selected = this.localHeroes()[0]?.id;
+    if (this.focused) {
+      const hero = this.heroes.find((h) => h.id === this.focused);
+      if (!hero?.monster || hero.place !== this.place) this.go(hero?.place ?? this.place);
+    }
+  }
+
+  select(id: string | undefined): void {
+    this.selected = id;
+    const hero = this.heroes.find((h) => h.id === id);
+    if (!hero) return;
+    this.enter(this.towns.get(hero.project)!, hero.place);
+  }
+
+  private localHeroes(): TownHero[] { return this.heroes.filter((hero) => hero.project === this.project); }
+  private go(place: Place): void {
+    this.place = place; this.focused = undefined; this.ambient = undefined; this.gateMenu = false;
+    this.layer.hidden = true;
+  }
+  private enter(project: Project, place: HeroPlace = "town"): void {
+    if (!this.looks.has(project.repo)) { this.chooseLook(project, place); return; }
+    this.project = project.repo;
+    this.selected = this.heroes.find((hero) => hero.project === project.repo && hero.id === this.selected)?.id
+      ?? this.heroes.find((hero) => hero.project === project.repo)?.id;
+    this.go(place);
+  }
+  private chooseLook(project: Project, place: HeroPlace = "town"): void {
+    showThemeChooser(this.layer, project, this.art, (theme) => {
+      this.looks.set(project.repo, theme); project.theme = theme; saveAppearance(project.repo, theme);
+      this.enter(project, place);
+    }, () => undefined);
+  }
+
+  private fights(now: number): Fight[] {
+    return this.localHeroes().filter((h) => h.place === this.place && h.monster).slice(0, SLOTS.length).map((hero, i) => ({
+      id: hero.id, x: SLOTS[i][0], y: SLOTS[i][1], name: hero.name, variant: heroVariant(hero.id),
+      monster: `monster-${hero.monster}`, target: hero.agent.target ?? MONSTER_NAMES[hero.monster!],
+      party: hero.party.map((job) => `party-${job}`), fx: FX[hero.monster!], level: stats(hero.agent, now).level,
+      counter: hero.agent.failures.some((at) => now >= at && now - at < 2000),
+    }));
+  }
+  private focus(hero: TownHero, now: number): Focus {
+    const values = stats(hero.agent, now);
+    return { backdrop: `bg-battle-${hero.place}`, theme: hero.place as Theme, monster: `monster-${hero.monster}`,
+      enemyFx: FX[hero.monster!], name: MONSTER_NAMES[hero.monster!], variant: heroVariant(hero.id),
+      party: ["hero-back-battle", ...hero.party.slice(0, 4).map((job) => `party-${job}-back`)],
+      status: [{ name: hero.name, ...values }, ...hero.party.slice(0, 4).map((job) => ({ name: JOB_NAMES[job] }))],
+      message: `${hero.name}は ${MONSTER_NAMES[hero.monster!]}と たたかっている！\n${hero.agent.target ?? ""}`, counter: hero.agent.failures.some((at) => now >= at && now - at < 2000) };
+  }
+
+  private size(): [number, number] {
+    if (this.focused) return this.art.size(`bg-battle-${this.place}`);
+    return this.place === "world" ? this.art.size("world-map") : [TOWN_W, TOWN_H];
+  }
+  private hotspots(): Hot[] {
+    if (!this.layer.hidden) return [];
+    const [w, h] = this.size();
+    if (this.focused) return [{ x: 0, y: 0, w, h, act: () => this.go(this.place) }];
+    if (this.place === "world") {
+      const towns = [...this.towns.values()];
+      return [...markers(w, h, towns).map((marker) => ({ x: marker.x - 34, y: marker.y - 22, w: 68, h: 60, act: () => {
+        if (marker.projects.length > 1) showTownList(this.layer, `${regionName(marker.theme)}の 町（${marker.projects.length}）`, marker.projects, (p) => this.enter(p), () => undefined);
+        else this.enter(marker.projects[0]);
+      } })), { ...this.sleepingPlate, act: () => showTownList(this.layer, "ねむっている町", sleeping(towns), (p) => this.enter(p), () => undefined) }];
+    }
+    if (this.place === "inn") return [{ x: 0, y: 0, w, h, act: () => this.go("town") }];
+    if (this.place === "town") {
+      const spots: Hot[] = [{ ...TOWN_SPOTS.inn, act: () => this.go("inn") }];
+      for (const walker of this.walkers.filter((w) => this.localHeroes().some((h) => h.id === w.id))) {
+        spots.push({ x: walker.x - 16, y: walker.y - 76, w: 32, h: 80, act: () => { this.selected = walker.id; } });
+      }
+      if (this.gateMenu) for (const [i, theme] of (["meadow", "cave", "forest"] as const).entries()) spots.push({
+        x: 410, y: 404 + i * 20, w: 140, h: 18, text: `▶ ${FIELD_NAMES[theme]}`, act: () => this.go(theme),
+      });
+      else spots.push({ x: 430, y: 488, w: 100, h: 52, text: "▼ フィールドへ", act: () => { this.gateMenu = true; } });
+      return spots;
+    }
+    const spots: Hot[] = FIELD_EXITS[this.place].map((exit) => ({ x: exit.x - 44, y: exit.y - 14, w: 88, h: 22, text: exit.text, act: () => this.go(exit.to) }));
+    for (const fight of this.fights(Date.now())) spots.push({ x: fight.x - 22, y: fight.y - 60, w: 44, h: 66, act: () => {
+      this.selected = fight.id; this.focused = fight.id;
+      this.ambient = new Ambient(this.art, this.place as Theme, `bg-battle-${this.place}`);
+      this.flashAt = performance.now();
+    } });
+    return spots;
+  }
+  private point(event: MouseEvent): [number, number] {
+    const rect = this.canvas.getBoundingClientRect(), [w, h] = this.size();
+    return [(event.clientX - rect.left) * w / rect.width, (event.clientY - rect.top) * h / rect.height];
+  }
+  private hit(x: number, y: number): Hot | undefined { return this.hotspots().find((s) => x >= s.x && x <= s.x + s.w && y >= s.y && y <= s.y + s.h); }
+
+  frame(time: number, now: number): void {
+    const dt = Math.min(100, time - this.last); this.last = time;
+    stepWalkers(this.walkers, time, dt);
+    const [w, h] = this.size(), ctx = this.ctx;
+    if (this.canvas.width !== w * 2 || this.canvas.height !== h * 2) { this.canvas.width = w * 2; this.canvas.height = h * 2; }
+    ctx.setTransform(2, 0, 0, 2, 0, 0); ctx.imageSmoothingEnabled = false;
+    const local = this.localHeroes(), hero = local.find((h) => h.id === this.focused);
+    if (hero && this.ambient) {
+      drawFocus(ctx, this.art, this.focus(hero, now), this.ambient, time, dt, w, h);
+      label(ctx, "クリックで もどる", w - 64, 58, "#ffe066", 9);
+    } else if (this.place === "world") this.sleepingPlate = drawWorld(ctx, this.art, time, w, h, [...this.towns.values()]);
+    else if (this.place === "town") drawTown(ctx, this.art, time, {
+      sleepers: local.filter((h) => h.place === "inn").length, theme: this.looks.get(this.project!)!, name: this.project!,
+      walkers: this.walkers.filter((w) => local.some((h) => h.id === w.id)),
+    });
+    else if (this.place === "inn") drawInn(ctx, this.art, time, local.filter((h) => h.place === "inn").map((h) => h.name));
+    else drawField(ctx, this.art, this.place, time, this.fights(now), undefined, Math.max(0, local.filter((h) => h.place === this.place).length - SLOTS.length));
+    drawNavigation(ctx, this.hotspots(), this.pointer, this.gateMenu);
+    if (time - this.flashAt < 300) { ctx.fillStyle = `rgba(255,255,255,${1 - (time - this.flashAt) / 300})`; ctx.fillRect(0, 0, w, h); }
+    const title = this.place === "world" ? "ワールドマップ" : `${this.project} / ${this.place === "town" ? "まち" : this.place === "inn" ? "やどや" : FIELD_NAMES[this.place]}`;
+    document.querySelector("#place-name")!.textContent = title;
+    (document.querySelector("#town-look") as HTMLButtonElement).hidden = this.place === "world";
+    this.canvas.setAttribute("aria-label", `${title}。${local.map((h) => `${h.name}: ${h.place}`).join("、")}`);
   }
 }
-

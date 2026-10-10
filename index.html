@@ -13,7 +13,15 @@
     </header>
     <main class="quest">
       <section class="stage">
-        <canvas id="world" role="img" aria-label="エージェントたちの町とフィールド"></canvas>
+        <nav class="map-nav" aria-label="地図の操作">
+          <button id="world-back" type="button">◀ ワールドマップ</button>
+          <span id="place-name">ワールドマップ</span>
+          <button id="town-look" type="button" hidden>町のすがたを かえる</button>
+        </nav>
+        <div class="map-stage">
+          <canvas id="world" role="img" aria-label="エージェントたちの町とフィールド"></canvas>
+          <div id="town-layer" class="report-layer" hidden></div>
+        </div>
         <div id="messages" class="window messages" aria-live="polite"></div>
       </section>
       <aside id="party" aria-label="ゆうしゃたちの つよさ"></aside>
