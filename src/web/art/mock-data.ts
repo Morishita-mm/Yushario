@@ -42,6 +42,7 @@ export const PROJECTS: Project[] = [
   { repo: "new-mobile-app", heroes: 1, fighting: 0, unread: 0, calling: false },
 ];
 export const SLEEPERS = ["t15-infra", "t16-ops"];
+export const PRAYERS = [{ name: "t18-compact", variant: 0 }, { name: "t22-context", variant: 2 }];
 export const walkers = ["t23-lint", "t4-api", "t6-gesture", "t9-fixes", "t13-auth", "t14-db", "t17-ci"].map((name, i) => makeWalker(name, name, i % 5, i));
 export const CALLER = { name: "t11-callme", x: 560, y: 432 };
 export const TOWN_REPORTS = [
@@ -50,7 +51,7 @@ export const TOWN_REPORTS = [
 ];
 export const ROSTER: Departed[] = [
   { name: "t1-core", repo: "agent-character", left: "きのう 18:20", last: "Room の雛形と relay サーバーを作りました。" },
-  { name: "t7-server", repo: "agent-character", left: "きょう 09:05", last: "JevDecider を追加し、失敗時はモックに戻るようにしました。" },
+  { name: "t7-server", repo: "agent-character", left: "きょう 09:05", last: "町の台帳を追加し、使っていない町をしまえるようにしました。" },
 ];
 const gone = new Set<string>();
 export const townReports = () => TOWN_REPORTS.filter((r) => !gone.has(r.name));

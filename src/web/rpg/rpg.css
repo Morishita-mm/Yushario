@@ -22,9 +22,16 @@ a { color: #9fd3ff; font-size: 14px; }
 #following-stop { flex: none; font: inherit; color: #fff; background: none; border: 1px solid #6e6a8a; padding: 4px 8px; cursor: pointer; }
 #following-stop:hover, #following-stop:focus-visible { color: #ffe066; border-color: #ffe066; }
 .map-nav { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; font-size: 14px; }
-.map-nav button, #settings, #expedition, #roster { font: inherit; background: #1d1726; color: #fff; border: 1px solid #6e6a8a; padding: 4px 8px; cursor: pointer; }
-.map-nav button:hover, .map-nav button:focus-visible, #settings:hover, #settings:focus-visible, #expedition:hover, #expedition:focus-visible, #roster:hover, #roster:focus-visible { color: #ffe066; border-color: #ffe066; }
-#settings, #expedition, #roster { font-size: 14px; }
+.map-nav button, body > header button { font: inherit; background: #1d1726; color: #fff; border: 1px solid #6e6a8a; padding: 4px 8px; cursor: pointer; }
+.map-nav button:hover, .map-nav button:focus-visible, body > header button:hover, body > header button:focus-visible { color: #ffe066; border-color: #ffe066; }
+body > header button { font-size: 14px; }
+#expedition-support { margin: 0; font-size: 13px; }
+#terminals-list .session-row { align-items: center; flex-wrap: wrap; }
+#terminals-list .session-row > div:first-child { flex: 1; min-width: 180px; }
+#terminals-list .hint { margin: 0; font-size: 12px; }
+#terminals-list .actions { flex: none; margin: 0; }
+#help-dialog ul { padding-left: 20px; }
+#help-dialog li { margin: 8px 0; }
 body > header { flex-wrap: wrap; }
 dialog.report-window { color: inherit; max-height: 90svh; }
 dialog::backdrop { background: rgba(0, 0, 0, 0.65); }

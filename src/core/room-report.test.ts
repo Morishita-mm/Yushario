@@ -56,7 +56,10 @@ describe("Room talk reports", () => {
     expect(reportOf(room)).toMatchObject({ kind: "scroll", files: [], tools: 4, failures: 1 });
   });
 
-  it.each(["npm test", "npm run typecheck", "npm run lint", "npx vitest", "pytest", "go test", "cargo test"])(
+  it.each([
+    "npm test", "npm run typecheck", "npm run lint", "npx vitest", "pytest", "go test", "cargo test",
+    "python -m unittest", "python3 -m unittest", "python -m pytest", "python3 -m pytest", "uv run pytest",
+  ])(
     "counts successful and failed test executions classified from %s", (command) => {
       const room = new Room();
       prompt(room);

@@ -63,14 +63,14 @@ export class TownLedger {
     let name: string | undefined;
     if (rename) {
       try { name = decodeURIComponent(url.pathname.slice("/api/names/".length)); }
-      catch { json(response, 400, { error: "Invalid Claude sessionId" }); return; }
-      if (!isClaudeSessionId(name)) { json(response, 400, { error: "Invalid Claude sessionId" }); return; }
+      catch { json(response, 400, { error: "勇者の ID が正しくありません" }); return; }
+      if (!isClaudeSessionId(name)) { json(response, 400, { error: "勇者の ID が正しくありません" }); return; }
     }
     if (patch) {
       try { name = decodeURIComponent(url.pathname.slice("/api/towns/".length)); }
-      catch { json(response, 400, { error: "Invalid town name" }); return; }
+      catch { json(response, 400, { error: "町の名前が正しくありません" }); return; }
       if (!this.towns.some((town) => town.name === name)) {
-        json(response, 404, { error: "Unknown town" });
+        json(response, 404, { error: "その町が見つかりません" });
         return;
       }
     }
@@ -80,17 +80,17 @@ export class TownLedger {
       request.setEncoding("utf8");
       for await (const chunk of request) {
         body += chunk;
-        if (body.length > 4096) { json(response, 400, { error: "Body too large" }); return; }
+        if (body.length > 4096) { json(response, 400, { error: "送る内容が長すぎます" }); return; }
       }
       input = JSON.parse(body);
-    } catch { json(response, 400, { error: "Invalid JSON body" }); return; }
+    } catch { json(response, 400, { error: "設定を JSON で指定してください" }); return; }
     try {
       if (rename) {
         const value = input && typeof input === "object" && !Array.isArray(input)
           ? (input as Record<string, unknown>).name : undefined;
         const chosen = normalizeHeroName(value);
         if (chosen === undefined) {
-          json(response, 400, { error: "name must be a string of 1–24 characters, or empty to reset" });
+          json(response, 400, { error: "名前は 1〜24 文字で入力してください。空にすると元の名前に戻ります" });
           return;
         }
         const id = name!;
@@ -105,7 +105,7 @@ export class TownLedger {
         json(response, 200, this.names);
       } else if (settings) {
         if (!validSettings(input)) {
-          json(response, 400, { error: "archiveAfterDays must be an integer between 0 and 365" });
+          json(response, 400, { error: "町をしまうまでの日数は 0〜365 の整数で指定してください" });
           return;
         }
         if (input.archiveAfterDays !== this.settings.archiveAfterDays) {
@@ -116,7 +116,7 @@ export class TownLedger {
         json(response, 200, this.settings);
       } else {
         if (!validPatch(input)) {
-          json(response, 400, { error: "Expected { theme?, pinned?, archived?: false }" });
+          json(response, 400, { error: "町のすがた・ピンどめ・しまった町を戻す設定が正しくありません" });
           return;
         }
         const town = this.towns.find((town) => town.name === name)!;
@@ -133,7 +133,7 @@ export class TownLedger {
       }
     } catch (error) {
       console.error("Town save failed:", error instanceof Error ? error.message : String(error));
-      json(response, 500, { error: "Could not save town data" });
+      json(response, 500, { error: "町の記録を保存できませんでした。データフォルダの権限を確認してください" });
     }
   }
 }

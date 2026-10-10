@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MAX_EVENT_METADATA_LENGTH, MAX_EVENT_TEXT_LENGTH, deciderEvent, parseAgentEvent, type AgentState } from "./events";
+import { MAX_EVENT_METADATA_LENGTH, MAX_EVENT_TEXT_LENGTH, parseAgentEvent, type AgentState } from "./events";
 
 const states: AgentState[] = ["idle", "thinking", "working", "waiting_input", "success", "error"];
 
@@ -101,13 +101,4 @@ describe("parseAgentEvent", () => {
     expect(parseAgentEvent({ state: "working", ...fields }).ok).toBe(false);
   });
 
-  it("keeps conversation text, names, targets and tasks away from the Decider", () => {
-    expect(deciderEvent({
-      state: "working", source: "claude-code", tool: "Read", ts: 1, context: 0.5, detail: "Tool activity",
-      agent: "s1", name: "secret-project", hook: "PreToolUse", target: "secret.ts", terminal: "pty1", project: "secret-repo",
-      subagent: { id: "h1" }, task: { id: "1", subject: "secret", status: "pending" }, text: "private conversation",
-    })).toEqual({ state: "working", source: "claude-code", tool: "Read", ts: 1, context: 0.5, detail: "Tool activity" });
-    expect(deciderEvent({ state: "success", hook: "Stop", text: "private reply" })).toEqual({ state: "success" });
-    expect(deciderEvent({ state: "thinking", hook: "UserPromptSubmit", text: "private prompt" })).toEqual({ state: "thinking" });
-  });
 });

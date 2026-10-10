@@ -19,7 +19,7 @@ export function permissionSummary(input: unknown): Summary | undefined {
   const detail = hook.tool_name === "Bash" ? fields.command : fields.file_path ?? fields.path;
   const agent = shortText(hook.session_id);
   const name = typeof hook.cwd === "string" ? shortText(hook.cwd.split(/[\\/]/).filter(Boolean).pop()) : undefined;
-  // No full input, prompt, or tool output is kept or passed to the Decider.
+  // Keep only a short local summary, not the full input, prompt or tool output.
   return { tool: hook.tool_name, summary: `${hook.tool_name}: ${typeof detail === "string"
     ? detail.replace(/[\u0000-\u001f\u007f]/g, " ").slice(0, 120) : "実行の許可が必要です"}`,
     ...(agent ? { agent } : {}), ...(name ? { name } : {}),

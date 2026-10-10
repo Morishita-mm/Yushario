@@ -1,21 +1,21 @@
 # 観察の仕様（柱C：チームが部屋にいる → エージェントの町）
 
-複数の Claude Code エージェントを、RPG 風の町とフィールドにいるドットキャラクター（勇者）として表示する。
-作業はモンスターとの戦い、何もしていない時は宿屋で休む、サブエージェントは勇者パーティーの仲間、という **物語** として見せる。
+複数の Claude Code / pi エージェントを、RPG 風の町とフィールドにいるドットキャラクター（勇者）として表示する。
+作業はモンスターとの戦い、完了後は町でひとやすみ、会話の整理と居眠りは宿屋、サブエージェントは勇者パーティーの仲間、という **物語** として見せる。
 売りは **エージェントの様子を細かく描写すること**。「作業中」の一言で済ませず、
 **何を・どう・どれくらい** やっているかを、視界の端でも読み取れる形で見せる。
 
-対象ハーネスは当面 **Claude Code のみ**（pi / Codex は後で対応する）。
+段階5の対象は **Claude Code と pi**。Codex / shell はターミナルのみ（勇者は出ない）。操作と対応範囲の最新仕様は `docs/PLATFORM.md` 段階5、現在の構成は `docs/ARCHITECTURE.md` を参照。
 
 ## 方針の選択肢
 
 | 案 | 内容 | 状態 |
 |---|---|---|
-| A. Live2D を続ける | 1体に集中して、柱A/B（気配・呼ばれたら向き合う）を深める | 保留（コードは残す） |
+| A. Live2D を続ける（廃止） | 1体に集中して、柱A/B（気配・呼ばれたら向き合う）を深める | 段階5で削除 |
 | **B. ドットの部屋** | 複数エージェントをドットキャラで1部屋に表示する | **採用** |
-| C. 両方（ハイブリッド） | 部屋の全体はドットで表示し、1体を選ぶとその子を Live2D で大きく表示する | B を使ってみてから判断 |
+| C. 両方（ハイブリッド）（廃止） | 部屋の全体はドット、1体を Live2D で大きく表示する | 段階5で廃止 |
 
-既存の AgentEvent → Decider → 表情・姿勢・ジェスチャーの流れは引き継ぐ。Renderer にドット版を足す形にする。
+AgentEvent から core で活動・様子・居場所を計算し、ドットの町を描画する。Decider / Renderer は廃止。
 
 ## 似たツールとの違い
 
@@ -44,18 +44,21 @@ Claude Code 2.1.295 の実行ファイルで、以下のイベント名と入力
 |---|---|---|
 | SessionStart | `source`（startup / resume / clear / compact） | 出勤（clear / compact のときは同じキャラのまま） |
 | SessionEnd | `reason` | 退勤 |
-| UserPromptSubmit | 発生したことのみ（本文は使わない） | 依頼を受けた → 考え始める |
+| UserPromptSubmit | `prompt`（ローカル会話用、最大8000文字） | 依頼を受けた → 考え始める |
 | PreToolUse | `tool_name`、`tool_input`（下の「対象」の範囲のみ） | 活動の開始 |
 | PostToolUse | `tool_name`、成否 | 活動の終了・成功 |
 | PostToolUseFailure | `tool_name`、`is_interrupt` | 活動の失敗（中断は失敗に数えない） |
 | PermissionRequest | `tool_name`、`agent_id` | 許可待ち（柱Bの許可要求と同じ HTTP フック） |
 | TaskCreated / TaskCompleted | `task_id`、`task_subject` | ホワイトボード |
-| Notification | `notification_type` | 入力待ち |
+| Notification | `notification_type` | permission_prompt / elicitation_dialog だけ呼び出し。idle_prompt / auth_success 等は待機 |
 | SubagentStart / SubagentStop | `agent_id`、`agent_type` | 助っ人の入退室 |
 | PreCompact / PostCompact | `trigger` | 整理中（休憩） |
-| Stop / StopFailure | 発生したこと、`error_type` | 手が空いた / 異常終了 |
+| Stop / StopFailure | `last_assistant_message`（Stop のみ、最大8000文字）、`error_type` | 手が空いた / 異常終了 |
 
 コンテキスト使用率は、今と同じく transcript の末尾から読む（`context`、0〜1）。
+
+pi は拡張で同じ AgentEvent に変換する。session_start / before_agent_start / tool_call / tool_result / agent_settled が開始・依頼・ツール・完了の境界。最終成否は agent_before_settle とキャンセル信号で判定し、中断は失敗に数えない。UI 入力の開始だけ waiting_input、終了は作業中なら thinking、待機中なら idle。整理失敗・キャンセルは PostCompact/idle の detail で成功と区別する。
+`/new`・再開・fork で SessionStart の ID が変わった時は旧勇者だけ退場し、端末は継続する。reload は同じ勇者のまま。PTY 終了時も必ず退場する。
 
 ## キャラクターの識別
 
@@ -82,10 +85,10 @@ Claude Code 2.1.295 の実行ファイルで、以下のイベント名と入力
 | `web` | WebSearch、WebFetch | 物見の塔の上から遠くを見る | ドメインのみ |
 | `plan` | TaskCreate / TaskUpdate / TaskList / TaskGet（旧 TodoWrite も） | クエストボードに依頼書を貼る | タスクの一覧（ボードの依頼書） |
 | `delegate` | Task / Agent（サブエージェント起動） | パーティーでドラゴンに挑む | `agent_type` |
-| `ask` | AskUserQuestion、PermissionRequest、Notification | 画面の手前（あなたの前）に来て手を振る（！の吹き出し） | ツール名 |
+| `ask` | AskUserQuestion、PermissionRequest、waiting_input の Notification のみ | 画面の手前（あなたの前）に来て手を振る（！の吹き出し） | ツール名 |
 | `tool` | MCP ツール（`mcp__*`）など上以外 | 道具屋の前に立つ | サーバー名（`mcp__<server>__` の部分） |
-| `rest` | PreCompact 〜 PostCompact | 教会で祈る（光の柱、MP 回復） | — |
-| `idle` | Stop の後 | 宿屋の自分のベッドの前で休む（呼吸で小さく揺れる） | — |
+| `rest` | PreCompact 〜 PostCompact | 宿屋で会話を整理する（成功時だけ MP 回復の語り） | — |
+| `idle` | Stop / Interrupt の後、入力不要の通知 | 町でひとやすみ、次の依頼を待つ（居眠り時は宿屋） | — |
 
 分類に迷うものは `tool` にまとめる。種類を増やすのは、実際に使って見分けたくなってからにする。
 
@@ -100,11 +103,11 @@ Claude Code 2.1.295 の実行ファイルで、以下のイベント名と入力
 | 苦戦 | 直近 5 分で失敗が 3 回以上 | 汗の吹き出し、HP が減る |
 | 立ち直り | 苦戦の後に成功 | 武器を掲げて喜ぶ（ハートの吹き出し） |
 | ノッている | 1 分間に `edit` が 5 回以上で、失敗なし | 剣を振る速さが上がる、♪ の吹き出し |
-| 疲れ | `context` が 0.7 以上 | 剣を振るのが遅くなる、MP が少ない（MP 1 割以下で教会＝/compact を提案） |
+| 疲れ | `context` が 0.7 以上 | 剣を振るのが遅くなる、MP が少ない（MP 1 割以下でやすむ＝宿屋で /compact を提案） |
 | 呼んでいる時間 | `ask` が 1 分以上放置 | 手を振る速さが上がる |
 | 居眠り | イベントが 10 分以上届かない | 宿屋のベッドで寝る（Zz の吹き出し） |
 
-Decider（Jev／モック）はエージェントごとに判断を続けている（Live2D 表示で使う）。ドットの町では表情を描き分けず、上の様子で表す。
+Live2D の表情判断（Decider・Jev／モック）は廃止。ドットの町では表情を描き分けず、上の様子で表す。
 
 ## RPG としての見せ方（`src/core/story.ts`）
 
@@ -124,12 +127,12 @@ Decider（Jev／モック）はエージェントごとに判断を続けてい�
 
 ## 扱う情報の範囲（プライバシー）
 
-- アダプタが送るのは上の表の「対象」まで。**プロンプト本文、ツールの出力、ファイルの中身、コマンドの全文は送らない。**
+- アダプタが送るのは上の表の「対象」まで。ただし **UserPromptSubmit の依頼本文と Stop の最後の返答だけ**、`text`（最大8000文字）としてローカルの relay と会話画面へ送る。ツールの出力、ファイルの中身、コマンドの全文は送らない。
   - ファイル名はベース名のみ（ディレクトリは送らない）。Web はドメインまで。
   - コマンドは先頭の `cd …` 区間と `FOO=bar` 形式の代入を飛ばし、最大3語まで。パス（`/` を含む語）・引用符・`=` などを含む語が出たらそこで打ち切る（例：`git commit -m "…"` → `git commit -m`、`ls /path` → `ls`）。
   - 例外として、タスクの件名はホワイトボード用に送る（各 200 文字、1 エージェント 50 件まで）。
-- 対象と TODO はローカルの表示（server のメモリと web）だけで使う。**Jev には送らない**（Jev へは今まで通り活動の種類と状態のみ）。
-- 保存しない。server を再起動すれば消える。
+- 対象・TODO・依頼本文・最後の返答はローカルの表示（server のメモリと web）だけで使う。外部へ送らない（Jev 連携は廃止）。
+- 会話・報告・行動ログはファイルに保存しない。server を再起動すれば消える。町・設定・名前・再開用のめいぼは別途保存するが本文は含めない。各 CLI 自身の履歴保存はこのアプリとは別。
 
 ## AgentEvent の拡張
 
@@ -140,6 +143,9 @@ interface AgentEvent {
   // 既存: state, detail, ts, source, tool, context
   agent?: string;          // session_id。無い場合は従来どおり1体（"default"）として扱う
   name?: string;           // cwd の末尾
+  terminal?: string;       // アプリの PTY ID（外から来た勇者は無し）
+  project?: string;        // リポジトリ名／町
+  text?: string;           // 依頼・最後の返答、ローカル表示のみ、最大8000文字
   hook?: string;           // hook_event_name
   target?: string;         // 手元の表示（上の範囲に切り詰め済み）
   subagent?: { id: string; type?: string };
@@ -151,7 +157,7 @@ interface AgentEvent {
 - 部屋の状態と様子は `src/core/room.ts`。web と同じものを server の再送（接続時の replay）から組み立てる。
 - 出勤・退勤は SessionStart / SessionEnd の `hook` で表す（新しい state は増やさない）。
 - フックは並行して動くので、到着順ではなくアダプタの時刻（`ts`）で前後を判断し、古いイベントで新しい活動を上書きしない。
-- Decider へ渡すイベントからは name / target / task 等を除く（`deciderEvent`）。判断はエージェントごとの直近履歴で行う。
+- Decider 向けのイベント変換（`deciderEvent`）は廃止。表示の計算は core で行う。
 
 ## 実機での確認結果（Claude Code 2.1.295）
 
@@ -162,12 +168,12 @@ interface AgentEvent {
 3. PostToolUse / PostToolUseFailure に `duration_ms` が入る（今回は使わず、Pre からの経過で長い待ちを判定）。
 4. このバージョンには **TodoWrite が無く**、TaskCreate / TaskUpdate と TaskCreated / TaskCompleted フックを使う。タスク件名は TaskCreated の `task_subject`、状態の変更は TaskUpdate の `tool_input.status`。
 5. PostToolUseFailure に `is_interrupt` が入る。中断は失敗として数えない。
-6. 未確認：Notification の `notification_type` の値（`-p` では発火しない）、複数セッション同時実行時の取りこぼし。
+6. 当時は Notification の値が未確認（`-p` では発火しない）。段階5では idle_prompt を待機として扱い、permission_prompt / elicitation_dialog だけ呼び出す。複数セッション同時実行時の取りこぼしは未確認。
 
 ## やらないこと（この段階）
 
-- pi / Codex のアダプタ対応（Claude Code で形が固まってから）
+- Codex の町連携（段階5ではターミナルのみ）
 - 町のレイアウト編集
 - キャラ同士の会話・やりとりの演出、効果音・BGM
-- 勇者の表情の描き分け（Decider の表情は Live2D 表示のみで使う）
+- 勇者の表情の描き分け（Live2D 表示・Decider は廃止）
 - 行動ログの保存・履歴の永続化

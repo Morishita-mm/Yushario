@@ -1,6 +1,7 @@
 import { connectSessionTerminal, sessionRequest, type Session } from "../terminal";
 import { loadTowns, type TownRecord } from "./ledger";
 import { coverMap } from "./talk";
+import { loadAgents, supportText, type AgentInfo } from "./agents";
 
 // Page-local windows. All session ownership stays on the server.
 export function initExpedition(currentTown: () => string | undefined, heroName: (terminal: string) => string | undefined,
@@ -19,7 +20,10 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
   const pathLabel = document.querySelector<HTMLElement>("#expedition-path-label")!;
   const start = document.querySelector<HTMLButtonElement>("#expedition-start")!;
   const status = document.querySelector<HTMLElement>("#expedition-status")!;
-  const list = document.querySelector<HTMLElement>("#expedition-sessions")!;
+  const support = document.querySelector<HTMLElement>("#expedition-support")!;
+  let agents: AgentInfo[] = [];
+  const describe = () => { const agent = agents.find((item) => item.id === preset.value); support.textContent = agent ? supportText(agent) : ""; };
+  preset.addEventListener("change", describe);
   let dispose: (() => void) | undefined;
   let attached: Session | undefined;
   let opening = 0;
@@ -48,13 +52,13 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
   }, true);
   document.querySelector("#session-close")!.addEventListener("click", closeTerminal);
   talk.addEventListener("click", () => {
-    const id = attached?.preset === "claude" && !attached.exited ? talkHero(attached.id) : undefined;
+    const id = attached && !attached.exited ? talkHero(attached.id) : undefined;
     if (id) { closeTerminal(); openTalk(id); }
   });
   document.querySelector("#expedition-close")!.addEventListener("click", closeLaunch);
 
   function updateTitle(): void {
-    talk.hidden = !attached || attached.preset !== "claude" || Boolean(attached.exited) || !talkHero(attached.id);
+    talk.hidden = !attached || Boolean(attached.exited) || !talkHero(attached.id);
     if (!attached) return;
     const name = heroName(attached.id) ?? `${attached.project} / ${attached.preset}`;
     const text = `${name} — ターミナル`;
@@ -102,16 +106,16 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
   destination.addEventListener("change", chooseDestination);
   document.querySelector("#expedition")!.addEventListener("click", () => {
     const request = ++launching;
-    preset.value = "claude";
+    preset.replaceChildren(); support.textContent = "対応範囲を よみこみ中…";
+    preset.disabled = true;
     destination.replaceChildren(new Option("ほかの フォルダ", ""));
     destination.disabled = start.disabled = true;
     path.value = "";
     chooseDestination();
     status.textContent = "よみこみ中…";
-    list.replaceChildren();
     launch.showModal();
     const selectedTown = currentTown();
-    void Promise.allSettled([loadTowns(), sessionRequest()]).then(([towns, sessions]) => {
+    void Promise.allSettled([loadTowns(), loadAgents()]).then(([towns, kinds]) => {
       if (launching !== request || !launch.open) return;
       const errors: string[] = [];
       if (towns.status === "fulfilled") {
@@ -123,20 +127,16 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
         if (!selectedTown && destination.options.length > 1) destination.selectedIndex = 0;
       } else errors.push("町の台帳を よみこめませんでした。ほかの フォルダを 指定できます。");
       chooseDestination();
-      destination.disabled = start.disabled = false;
-      if (sessions.status === "fulfilled") {
-        const items = sessions.value as Session[];
-        if (!items.length) list.textContent = "まだ ターミナルは ありません。";
-        for (const session of items) {
-          const button = document.createElement("button");
-          button.type = "button";
-          button.className = "town-row session-row";
-          button.textContent = `${heroName(session.id) ?? session.project} / ${session.preset} / ${session.id}${session.exited ? " — おわった" : ""}`;
-          button.title = session.cwd;
-          button.addEventListener("click", () => void openTerminal(session.id));
-          list.append(button);
-        }
-      } else errors.push(sessions.reason instanceof Error ? sessions.reason.message : "ターミナル一覧を よみこめませんでした。");
+      destination.disabled = false;
+      if (kinds.status === "fulfilled") {
+        agents = kinds.value;
+        for (const agent of agents) preset.add(new Option(`${agent.label} — ${agent.hero ? "町・会話に 対応" : "ターミナルのみ"}`, agent.id));
+        if (agents.some((agent) => agent.id === "claude")) preset.value = "claude";
+        preset.disabled = false; start.disabled = !agents.length; describe();
+      } else {
+        support.textContent = "対応範囲を よみこめないため 起動できません。";
+        errors.push(kinds.reason instanceof Error ? kinds.reason.message : "勇者の 種類を よみこめませんでした。");
+      }
       status.textContent = errors.join("\n");
     });
   });
@@ -150,8 +150,8 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
     void sessionRequest("POST", "", { preset: preset.value, cwd }).then(async (result) => {
       if (launching !== request || !launch.open) return; // Closing never cancels or deletes a created session.
       const session = result as Session;
-      // Shell has no arriving hero or conversation; keep its existing terminal entry.
-      if (session.preset === "shell") { prepareTerminal(); attach(session); return; }
+      // Terminal-only presets must never wait for a hero who cannot arrive.
+      if (!agents.find((agent) => agent.id === session.preset)?.hero) { prepareTerminal(); attach(session); return; }
       const towns = await loadTowns();
       if (launching !== request || !launch.open) return;
       closeLaunch();

@@ -99,6 +99,18 @@ describe("Room", () => {
     const agent = room.apply(a({ hook: "PostToolUseFailure", tool: "Bash", target: "npm test", state: "idle" }), 1)!;
     expect(agent.activity).toBe("idle");
     expect(agent.failures).toEqual([]);
+    room.apply(a({ hook: "Interrupt", state: "idle" }), 2);
+    expect(agent.failures).toEqual([]);
+    expect(agent.wins).toBe(0);
+    expect(agent.log.some((entry) => entry.outcome === "failed")).toBe(false);
+  });
+
+  it("still counts a real model error as a failure", () => {
+    const room = new Room();
+    room.apply(a({ hook: "UserPromptSubmit", state: "thinking" }), 0);
+    const agent = room.apply(a({ hook: "StopFailure", state: "error" }), 1)!;
+    expect(agent.failures).toEqual([1]);
+    expect(agent.activity).toBe("idle");
   });
 
   it("tracks helpers separately while the parent delegates", () => {
@@ -182,6 +194,25 @@ describe("moods", () => {
     expect(moods(agent, 0)).toContain("tired");
     room.apply(a({ hook: "SessionStart", state: "idle", context: 0.1 }), 1);
     expect(moods(agent, 1)).not.toContain("tired");
+  });
+
+  it("keeps an idle notification waiting peacefully without calling or running", () => {
+    const room = new Room();
+    room.apply(a({ hook: "Stop", state: "success" }), 0);
+    const agent = room.apply(a({ hook: "Notification", state: "idle" }), 60_000)!;
+    expect(agent).toMatchObject({ activity: "idle", running: false });
+    expect(moods(agent, 60_000 + MOOD_RULES.callingMs)).not.toContain("calling_long");
+    room.apply(a({ hook: "Notification", state: "waiting_input" }), 120_001);
+    expect(agent.activity).toBe("ask");
+    expect(moods(agent, 120_001 + MOOD_RULES.callingMs)).toContain("calling_long");
+  });
+
+  it.each(["thinking", "idle"] as const)("clears a completed input request to %s without calling", (state) => {
+    const room = new Room();
+    room.apply(a({ hook: "Notification", state: "waiting_input" }), 0);
+    const agent = room.apply(a({ hook: "Notification", state }), 1)!;
+    expect(agent.activity).toBe(state === "thinking" ? "think" : "idle");
+    expect(moods(agent, 1 + MOOD_RULES.callingMs)).not.toContain("calling_long");
   });
 
   it("calls louder when left waiting, and dozes without events", () => {

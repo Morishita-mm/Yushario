@@ -9,15 +9,16 @@
     <header>
       <h1>AGENT QUEST</h1>
       <span id="connection" aria-live="polite">せつぞく中…</span>
-      <a id="live2d-link" href="/live2d.html">Live2D 表示</a>
       <button id="expedition" type="button">しゅつじん</button>
+      <button id="terminals" type="button">ターミナル</button>
       <button id="roster" type="button">めいぼ</button>
+      <button id="help" type="button">ヘルプ</button>
       <button id="settings" type="button">せってい</button>
     </header>
     <main class="quest">
       <section class="stage">
         <nav class="map-nav" aria-label="地図の操作">
-          <button id="world-back" type="button">◀ ワールドマップ</button>
+          <button id="world-back" type="button" hidden>◀ ワールドマップ</button>
           <span id="place-name">ワールドマップ</span>
           <button id="town-look" type="button" hidden>町のすがたを かえる</button>
           <button id="town-pin" type="button" aria-pressed="false" hidden>ピンどめ</button>
@@ -46,13 +47,9 @@
     <dialog id="expedition-dialog" class="report-window expedition-window" aria-labelledby="expedition-title">
       <h3 id="expedition-title">しゅつじん</h3>
       <form id="expedition-form">
-        <label for="expedition-preset">勇者の種類</label>
-        <select id="expedition-preset">
-          <option value="claude">Claude Code</option>
-          <option value="codex">Codex</option>
-          <option value="pi">pi</option>
-          <option value="shell">shell</option>
-        </select>
+        <label for="expedition-preset">勇者の種類（エージェント／ターミナル）</label>
+        <select id="expedition-preset" aria-describedby="expedition-support"></select>
+        <p id="expedition-support" class="hint" role="status"></p>
         <label for="expedition-destination">行き先（作業ディレクトリ）</label>
         <select id="expedition-destination"><option value="">ほかの フォルダ</option></select>
         <label id="expedition-path-label" for="expedition-path">絶対パス</label>
@@ -60,9 +57,42 @@
         <button id="expedition-start" type="submit">▶ しゅつじん！</button>
       </form>
       <p id="expedition-status" class="settings-status" role="status"></p>
-      <h4>ひらいている ターミナル</h4>
-      <div id="expedition-sessions" class="town-list"></div>
+
       <div class="actions"><button id="expedition-close" type="button">▶ とじる</button></div>
+    </dialog>
+    <dialog id="terminals-dialog" class="report-window" aria-labelledby="terminals-title">
+      <h3 id="terminals-title">ターミナルの 一覧</h3>
+      <p>窓を とじても 動きつづけます。「終わらせて 消す」は セッションを 終了します。</p>
+      <p id="terminals-status" class="settings-status" role="status"></p>
+      <div id="terminals-list" class="town-list"></div>
+      <div class="actions"><button id="terminals-refresh" type="button">▶ 一覧を 更新</button><button id="terminals-close" type="button">▶ とじる</button></div>
+    </dialog>
+    <dialog id="help-dialog" class="report-window" aria-labelledby="help-title">
+      <h3 id="help-title">ヘルプ — 画面の 見方</h3>
+      <h4>ことばと 意味</h4>
+      <dl>
+        <dt>勇者</dt><dd>1つの エージェントの セッション。</dd>
+        <dt>町</dt><dd>プロジェクト。ワークツリーは 同じ町に まとまります。</dd>
+        <dt>HP</dt><dd>最近の 失敗の 少なさ。失敗が 続くと 減り、時間が たつと 回復します。</dd>
+        <dt>MP</dt><dd>会話の 残り（コンテキストの 空き）。使用量が 不明な時は 目安です。</dd>
+        <dt>Lv</dt><dd>成功した ツールや 達成した クエストによる 活躍の 目安。能力の 評価では ありません。</dd>
+        <dt>しゅつじん</dt><dd>エージェントを 起動。対応範囲は 種類ごとの 説明を 見てください。</dd>
+        <dt>やすむ</dt><dd>待機中に 会話を 整理（/compact）。宿屋で MPを 回復します。</dd>
+        <dt>にげる</dt><dd>作業を 中断。預かっている 依頼は 捨てます。</dd>
+        <dt>みおくる</dt><dd>セッションを 終了。再開に 対応する 勇者は めいぼから よびもどせます。</dd>
+        <dt>さくせん</dt><dd>定型の 依頼。作業中は 終わるまで 預かります（中断は「にげる」）。</dd>
+      </dl>
+      <h4>画面の 見方</h4>
+      <ul>
+        <li>地図の 町を 選び、勇者を 押すと コマンド窓。「ちいさく」の 勇者一覧からも 開けます。</li>
+        <li>宿屋は 居眠り・会話の 整理。門と 立て札から フィールドへ。編集＝そうげん、テスト＝どうくつ、コマンド＝よるのもり。</li>
+        <li>「でんれい」は 許可待ち・呼び出し・未読の 報告など。！は 未読、宝箱は 編集、巻物は 調査、吹き出しは 会話です。</li>
+        <li>「はなす」で 依頼と 報告。「つたえる」で 送信、作業中は 預かります。書きかけは 勇者ごとに このページ内で 残ります。</li>
+        <li>許可や フォルダの 信頼確認は ターミナルでも 答えられます。「ターミナル」の 一覧から 接続・終了・削除できます。</li>
+        <li>窓は Esc・とじる・窓の 外で 閉じます。コマンド窓は 矢印で 選び、Enterで 決定します。</li>
+        <li>会話と 報告は サーバーの メモリのみ。よびもどしても 前の札は 戻りません（勇者自身の 記憶は 別です）。</li>
+      </ul>
+      <div class="actions"><button id="help-close" type="button">▶ とじる</button></div>
     </dialog>
     <dialog id="roster-dialog" class="report-window" aria-labelledby="roster-title">
       <h3 id="roster-title">ぼうけんしゃの めいぼ</h3>
@@ -86,6 +116,7 @@
         <button id="talk-terminal" class="switch-view" type="button">▶ ターミナル</button>
         <button id="talk-close" type="button">▶ とじる</button>
       </div>
+      <p id="talk-recall" class="arrival-guidance" hidden>前の 会話と ほうこくは 画面には もどりません（勇者は おぼえています）。</p>
       <div id="talk-history" aria-label="勇者との会話と報告" tabindex="0"></div>
       <div class="talk-pages"><button id="talk-next" type="button" hidden>▼ すべて みる</button></div>
       <div id="talk-pending" aria-live="polite" hidden></div>

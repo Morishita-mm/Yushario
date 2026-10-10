@@ -76,7 +76,23 @@
   ],
   "colors": 19,
   "sub": "勇者（マップ用）",
-  "use": "町での作業：読む・祈る（git／compact）・呼ぶ・書く（計画）・遠見（Web）"
+  "use": "町での作業：読む・祈る（git）・呼ぶ・書く（計画）・遠見（Web）"
+ },
+ {
+  "id": "hero-pray",
+  "group": "キャラクター",
+  "name": "勇者 きょうかいで祈る（2コマ）",
+  "frame": [
+   30,
+   52
+  ],
+  "frames": [
+   "kneel facing up (back)",
+   "breathe facing up (back)"
+  ],
+  "colors": 16,
+  "sub": "勇者（マップ用）",
+  "use": "やすむ（PreCompact〜PostCompact）で、きょうかいの祭壇の前にひざまずいて祈る"
  },
  {
   "id": "hero-sleep",
@@ -317,15 +333,15 @@
  {
   "id": "inn-wall",
   "group": "まち",
-  "name": "宿屋の奥の壁（窓・扉）",
+  "name": "宿屋の奥の壁（窓・ランタン）",
   "frame": [
-   266,
-   40
+   264,
+   41
   ],
   "frames": [
    "wall"
   ],
-  "colors": 11,
+  "colors": 13,
   "sub": "宿屋の中",
   "use": "宿屋の中の奥の壁"
  },
@@ -358,6 +374,99 @@
   "colors": 9,
   "sub": "宿屋の中",
   "use": "宿屋の中の飾り"
+ },
+ {
+  "id": "church-wall",
+  "group": "まち",
+  "name": "きょうかいの奥の壁（ステンドグラス）",
+  "frame": [
+   264,
+   65
+  ],
+  "frames": [
+   "wall"
+  ],
+  "colors": 15,
+  "sub": "きょうかいの中",
+  "use": "宿屋と同じ幅の室内の奥に3枚並べる壁。上部のステンドグラス窓と窓台、下部は連続した腰壁"
+ },
+ {
+  "id": "church-altar",
+  "group": "まち",
+  "name": "きょうかいの祭壇",
+  "frame": [
+   104,
+   77
+  ],
+  "frames": [
+   "altar"
+  ],
+  "colors": 15,
+  "sub": "きょうかいの中",
+  "use": "祈る勇者の奥に置く祭壇"
+ },
+ {
+  "id": "church-pew",
+  "group": "まち",
+  "name": "きょうかいの長椅子",
+  "frame": [
+   116,
+   42
+  ],
+  "frames": [
+   "pew"
+  ],
+  "colors": 8,
+  "sub": "きょうかいの中",
+  "use": "中央の通路を空け、左右に並べる長椅子"
+ },
+ {
+  "id": "church-rug",
+  "group": "まち",
+  "name": "きょうかいのじゅうたん（奥・継ぎ目なしの中・手前）",
+  "frame": [
+   120,
+   30
+  ],
+  "frames": [
+   "far end (top border)",
+   "seamless middle (no horizontal border)",
+   "near end (bottom border)"
+  ],
+  "colors": 11,
+  "sub": "きょうかいの中",
+  "use": "画面手前の入口から祭壇まで、奥の端＋真ん中の繰り返し＋手前の端で1本につなぐ"
+ },
+ {
+  "id": "church-candles",
+  "group": "まち",
+  "name": "きょうかいの燭台",
+  "frame": [
+   32,
+   54
+  ],
+  "frames": [
+   "candles"
+  ],
+  "colors": 14,
+  "sub": "きょうかいの中",
+  "use": "祭壇の左右に置く燭台"
+ },
+ {
+  "id": "church-priest",
+  "group": "まち",
+  "name": "神父さま（待機2コマ）",
+  "frame": [
+   22,
+   53
+  ],
+  "frames": [
+   "idle",
+   "blink"
+  ],
+  "colors": 16,
+  "sub": "きょうかいの中",
+  "use": "祭壇のそば。クリックで一言を順番に話す（MP・やすむの案内を含む）"
  },
  {
   "id": "obj-crystal",
@@ -493,6 +602,21 @@
   "colors": 18,
   "sub": "UI",
   "use": "頭上の吹き出し：！呼ぶ・…考え中・Zz 居眠り・⏳ 長い待ち・♪ 好調・汗 苦戦・ハート 立ち直り"
+ },
+ {
+  "id": "ui-prayer-balloon",
+  "group": "演出",
+  "name": "祈りの吹き出し（合わせた両手）",
+  "frame": [
+   22,
+   20
+  ],
+  "frames": [
+   "praying hands"
+  ],
+  "colors": 13,
+  "sub": "UI",
+  "use": "きょうかいで祈る勇者の頭上。宿屋の Zz と同じ1ドットの上下の揺れ"
  },
  {
   "id": "hero-walk-back",

@@ -29,6 +29,7 @@ export class Status {
     private readonly select: (agent: string | undefined) => void,
     private readonly openTerminal: (terminal: string) => void,
     namesChanged: (names: Record<string, string>) => void,
+    private readonly commands: (id: string) => void,
   ) {
     this.rename = initNameEditor(() => this.detailed, namesChanged);
     try { this.compact = localStorage.getItem("agent-character-status-size") === "small"; } catch { /* Page-local fallback. */ }
@@ -95,7 +96,7 @@ export class Status {
       if (signature !== this.compactSignature) {
         this.compactSignature = signature;
         this.rows = agents.map((agent) => compactRow(agent, now, names.get(agent.id) ?? agent.name, agent === chosen,
-          [...this.permissions.values()].some((item) => (item.agent ?? "default") === agent.id), () => this.select(agent.id)));
+          [...this.permissions.values()].some((item) => (item.agent ?? "default") === agent.id), () => this.commands(agent.id)));
       }
       cards.push(...this.rows);
     } else if (agents.length) {
@@ -127,7 +128,7 @@ export class Status {
       if (id === chosen?.id) continue;
       const agent = room.agents.get(id), name = names.get(id) ?? agent?.name ?? id;
       const project = agent?.project ?? agent?.name;
-      cards.push(this.permissionBlock(permission, project === undefined ? name : `${name} — ${project}`));
+      cards.push(this.permissionBlock(permission, project === undefined ? name : `${name} — ${project}`, agent?.terminal));
     }
     if (!cards.length) cards.push(element("p", "empty window", "まだ だれも いない ようだ…\n「しゅつじん」で Claude Code を きどうすると、ゆうしゃが まちに やってくる。"));
     if (cards.length !== this.root.children.length || cards.some((card, index) => this.root.children[index] !== card)) this.root.replaceChildren(...cards);
@@ -135,18 +136,21 @@ export class Status {
   }
 
   private card(agent: RoomAgent, now: number, name: string, permission?: Permission, detailed = false): HTMLElement {
-    return statusCard(agent, moods(agent, now), permission && this.permissionBlock(permission), now, name, detailed,
+    return statusCard(agent, moods(agent, now), permission && this.permissionBlock(permission, undefined, agent.terminal), now, name, detailed,
       () => this.select(agent.id), this.openTerminal);
   }
 
-  private permissionBlock(permission: Permission, heading?: string): HTMLElement {
+  private permissionBlock(permission: Permission, heading?: string, terminal?: string): HTMLElement {
     const block = element("div", "permission");
     if (heading) block.append(element("h3", "section", heading));
     block.append(element("p", undefined, `「${permission.summary}」\nを おこなっても よいですか？`));
     const actions = element("div", "actions");
     for (const [label, decision] of [["はい", "allow"], ["いいえ", "deny"], ["ターミナルで こたえる", "terminal"]] as const) {
       const button = element("button", undefined, `▶ ${label}`); button.type = "button";
-      button.addEventListener("click", (event) => { event.stopPropagation(); this.respond(permission.id, decision); });
+      button.addEventListener("click", (event) => {
+        event.stopPropagation(); this.respond(permission.id, decision);
+        if (decision === "terminal" && terminal) this.openTerminal(terminal);
+      });
       actions.append(button);
     }
     block.append(actions); return block;

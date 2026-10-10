@@ -1,6 +1,7 @@
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
+import { loadAgents } from "./rpg/agents";
 
 export type Session = {
   id: string; preset: string; cwd: string; project: string; createdAt: number;
@@ -93,7 +94,8 @@ export function initTerminal(): void {
   let busy = false;
 
   function controls(): void {
-    start.disabled = refreshButton.disabled = busy;
+    start.disabled = busy || !preset.value;
+    refreshButton.disabled = busy;
     connectButton.disabled = end.disabled = busy || !list.value;
   }
   async function refresh(selected = list.value || attachedId): Promise<void> {
@@ -142,8 +144,24 @@ export function initTerminal(): void {
     const session = sessions.find((item) => item.id === list.value);
     if (session) connect(session);
   });
-  end.addEventListener("click", () => void run(async () => {
-    const id = list.value;
+  const confirmation = document.createElement("dialog");
+  const question = document.createElement("p");
+  const no = document.createElement("button"), yes = document.createElement("button");
+  no.type = yes.type = "button"; no.textContent = "いいえ"; yes.textContent = "はい";
+  confirmation.append(question, no, yes); document.body.append(confirmation);
+  confirmation.addEventListener("keydown", (event) => event.stopPropagation());
+  no.addEventListener("click", () => confirmation.close());
+  let endingId: string | undefined;
+  end.addEventListener("click", () => {
+    const session = sessions.find((item) => item.id === list.value);
+    if (!session) return;
+    endingId = session.id;
+    question.textContent = `「${session.project} / ${session.preset} / ${session.id}」を 終了して 削除しますか？`;
+    confirmation.showModal(); no.focus();
+  });
+  yes.addEventListener("click", () => { confirmation.close(); void run(async () => {
+    const id = endingId;
+    if (!id) return;
     await sessionRequest("DELETE", `/${encodeURIComponent(id)}`);
     if (id === attachedId) {
       attachment?.disconnect();
@@ -152,11 +170,14 @@ export function initTerminal(): void {
       status.textContent = "セッションを終了・削除しました";
     }
     await refresh();
-  }));
+  }); });
   list.addEventListener("change", controls);
   refreshButton.addEventListener("click", () => void run(() => refresh()));
   window.addEventListener("pagehide", () => dispose());
   void run(async () => {
+    const agents = await loadAgents();
+    preset.replaceChildren(...agents.map((agent) => new Option(agent.label, agent.id)));
+    if (agents.some((agent) => agent.id === "shell")) preset.value = "shell";
     const remembered = sessionStorage.getItem(storageKey);
     await refresh(remembered ?? undefined);
     const session = sessions.find((item) => item.id === remembered);

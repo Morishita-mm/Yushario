@@ -138,6 +138,8 @@ async function toEvent(hook) {
   const state = Object.hasOwn(states, name) ? states[name] : undefined;
   if (!state) return;
   const event = { state, source: "claude-code", ts: Date.now(), hook: name };
+  // Only blocking input requests call the user; idle/auth-success/unknown notices do not.
+  if (name === "Notification" && !["permission_prompt", "elicitation_dialog"].includes(hook.notification_type)) event.state = "idle";
   const agent = text(hook.session_id);
   if (agent) event.agent = agent;
   const terminal = text(process.env.AGENT_CHARACTER_SESSION);
@@ -164,12 +166,13 @@ async function toEvent(hook) {
     context = contextUsage(hook);
   }
   if (context !== undefined) event.context = context;
-  // Only these two conversation bodies go to the local relay/display, never Jev or files.
+  // Only these two conversation bodies go to the local relay/display, never files or external services.
   const body = name === "UserPromptSubmit" ? hook.prompt : name === "Stop" ? hook.last_assistant_message : undefined;
   if (typeof body === "string") event.text = body.slice(0, 8000);
   // Notification/tool output bodies remain private; tool input only as `target` above.
   event.detail = {
-    idle: name === "SessionEnd" ? "Session ended" : name === "PostToolUseFailure" ? "Interrupted" : "Session started",
+    idle: name === "Notification" ? "Awaiting prompt" : name === "SessionEnd" ? "Session ended"
+      : name === "PostToolUseFailure" ? "Interrupted" : "Session started",
     thinking: "Prompt received",
     working: "Tool activity",
     waiting_input: "Input requested",

@@ -27,6 +27,8 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
   const foreign = document.querySelector<HTMLElement>("#talk-foreign")!;
   const terminal = document.querySelector<HTMLButtonElement>("#talk-terminal")!;
   const next = document.querySelector<HTMLButtonElement>("#talk-next")!;
+  const recallHint = document.querySelector<HTMLElement>("#talk-recall")!;
+  const drafts = new Map<string, string>(), recalled = new Set<string>();
   const arrival = initArrival(title, history, form, terminal);
   const token = new URLSearchParams(location.search).get("token") ?? "";
   const pending = new Map<string, string[]>(), sending = new Set<string>(), interrupting = new Set<string>();
@@ -44,7 +46,10 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
   function heldMessage(): string {
     return selected && "terminal" in selected ? "勇者が ついたら つたえる" : "たたかいが おわったら つたえる";
   }
-  function close(): void { arrival.watch(); selected = undefined; dialog.close(); }
+  function draftKey(): string | undefined { return selected && ("hero" in selected ? `hero:${selected.hero}` : `terminal:${selected.terminal}`); }
+  function saveDraft(): void { const key = draftKey(); if (key) drafts.set(key, input.value); }
+  input.addEventListener("input", saveDraft);
+  function close(): void { saveDraft(); arrival.watch(); selected = undefined; dialog.close(); }
   dialog.addEventListener("cancel", (event) => { event.preventDefault(); close(); });
   dialog.addEventListener("keydown", (event) => {
     event.stopPropagation();
@@ -117,9 +122,15 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
 
   function update(): void {
     if (!selected || !dialog.open) return;
+    recallHint.hidden = !recalled.has(terminalId() ?? "");
     if ("terminal" in selected) {
       const agent = arrivingHero(selected.terminal);
-      if (agent) { selected = { hero: agent.id }; arrival.watch(); }
+      if (agent) {
+        const key = draftKey()!, draft = drafts.get(key); drafts.delete(key);
+        selected = { hero: agent.id };
+        input.value = draft ?? drafts.get(draftKey()!) ?? input.value;
+        drafts.set(draftKey()!, input.value); arrival.watch();
+      }
       else {
         foreign.hidden = true; send.disabled = sending.has(selected.terminal);
         arrival.update(); renderPending(selected.terminal); return;
@@ -141,7 +152,9 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
     const reply = [...talk].reverse().find((entry) => entry.from === "hero");
     const changed = reply?.at !== latestAt || reply?.text !== latestText;
     if (changed) {
-      latestAt = reply?.at; latestText = reply?.text; shown = 0; lastChar = performance.now(); status.textContent = "";
+      latestAt = reply?.at; latestText = reply?.text;
+      shown = reply && reportRead(agent.id, reply.at) ? Infinity : 0;
+      lastChar = performance.now(); status.textContent = "";
     }
     const atBottom = history.scrollHeight - history.scrollTop - history.clientHeight < 24;
     const scroll = history.scrollTop;
@@ -188,6 +201,7 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
   async function sendText(text: string): Promise<void> {
     const id = terminalId();
     if (!id || !text.trim() || text.length > 8000 || sending.has(id)) return;
+    const key = draftKey();
     sending.add(id); send.disabled = true;
     status.textContent = "つたえている…";
     await fetch(`/api/sessions/${encodeURIComponent(id)}/say?token=${encodeURIComponent(token)}`, {
@@ -198,8 +212,9 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
         throw new Error(data.error ?? `つたえられませんでした（${response.status}）`);
       }
       const result = await response.json() as { delivered: boolean };
+      if (key && drafts.get(key) === text) drafts.delete(key);
       if (terminalId() !== id || !dialog.open) return;
-      if (input.value === text) input.value = "";
+      if (input.value === text) { input.value = ""; saveDraft(); }
       status.textContent = result.delivered ? "つたえた！ へんじを まっている…" : "あずかった！"; input.focus();
     }).catch((error: unknown) => {
       if (terminalId() === id && dialog.open) status.textContent = error instanceof Error ? error.message : String(error);
@@ -208,15 +223,22 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
   form.addEventListener("submit", (event) => { event.preventDefault(); void sendText(input.value); });
 
   function openConversation(target: { hero: string } | { terminal: string }, at?: number): void {
-    arrival.watch("terminal" in target ? target.terminal : undefined);
+    saveDraft(); arrival.watch("terminal" in target ? target.terminal : undefined);
     selected = target; signature = ""; texts = []; latestAt = latestText = undefined; shown = 0; expanded.clear(); scrollTo = at;
-    input.value = ""; status.textContent = ""; history.replaceChildren(); latest = undefined; next.hidden = true;
+    const key = draftKey()!, awaited = "hero" in target ? hero(target.hero)?.terminal : undefined;
+    const waitingKey = awaited ? `terminal:${awaited}` : undefined;
+    input.value = drafts.get(key) ?? (waitingKey ? drafts.get(waitingKey) : undefined) ?? "";
+    if (waitingKey) { drafts.delete(waitingKey); drafts.set(key, input.value); }
+    status.textContent = ""; history.replaceChildren(); latest = undefined; next.hidden = true;
     position(); if (!dialog.open) dialog.showModal();
     update(); renderPending(terminalId());
     if (terminalId() && at === undefined) input.focus(); else history.focus({ preventScroll: true });
   }
   return { open: (id: string, at?: number) => openConversation({ hero: id }, at),
-    openSession: (id: string) => openConversation({ terminal: id }), update, tick, setPending, resetPending, sendText, close,
+    openSession: (id: string, recall = false) => { if (recall) recalled.add(id); openConversation({ terminal: id }); },
+    attention: (id: string) => { arrival.attention(id, true); update(); },
+    clearAttention: (id: string) => arrival.attention(id, false),
+    update, tick, setPending, resetPending, sendText, close,
     notice: (text: string) => { status.textContent = text; },
     interrupting: (id: string, active: boolean) => { if (active) interrupting.add(id); else interrupting.delete(id); } };
 }

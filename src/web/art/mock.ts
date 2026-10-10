@@ -8,8 +8,9 @@ import { showReport } from "../town/report";
 import type { TownTheme } from "../town/themes";
 import { showCommands, showRoster } from "../town/command";
 import { drawInn } from "../town/inn";
+import { CHURCH_PRIEST, CHURCH_SLOTS, drawChurch, PRIEST_LINES } from "../town/church";
 import { drawTown, TOWN_H, TOWN_SPOTS, TOWN_W } from "../town/town";
-import { FIGHTS, PROJECTS, farewell, recall, ROSTER, SLEEPERS, TOWN_REPORTS, townHeroes, walkers, townReports, CALLER, walkTown } from "./mock-data";
+import { FIGHTS, PROJECTS, farewell, recall, ROSTER, SLEEPERS, PRAYERS, TOWN_REPORTS, townHeroes, walkers, townReports, CALLER, walkTown } from "./mock-data";
 import { notices } from "./mock-notices";
 import { renderHerald, showTownList, showThemeChooser, type Notice } from "../town/herald";
 import { drawWorld, markers, plate, regionName, sleeping, type Project } from "../town/world";
@@ -17,15 +18,16 @@ import { Sheets } from "../town/sheets";
 import { drawNavigation } from "../town/navigation";
 import { focusData as FOCUS, battleBeat } from "./mock-battle-data";
 
-type Place = "world" | "town" | "inn" | Theme;
+type Place = "world" | "town" | "inn" | "church" | Theme;
 type Scene = { id: string; label: string; caption: string; place?: Place; focus?: Focus };
 const SCENES: Scene[] = [
   { id: "world", label: "ワールド", place: "world", caption: "ワールドマップ。プロジェクト（リポジトリ）ごとに町がある。町の種類は5つ（草原の村・海辺の港町・雪国・砂漠のオアシス・火山）。人数・戦闘中・未読の報告・呼び出しを町の上に表示。クリックで町へ。" },
-  { id: "town", label: "まち", place: "town", caption: "待機中のエージェントが暮らす町。広場の噴水を中心に宿屋・店が向き合い、通りに沿って歩く。宿屋をクリックで中へ、南の門から各フィールドへ。" },
+  { id: "town", label: "まち", place: "town", caption: "待機中のエージェントが暮らす町。広場の噴水を中心に宿屋・店が向き合い、通りに沿って歩く。宿屋・きょうかいをクリックで中へ、南の門から各フィールドへ。" },
   { id: "meadow", label: "そうげん", place: "meadow", caption: "ファイル編集の戦場。勇者とモンスターが向き合って戦う。勇者をクリックでその戦闘にフォーカス。端の立て札で他のマップへ。" },
   { id: "cave", label: "どうくつ", place: "cave", caption: "テスト・型検査の戦場（しれんのゴーレム）。" },
   { id: "forest", label: "よるのもり", place: "forest", caption: "コマンド実行の戦場（おばけ）。" },
   { id: "inn", label: "やどや", place: "inn", caption: "宿屋の中。居眠り中（10分以上動きなし）のエージェントがベッドで眠る。ベッドの大きさは空きと同じ。クリックで町へ。" },
+  { id: "church", label: "きょうかい", place: "church", caption: "きょうかいの中。入口から祭壇まで1本のじゅうたん。やすむ（会話の整理）の勇者は奥を向いて祈る。神父さまをクリックで一言、勇者でコマンド窓、▼ そとへ で町へ。" },
   { id: "b-meadow", label: "戦闘：草原", focus: FOCUS("bg-battle-meadow", "meadow", "monster-slime", 2, "スライム", ["hero-back-battle", "party-thief-back"]), caption: "戦闘フォーカス（草原）。クリックで戻る。" },
   { id: "b-cave", label: "戦闘：洞窟", focus: FOCUS("bg-battle-cave", "cave", "monster-golem", 8, "ゴーレム", ["hero-back-battle", "party-warrior-back", "party-mage-back"]), caption: "戦闘フォーカス（洞窟）。" },
   { id: "b-forest", label: "戦闘：夜の森", focus: FOCUS("bg-battle-forest", "forest", "monster-ghost", 6, "おばけ", ["hero-back-battle", "party-priest-back"]), caption: "戦闘フォーカス（夜の森）。" },
@@ -41,6 +43,7 @@ let current = SCENES.find((s) => s.id === new URLSearchParams(location.search).g
 let ambient: Ambient | undefined;
 let returnTo: Scene | undefined;
 let gateMenu = false;
+let priestLine = 0;
 let fadeAt = -Infinity;
 let pending: Scene | undefined;
 let last = 0;
@@ -93,7 +96,7 @@ const byId = (id: string) => SCENES.find((s) => s.id === id)!;
 function size(scene: Scene): [number, number] {
   if (scene.focus) return art.size(scene.focus.backdrop);
   if (scene.place === "world") return art.size("world-map");
-  return scene.place === "town" || scene.place === "inn" ? [TOWN_W, TOWN_H] : [FIELD_W, FIELD_H];
+  return scene.place === "town" || scene.place === "inn" || scene.place === "church" ? [TOWN_W, TOWN_H] : [FIELD_W, FIELD_H];
 }
 
 function show(scene: Scene): void {
@@ -155,9 +158,15 @@ function hotspots(): Hot[] {
   }
   if (current.focus) return [{ x: 0, y: 0, w: 9999, h: 9999, act: () => go(returnTo ?? byId(current.focus!.theme), undefined) }];
   if (place === "inn") return [{ x: 0, y: 0, w: 9999, h: 9999, act: () => go(byId("town")) }];
+  if (place === "church") return [{ ...CHURCH_PRIEST, act: () => {
+    document.querySelector<HTMLElement>("#messages")!.textContent = `神父さま「${PRIEST_LINES[priestLine++ % PRIEST_LINES.length]}」`;
+  } }, ...PRAYERS.slice(0, CHURCH_SLOTS.length).map((prayer, i) => {
+    const [x, y] = CHURCH_SLOTS[i];
+    return { x: x - 24, y: y - 55, w: 48, h: 70, act: () => commands(prayer.name, x, y, false) };
+  }), { x: 430, y: 500, w: 100, h: 34, text: "▼ そとへ", act: () => go(byId("town")) }];
   if (place === "town") {
-    const inn = TOWN_SPOTS.inn;
-    const spots: Hot[] = [{ ...inn, act: () => go(byId("inn")) }];
+    const spots: Hot[] = [{ ...TOWN_SPOTS.inn, act: () => go(byId("inn")) },
+      { ...TOWN_SPOTS.church, act: () => go(byId("church")) }];
     for (const hero of townHeroes()) {
       spots.push({ x: hero.x - 16, y: hero.y - 76, w: 32, h: 80, act: () => commands(hero.name, hero.x, hero.y, false) });
     }
@@ -193,13 +202,14 @@ function hit(x: number, y: number): Hot | undefined {
 function updateTabs(now: number): void {
   for (const button of tabs.querySelectorAll<HTMLButtonElement>("button")) {
     const scene = byId(button.dataset.id!);
-    const theme = scene.place && scene.place !== "town" && scene.place !== "inn" && scene.place !== "world" ? scene.place : undefined;
+    const theme = scene.place && scene.place !== "town" && scene.place !== "inn" && scene.place !== "church" && scene.place !== "world" ? scene.place : undefined;
     const count = button.querySelector<HTMLElement>(".count");
     const alert = button.querySelector<HTMLElement>(".alert");
     if (!count || !alert) continue;
     if (scene.place === "world") count.textContent = `🏰 ${PROJECTS.length}`;
     else if (scene.place === "town") count.textContent = `👤 ${7 + 3}`;
     else if (scene.place === "inn") count.textContent = `💤 ${SLEEPERS.length}`;
+    else if (scene.place === "church") count.textContent = `祈り ${PRAYERS.length}`;
     else if (theme) count.textContent = `⚔️ ${FIGHTS[theme].filter((f) => !f.done).length}`;
     if (scene.place === "town") button.querySelector(".name")!.textContent = town.repo;
     const unread = theme !== undefined && FIGHTS[theme].some((f) => f.done && !read.has(f.name))
@@ -222,10 +232,11 @@ function frame(now: number): void {
   if (current.place === "world") sleepingPlate = drawWorld(ctx, art, now, w, h, PROJECTS);
   else if (current.place === "town") {
     walkTown(now);
-    drawTown(ctx, art, now, { sleepers: SLEEPERS.length, theme: town.theme, name: town.repo, walkers, reports: townReports(), caller: CALLER, read });
+    drawTown(ctx, art, now, { sleepers: SLEEPERS.length, prayers: PRAYERS.length, theme: town.theme, name: town.repo, walkers, reports: townReports(), caller: CALLER, read });
     rosterPlate = plate(ctx, [[`📖 ぼうけんしゃの めいぼ ${ROSTER.length}`, "#fff7d6", 10]], w - 92, 8);
   }
   else if (current.place === "inn") drawInn(ctx, art, now, SLEEPERS);
+  else if (current.place === "church") drawChurch(ctx, art, now, PRAYERS);
   else if (current.place) drawField(ctx, art, current.place, now, FIGHTS[current.place], read);
   else if (current.focus && ambient) drawFocus(ctx, art, battleBeat(current.focus, now), ambient, now, dt, w, h);
   drawNavigation(ctx, hotspots(), pointer, gateMenu);

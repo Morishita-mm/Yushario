@@ -1,144 +1,126 @@
 # Architecture (PoC)
 
-コーディングエージェントに **Live2D の肉体と、活動する場所** を与えるアプリ。
-ハーネスは作らない。利用者の好きな CLI エージェント（Claude Code / pi / Codex など）を埋め込みターミナルでそのまま動かし、
-フックから届く「状態イベント」でキャラクターの表情・動きを制御する。
+CLI エージェントの仕事を **RPG 風の町と勇者** として見せ、埋め込みターミナルの勇者に依頼し、会話と報告を受け取るローカル Web アプリ。
+ハーネスは作らない。Claude Code / pi / Codex / shell をそのまま PTY で動かし、対応するフック・拡張から届く状態イベントを町の表示に使う。
 
-配布方針: フェーズ1は GitHub から clone / npx で動くローカル Web アプリ（1プロセス）。フェーズ2で同じ Web 画面を Tauri で包み、
-透過・最前面のキャラクター窓と GitHub Releases 配布にする。Web 部分はフェーズ2でも共通に使う。
+Node の1プロセスが `127.0.0.1` で build 済みの web と API・WebSocket を配信する。開発時だけ Vite を使う。
+状態の読み取りは `docs/OBSERVATION.md`（段階5対応）、勇者の操作と現在の対応範囲は `docs/PLATFORM.md` の最新段階、絵は `docs/ART.md` が正。過去段階の制限を現在の仕様として扱わない。
 
 ## データフロー
 
-```
-                 ┌──────────── server (Node, 127.0.0.1 の1プロセス) ────────────┐
-[フック/拡張] ─POST /event─▶ AgentEvent ─▶ Decider ─▶ Selector ──WS /ws (decision)──▶ [web]
-                 │                         (Jev / Mock)  (候補→1つ)                      │  MotionGenerator ─▶ Renderer
-                 │                                                                        │
-[CLI エージェント] ◀─PTY─ pty ◀──────────────WS /pty (入出力)────────────────────── [web] 埋め込みターミナル(xterm.js)
-                 └────────────────────────────────────────────────────────────────┘
+```text
+[CLI エージェント] ◀── PTY 入出力 ──▶ [server] ◀── WS /pty ──▶ [web / xterm]
+        │                               ▲                       │
+        └─ [adapters / フック・拡張]      │                       │
+                  │                     │                       │
+                  └─ POST /event ──▶ 検証・イベント履歴 ── WS /ws ──▶ Room
+                                        │                       │
+                                        ├─ 待機判定・依頼の預かり  └─ core の計算 ──▶ 町・会話・報告
+                                        └─ 台帳の活動更新
+
+[Claude の許可フック] ── POST /hooks/permission ──▶ [server] ◀── WS /ws ──▶ [web]
+[web] ── /api/agents・sessions・roster・names・towns・settings ──▶ [server]
 ```
 
-- 判断（Decider/Selector）は **server 側** で行う。Jev の API キーをブラウザに渡さないため。web は決定結果を受けて動かすだけ。
-- server は本番では build 済みの web を自分で配信する（開発時は Vite）。
-
-各段は **インタフェースだけで繋ぐ**。差し替え対象は主に Decider（Jev → 生体模倣アルゴリズム等）と Renderer。
+- server はイベントを検証し、`event` と接続時の `replay` を配信する。活動・様子・語り・報告・勇者の居場所は core の決定的な処理で求める。
+- web は replay とライブイベントから Room を組み立て、町と会話を更新する。サーバーの端末状態・台帳・名前は API と WS の通知から受け取る。
+- 依頼は対応する PTY へ送る。作業中はサーバーで預かり、準備ができた時に送る。許可要求は利用者の判断をフックへ返し、自動承認しない。
+- エージェントの応答を作るのは各 CLI。アプリ自身は LLM や外部の判断 API を呼ばない。
 
 ## モジュール境界
 
 | モジュール | 責務 | 依存してよいもの |
 |---|---|---|
-| `src/core/events.ts` | `AgentEvent` 型と実行時バリデーション | なし |
-| `src/core/decider.ts` | `Decider` インタフェース、`Candidate` 型 | events |
-| `src/core/mock-decider.ts` | ルール表で候補とスコアを返すモック（Jev 不在時のフォールバック） | decider |
-| `src/core/selector.ts` | 候補リストから1つ選ぶ（最高スコア、同点・ゆらぎは seed 付き乱数） | decider |
-| `src/core/activity.ts` | フック・ツール名・対象から活動（読む・書く・テスト…）を判定 | events |
-| `src/core/room.ts` | 部屋の状態（エージェントごとの活動・助っ人・タスク・行動ログ）と、直近の流れから様子を算出 | activity, events |
-| `src/core/story.ts` | RPG としての語り（ナレーション）、Lv・HP・MP、仲間の職業、活動ごとのモンスター | activity, events, room |
-| `src/core/town.ts` | Room からプロジェクト別の町・安定した表示名・勇者の居場所・仲間の職業へ変換する純粋関数 | room, story |
-| `src/core/motion.ts` | 目標（表情・姿勢）＋アイドル層（呼吸・瞬き・揺れ）から毎フレームの抽象パラメータを生成 | decider の型のみ |
-| `src/server/relay.ts` | `POST /event` を受けて検証 → Decider → Selector → WS で決定を配信 | core |
-| `src/server/jev-decider.ts` | Jev（TypeSafe System One API）を呼ぶ `Decider` 実装。キーが無ければ使わない | core |
-| `src/server/pty.ts` | 埋め込みターミナル用の PTY と WS /pty の中継 | なし |
-| `src/web/rpg/*` | メインの町のページ。WS で Room を組み立て、ワールド・町・宿屋・フィールドを地図上で移動。町のすがたは localStorage、右に選んだ勇者の「つよさ」・許可、下に時刻付きメッセージ | core, web/town |
-| `src/web/town/*` | データを受け取る共有描画（ワールド・5種の町・宿屋・フィールド・戦闘フォーカス）、既存 manifest の絵の読み込み・色違い・環境の動き・通りの歩行 | core の型、既存 public/art の絵 |
-| `src/web/art/*` | 絵のギャラリーと `/mock.html` の入口・偽データ。メインと同じ町の描画を使う | web/town |
-| `src/web/*` | Live2D のページ（`/live2d.html`）。WS で決定を受信 → MotionGenerator → Renderer、埋め込みターミナル | core |
-| `src/web/renderers/*` | `Renderer` 実装。抽象パラメータ → モデル固有パラメータの対応表で適用 | core の型のみ |
+| `src/core/events.ts` | `AgentEvent` 型と入力の検証 | なし |
+| `src/core/activity.ts` | フック・ツール名・対象から活動を分類 | events |
+| `src/core/room.ts` | 勇者・仲間・クエスト・行動ログ・会話の状態と、直近の流れから様子を計算 | events, activity, turns |
+| `src/core/turns.ts` | 依頼から最終返答までの集計、許可待ちを除いた所要時間、会話への報告の付与 | events, activity |
+| `src/core/story.ts` | 語り、Lv・HP・MP、仲間の職業、活動ごとのモンスター | events, activity, room |
+| `src/core/town.ts` | Room をプロジェクト別の町・安定した表示名・勇者の居場所へ変換 | room, story |
+| `src/core/town-ledger.ts` | 町・設定の型、町の登録・活動更新・自動でしまう判定 | なし |
+| `src/core/names.ts`, `roster.ts` | 名前・めいぼの型と入力の判定、件数制限 | core の型・関数のみ |
+| `src/core/session-actions.ts` | イベントによる待機判定、フォルダ信頼確認の検出 | events |
+| `src/server/relay.ts` | HTTP/WS の入口、認可、イベント履歴と配信、許可・PTY・台帳の接続 | core, server, Node http, ws |
+| `src/server/agents.ts` | 起動・再開・整理・終了の送り方と対応範囲を1つの表に定義 | Node path/url |
+| `src/server/pty.ts`, `pty-session.ts` | 複数の端末セッション、セッション API、WS /pty と保持出力 | core, server, Node, node-pty, ws |
+| `src/server/pty-launch.ts`, `pty-process.ts` | CLI の起動、フック設定、環境変数、子プロセスの終了 | agents, core, Node, node-pty |
+| `src/server/pty-actions.ts` | 依頼の送信・預かり、にげる・やすむ・みおくる | core, agents, pty-session |
+| `src/server/permissions.ts` | 許可要求の短い要約、利用者の回答・時間切れをフックへ返す | events |
+| `src/server/project.ts`, `town-api.ts`, `town-data.ts` | プロジェクト名の取得、町・設定・名前・めいぼの API と JSON 保存 | core, agents, Node |
+| `src/server/static.ts` | `dist/` と `public/` の静的配信、パスの検査 | Node |
+| `src/web/rpg/*` | メインの町。Room と WS、移動・つよさ・許可・会話と報告・しゅつじん・コマンド・めいぼ・ヘルプ | core, web/town, terminal |
+| `src/web/town/*` | データを引数で受け取る共有描画。ワールド・5種の町・宿屋・フィールド・戦闘、絵の読み込みと歩行 | core の型, DOM/Canvas, public/art |
+| `src/web/art/*` | `/art.html` のギャラリー、`/mock.html` の入口・偽データ | web/town, DOM/Canvas |
+| `src/web/terminal.ts`, `terminal-page.ts`, `style.css` | xterm の接続部品、`/terminal.html` の起動・接続・終了。町の端末窓も同じ接続部品を使う | xterm, DOM, HTTP/WS |
+| `adapters/claude-code/*`, `adapters/pi/*` | ハーネスのフック・拡張をイベントに変換し、ローカルへ短時間で送る | ハーネス API, Node |
 
-`src/core` は DOM・Node API に依存しない純粋 TypeScript とし、単体テストする。
+`src/core` は DOM・Node API・HTTP・WS に依存しない純粋 TypeScript。
+時刻は引数で受け取り、活動・待機・集計・様子・居場所などの判断を単体テストする。
+Room のようなイベントから状態を更新する処理もここに置くが、I/O や画面の状態は持たせない。
 
-## 主要な型（初期案。必要最小限から始める）
+## インタフェース（今ある境界だけ）
 
-```ts
-type AgentState = "idle" | "thinking" | "working" | "waiting_input" | "success" | "error";
-interface AgentEvent {
-  state: AgentState;
-  detail?: string;
-  ts?: number;
-  source?: string;   // 送信元ハーネス（"claude-code" / "pi" など）
-  tool?: string;     // 関係するツール名（"Bash", "Edit" など）
-  context?: number;  // コンテキスト使用率 0〜1（分かる時だけ）
-}
+### adapters → server: AgentEvent
 
-type Gesture = "nod" | "shake" | "wave" | "think" | "cheer" | "tremble";
-interface Candidate { expression: Expression; posture: Posture; gesture?: Gesture; score: number }
-interface DecisionContext {
-  event: AgentEvent;
-  recent: AgentEvent[];  // 直近のイベント（古い順、event を含む、最大10件）。感情の文脈はここから読む
-  previous?: Candidate;
-  elapsedMs: number;
-}
-interface Decider { decide(ctx: DecisionContext): Promise<Candidate[]> }
-```
+`src/core/events.ts` の `AgentEvent` と `parseAgentEvent(input)` が契約。
 
-- 「エージェントの仕事」は重いモデル（Claude 等）、「肉体の制御」は軽量モデル（Jev 等）に分担させる。
-  Decider は 表情・姿勢・ジェスチャー の選択だけを担い、エージェント本体には何も返さない。
-- gesture は「状態の変わり目」に一度だけ再生する単発の動き。継続的な動きは MotionGenerator が担う。
+- `state`: `idle | thinking | working | waiting_input | success | error`
+- 状態のメタデータ: `detail?`, `ts?`, `source?`, `tool?`, `context?`（使用率 0〜1）
+- 勇者と仕事: `agent?`, `name?`, `terminal?`, `project?`, `hook?`, `target?`, `subagent?`, `task?`
+- 会話: `text?`（依頼・最終返答、最大8000文字）
 
-- `Expression` / `Posture` は少数の文字列ユニオン（例: neutral / focused / happy / troubled / surprised、
-  upright / lean_forward / tilt / slump）。モデル依存のパラメータ名はここに出さない。
-- Decider は非同期（将来 Jev がリモート推論になる想定）。モックも同じ形で返す。
+アダプタは活動や物語を判断せず、安全な対象の短縮とイベントへの変換だけを行う。
+Notification は実際の入力要求だけ waiting_input。pi の整理失敗・キャンセルは PostCompact/idle の detail（`Compaction failed` / `Compaction cancelled`）で成功と区別し、待機へ戻るが MP 回復とは語らない。
+同じ PTY の SessionStart で ID が変わった時は、server が旧 ID の SessionEnd を **terminal 無し**で記録する。PTY は継続し、新 ID の依頼済み判定はリセットする。同じ ID の reload は退場ではない。
+会話本文・対象・許可の要約はローカル表示だけで使う。ツール出力・途中の返答は送らない。
 
-```ts
-interface Renderer {
-  apply(params: MotionParams): void;              // 毎フレーム
-  setExpression?(expression: Expression): void;   // 任意。モデル固有の表情（.exp3.json 等）を持つ実装だけが使う
-  playGesture?(gesture: Gesture): void;           // 任意。モデル固有のモーション（.motion3.json 等）を持つ実装だけが使う
-}
-```
+### core → server / web: 値と決定的な計算
 
-## 体験の柱（優先順）
+新しい抽象インタフェースを挟まず、既存の型・関数を直接使う。
 
-キャラクターは「画面を読まなくても視界の端で状況がわかる」ための体。IDE 機能では競わない。
+- `classifyActivity(event)`、`waitingAfterEvent(event)`、`hasTrustPrompt(output)` で入力を判定する。
+- `Room.apply(event, at)` がイベントから `RoomAgent` を更新し、`moods(agent, now)` が様子を求める。
+- `recordTurn(turns, event, at)` 等が会話と報告を集計する。
+- `stats(agent, now)`、`narrate(event)`、`battleMonster(activity)` が RPG の見せ方を求める。
+- `townView(room, now, previousNames)` が町・勇者と安定した表示名を返す。
+- `registerTown` / `activateTown` / `archiveTowns` は入力の町一覧と時刻から新しい一覧を返す。
 
-- **B. 呼ばれたら向き合う**（実装中）: エージェントが人間を必要とした時、キャラクターがこちらを向いて吹き出しで求め、その場で応えられる。
-  - 許可要求: Claude Code の `PermissionRequest` フックを server が受け、WS で web に `{"type":"permission", id, tool, summary}` を送る。
-    web の吹き出しで「許可 / 拒否 / ターミナルで答える」を選ぶと、WS で `{"type":"permission-decision", id, decision}` を返し、
-    server がフックへ `{"behavior":"allow"}` / `{"behavior":"deny","message":...}` を返す（「ターミナルで答える」と時間切れは判断なしで返し、通常のプロンプトに任せる）。
-  - 不在からの復帰: web がページの可視状態で不在を判定し、戻った時に不在中のイベントを集計して吹き出しで報告する（テンプレート文、LLM は使わない）。
-  - 吹き出しの文面やツール入力はローカル（server と web）でのみ扱い、Jev には送らない。
-- **A. 気配で状況がわかる**: 体調（コンテキスト使用率→疲労）、視線・指さし、確信度。
-  - 体調（実装中）: アダプタがエージェントのコンテキスト使用率（0〜1 の数値のみ）を `AgentEvent.context` で送る。
-    web は `MotionGenerator.setFatigue(f)` で継続的に体へ反映する（まぶたが重い・呼吸が遅い・頭が下がる）。Decider の判断とは独立した連続量。
-    使用率が高い閾値を初めて超えた時に、吹き出しで整理（compact）を提案する。会話本文は読み取ってもアダプタの外へ出さない。
-- **C. チームが部屋にいる**（実装中）: 複数エージェントを1部屋の複数キャラクターとして表示。
-  RPG 風の町（作業＝戦闘、休み＝宿屋、サブエージェント＝仲間）で、エージェントの様子を細かく描写する（Live2D 継続案も保留として残す）。
-  対象は当面 Claude Code のみ。観察の仕様は `docs/OBSERVATION.md`。
+### server ↔ web: ローカル HTTP / WebSocket
 
-## ハーネス連携（アダプタ）
+詳細な入力・返却値は README と `docs/PLATFORM.md` に記載する。
 
-`adapters/<harness>/` に、各ハーネスのフック／拡張から `POST /event` するだけの薄いアダプタを置く。
-アダプタはエージェントの動作を絶対に妨げない（短いタイムアウト、失敗しても黙って終了、標準出力に何も出さない）。
+| 経路 | 契約 |
+|---|---|
+| `POST /event` | AgentEvent を検証して受付。正常時204、不正入力400 |
+| `WS /ws` | `event` / `replay`、`towns`、`names`、`pending`、`attention`、`permission` / `permission-resolved`。web からは `permission-decision` |
+| `/api/agents` | 起動できる種類と町・再開・整理の対応範囲の公開部分 |
+| `/api/sessions` | 端末の一覧・作成・削除、`/:id/say` で依頼、`/:id/action` で中断・整理・終了 |
+| `WS /pty?session=<id>` | 同じ端末の保持出力とライブ出力。web からは `input` / `resize` |
+| `/api/roster` | 旅立った勇者の一覧と `/:sessionId/recall` で再開 |
+| `/api/names`, `/api/towns`, `/api/settings` | 名前、町の台帳・すがた、町をしまうまでの日数 |
+| `POST /hooks/permission` | Claude Code の HTTP フック。許可・拒否を返すか、時間切れ等は通常の端末プロンプトに戻す |
 
-## Jev 連携
+### web 内: 描画データと端末の接続
 
-- `POST https://api.typesafe.ai/v1/systemone`、`Authorization: Bearer $TYPESAFE_API_KEY`、`model: "jev-latest"`。
-- 1イベント1リクエスト。`state` に {event, recent, previous}、`questions` に expression / posture / gesture（"none" を含む）の choice を入れる。
-- choice の `confidence` が閾値未満なら previous を維持する（confidence-gated）。直前と同じ state の繰り返しは API を呼ばずに previous を返す。
-- `TYPESAFE_API_KEY` が無い、または API が失敗した場合は MockDecider にフォールバックする。
-- プロンプト本文やツール入出力は送らない（アダプタが送らない）。発話内容を使う拡張は将来の opt-in。
+町とモックは `src/web/town/*` の同じ描画関数にデータを渡す。モック用の偽データは `src/web/art/*` に閉じる。
+町の端末窓と `/terminal.html` は `src/web/terminal.ts` の接続部品を共有する。
+画面専用の選択・開閉・下書きは各画面の中に置き、汎用ストアやイベントバスは作らない。
 
-## 埋め込みターミナルとセキュリティ
+## 寿命・保存・セキュリティ
 
-- server は 127.0.0.1 のみで待ち受ける。起動時にランダムなトークンを生成し、`http://127.0.0.1:<port>/?token=...` を表示する。
-- WS /pty と WS /ws はトークン必須かつ Origin が自分自身の場合のみ許可する（他サイトのページからのシェル乗っ取りを防ぐ）。`POST /event` は従来通りローカルからの受付でよい。
-- PTY の子プロセスには `AGENT_CHARACTER_URL` を環境変数で渡し、中で起動したエージェントのフックが自動で server に届くようにする。
-
-## 動きの生成
-
-- 目標値への遷移はばね（臨界減衰）で滑らかに補間する。
-- アイドル層：呼吸（正弦）、瞬き（ランダム間隔）、頭の微小な揺れ（低周波ノイズ）。
-- 出力は抽象パラメータ（`headX`, `headY`, `bodyX`, `eyeOpen`, `mouthSmile`, `brow` など）。
-  Live2D の `ParamAngleX` 等への対応付けは Renderer 側の設定で行う（持ち込みモデルごとに名前が違うため）。
-
-## Live2D とモデル
-
-- Cubism Core（`live2dcubismcore.min.js`）とモデルは **リポジトリに含めない**。利用者が配置する。
-- デフォルトキャラ：公式サンプルモデルの取得手順を README に書き、`models/` に置けば読み込む。規約確認は利用者責任。
-- Core やモデルが無い場合でも動作確認できるよう `PlaceholderRenderer`（Canvas の簡易顔）を用意する。
+- server は `127.0.0.1` のみ。起動時にランダムなトークンを生成して URL に表示する。
+- WS `/ws`・`/pty` と `/api/*` はトークンと自分自身の Origin を検査する。WS は Origin 必須、HTTP API の Origin 無しリクエストはトークンで許可する。開発時だけローカルの別ポートも許可する。
+- フックの `POST /event`・`/hooks/permission` はトークン不要。ブラウザ由来の外部 Origin は拒否する。
+- PTY はブラウザ切断では止めない。明示的な終了・CLI の終了・server の停止で終わる。最大16セッション、各出力の直近256KBを保持する。
+- 子プロセスに `AGENT_CHARACTER_URL` と `AGENT_CHARACTER_SESSION` を渡す。server のトークンや親の入れ子セッション判定用変数は渡さない。
+- イベント直近2000件・会話・報告・預かり・端末出力はメモリのみ。サーバーを再起動すると消える。
+- 町・設定・名前・再開用のめいぼは `AGENT_CHARACTER_HOME`（既定 `~/.config/agent-character`）の JSON に保存する。本文は保存せず、一時ファイルから置き換える。壊れたファイルは `.broken` に退避する。
+- 既読は勇者IDと時刻だけをブラウザに保存する。会話の下書きはページ内だけ。各 CLI 自身の履歴保存は別。
 
 ## PoC でやらないこと
 
-- ハーネス本体、エージェントのログ解析、LLM 呼び出し
-- デスクトップ常駐（透過ウィンドウ、Tauri）— フェーズ2
-- 音声・リップシンク、複数キャラ、設定 UI、ユーザー認証、永続化
+- ハーネス本体、アプリ自身の LLM 呼び出し、ツール出力・会話本文の解析
+- デスクトップ常駐・透過ウィンドウ、スマホ対応、インターネット経由の利用、ユーザー認証
+- 任意の起動コマンド、許可の自動承認、作業中へのフック経由の割り込み
+- 会話・報告・行動ログの永続化、過去のハーネス履歴の取り込み、ワークツリーの作成
+- プラグイン機構・ファクトリ・DI コンテナ・汎用基底クラスなど、現在の境界にない拡張の基盤

@@ -12,7 +12,11 @@ describe("activity classification", () => {
 
   it.each([
     ["npm test", "test"], ["npm run test", "test"], ["npm run typecheck", "test"], ["npx vitest", "test"],
-    ["pytest", "test"], ["go test", "test"], ["cargo test", "test"], ["git commit -m", "git"], ["gh pr", "git"],
+    ["pytest", "test"], ["python -m unittest", "test"], ["python3 -m unittest", "test"],
+    ["python -m pytest", "test"], ["python3 -m pytest", "test"], ["uv run pytest", "test"],
+    ["python3 -m unittest discover", "test"], ["python3 -m pytest tests", "test"], ["uv run pytest -q", "test"],
+    ["python3 -m pytest_other", "run"], ["python3 -m http.server", "run"], ["uv run python", "run"],
+    ["go test", "test"], ["cargo test", "test"], ["git commit -m", "git"], ["gh pr", "git"],
     ["npm run build", "run"], ["ls", "run"], ["gitk", "run"], [undefined, "run"],
   ])("classifies command %s as %s", (head, activity) => {
     expect(commandActivity(head)).toBe(activity);
@@ -24,7 +28,13 @@ describe("activity classification", () => {
     expect(classifyActivity({ state: "thinking", hook: "UserPromptSubmit" })).toBe("think");
     expect(classifyActivity({ state: "working", hook: "PreToolUse", tool: "Bash", target: "npm test" })).toBe("test");
     expect(classifyActivity({ state: "waiting_input", hook: "Notification" })).toBe("ask");
+    expect(classifyActivity({ state: "idle", hook: "Notification" })).toBe("idle");
+    expect(classifyActivity({ state: "thinking", hook: "Notification" })).toBe("think");
+    expect(classifyActivity({ state: "success", hook: "Notification" })).toBeUndefined();
+    expect(classifyActivity({ state: "working", hook: "Notification" })).toBeUndefined();
+    expect(classifyActivity({ state: "waiting_input", hook: "PermissionRequest" })).toBe("ask");
     expect(classifyActivity({ state: "working", hook: "PreCompact" })).toBe("rest");
+    expect(classifyActivity({ state: "thinking", hook: "PostCompact" })).toBe("idle");
     expect(classifyActivity({ state: "success", hook: "Stop" })).toBe("idle");
     expect(classifyActivity({ state: "idle", hook: "PostToolUseFailure", tool: "Bash" })).toBe("idle");
     expect(classifyActivity({ state: "error", hook: "PostToolUseFailure", tool: "Bash" })).toBeUndefined();

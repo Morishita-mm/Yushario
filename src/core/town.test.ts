@@ -71,7 +71,7 @@ describe("townView", () => {
     expect(townView(room, MOOD_RULES.dozingMs).projects[0].heroes[0]).toMatchObject({ monster, place });
   });
 
-  it.each<Activity>(["idle", "think", "read", "search", "web", "git", "plan", "ask", "tool", "rest"])
+  it.each<Activity>(["idle", "think", "read", "search", "web", "git", "plan", "ask", "tool"])
     ("places nonbattle %s in town until the dozing threshold", (activity) => {
       const room = new Room();
       arrive(room, "a").activity = activity;
@@ -105,5 +105,41 @@ describe("townView", () => {
     expect(view.names).not.toBe(previous);
     expect([...room.agents.values()]).toEqual(before);
     expect(townView(room, 0, previous)).toEqual(view);
+  });
+});
+
+describe("townView rest", () => {
+  it("puts compacting heroes in the church, never in the inn even after the dozing threshold", () => {
+    const room = new Room();
+    const agent = arrive(room, "a");
+    room.apply({ state: "working", agent: "a", hook: "PreCompact" }, 1);
+    expect(agent.activity).toBe("rest");
+    expect(townView(room, 2).projects[0].heroes[0]).toMatchObject({ place: "church", party: [] });
+    agent.running = false;
+    expect(townView(room, MOOD_RULES.dozingMs + 1).projects[0].heroes[0].place).toBe("church");
+  });
+
+  it.each([undefined, "Compaction failed", "Compaction cancelled"])
+    ("returns to town after PostCompact (%s), keeping ordinary dozing in the inn", (detail) => {
+      const room = new Room();
+      arrive(room, "a");
+      room.apply({ state: "working", agent: "a", hook: "PreCompact" }, 1);
+      room.apply({ state: "idle", agent: "a", hook: "PostCompact", detail }, 2);
+      const hero = townView(room, 3).projects[0].heroes[0];
+      expect(hero.agent.activity).toBe("idle");
+      expect(hero.place).toBe("town");
+      expect(hero).not.toHaveProperty("monster");
+      expect(townView(room, MOOD_RULES.dozingMs + 2).projects[0].heroes[0].place).toBe("inn");
+    });
+
+  it("keeps prayer, dozing, and a battle in separate places in the same town", () => {
+    const room = new Room();
+    arrive(room, "sleep");
+    arrive(room, "prayer");
+    arrive(room, "fighter");
+    room.apply({ state: "working", agent: "prayer", hook: "PreCompact" }, MOOD_RULES.dozingMs);
+    room.apply({ state: "working", agent: "fighter", hook: "PreToolUse", tool: "Edit" }, MOOD_RULES.dozingMs);
+    expect(townView(room, MOOD_RULES.dozingMs).projects[0].heroes.map((hero) => hero.place))
+      .toEqual(["inn", "church", "meadow"]);
   });
 });

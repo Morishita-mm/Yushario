@@ -3,7 +3,7 @@ import { defineConfig } from "vite";
 export default defineConfig({
   build: {
     rolldownOptions: {
-      input: { index: "index.html", live2d: "live2d.html", terminal: "terminal.html", art: "art.html", mock: "mock.html" },
+      input: { index: "index.html", terminal: "terminal.html", art: "art.html", mock: "mock.html" },
     },
   },
   server: {

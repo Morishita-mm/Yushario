@@ -1,5 +1,6 @@
 import type { HeroPlace, TownHero } from "../../core/town";
 import type { Sheets } from "../town/sheets";
+import { CHURCH_SLOTS } from "../town/church";
 import type { Walker } from "../town/walkers";
 import { latestReport, unreadReports } from "./read-reports";
 import { REPORT_FRAME } from "./report-card";
@@ -14,7 +15,8 @@ export function reportSigns(heroes: TownHero[], walkers: Walker[], place: "world
     const walker = walkers.find((item) => item.id === hero.id);
     const at = focused ? [w / 2 - Math.min(hero.party.length, 4) * 32, h - 44 - 60] : place === "town" ? walker && [walker.x, walker.y - 60]
       : place === "inn" ? index < 6 && [200 + index * 112, 280]
-        : index < SLOTS.length && [SLOTS[index][0], SLOTS[index][1] - 62];
+        : place === "church" ? index < CHURCH_SLOTS.length && [CHURCH_SLOTS[index][0], CHURCH_SLOTS[index][1] - 60]
+          : index < SLOTS.length && [SLOTS[index][0], SLOTS[index][1] - 62];
     if (!at) return [];
     return [{ id: hero.id, at: unread[unread.length - 1]?.at ?? reply.at,
       x: at[0], y: at[1], unread: Boolean(unread.length), frame: REPORT_FRAME[reply.report?.kind ?? "talk"] }];

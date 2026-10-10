@@ -15,7 +15,7 @@ const TOOLS: Record<string, Activity> = {
   AskUserQuestion: "ask",
 };
 
-const TEST_COMMAND = /^(?:(?:npm|pnpm|yarn|bun) (?:test|t|run (?:test|typecheck|lint|check)\S*)|npx (?:vitest|jest|tsc|eslint)|vitest|jest|pytest|tsc|eslint|go test|cargo test|rspec|mocha|phpunit)(?: |$)/;
+const TEST_COMMAND = /^(?:(?:npm|pnpm|yarn|bun) (?:test|t|run (?:test|typecheck|lint|check)\S*)|npx (?:vitest|jest|tsc|eslint)|python3? -m (?:unittest|pytest)|uv run pytest|vitest|jest|pytest|tsc|eslint|go test|cargo test|rspec|mocha|phpunit)(?: |$)/;
 
 // `target` holds the command head for Bash (see the Claude Code adapter).
 export function commandActivity(head: string | undefined): Activity {
@@ -33,9 +33,12 @@ export function toolActivity(tool: string, target?: string): Activity {
 export function classifyActivity(event: AgentEvent): Activity | undefined {
   switch (event.hook) {
     case "SessionStart": case "Stop": case "StopFailure": case "Interrupt": return "idle";
-    case "UserPromptSubmit": case "PostCompact": return "think";
+    case "UserPromptSubmit": return "think";
     case "PreCompact": return "rest";
-    case "Notification": case "PermissionRequest": return "ask";
+    case "PostCompact": return "idle";
+    case "Notification": return event.state === "waiting_input" ? "ask"
+      : event.state === "thinking" ? "think" : event.state === "idle" ? "idle" : undefined;
+    case "PermissionRequest": return "ask";
     case "PreToolUse": return event.tool ? toolActivity(event.tool, event.target) : undefined;
     case "PostToolUseFailure": return event.state === "idle" ? "idle" : undefined; // idle = interrupted
     default: return undefined;

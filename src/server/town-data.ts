@@ -5,6 +5,8 @@ import { isAbsolute, join } from "node:path";
 import { TOWN_THEMES, type TownRecord, type TownSettings, type TownTheme } from "../core/town-ledger";
 import { isClaudeSessionId, ROSTER_LIMIT, type RosterEntry } from "../core/roster";
 import { validHeroNames, type HeroNames } from "../core/names";
+import { AGENTS, PRESETS, type Preset } from "./agents";
+export type StoredRosterEntry = RosterEntry & { preset?: Preset };
 
 const directory = process.env.AGENT_CHARACTER_HOME || join(homedir(), ".config", "agent-character");
 mkdirSync(directory, { recursive: true, mode: 0o700 });
@@ -64,21 +66,23 @@ export function readSettings(): TownSettings {
   } catch (error) { quarantine("settings.json", error); return { archiveAfterDays: 30 }; }
 }
 
-export function readRoster(): RosterEntry[] {
+export function readRoster(): StoredRosterEntry[] {
   try {
     const input = read("roster.json");
     const ids = new Set<string>();
     if (!Array.isArray(input) || !input.every((entry: unknown) => {
       if (!entry || typeof entry !== "object" || Array.isArray(entry)) return false;
       const value = entry as Record<string, unknown>;
-      if (Object.keys(value).length !== 5 || !isClaudeSessionId(value.sessionId) || ids.has(value.sessionId)
+      if (Object.keys(value).some((key) => !["sessionId", "name", "project", "cwd", "leftAt", "preset"].includes(key))
+        || (value.preset !== undefined && (!PRESETS.includes(value.preset as Preset) || !AGENTS[value.preset as Preset].resume))
+        || !isClaudeSessionId(value.sessionId) || ids.has(value.sessionId)
         || typeof value.name !== "string" || !value.name || typeof value.project !== "string" || !value.project
         || typeof value.cwd !== "string" || !isAbsolute(value.cwd)
         || typeof value.leftAt !== "number" || !Number.isFinite(value.leftAt) || value.leftAt < 0) return false;
       ids.add(value.sessionId);
       return true;
     })) throw new Error("Invalid roster records");
-    return (input as RosterEntry[]).sort((a, b) => a.leftAt - b.leftAt).slice(-ROSTER_LIMIT);
+    return (input as StoredRosterEntry[]).sort((a, b) => a.leftAt - b.leftAt).slice(-ROSTER_LIMIT);
   } catch (error) { quarantine("roster.json", error); return []; }
 }
 
@@ -106,5 +110,5 @@ function write(file: string, value: TownRecord[] | TownSettings | RosterEntry[] 
 
 export function writeTowns(towns: TownRecord[]): void { write("towns.json", towns); }
 export function writeSettings(settings: TownSettings): void { write("settings.json", settings); }
-export function writeRoster(roster: RosterEntry[]): void { write("roster.json", roster); }
+export function writeRoster(roster: StoredRosterEntry[]): void { write("roster.json", roster); }
 export function writeNames(names: HeroNames): void { write("names.json", names); }

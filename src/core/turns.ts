@@ -10,6 +10,7 @@ export type TalkReport = {
   tools: number;
   startedAt: number;
   endedAt: number;
+  waitedMs?: number; // Main-session permission waits; subtract from elapsed time for display.
   mp?: { start: number; end: number };
 };
 export type TalkEntry = { at: number; from: "you" | "hero"; text: string; report?: TalkReport };
@@ -19,13 +20,15 @@ export type TalkEntry = { at: number; from: "you" | "hero"; text: string; report
 type Tool = { at: number; tools: number; failures: number; passed: number; failed: number; file?: string };
 export type Turns = {
   prompts: number[]; stops: number[]; sessions: number[]; tools: Tool[]; contexts: { at: number; value: number }[];
+  events: { at: number; permission: boolean }[];
 };
 
 export function emptyTurns(): Turns {
-  return { prompts: [], stops: [], sessions: [], tools: [], contexts: [] };
+  return { prompts: [], stops: [], sessions: [], tools: [], contexts: [], events: [] };
 }
 
 export function recordTurn(turns: Turns, event: AgentEvent, at: number): void {
+  turns.events.push({ at, permission: event.hook === "PermissionRequest" });
   if (event.context !== undefined) turns.contexts.push({ at, value: event.context });
   if (event.hook === "UserPromptSubmit") turns.prompts.push(at);
   else if (event.hook === "Stop" || event.hook === "StopFailure") turns.stops.push(at);
@@ -74,6 +77,16 @@ function reportFor(turns: Turns, end: number): TalkReport | undefined {
     report.tests.passed += tool.passed; report.tests.failed += tool.failed;
     if (tool.file && !report.files.includes(tool.file)) report.files.push(tool.file);
   }
+  // Permission waits end at the next main-session event, not at a helper's event.
+  // Recompute in event-time order so late hooks also correct an already shown card.
+  const events = turns.events.filter((event) => event.at >= start && event.at <= end).sort((a, b) => a.at - b.at);
+  let waitingAt: number | undefined, waitedMs = 0, hadPermission = false;
+  for (const event of events) {
+    if (waitingAt !== undefined) waitedMs += event.at - waitingAt;
+    waitingAt = event.permission ? event.at : undefined;
+    hadPermission ||= event.permission;
+  }
+  if (hadPermission) report.waitedMs = waitedMs;
   report.kind = report.files.length ? "chest" : report.tools ? "scroll" : "talk";
   const mpStart = mpAt(turns, start), mpEnd = mpAt(turns, end);
   if (mpStart !== undefined && mpEnd !== undefined) report.mp = { start: mpStart, end: mpEnd };
@@ -86,7 +99,10 @@ export function attachReports(talk: TalkEntry[], turns: Turns): void {
     if (entry.from !== "hero") continue;
     const report = reportFor(turns, entry.at);
     if (!report) delete entry.report;
-    else if (entry.report) Object.assign(entry.report, report);
+    else if (entry.report) {
+      delete entry.report.waitedMs;
+      Object.assign(entry.report, report);
+    }
     else entry.report = report;
   }
 }
@@ -98,6 +114,7 @@ export function pruneTurns(turns: Turns, oldest: number): void {
   turns.prompts = turns.prompts.filter(keep);
   turns.stops = turns.stops.filter(keep);
   turns.sessions = turns.sessions.filter(keep);
+  turns.events = turns.events.filter((event) => keep(event.at));
   turns.tools = turns.tools.filter((tool) => keep(tool.at));
   const before = contextAt(turns, from - 1); // still the MP at the start of the oldest round
   turns.contexts = [...(before ? [before] : []), ...turns.contexts.filter((context) => keep(context.at))];

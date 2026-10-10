@@ -10,7 +10,7 @@ const DOING: Record<Activity, (target: string) => string> = {
   run: (t) => `じゅもん「${t || "？"}」を となえている`, git: (t) => `ぼうけんのしょに きろくしている ${t}`,
   web: (t) => `ものみのとうで ${t || "とおく"}を みている`, plan: () => "クエストを ねっている",
   delegate: () => "なかまと ドラゴンに いどんでいる", ask: () => "あなたを よんでいる！",
-  tool: (t) => `どうぐを つかっている ${t}`, rest: () => "きょうかいで いのっている",
+  tool: (t) => `どうぐを つかっている ${t}`, rest: () => "きょうかいで いのりを ささげている（会話の せいり）",
 };
 const MOODS: Record<Mood, string> = {
   waiting_long: "⏳ まちくたびれている", struggling: "💦 くるしい たたかい", recovered: "✨ たちなおった",
@@ -26,6 +26,7 @@ export function element<K extends keyof HTMLElementTagNameMap>(tag: K, className
 
 function bar(label: string, value: number, color: string): HTMLElement {
   const row = element("div", "bar");
+  row.title = label === "HP" ? "HP＝最近の 失敗の 少なさ。時間が たつと 回復します。" : "MP＝会話の 残り（コンテキストの 空き）。不明な時は 目安です。";
   const track = element("span", "track");
   const fill = element("span", "fill");
   fill.style.width = `${Math.round(Math.max(0, Math.min(1, value)) * 100)}%`;
@@ -33,6 +34,11 @@ function bar(label: string, value: number, color: string): HTMLElement {
   track.append(fill);
   row.append(element("span", "label", label), track, element("span", "value", `${Math.round(value * 100)}`));
   return row;
+}
+function levelLabel(level: number): HTMLElement {
+  const label = element("span", "level", `Lv ${level}`);
+  label.title = "Lv＝成功した ツールや クエストによる 活躍の 目安。能力の 評価では ありません。";
+  return label;
 }
 function hpColor(hp: number): string { return hp > 0.5 ? "#7ee08a" : hp > 0.25 ? "#ffd35a" : "#ff6b5b"; }
 
@@ -44,7 +50,7 @@ export function compactRow(agent: RoomAgent, now: number, name: string, selected
   const doing = DOING[agent.activity](agent.target ?? "");
   row.title = `${name} · Lv ${level} · HP ${Math.round(hp * 100)} · MP ${Math.round(mp * 100)} · ${doing}`;
   row.setAttribute("aria-label", row.title);
-  row.append(element("span", "compact-name", `${waiting ? "！ " : ""}${name}`), element("span", "level", `Lv ${level}`));
+  row.append(element("span", "compact-name", `${waiting ? "！ " : ""}${name}`), levelLabel(level));
   const bars = element("span", "compact-bars"); bars.append(bar("HP", hp, hpColor(hp)), bar("MP", mp, "#62b8ff"));
   row.append(bars, element("span", "compact-doing", doing));
   row.addEventListener("click", pick);
@@ -59,7 +65,7 @@ export function statusCard(agent: RoomAgent, agentMoods: Mood[], permission: HTM
   if (!detailed) card.addEventListener("click", select);
   const head = element("header");
   const crest = element("span", "crest"); crest.style.background = heroAccent(agent.id);
-  head.append(crest, element("strong", undefined, name), element("span", "level", `Lv ${level}`));
+  head.append(crest, element("strong", undefined, name), levelLabel(level));
   card.append(head, bar("HP", hp, hpColor(hp)), bar("MP", mp, "#62b8ff"));
   card.append(element("p", "doing", `▶ ${DOING[agent.activity](agent.target ?? "")}`));
   if (detailed) {

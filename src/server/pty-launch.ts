@@ -2,12 +2,12 @@ import { accessSync, constants, writeFileSync } from "node:fs";
 import { delimiter, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node-pty";
-import type { Preset } from "./pty-session";
+import { AGENTS, type Preset } from "./agents";
 import { isClaudeSessionId } from "../core/roster";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
 // Keep user configuration, but not server secrets or inherited child-session markers.
-const serverOnlyEnvironment = ["TYPESAFE_API_KEY", "AGENT_CHARACTER_TOKEN", "CLAUDE_CODE_CHILD_SESSION", "CLAUDECODE"];
+const serverOnlyEnvironment = ["AGENT_CHARACTER_TOKEN", "CLAUDE_CODE_CHILD_SESSION", "CLAUDECODE"];
 
 function executable(command: string): string | undefined {
   const paths = command.includes("/") ? [command]
@@ -37,15 +37,17 @@ export function writeClaudeSettings(port: number, temporary: string): string {
 }
 
 export function launchPty(preset: Preset, cwd: string, id: string, port: number, settings: string, resume?: string) {
-  if (resume !== undefined && !isClaudeSessionId(resume)) throw new Error("Invalid Claude sessionId");
-  const program = preset === "shell" ? process.env.SHELL || "/bin/sh" : preset;
+  const agent = AGENTS[preset];
+  if (resume !== undefined && (!agent.resume || !isClaudeSessionId(resume))) throw new Error("再開する勇者の ID が正しくありません");
+  const program = agent.command;
   const path = executable(program);
   if (!path) throw new Error(`${program} が PATH に見つかりません。インストールして server を再起動してください`);
-  const args = preset === "claude" ? ["--settings", settings, ...(resume ? ["--resume", resume] : [])]
-    : preset === "pi" ? ["-e", join(root, "adapters/pi/agent-character.ts")] : [];
+  const args = [...agent.args.map((arg) => arg === "$settings" ? settings : arg),
+    ...(resume ? [...agent.resumeArgs, resume] : [])];
   const env = Object.fromEntries(Object.entries(process.env).filter((entry): entry is [string, string] => entry[1] !== undefined));
   for (const name of serverOnlyEnvironment) delete env[name];
   env.AGENT_CHARACTER_URL = `http://127.0.0.1:${port}/event`;
   env.AGENT_CHARACTER_SESSION = id;
-  return spawn(path, args, { name: "xterm-256color", cols: 80, rows: 24, cwd, env });
+  try { return spawn(path, args, { name: "xterm-256color", cols: 80, rows: 24, cwd, env }); }
+  catch { throw new Error(`${agent.label} を起動できませんでした。インストールとフォルダの権限を確認してください`); }
 }

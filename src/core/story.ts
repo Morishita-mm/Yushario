@@ -3,7 +3,7 @@ import type { AgentEvent } from "./events";
 import { MOOD_RULES, type RoomAgent } from "./room";
 
 // The RPG telling of agent work (docs/OBSERVATION.md): agents are heroes, work is battle,
-// subagents join the party, rest happens at the inn.
+// subagents join the party, compacting is prayer at the church (dozing belongs in the inn).
 export type Job = "hero" | "warrior" | "mage" | "thief" | "priest";
 export type MonsterKind = "slime" | "ghost" | "golem" | "dragon";
 
@@ -67,11 +67,13 @@ export function narrate(event: AgentEvent): string | undefined {
     case "SessionEnd": return `${name}は 旅立っていった。`;
     case "Interrupt": return `${name}は たたかいから にげだした！`;
     case "UserPromptSubmit": return `${name}は あたらしい いらいを うけた！`;
-    case "Notification": return `${name}は あなたを よんでいる！`;
+    case "Notification": return event.state === "waiting_input" ? `${name}は あなたを よんでいる！`
+      : event.state === "idle" ? `${name}は つぎの いらいを まっている。` : undefined;
     case "PermissionRequest": return `${name}は ${event.tool ?? "じゅもん"}の きょかを もとめている！`;
-    case "PreCompact": return `${name}は 教会で いのりを ささげた…`;
-    case "PostCompact": return `${name}の MPが かいふくした！`;
-    case "Stop": return `${name}は 宿屋で ひとやすみ することにした。`;
+    case "PreCompact": return `${name}は きょうかいで いのりを ささげている`;
+    case "PostCompact": return event.detail === "Compaction failed" || event.detail === "Compaction cancelled"
+      ? `${name}は 会話を せいりできなかった。町で ひとやすみ。` : `${name}の MPが かいふくした！`;
+    case "Stop": return `${name}は 町で ひとやすみ することにした。`;
     case "StopFailure": return `${name}は ちからつきた…`;
     case "TaskCreated": return `クエスト${quoted(event.task?.subject, "")}を うけた！`;
     case "TaskCompleted": return `クエスト${quoted(event.task?.subject, "")}を たっせいした！`;

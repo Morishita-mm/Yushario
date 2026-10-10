@@ -1,7 +1,7 @@
 import { moods, type Room, type RoomAgent } from "./room";
 import { battleMonster, jobOf, type Job, type MonsterKind } from "./story";
 
-export type HeroPlace = "town" | "inn" | "meadow" | "cave" | "forest";
+export type HeroPlace = "town" | "inn" | "church" | "meadow" | "cave" | "forest";
 export type TownHero = {
   id: string;
   name: string;
@@ -39,7 +39,7 @@ export function townView(room: Room, now: number, previous: TownNames = []): {
     const monster = battleMonster(agent.activity);
     const place: HeroPlace = monster
       ? monster === "golem" ? "cave" : monster === "ghost" ? "forest" : "meadow"
-      : moods(agent, now).includes("dozing") ? "inn" : "town";
+      : agent.activity === "rest" ? "church" : moods(agent, now).includes("dozing") ? "inn" : "town";
     town.heroes.push({
       id: agent.id, name: assigned.name, project, place,
       ...(monster ? { monster } : {}),

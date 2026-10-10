@@ -22,6 +22,8 @@ nav button { font: inherit; font-size: 13px; background: #1d2433; color: #fff; b
 nav button.on { border-color: #ffe066; color: #ffe066; }
 #caption { margin: 0 0 10px; font-size: 14px; color: #d8d4ea; }
 #mock { width: 100%; max-width: 1400px; image-rendering: pixelated; border: 3px solid #fff; border-radius: 6px; background: #000; }
+#messages { margin: 10px 0 0; padding: 10px 14px; border: 2px solid #fff; border-radius: 6px; background: #0a0a1a; }
+#messages:empty { display: none; }
 nav button { display: inline-flex; align-items: center; gap: 6px; min-width: 7.5em; justify-content: space-between; }
 nav button .count { color: #c9c3dc; font-size: 12px; min-width: 2.6em; text-align: right; }
 nav button .alert { visibility: hidden; width: 1.1em; font-size: 12px; }

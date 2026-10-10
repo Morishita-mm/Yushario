@@ -11,7 +11,7 @@ interface Handlers {
   toast: (text: string) => void;
 }
 
-const PLANS = ["いったん とまって ほうこくして", "テストを とおして", "コミットして", "ほうしんを みなおして"];
+const PLANS = ["テストを とおして", "コミットして", "ほうしんを みなおして"];
 
 function element<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
@@ -20,7 +20,7 @@ function element<K extends keyof HTMLElementTagNameMap>(tag: K, className?: stri
   return node;
 }
 
-function place(layer: HTMLElement, box: HTMLElement, at: [number, number], dismiss = () => close(layer)): void {
+function place(layer: HTMLElement, box: HTMLElement, at: [number, number], dismiss = () => close(layer), initial = 0): void {
   layer.classList.add("menu-layer");
   layer.replaceChildren(box);
   layer.hidden = false;
@@ -64,7 +64,7 @@ function place(layer: HTMLElement, box: HTMLElement, at: [number, number], dismi
       (selected && !selected.disabled ? selected : buttons[0]).click();
     }
   });
-  select(0);
+  select(initial);
 }
 
 function close(layer: HTMLElement): void {
@@ -189,7 +189,7 @@ function showFarewell(layer: HTMLElement, hero: Pick<HeroState, "name" | "fighti
   farewell: () => void, dismiss = () => close(layer)): void {
   const working = hero.fighting;
   showConfirmation(layer, hero.at, working ? "中断して たびだたせますか？" : `${hero.name} を みおくりますか？`,
-    "セッションを おわります。Claude Code の勇者は めいぼから よびもどせます。", () => {
+    "セッションを おわります。再開に 対応する 勇者は めいぼから よびもどせます。", () => {
       if (!working && hero.fighting) showFarewell(layer, hero, farewell, dismiss);
       else farewell();
     }, dismiss);
@@ -203,7 +203,7 @@ function showConfirmation(layer: HTMLElement, at: [number, number], title: strin
   const list = element("div", "commands row");
   list.append(option("はい", yes), option("いいえ", no));
   box.append(list);
-  place(layer, box, at, no);
+  place(layer, box, at, no, 1);
 }
 
 export function showDraftConfirmation(layer: HTMLElement, at: [number, number], yes: () => void, no: () => void): void {

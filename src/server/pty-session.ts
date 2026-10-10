@@ -2,11 +2,11 @@ import { isAbsolute } from "node:path";
 import type { IPty } from "node-pty";
 import type { WebSocket } from "ws";
 
-export const PRESETS = ["shell", "claude", "pi", "codex"] as const;
+import { PRESETS, type Preset } from "./agents";
+export { PRESETS, type Preset } from "./agents";
 export const SESSION_LIMIT = 16;
 export const OUTPUT_LIMIT = 256 * 1024;
 
-export type Preset = typeof PRESETS[number];
 export type TerminalSession = {
   id: string; preset: Preset; cwd: string; project: string; createdAt: number;
   exited?: { code: number };
@@ -16,17 +16,17 @@ export type Session = {
   info: TerminalSession; terminal: IPty; output: Buffer; clients: Set<WebSocket>; stop: () => void;
   waiting: boolean; eventAt: number; texts: string[]; enter?: ReturnType<typeof setTimeout>;
   interrupted: boolean; interrupting: boolean; departing: boolean; ended?: boolean;
-  claudeId?: string; hasPrompt: boolean; name: string;
+  agentId?: string; hasPrompt: boolean; name: string; attention?: boolean;
   finished: Promise<void>; finish: () => void;
 };
 export type PendingMessage = { type: "pending"; terminal: string; texts: string[] };
 
 export function sessionInput(input: unknown): { preset: Preset; cwd?: string } {
-  if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("Session must be an object");
+  if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("起動の設定を指定してください");
   const value = input as Record<string, unknown>;
-  if (!PRESETS.includes(value.preset as Preset)) throw new Error("Unknown preset");
+  if (!PRESETS.includes(value.preset as Preset)) throw new Error("勇者の種類が正しくありません");
   if (value.cwd !== undefined && (typeof value.cwd !== "string" || !isAbsolute(value.cwd))) {
-    throw new Error("cwd must be an absolute directory path");
+    throw new Error("行き先はフォルダの絶対パスで指定してください");
   }
   return { preset: value.preset as Preset, ...(value.cwd !== undefined ? { cwd: value.cwd as string } : {}) };
 }

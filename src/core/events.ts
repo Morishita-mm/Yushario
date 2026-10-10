@@ -13,7 +13,7 @@ export interface AgentEvent {
   source?: string;
   tool?: string;
   context?: number; // Context window usage, when known (0–1).
-  // Room fields (docs/OBSERVATION.md). Local display only: never sent to the Decider.
+  // Room fields (docs/OBSERVATION.md), for local display only.
   agent?: string; // Session id; one character per session.
   name?: string; // Display name (last segment of the working directory).
   terminal?: string; // Embedded terminal session id.
@@ -109,11 +109,4 @@ export function parseAgentEvent(
 
 function shortText(value: unknown): boolean {
   return typeof value === "string" && value.length > 0 && value.length <= MAX_EVENT_METADATA_LENGTH;
-}
-
-// The Decider (and so Jev) never sees conversation text, names, targets or tasks.
-export function deciderEvent(event: AgentEvent): AgentEvent {
-  const { state, detail, ts, source, tool, context } = event;
-  return Object.fromEntries(Object.entries({ state, detail, ts, source, tool, context })
-    .filter(([, value]) => value !== undefined)) as unknown as AgentEvent;
 }

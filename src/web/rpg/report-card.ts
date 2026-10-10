@@ -33,7 +33,7 @@ export function createReportCard(entry: Reply, name: string) {
   const time = new Date(entry.at).toLocaleTimeString("ja-JP", { hour12: false });
   const caption = node("div", "report-caption");
   caption.append(node("h4", "report-headline", reportHeadline(entry)),
-    node("p", "report-time", `${name} · ${time}${entry.report ? ` · ${duration(entry.report.endedAt - entry.report.startedAt)}` : " · 集計なし"}`));
+    node("p", "report-time", `${name} · ${time}${entry.report ? ` · ${duration(entry.report.endedAt - entry.report.startedAt - (entry.report.waitedMs ?? 0))}${entry.report.waitedMs ? `（きょか まち ${duration(entry.report.waitedMs)} を のぞく）` : ""}` : " · 集計なし"}`));
   head.append(icon, caption); row.append(head);
   const report = entry.report;
   if (report) {

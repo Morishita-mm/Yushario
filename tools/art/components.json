@@ -84,7 +84,19 @@
    ],
    "prompt": "Town actions of the same hero, all facing the viewer: (1) reading an open brown book held in both hands; (2) praying with hands together and eyes closed; (3) calling out, one arm waving high above the head, mouth open; (4) writing on a sheet of paper with a quill; (5) looking into the distance, one hand shading the eyes.",
    "sub": "勇者（マップ用）",
-   "use": "町での作業：読む・祈る（git／compact）・呼ぶ・書く（計画）・遠見（Web）"
+   "use": "町での作業：読む・祈る（git）・呼ぶ・書く（計画）・遠見（Web）"
+  },
+  {
+   "id": "hero-pray",
+   "group": "キャラクター",
+   "name": "勇者 きょうかいで祈る（2コマ）",
+   "size": [32, 40],
+   "ref": "hero-model",
+   "frames": ["kneel facing up (back)", "breathe facing up (back)"],
+   "fit": {"frame": 0, "like": "hero-model", "refFrame": 0, "dim": "w"},
+   "prompt": "Exactly the same young hero as the reference, KNEELING facing STRAIGHT UP toward the TOP of the screen, away from the viewer toward an altar. STRICT DIRECT BACK VIEW, symmetric shoulders, NOT profile, NOT three-quarter, NOT facing right. The back of the brown spiky head and the short red cape are visible; NO face, NO eyes, NO nose visible. Gold circlet, blue tunic, white sleeves, brown boots, sheathed sword. Head bowed in prayer, both knees on the floor, heels tucked beneath the body. Two almost identical frames with the same anchored knees: calm prayer; one art-pixel dip of the head and shoulders for breathing. Keep exactly the head size and body thickness of the reference back view; kneeling is shorter than standing. Hero alone, no altar, furniture, floor or effects.",
+   "sub": "勇者（マップ用）",
+   "use": "やすむ（PreCompact〜PostCompact）で、きょうかいの祭壇の前にひざまずいて祈る"
   },
   {
    "id": "hero-sleep",
@@ -328,7 +340,7 @@
   {
    "id": "inn-wall",
    "group": "まち",
-   "name": "宿屋の奥の壁（窓・扉）",
+   "name": "宿屋の奥の壁（窓・ランタン）",
    "size": [
     176,
     32
@@ -336,7 +348,8 @@
    "frames": [
     "wall"
    ],
-   "prompt": "The back interior wall of a cosy medieval inn, a long horizontal strip: warm wooden plank wall, two small windows with warm yellow light, a central doorway, a wall lantern, a small shelf with a mug.",
+   "fit": {"frame": 0, "w": 264},
+   "prompt": "The back interior wall of a cosy medieval inn, a wide low horizontal strip: warm wooden plank wall, two small CLOSED glass windows with warm yellow light, a wall lantern, a small shelf with a mug. Continuous solid wood wall across the centre, no doors, no doorways, no openings. The entrance is at the FRONT of the room on the viewer side, outside this image. No arches, no dark entrance-like recesses. Interior back wall only, no floor, no roof. A clean horizontal rectangle.",
    "sub": "宿屋の中",
    "use": "宿屋の中の奥の壁"
   },
@@ -376,6 +389,75 @@
    "prompt": "A rectangular red woven rug with a gold border pattern, seen from above, flat.",
    "sub": "宿屋の中",
    "use": "宿屋の中の飾り"
+  },
+  {
+   "id": "church-wall",
+   "group": "まち",
+   "name": "きょうかいの奥の壁（ステンドグラス）",
+   "size": [264, 64],
+   "ref": "inn-wall",
+   "frames": ["wall"],
+   "fit": {"frame": 0, "like": "inn-wall", "dim": "w"},
+   "prompt": "A 264 by 64 art-pixel rectangular back INTERIOR wall panel of a peaceful medieval JRPG church, about FOUR times wider than tall, same pixel scale and front/slightly overhead perspective as the inn wall reference. Pale cream stone blocks and simple slim stone columns at the ends. One SMALL arched CLOSED stained-glass WINDOW placed HIGH in the upper part of the wall, blue and gold glass with a small red jewel. The window occupies only the upper half of the panel: its glass and frame end well ABOVE the floor. Draw a clearly projecting HORIZONTAL STONE WINDOWSILL under the glass. Beneath that sill, the ENTIRE lower third is an uninterrupted solid stone dado / waist-high wall of at least TWO visible courses of masonry across the centre, with a continuous baseboard along the bottom. The window must read as a raised WINDOW, NEVER a floor-to-ceiling arch, doorway or door. No doors, no doorways, no openings, no dark passages. The entrance is at the FRONT of the room on the viewer side, outside this image. Flat wall only, no roof, exterior building, floor, altar or foreground. A clean horizontal rectangle that can be repeated side by side.",
+   "sub": "きょうかいの中",
+   "use": "宿屋と同じ幅の室内の奥に3枚並べる壁。上部のステンドグラス窓と窓台、下部は連続した腰壁"
+  },
+  {
+   "id": "church-altar",
+   "group": "まち",
+   "name": "きょうかいの祭壇",
+   "size": [64, 40],
+   "frames": ["altar"],
+   "fit": {"frame": 0, "w": 100},
+   "prompt": "One small medieval JRPG church ALTAR, front view with a slight top-down angle, same 16-bit pixel style as the town furniture. A cream stone rectangular altar table with a white cloth trimmed in gold and blue, a small golden cross and an open book resting on top. Simple clean clusters, not an elaborate cathedral. The entire altar alone, no floor, wall or people. Approximately twice a standing hero's width, table surface near the hero's waist.",
+   "sub": "きょうかいの中",
+   "use": "祈る勇者の奥に置く祭壇"
+  },
+  {
+   "id": "church-pew",
+   "group": "まち",
+   "name": "きょうかいの長椅子",
+   "size": [72, 32],
+   "frames": ["pew"],
+   "fit": {"frame": 0, "w": 112},
+   "prompt": "One wooden church pew for a 16-bit JRPG town interior, warm walnut and gold-brown timber, simple long horizontal seat with a low backrest and two sturdy ends. Front view from slightly overhead, visitors would face toward the back of the room. Same perspective as the inn beds and furniture, clean chunky pixels. One empty bench only, no floor or wall or characters.",
+   "sub": "きょうかいの中",
+   "use": "中央の通路を空け、左右に並べる長椅子"
+  },
+  {
+   "id": "church-rug",
+   "group": "まち",
+   "name": "きょうかいのじゅうたん（奥・継ぎ目なしの中・手前）",
+   "size": [64, 20],
+   "ref": "inn-rug",
+   "frames": ["far end (top border)", "seamless middle (no horizontal border)", "near end (bottom border)"],
+   "fit": {"frame": 0, "like": "inn-rug", "dim": "w"},
+   "prompt": "THREE equal-width rectangular sections of ONE continuous blue church carpet runner, straight top-down view. Deep blue centre, simple gold side stripes, small gold diamond motifs. Frame 1: the FAR/TOP cap with a gold horizontal border ONLY at the top, open blue bottom. Frame 2: the MIDDLE repeat tile, gold stripes ONLY on the left/right, absolutely NO top/bottom borders, NO fringe, NO horizontal edge or shadow. Frame 3: the NEAR/BOTTOM cap with a gold horizontal border ONLY at the bottom, open blue top. The exact same left/right edges and blue colours in all frames, perfectly vertical and rectangular, no perspective taper. Frame 2 top and bottom pixels must match seamlessly, so stacking top + many middles + bottom forms ONE long carpet without visible joins. Rug sections alone, no furniture, characters, floor or wall.",
+   "sub": "きょうかいの中",
+   "use": "画面手前の入口から祭壇まで、奥の端＋真ん中の繰り返し＋手前の端で1本につなぐ"
+  },
+  {
+   "id": "church-candles",
+   "group": "まち",
+   "name": "きょうかいの燭台",
+   "size": [24, 40],
+   "frames": ["candles"],
+   "fit": {"frame": 0, "h": 53},
+   "prompt": "One small freestanding golden brass church candelabrum in 16-bit JRPG pixel art, front view with a slight top-down angle. Three short white candles on curved arms, tiny warm yellow flames, a slender gold stem and sturdy base. Same pixel scale as the town's standing hero, about one hero tall. Clean readable silhouette, no particles, glow haze, floor, wall or people.",
+   "sub": "きょうかいの中",
+   "use": "祭壇の左右に置く燭台"
+  },
+  {
+   "id": "church-priest",
+   "group": "まち",
+   "name": "神父さま（待機2コマ）",
+   "size": [32, 48],
+   "ref": "hero-model",
+   "frames": ["idle", "blink"],
+   "fit": {"frame": 0, "like": "hero-model", "refFrame": 0, "dim": "h"},
+   "prompt": "A kind elderly village church PRIEST NPC, facing the viewer, immediately recognizable as a Christian cleric, same pixel scale, chibi proportions and selective outline style as the hero reference, but NOT the hero's costume. Wear a TALL POINTED BISHOP'S MITRE, cream-white with gold edges and a clearly readable GOLD CROSS decoration on its front; the tall hat is the defining silhouette. Silver side hair, short white beard and friendly small eyes below the hat. Wear a LONG cream-white clerical ROBE reaching the feet, blue trim at the hem, and a GOLD STOLE: TWO distinct long vertical bands draped from BOTH shoulders down the front almost to the hem, with small blue cross decorations. Hands calmly folded at the waist between the hanging stole ends. No weapon, no staff. Two almost identical idle frames: eyes open; gently blinking with a tiny robe highlight change. Feet, hat, head position, silhouette and size stay anchored, no jumping. Keep the ENTIRE priest including the mitre about the same height as the standing hero. One priest alone in each frame, no altar, furniture, floor, glow or effects.",
+   "sub": "きょうかいの中",
+   "use": "祭壇のそば。クリックで一言を順番に話す（MP・やすむの案内を含む）"
   },
   {
    "id": "obj-crystal",
@@ -512,6 +594,18 @@
    "prompt": "Small white speech balloon icons with a dark outline and a little tail at the bottom, each containing one symbol: a red exclamation mark; three dark dots; a blue Zz; a sand hourglass; a music note; a blue sweat drop; a red heart.",
    "sub": "UI",
    "use": "頭上の吹き出し：！呼ぶ・…考え中・Zz 居眠り・⏳ 長い待ち・♪ 好調・汗 苦戦・ハート 立ち直り"
+  },
+  {
+   "id": "ui-prayer-balloon",
+   "group": "演出",
+   "name": "祈りの吹き出し（合わせた両手）",
+   "size": [16, 16],
+   "ref": "ui-balloons",
+   "frames": ["praying hands"],
+   "fit": {"frame": 0, "like": "ui-balloons", "refFrame": 2, "dim": "h"},
+   "prompt": "ONE small white speech balloon, matching exactly the reference balloons' compact rounded shape, dark purple one-pixel outline and small pointed tail at bottom centre. Inside, clearly readable TWO HANDS pressed palm-to-palm in prayer: upright fingers pointing up, warm golden skin, blue sleeve cuffs at the bottom on both sides. Symmetric folded/praying hands, NOT a single hand, NOT a high five, no face, letters, text, rays, sparkles or other symbols. The white balloon and tail have exactly the same scale as the reference sleep Zz balloon. One balloon only, centred, no other objects.",
+   "sub": "UI",
+   "use": "きょうかいで祈る勇者の頭上。宿屋の Zz と同じ1ドットの上下の揺れ"
   },
   {
    "id": "hero-walk-back",

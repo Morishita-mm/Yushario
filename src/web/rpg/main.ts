@@ -9,6 +9,8 @@ import type { Session } from "../terminal";
 import { initHeroActions } from "./hero-commands";
 import { initRoster } from "./roster";
 import { initExpedition } from "./expedition";
+import { initTerminals } from "./terminals";
+import { initHelp } from "./help";
 import { initTalk } from "./talk";
 import { initNotices } from "./notices";
 import { loadNames, parseNames } from "./names";
@@ -18,7 +20,6 @@ import "./talk.css";
 const token = new URLSearchParams(location.search).get("token") ?? "";
 const canvas = document.querySelector<HTMLCanvasElement>("#world")!;
 const connectionLabel = document.querySelector<HTMLElement>("#connection")!;
-document.querySelector<HTMLAnchorElement>("#live2d-link")!.search = location.search;
 const scene = new Scene(canvas, document.querySelector<HTMLElement>("#town-layer")!,
   (id, at) => talk.open(id, at), (terminal) => void expedition.openTerminal(terminal),
   (id) => status.openDetails(room, Date.now(), id, scene.names),
@@ -31,12 +32,17 @@ const expedition = initExpedition(() => scene.currentTown, (terminal) => {
   return agent && (scene.names.get(agent.id) ?? agent.name);
 }, arrived, (terminal) => [...room.agents.values()].find((agent) => agent.terminal === terminal)?.id,
   (id) => talk.open(id));
-function arrived(session: Session, towns: TownRecord[]): void {
+function arrived(session: Session, towns: TownRecord[], recalled = false): void {
   // Launch and recall both register the town before the hero reaches its gate.
   scene.setTowns(towns); scene.expectArrival(session.id);
-  scene.enterTown(session.project, () => talk.openSession(session.id));
+  scene.enterTown(session.project, () => talk.openSession(session.id, recalled));
 }
-initRoster(arrived);
+initRoster((session, towns) => arrived(session, towns, true));
+initHelp();
+initTerminals((terminal) => {
+  const agent = [...room.agents.values()].find((item) => item.terminal === terminal);
+  return agent && (scene.names.get(agent.id) ?? agent.name);
+}, (terminal) => void expedition.openTerminal(terminal));
 const talk = initTalk((id) => room.agents.get(id), (id) => scene.names.get(id),
   (terminal) => void expedition.openTerminal(terminal),
   (terminal) => [...room.agents.values()].find((agent) => agent.terminal === terminal));
@@ -48,6 +54,7 @@ const status = new Status(
   (agent) => scene.select(agent),
   (terminal) => void expedition.openTerminal(terminal),
   namesChanged,
+  (id) => scene.select(id, true),
 );
 function namesChanged(names: Record<string, string>): void {
   scene.savedNames.clear();
@@ -56,7 +63,8 @@ function namesChanged(names: Record<string, string>): void {
 }
 
 const actions = initHeroActions((id) => room.agents.get(id), talk,
-  (id) => scene.prepareDeparture(id), () => status.closeDetails(), (text) => messages.say(text, Date.now()));
+  (id) => scene.prepareDeparture(id), () => status.closeDetails(), (text) => messages.say(text, Date.now()),
+  (id) => scene.names.get(id));
 
 const notices = initNotices(document.querySelector<HTMLElement>("#herald")!, (notice) => {
   scene.visitNotice(notice.repo, notice.hero, notice.at);
@@ -87,6 +95,7 @@ function live(event: AgentEvent, at: number): void {
   const level = before ? stats(before, at).level : 1;
   actions.observe(event, at);
   const agent = room.apply(event, at);
+  if (agent?.terminal && !event.subagent) talk.clearAttention(agent.terminal);
   const levelUp = agent !== undefined && stats(agent, at).level > level;
   scene.sync(room, at);
   talk.update();
@@ -140,6 +149,8 @@ function connect(): void {
       } else if (data.type === "pending" && typeof data.terminal === "string" && Array.isArray(data.texts)
         && data.texts.every((text: unknown) => typeof text === "string")) {
         talk.setPending(data.terminal, data.texts);
+      } else if (data.type === "attention" && typeof data.terminal === "string" && data.reason === "trust") {
+        if (![...room.agents.values()].some((agent) => agent.terminal === data.terminal)) talk.attention(data.terminal);
       } else if (data.type === "event") {
         const parsed = parse(data.event, data.at);
         if (parsed) live(parsed.event, parsed.at);

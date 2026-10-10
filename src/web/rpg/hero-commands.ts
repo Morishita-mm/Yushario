@@ -23,7 +23,8 @@ export function openHeroCommands(layer: HTMLElement, canvas: HTMLCanvasElement, 
 }
 
 export function initHeroActions(hero: (id: string) => RoomAgent | undefined, talk: ReturnType<typeof initTalk>,
-  prepareDeparture: (id: string) => () => void, closeStrength: () => void, say: (text: string) => void) {
+  prepareDeparture: (id: string) => () => void, closeStrength: () => void, say: (text: string) => void,
+  name: (id: string) => string | undefined) {
   const waiting = new Map<string, boolean>();
   const busy = new Set<string>(), interrupted = new Set<string>();
   const eventAt = new Map<string, number>();
@@ -42,6 +43,7 @@ export function initHeroActions(hero: (id: string) => RoomAgent | undefined, tal
     const agent = hero(id), terminal = agent?.terminal;
     if (!terminal || busy.has(terminal)) return;
     busy.add(terminal);
+    const heroName = name(id) ?? agent.name;
     const depart = action === "farewell" ? prepareDeparture(id) : undefined;
     if (action === "interrupt") talk.interrupting(terminal, true);
     try {
@@ -54,7 +56,7 @@ export function initHeroActions(hero: (id: string) => RoomAgent | undefined, tal
       }
       if (action === "farewell") {
         talk.close(); closeStrength(); depart?.();
-        say(`${agent.name}を みおくりました。もんまで あるいて たびだちます。`);
+        say(`${heroName}を みおくりました。もんまで あるいて たびだちます。`);
       } else {
         if (action === "interrupt") {
           interrupted.add(terminal); eventAt.set(terminal, Date.now()); waiting.set(terminal, true); talk.setPending(terminal, []);

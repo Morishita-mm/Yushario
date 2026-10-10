@@ -8,7 +8,7 @@ const MIME: Record<string, string> = {
   ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
   ".css": "text/css; charset=utf-8", ".json": "application/json", ".png": "image/png",
   ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp",
-  ".svg": "image/svg+xml", ".ico": "image/x-icon", ".moc3": "application/octet-stream",
+  ".svg": "image/svg+xml", ".ico": "image/x-icon",
 };
 
 export async function serveStatic(request: IncomingMessage, response: ServerResponse): Promise<void> {
@@ -28,8 +28,7 @@ export async function serveStatic(request: IncomingMessage, response: ServerResp
     response.writeHead(403).end();
     return;
   }
-  const locations = path.startsWith("/models/") ? [["models", path.slice(8)]]
-    : path.startsWith("/public/") ? [["public", path.slice(8)]]
+  const locations = path.startsWith("/public/") ? [["public", path.slice(8)]]
     : [["dist", path === "/" ? "index.html" : path.slice(1)], ["public", path.slice(1)]];
   for (const [directory, relative] of locations) {
     try {

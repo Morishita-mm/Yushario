@@ -2,11 +2,12 @@ import type { AgentEvent } from "../core/events";
 import { isClaudeSessionId } from "../core/roster";
 import { waitingAfterEvent, type SessionAction } from "../core/session-actions";
 import type { PendingMessage, Session } from "./pty-session";
+import { AGENTS } from "./agents";
 
 export function parseSessionAction(input: unknown): SessionAction {
   const action = input && typeof input === "object" && !Array.isArray(input)
     ? (input as Record<string, unknown>).action : undefined;
-  if (action !== "interrupt" && action !== "compact" && action !== "farewell") throw new Error("Unknown session action");
+  if (action !== "interrupt" && action !== "compact" && action !== "farewell") throw new Error("勇者のコマンドが正しくありません");
   return action;
 }
 
@@ -39,7 +40,8 @@ function enterSoon(session: Session): void {
 export function deliver(session: Session, text: string): void {
   const body = text.replace(/\r\n?/g, "\n").replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, "");
   // Claude restores the interrupted prompt as a draft after Esc; do not append the new request to it.
-  if (session.interrupted) session.terminal.write("\x03");
+  const agent = AGENTS[session.info.preset];
+  if (session.interrupted && agent.restoresDraft) session.terminal.write(agent.clearDraft);
   session.terminal.write(`\x1b[200~${body}\x1b[201~`);
   session.interrupted = false;
   enterSoon(session);
@@ -48,8 +50,8 @@ export function deliver(session: Session, text: string): void {
 export function observe(session: Session, event: AgentEvent, at: number,
   changed: (message: PendingMessage) => void): void {
   if (session.info.exited || session.ended || event.subagent) return;
-  if (session.info.preset === "claude" && isClaudeSessionId(event.agent)) {
-    session.claudeId = event.agent;
+  if (AGENTS[session.info.preset].hero && isClaudeSessionId(event.agent)) {
+    session.agentId = event.agent;
     if (event.hook === "UserPromptSubmit") session.hasPrompt = true;
     if (event.name) session.name = event.name;
   }
@@ -66,21 +68,21 @@ export function observe(session: Session, event: AgentEvent, at: number,
   }
 }
 
-// Verified on Claude Code 2.1.296: one Ctrl+C clears the entire draft (Ctrl+U only clears
-// its last line). Type the slash command normally, not as a paste, then Enter after 300ms.
-function command(session: Session, text: "/compact" | "/exit"): void {
-  session.terminal.write(`\x03${text}`);
+// Type CLI commands normally (not bracketed paste), clearing the editor's draft first.
+function command(session: Session, text: string): void {
+  session.terminal.write(`${AGENTS[session.info.preset].clearDraft}${text}`);
   enterSoon(session);
 }
 
 export async function act(session: Session, action: SessionAction,
   changed: (message: PendingMessage) => void): Promise<void> {
-  if (action === "compact") { command(session, "/compact"); return; }
+  const agent = AGENTS[session.info.preset];
+  if (action === "compact") { command(session, agent.compactCommand); return; }
   const working = !session.waiting;
   cancelEnter(session);
   session.texts = [];
   changed(pending(session));
-  if (action === "interrupt" || working) session.terminal.write("\x1b");
+  if (action === "interrupt" || working) session.terminal.write(agent.interrupt);
   session.interrupted = true;
   session.eventAt = Date.now(); // Ignore hooks already in flight before Esc.
   session.waiting = false;
@@ -95,7 +97,7 @@ export async function act(session: Session, action: SessionAction,
   session.departing = true; // No queued/new turn may race with /exit.
   if (working) await new Promise<void>((resolve) => setTimeout(resolve, 300));
   if (session.info.exited) return;
-  command(session, "/exit");
+  command(session, agent.farewell);
   let timeout: ReturnType<typeof setTimeout> | undefined;
   try {
     await Promise.race([session.finished, new Promise<void>((resolve) => { timeout = setTimeout(resolve, 5000); })]);

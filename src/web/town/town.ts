@@ -5,7 +5,9 @@ import type { Sheets } from "./sheets";
 
 export const TOWN_W = 960;
 export const TOWN_H = 540;
-export const TOWN_SPOTS = { inn: { x: 195, y: 215, w: 120, h: 125 } };
+export const TOWN_SPOTS = {
+  inn: { x: 195, y: 215, w: 120, h: 125 }, church: { x: 240, y: 0, w: 120, h: 145 },
+};
 let streets: HTMLCanvasElement | undefined;
 let streetsTheme: TownTheme | undefined;
 
@@ -67,8 +69,27 @@ function bridgeDeck(art: Sheets, walled: boolean): HTMLCanvasElement | undefined
   return canvas;
 }
 
+// Glass locations in the five generated exteriors, relative to the church's bottom centre.
+const CHURCH_WINDOWS: Record<TownTheme, number[][]> = {
+  village: [[0, -43, 12, 12]], port: [[0, -59, 16, 16]], snow: [[0, -54, 12, 18]],
+  desert: [[-34, -32, 6, 10], [34, -32, 6, 10]], volcano: [[-3, -56, 7, 19]],
+};
+function churchLight(ctx: CanvasRenderingContext2D, theme: TownTheme, t: number): void {
+  ctx.save();
+  ctx.fillStyle = "#ffe066";
+  for (const [dx, dy, w, h] of CHURCH_WINDOWS[theme]) {
+    const x = Math.round(300 + dx - w / 2), y = Math.round(140 + dy - h / 2);
+    ctx.globalAlpha = 0.08 + Math.sin(t / 700) * 0.025;
+    ctx.fillRect(x - 7, y - 4, w + 14, h + 8);
+    ctx.fillRect(x - 4, y - 7, w + 8, h + 14);
+    ctx.globalAlpha = 0.42 + Math.sin(t / 700) * 0.1;
+    ctx.fillRect(x, y, w, h);
+  }
+  ctx.restore();
+}
+
 type TownData = {
-  sleepers: number; theme: TownTheme; name: string; walkers: Walker[]; unread?: number;
+  sleepers: number; prayers?: number; theme: TownTheme; name: string; walkers: Walker[]; unread?: number;
   reports?: TownSign[]; caller?: { name: string; x: number; y: number }; read?: Set<string>;
 };
 
@@ -88,7 +109,11 @@ export function drawTown(ctx: CanvasRenderingContext2D, art: Sheets, t: number, 
   if (deck) ctx.drawImage(deck, 480 - deck.width / 2, walled ? 192 : 199);
   const items: { y: number; draw: () => void }[] = [];
   const put = (id: string, frame: number, x: number, y: number) => items.push({ y, draw: () => art.draw(ctx, id, frame, x, y) });
-  put(look.church[0], look.church[1], 300, 140); put(look.library[0], look.library[1], 690, 140);
+  items.push({ y: 140, draw: () => {
+    art.draw(ctx, look.church[0], look.church[1], 300, 140);
+    if (data.prayers) churchLight(ctx, theme, t);
+  } });
+  put(look.library[0], look.library[1], 690, 140);
   put(look.trees[0][0], look.trees[0][1], 120, 120); put(look.trees[1][0], look.trees[1][1], 870, 110);
   put(look.trees[0][0], look.trees[0][1], 930, 170); put(look.trees[1][0], look.trees[1][1], 40, 190);
   put(look.lamp[0], look.lamp[1], 420, 172); put(look.lamp[0], look.lamp[1], 560, 172);
