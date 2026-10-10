@@ -4,6 +4,7 @@ import { Room } from "../../core/room";
 import { narrate, stats } from "../../core/story";
 import { Messages, Status, type Permission } from "./hud";
 import { Scene } from "./scene";
+import { loadTowns } from "./ledger";
 import "./rpg.css";
 
 const token = new URLSearchParams(location.search).get("token") ?? "";
@@ -69,6 +70,8 @@ function connect(): void {
         scene.sync(room, Date.now());
         for (const [line, at] of told.slice(-3)) messages.say(line, at, true);
         if (!told.length) messages.say("ここは エージェントたちの まち。 ゆうしゃの とうちゃくを まっている…", undefined, true);
+      } else if (data.type === "towns" && Array.isArray(data.towns)) {
+        scene.setTowns(data.towns);
       } else if (data.type === "event") {
         const parsed = parse(data.event, data.at);
         if (parsed) live(parsed.event, parsed.at);
@@ -103,7 +106,12 @@ function frame(time: number): void {
   requestAnimationFrame(frame);
 }
 
-void scene.load().then(() => {
+void scene.load().then(async () => {
+  try { scene.setTowns(await loadTowns()); }
+  catch (error) {
+    messages.say("町の台帳を よみこめませんでした。せつぞくを おたしかめください。", undefined, true);
+    console.warn(error);
+  }
   connect();
   requestAnimationFrame(frame);
 }).catch((error: unknown) => {

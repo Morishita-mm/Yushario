@@ -10,6 +10,7 @@
       <h1>AGENT QUEST</h1>
       <span id="connection" aria-live="polite">せつぞく中…</span>
       <a id="live2d-link" href="/live2d.html">Live2D 表示</a>
+      <button id="settings" type="button">せってい</button>
     </header>
     <main class="quest">
       <section class="stage">
@@ -17,11 +18,13 @@
           <button id="world-back" type="button">◀ ワールドマップ</button>
           <span id="place-name">ワールドマップ</span>
           <button id="town-look" type="button" hidden>町のすがたを かえる</button>
+          <button id="town-pin" type="button" aria-pressed="false" hidden>ピンどめ</button>
         </nav>
         <div class="map-stage">
           <canvas id="world" role="img" aria-label="エージェントたちの町とフィールド"></canvas>
           <div id="town-layer" class="report-layer" hidden></div>
         </div>
+        <p id="town-feedback" role="status" hidden></p>
         <div id="messages" class="window messages" aria-live="polite"></div>
       </section>
       <aside id="party" aria-label="ゆうしゃたちの つよさ"></aside>

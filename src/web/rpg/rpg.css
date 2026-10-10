@@ -17,8 +17,15 @@ a { color: #9fd3ff; font-size: 14px; }
 #world { display: block; width: 100%; image-rendering: pixelated; border: 3px solid #ffffff; border-radius: 6px; cursor: pointer; background: #000; }
 .map-stage { position: relative; }
 .map-nav { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; font-size: 14px; }
-.map-nav button { font: inherit; background: #1d1726; color: #fff; border: 1px solid #6e6a8a; padding: 4px 8px; cursor: pointer; }
-.map-nav button:hover, .map-nav button:focus-visible { color: #ffe066; border-color: #ffe066; }
+.map-nav button, #settings { font: inherit; background: #1d1726; color: #fff; border: 1px solid #6e6a8a; padding: 4px 8px; cursor: pointer; }
+.map-nav button:hover, .map-nav button:focus-visible, #settings:hover, #settings:focus-visible { color: #ffe066; border-color: #ffe066; }
+#settings { font-size: 14px; }
+#town-pin[aria-pressed="true"] { color: #ffe066; }
+#town-feedback { color: #ffb899; margin: 0; }
+#archive-days { display: flex; flex-wrap: wrap; gap: 8px 18px; border: 1px solid #6e6a8a; margin: 12px 0; padding: 12px; }
+#archive-days label { cursor: pointer; white-space: nowrap; }
+#archive-days input { margin: 0 6px 0 0; accent-color: #ffe066; }
+.settings-status { color: #ffe7a3; min-height: 1.7em; margin: 8px 0 0; }
 .map-nav button[hidden] { display: none; }
 #place-name { color: #ffe7a3; overflow-wrap: anywhere; }
 .hero-picker { width: 100%; font: inherit; color: #fff; background: #1d1726; border: 1px solid #6e6a8a; padding: 8px; }

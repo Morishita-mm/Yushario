@@ -26,9 +26,11 @@ export function renderHerald(root: HTMLElement, list: Notice[], onPick: (notice:
   root.replaceChildren(element("h2", undefined, `でんれい（${list.length}）`), ...items);
 }
 
-function windowBox(layer: HTMLElement, title: string, onClose: () => void): HTMLElement {
+export function windowBox(layer: HTMLElement, title: string, onClose: () => void): HTMLElement {
   const box = element("div", "report-window");
   box.setAttribute("role", "dialog");
+  box.setAttribute("aria-modal", "true");
+  box.setAttribute("aria-label", title);
   box.append(element("h3", undefined, title));
   const close = element("button", undefined, "▶ とじる");
   close.type = "button";
@@ -43,18 +45,83 @@ function windowBox(layer: HTMLElement, title: string, onClose: () => void): HTML
 }
 
 // A list of towns (a crowded region, or the sleeping towns) to pick from.
-export function showTownList(layer: HTMLElement, title: string, projects: Project[], onPick: (p: Project) => void, onClose: () => void): void {
-  const box = windowBox(layer, title, onClose);
-  const list = element("div", "town-list");
-  for (const p of projects) {
-    const button = element("button", "town-row");
-    button.type = "button";
+export function showTownList(layer: HTMLElement, title: string, projects: Project[], onPick: (p: Project) => void, onClose: () => void, onPin?: (p: Project) => Promise<void>): void {
+  const box = (!layer.hidden && layer.querySelector<HTMLElement>('[data-town-list="town"]')) || windowBox(layer, title, onClose);
+  box.dataset.townList = "town";
+  box.setAttribute("aria-label", title);
+  box.querySelector("h3")!.textContent = title;
+  const list = box.querySelector<HTMLElement>(".town-list") ?? element("div", "town-list");
+  const focused = box.contains(document.activeElement) ? document.activeElement as HTMLElement : undefined;
+  const focusedIndex = [...list.children].findIndex((row) => row.contains(focused ?? null));
+  list.querySelector(".who")?.remove();
+  for (const [index, p] of projects.entries()) {
+    const row = [...list.children].find((node) => (node as HTMLElement).dataset.repo === p.repo) as HTMLElement | undefined
+      ?? element("div", "town-entry");
+    row.dataset.repo = p.repo;
+    let button = row.querySelector<HTMLButtonElement>(".town-row");
+    if (!button) {
+      button = element("button", "town-row"); button.type = "button";
+      button.append(element("span", "name"), element("span", "status"));
+      row.append(button);
+    }
     const status = p.heroes ? [`👤${p.heroes}`, p.fighting ? `⚔️${p.fighting}` : "", p.unread ? `📜${p.unread}` : "", p.calling ? "❗" : ""].filter(Boolean).join("  ") : "だれも いない";
-    button.append(element("span", "name", p.repo), element("span", "status", status));
-    button.addEventListener("click", () => { layer.hidden = true; onPick(p); });
-    list.append(button);
+    button.querySelector(".name")!.textContent = p.repo;
+    button.querySelector(".status")!.textContent = status;
+    button.onclick = () => { layer.hidden = true; onPick(p); };
+    if (onPin && p.pinned !== undefined) {
+      const pin = row.querySelector<HTMLButtonElement>(".town-pin") ?? element("button", "town-pin");
+      pin.type = "button";
+      pin.textContent = p.pinned ? "◆ ピンどめ中" : "◇ ピンどめ";
+      pin.setAttribute("aria-label", `${p.repo}の ピンどめ`);
+      pin.setAttribute("aria-pressed", String(p.pinned));
+      pin.onclick = () => {
+        pin.disabled = true;
+        void onPin(p).finally(() => { pin.disabled = false; });
+      };
+      if (!pin.parentElement) row.append(pin);
+    } else row.querySelector(".town-pin")?.remove();
+    if (list.children[index] !== row) list.insertBefore(row, list.children[index] ?? null);
   }
-  box.append(list);
+  for (const row of [...list.children]) if (!projects.some((p) => p.repo === (row as HTMLElement).dataset.repo)) row.remove();
+  if (!projects.length) list.append(element("p", "who", "町は ありません。"));
+  if (!list.parentElement) box.append(list);
+  if (focused && document.activeElement !== focused) {
+    const target = focused.isConnected ? focused : list.children[Math.min(Math.max(0, focusedIndex), list.children.length - 1)]?.querySelector<HTMLButtonElement>("button:not(:disabled)") ?? box.querySelector<HTMLButtonElement>(".actions button");
+    target?.focus();
+  }
+}
+
+export function showArchivedTowns(layer: HTMLElement, projects: Project[], onRestore: (p: Project) => Promise<void>, onClose: () => void): void {
+  const title = `しまった町（${projects.length}）`;
+  const box = (!layer.hidden && layer.querySelector<HTMLElement>('[data-town-list="archived"]')) || windowBox(layer, title, onClose);
+  box.dataset.townList = "archived";
+  box.setAttribute("aria-label", title);
+  box.querySelector("h3")!.textContent = title;
+  const list = box.querySelector<HTMLElement>(".town-list") ?? element("div", "town-list");
+  const focused = box.contains(document.activeElement) ? document.activeElement as HTMLElement : undefined;
+  const focusedIndex = [...list.children].findIndex((row) => row.contains(focused ?? null));
+  list.querySelector(".who")?.remove();
+  for (const [index, project] of projects.entries()) {
+    const row = [...list.children].find((node) => (node as HTMLElement).dataset.repo === project.repo) as HTMLElement | undefined
+      ?? element("div", "town-row");
+    row.dataset.repo = project.repo;
+    if (!row.children.length) row.append(element("span", "name", project.repo), element("button", undefined, "▶ もどす"));
+    const restore = row.querySelector<HTMLButtonElement>("button")!;
+    restore.type = "button";
+    restore.setAttribute("aria-label", `${project.repo}を もどす`);
+    restore.onclick = () => {
+      restore.disabled = true;
+      void onRestore(project).finally(() => { restore.disabled = false; });
+    };
+    if (list.children[index] !== row) list.insertBefore(row, list.children[index] ?? null);
+  }
+  for (const row of [...list.children]) if (!projects.some((p) => p.repo === (row as HTMLElement).dataset.repo)) row.remove();
+  if (!projects.length) list.append(element("p", "who", "しまった町は ありません。"));
+  if (!list.parentElement) box.append(list);
+  if (focused && document.activeElement !== focused) {
+    const target = focused.isConnected ? focused : list.children[Math.min(Math.max(0, focusedIndex), list.children.length - 1)]?.querySelector<HTMLButtonElement>("button:not(:disabled)") ?? box.querySelector<HTMLButtonElement>(".actions button");
+    target?.focus();
+  }
 }
 
 // The first visit to a new town: choose what it looks like (and so its region on the map).

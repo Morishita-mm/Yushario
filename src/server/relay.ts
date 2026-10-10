@@ -5,6 +5,8 @@ import type { Candidate } from "../core/decider";
 import { deciderEvent, parseAgentEvent, type AgentEvent } from "../core/events";
 import { MockDecider } from "../core/mock-decider";
 import { selectCandidate } from "../core/selector";
+import { DAY_MS } from "../core/town-ledger";
+import { TownLedger } from "./town-api";
 import { JevDecider } from "./jev-decider";
 import { serveStatic } from "./static";
 import { createPtyServer } from "./pty";
@@ -33,11 +35,17 @@ const minds = new Map<string, Mind>();
 // Recent events let a newly opened room rebuild who is present and what they are doing.
 const HISTORY_LIMIT = 2000;
 const history: { event: AgentEvent; at: number }[] = [];
+const ledger = new TownLedger((towns) => broadcast({ type: "towns", towns }));
 
 function record(event: AgentEvent): void {
   // Hooks run concurrently, so order by the hook's own clock when it is plausible.
   const now = Date.now();
   const at = event.ts !== undefined && Math.abs(event.ts - now) < 60_000 ? event.ts : now;
+  const session = event.terminal ? pty.getSession(event.terminal) : undefined;
+  if (session) {
+    try { ledger.observe(session.project, now); }
+    catch (error) { console.error("Town activity save failed:", error); }
+  }
   history.push({ event, at });
   if (history.length > HISTORY_LIMIT) history.shift();
   broadcast({ type: "event", event, at });
@@ -58,9 +66,13 @@ const server = createServer(async (request, response) => {
   let url: URL;
   try { url = new URL(request.url ?? "/", `http://127.0.0.1:${port}`); }
   catch { response.writeHead(400).end(); return; }
-  if (url.pathname === "/api/sessions" || url.pathname.startsWith("/api/sessions/")) {
+  const sessionApi = url.pathname === "/api/sessions" || url.pathname.startsWith("/api/sessions/");
+  const townApi = url.pathname === "/api/towns" || url.pathname.startsWith("/api/towns/")
+    || url.pathname === "/api/settings";
+  if (sessionApi || townApi) {
     if (!authorized(url, request.headers.origin, false)) { response.writeHead(403).end(); return; }
-    await pty.handleRequest(request, response, url);
+    if (sessionApi) await pty.handleRequest(request, response, url);
+    else await ledger.handleRequest(request, response, url);
     return;
   }
   if (request.url !== "/event" && request.url !== "/hooks/permission") {
@@ -165,7 +177,13 @@ const server = createServer(async (request, response) => {
 });
 
 const sockets = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 });
-const pty = createPtyServer(port);
+const pty = createPtyServer(port, (session) => ledger.register(session.project, session.cwd, session.createdAt));
+function archive(): void {
+  try { ledger.archive(pty.activeProjects(), Date.now()); }
+  catch (error) { console.error("Town archive failed:", error); }
+}
+archive();
+const archiveTimer = setInterval(archive, DAY_MS).unref();
 server.on("upgrade", (request, socket, head) => {
   let url: URL;
   try {
@@ -188,6 +206,7 @@ sockets.on("error", (error) => {
 sockets.on("connection", (client) => {
   client.on("error", (error) => console.error("WebSocket error:", error.message));
   client.send(JSON.stringify({ type: "replay", events: history }));
+  client.send(JSON.stringify({ type: "towns", towns: ledger.towns }));
   if (permissions.current) client.send(JSON.stringify(permissions.current));
   client.on("message", (data, binary) => {
     if (binary) return;
@@ -203,8 +222,10 @@ sockets.on("connection", (client) => {
 server.on("error", (error) => {
   console.error("Relay error:", error.message);
   process.exitCode = 1;
+  shutdown();
 });
 function shutdown(): void {
+  clearInterval(archiveTimer);
   permissions.cancel();
   pty.dispose();
   for (const client of sockets.clients) client.terminate();

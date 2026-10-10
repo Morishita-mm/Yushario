@@ -20,6 +20,11 @@
 .report-window button:hover:not(:disabled), .report-window button:focus-visible { color: #ffe066; outline: none; }
 .report-window button:disabled { color: #6e6a8a; cursor: default; }
 .town-list { display: flex; flex-direction: column; gap: 2px; }
+.town-entry { display: flex; align-items: center; gap: 12px; }
+.town-entry .town-row { flex: 1; min-width: 0; }
+.town-list .name { overflow-wrap: anywhere; }
+.town-pin { flex: none; white-space: nowrap; }
+.town-pin[aria-pressed="true"] { color: #ffe066; }
 .town-row { display: flex; justify-content: space-between; gap: 12px; font: inherit; background: none; border: 0; border-bottom: 1px dashed #3a3550; color: #fff; padding: 8px 4px; cursor: pointer; }
 .town-row:hover, .town-row:focus-visible { color: #ffe066; outline: none; }
 .town-row .status { color: #ffe7a3; font-family: system-ui, "Apple Color Emoji", sans-serif; font-size: 13px; }

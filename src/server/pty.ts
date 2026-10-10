@@ -52,7 +52,7 @@ type Session = {
   clients: Set<WebSocket>; stop: () => void;
 };
 
-export function createPtyServer(port: number) {
+export function createPtyServer(port: number, registerTown: (session: TerminalSession) => void) {
   const temporary = mkdtempSync(join(tmpdir(), "agent-character-"));
   const settings = join(temporary, "claude-settings.json");
   const command = `${quote(process.execPath)} ${quote(join(root, "adapters/claude-code/hook.mjs"))}`;
@@ -138,6 +138,8 @@ export function createPtyServer(port: number) {
       output(`\r\n[終了: ${exitCode}]\r\n`);
       for (const client of session.clients) client.close(1000, "Process exited");
     });
+    try { registerTown(session.info); }
+    catch (error) { sessions.delete(id); stop(); throw error; }
     return session.info;
   }
 
@@ -200,6 +202,9 @@ export function createPtyServer(port: number) {
   sockets.on("error", (error) => console.error("PTY server error:", error.message));
   return {
     sockets, handleRequest,
+    getSession: (id: string) => sessions.get(id)?.info,
+    activeProjects: () => new Set([...sessions.values()]
+      .filter((session) => !session.info.exited).map((session) => session.info.project)),
     dispose: () => {
       if (disposed) return;
       disposed = true;
