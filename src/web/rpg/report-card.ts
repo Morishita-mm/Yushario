@@ -1,7 +1,11 @@
 import type { RoomAgent, TalkReport } from "../../core/room";
 import { renderTalk, talkParts, talkPreview } from "./talk-text";
 
-export const REPORT_FRAME: Record<TalkReport["kind"], number> = { chest: 1, scroll: 2, talk: 4 };
+import type { Sheets } from "../town/sheets";
+
+export const REPORT_FRAME: Record<TalkReport["kind"], string> = {
+  chest: "treasure chest open glowing", scroll: "rolled parchment scroll", talk: "speech bubble with lines",
+};
 type Reply = RoomAgent["talk"][number];
 
 function node(tag: string, className: string, text?: string): HTMLElement {
@@ -23,12 +27,14 @@ function reportHeadline(entry: Reply): string {
   return report.kind === "scroll" ? "しらべて もどってきた" : "はなしかけてきた";
 }
 
-export function createReportCard(entry: Reply, name: string) {
+export function createReportCard(entry: Reply, name: string, art: Sheets) {
   const row = node("article", `report-card ${entry.report?.kind ?? "talk"}`);
   row.dataset.reportAt = String(entry.at);
   const head = node("div", "report-card-heading");
   const icon = node("span", "report-icon");
-  icon.style.backgroundPositionX = `${-44 * REPORT_FRAME[entry.report?.kind ?? "talk"]}px`;
+  const [w, h] = art.size("ui-report");
+  icon.style.width = `${w}px`; icon.style.height = `${h}px`;
+  icon.style.backgroundPositionX = `${-w * art.index("ui-report", REPORT_FRAME[entry.report?.kind ?? "talk"])}px`;
   icon.setAttribute("aria-label", { chest: "宝箱", scroll: "巻物", talk: "吹き出し" }[entry.report?.kind ?? "talk"]);
   const time = new Date(entry.at).toLocaleTimeString("ja-JP", { hour12: false });
   const caption = node("div", "report-caption");

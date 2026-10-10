@@ -43,6 +43,36 @@
 
 参考：[Lospec: outlines using color](https://lospec.com/articles/pixel-art-outlines-part-2-using-color)、[Pixel Parmesan: anti-aliasing fundamentals](https://pixelparmesan.com/anti-aliasing-fundamentals-for-pixel-artists)、[SLYNYRD Pixelblog 8: Intro to Animation](https://slynyrd.com/blog/2018/8/19/pixelblog-8-intro-to-animation)、[Sub-Pixel Animation](https://someanimatorwannabe.substack.com/p/animator-techniques-sub-pixel-animation)、[Hero idle animation tutorial](https://itch.io/t/2489389/pixel-tutorial-hero-idle-animation)、[How to tame your AI pixel art](https://dev.to/jenissimo/how-to-tame-your-ai-pixel-art-3pk5)
 
+## 絵の約束事（パックを作る人向け）
+
+絵のパックは **PNG と JSON のデータだけ**。コード・プラグイン・任意の処理は含めない。利用者のパックを読み込む画面や見た目選びは、まだ作らない。
+
+- **ID**：`components.json` の既存 ID を役割として保つ。小文字の英数字とハイフンだけ（例 `hero-model`）。PNG は `public/art/<id>.png`、manifest は同じ ID のエントリを1件持つ。
+- **コマの名前と並び**：`frames` はギャラリー用の表示名で、PNG の左から右のセル順。コードは名前で参照するので、役割の名前を保つ。歩きの `front pass` など表示名が重複するものだけ、同じ並び・同じ長さの `frameNames` に `front pass L` / `front pass R` のような一意の参照名を足す（絵と表示名は変えない）。そのほかは `frames` が参照名になる。参照名は空・重複を認めない。
+- **動きの並び**：`sequences` は今ある動きのコマ名の配列（`idle`、`attack`、`front`、`right`、`back`、`prayer`、`glow`、`fire`、`flap` など）。同じコマを繰り返してよい。`Sheets.pose` は配列から名前を引くだけで、時刻・動きの速さ・描画の処理は今の場面側に残す。仲間の `follow` は現在の追従表示の並び、エフェクトの `slash` / `spell` / `poof`、`claw` / `fire` / `curse` / `rocks` も同様。
+- **大きさ**：生成指示の `size` と仕上がりの `frame: [幅, 高さ]` は別。PNG は全コマが同じセルサイズの **横1列**、画像全体の幅＝セル幅×コマ数、高さ＝セル高さ。空きは透明にする。セルサイズは正の整数。背景も実際の仕上がりサイズを記録する。
+- **足元**：各エントリの `foot: [x, y]` はセル左上からの、地面に合わせる点（境界も可）。`Sheets.draw` はこの点を指定座標へ合わせ、拡大・左右反転でも同じ点を使う。`pack.py` の既定は `[セル幅/2, セル高さ]`（仕上げ時にそろえた足元）。違う絵は `components.json` に `foot` を指定する。剣先・炎を含む幅の中心で体をそろえ直さない。
+- **色の段階**：`hero-model.recolor` に元の `tunic` / `cape`（暗い→明るい）と色違いの `variants` を持つ。色は `#rrggbb`、置き換え先は元と同じ段数。各勇者シートに `recolor` がなければ設定画の段階を使い、設定画にもなければ置き換えない。`bg-battle-*.water` は水の段階 `ramps`、水とみなす最初の段 `minimumSteps`、画像の高さに対する水の開始位置 `horizon`。省略時は従来の水色・境界の推定を保つ。光の塊の自動検出も従来どおり。
+- **絵の内部の位置**：`obj-canal.bridge` の `waterFrame` / `deckFrame` はコマ名、`waterRows` は水色を採る行の両端（含む）、`cuts` は橋コマ内の `[左の列, 幅]`。切り出しがセル外へ出ないようにする。橋の上下位置・水路の繰り返し・帯の位置もここにある。外観の `windows` はコマ名ごとの `[足元からの dx, dy, 幅, 高さ]`（窓の中心）で、祈り中の光を絵に合わせる。
+- **置き場所**：`bld-inn.town` に5種の部品の選択、建物・小物の足元座標、当たり判定、道の節点と接続を持つ。`inn-wall.inn` にベッドの `slots`・当たり判定・吹き出しと報告の位置、壁・床・じゅうたんの情報、`church-wall.church` に祈る `slots`・神父さま・祭壇・長椅子・燭台・床の情報を持つ。描画・クリック・報告は同じ座標を使う。`town.innSleep.balloon/count` は宿屋の `buildings.inn` の足元から屋根上の Zz・人数までのオフセット。`bg-battle-*.field` は地面の範囲、小物の足元、戦闘の置き場所。洞窟・夜の森の小物の `fieldLight` はコマ名ごとの発光部分の足元相対 `[dx, dy]` で、`field.props` の足元に足して光の中心を求める（光の波形・タイミングは場面側）。横向きモンスターの `reach` は勇者の足元から敵の足元までの間隔。`world-map.regions` は地図の幅・高さに対する地方の町の座標（0〜1）。室内の幅・壁との境・じゅうたんの継ぎ目や、戦闘アップの座標はセルサイズ・足元から求める。
+
+現在の場面が参照する次の役割は必須（動きの配列自体と各コマ名の参照先も検査する）。
+
+| 部品 | 必須の `sequences` 名 |
+|---|---|
+| `hero-walk` / `hero-walk-back` / `hero-pray` | `front, right` / `back` / `prayer` |
+| `party-{warrior,mage,thief,priest}` / 同じ ID の `-back` | `attack, follow` / `attack` |
+| `monster-{slime,ghost,golem,dragon}` / 同じ ID の `-side` / `-attack` | `idle` / `idle, attack` / `attack` |
+| `church-priest` / `obj-crystal` / `obj-campfire` | `idle` / `glow` / `fire` |
+| `fx-battle` / `fx-enemy` | `slash, spell, poof` / `claw, fire, curse, rocks` |
+| `amb-butterfly` / `amb-leaf` / `amb-drip` / `amb-gull` | `yellow, white` / `fall` / `splash` / `flap` |
+
+町の `nodes` は、歩行の立ち止まり先・道路描画・門が参照する `plazaW, plazaE, board, shop, well, bridge, fire, crystal, library, homeE, gate` を必ず持つ。ほかの節点は道の接続に応じて変えられるが、すべての `edges` の両端が存在すること。
+
+絵を仕上げ直したら、`python3 tools/art/check_manifest.py` で ID・名前・並び・PNG の大きさ・足元・色・内部位置・参照先・置き場所を確認する（Python 標準ライブラリだけ）。生成元の情報だけ直す時は `uv run --with pillow --with numpy tools/art/pack.py --meta` で manifest へ反映でき、PNG は変わらない。`--meta` は、表示名・分類だけでなく上記の情報と仕上がりの足元も出し、生成元から省略した既知の情報は manifest からも除く。パッキング由来の `frame`・`colors`・`warning` と PNG は保持する。
+
+確認が通っても画風・表情・重なりは機械的には分からないので、`/art.html` と `/mock.html` の全場面（町は5種）を画面写真で確認する。見た目を変えない修正は同じ時刻・乱数・表示サイズでピクセルを比較する。
+
 ## コンポーネント一覧
 
 一覧は `/art.html`（ギャラリー）で見る。分類と「使う場面」は `tools/art/components.json` の `group`（大分類）・`sub`（小分類）・`use` に書いてあり、ギャラリーはこの順に並べる。
@@ -68,7 +98,7 @@
 
 勇者の色違い（エージェントごとの髪・服・マントの色）は、パレットの置き換えでコードから作る。
 
-## 戦闘背景の動き（`src/web/art/ambient.ts`）
+## 戦闘背景の動き（`src/web/town/ambient.ts`）
 
 背景は1枚絵のままにし、その上で次のように動かす（モックで使用、本体にもそのまま使う想定）。
 

@@ -1,3 +1,4 @@
+import type { Sheets } from "../town/sheets";
 import type { RoomAgent } from "../../core/room";
 import { renderTalk, talkParts } from "./talk-text";
 import { createReportCard } from "./report-card";
@@ -15,7 +16,7 @@ export function coverMap(dialog: HTMLElement): void {
 
 // One page-local conversation window. Talk itself always comes from Room/replay.
 export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id: string) => string | undefined,
-  openTerminal: (terminal: string) => void, arrivingHero: (terminal: string) => RoomAgent | undefined) {
+  openTerminal: (terminal: string) => void, arrivingHero: (terminal: string) => RoomAgent | undefined, art: Sheets) {
   const dialog = document.querySelector<HTMLDialogElement>("#talk-dialog")!;
   const title = document.querySelector<HTMLElement>("#talk-title")!;
   const history = document.querySelector<HTMLElement>("#talk-history")!;
@@ -167,7 +168,7 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
         const body = document.createElement("span"); body.className = "talk-body"; renderTalk(body, talkParts(entry.text));
         row.append(speaker, body, document.createTextNode("」")); history.append(row); continue;
       }
-      const card = createReportCard(entry, heroName);
+      const card = createReportCard(entry, heroName, art);
       card.row.classList.toggle("unread", !reportRead(agent.id, entry.at));
       const bodyLength = card.renderBody(expanded.has(entry.at), entry === reply ? shown : Infinity);
       if (entry === reply) { latest = card; length = bodyLength; }

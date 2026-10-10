@@ -23,6 +23,7 @@ HERE = Path(__file__).parent
 ROOT = HERE.parent.parent
 RAW = ROOT / ".art-work" / "raw"
 OUT = ROOT / "public" / "art"
+TILE = 48
 
 
 def unfake(src: Path, dst: Path, scale: float | None = None) -> None:
@@ -243,10 +244,19 @@ def main() -> None:
         entry = pack(component)
         if entry:
             manifest[component["id"]] = entry
-    # Names, grouping and usage notes always follow components.json (also with --meta, no repacking).
+    # Art contracts also follow components.json with --meta, without changing any PNG.
+    keys = ("name", "group", "sub", "use", "frameNames", "sequences", "recolor", "windows",
+            "reach", "water", "bridge", "town", "inn", "church", "regions", "field", "fieldLight")
     for component in components:
         if component["id"] in manifest:
-            manifest[component["id"]].update({key: component[key] for key in ("name", "group", "sub", "use") if key in component})
+            entry = manifest[component["id"]]
+            for key in keys:
+                if key in component:
+                    entry[key] = component[key]
+                else:
+                    entry.pop(key, None)
+            w, h = entry["frame"]
+            entry["foot"] = component.get("foot", [w / 2, h])
     order = [c["id"] for c in components]
     manifest_path.write_text(json.dumps([manifest[i] for i in order if i in manifest], ensure_ascii=False, indent=1))
 

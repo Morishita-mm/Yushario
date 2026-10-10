@@ -19,7 +19,7 @@ dialog.talk-window::backdrop { background: rgba(0, 0, 0, 0.12); }
 .report-card.scroll { border-left-color: #b6dca0; }
 .report-card.unread { border-color: #ffe066; }
 .report-card-heading { display: flex; align-items: center; gap: 12px; }
-.report-icon { width: 44px; height: 34px; flex: none; background: url('/art/ui-report.png') no-repeat; image-rendering: pixelated; }
+.report-icon { flex: none; background: url('/art/ui-report.png') no-repeat; image-rendering: pixelated; }
 .report-caption { min-width: 0; }
 .report-card .report-headline { margin: 0; color: #ffe7a3; font-size: 17px; }
 .report-time { color: #c9c3dc; font-size: 12px; margin: 2px 0 0; }

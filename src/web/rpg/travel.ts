@@ -1,3 +1,4 @@
+import type { Sheets } from "../town/sheets";
 import type { TownHero } from "../../core/town";
 import { heroVariant } from "../town/appearance";
 import { leave, makeWalker, returnWalker, stepWalkers, type Walker } from "../town/walkers";
@@ -7,6 +8,8 @@ export class HeroTravel {
   walkers: Walker[] = [];
   private departing: { project: string; terminal?: string; walker: Walker }[] = [];
   private arriving = new Set<string>();
+
+  constructor(private readonly art: Sheets) {}
 
   expect(terminal: string, heroes: TownHero[]): void {
     this.arriving.add(terminal);
@@ -22,10 +25,10 @@ export class HeroTravel {
     for (const hero of strolling) {
       let walker = this.walkers.find((item) => item.id === hero.id);
       if (!walker) {
-        walker = makeWalker(hero.id, hero.name, heroVariant(hero.id), this.walkers.length);
+        walker = makeWalker(this.art, hero.id, hero.name, heroVariant(hero.id), this.walkers.length);
         this.walkers.push(walker);
       }
-      if (hero.agent.terminal && this.arriving.delete(hero.agent.terminal)) returnWalker(walker);
+      if (hero.agent.terminal && this.arriving.delete(hero.agent.terminal)) returnWalker(this.art, walker);
       walker.name = hero.name;
       walker.party = hero.party.map((job) => `party-${job}`);
     }
@@ -35,11 +38,11 @@ export class HeroTravel {
     const terminal = hero.agent.terminal;
     const current = this.walkers.find((item) => item.id === hero.id);
     const walker = current ? { ...current, path: [...current.path], party: [...current.party] }
-      : makeWalker(hero.id, hero.name, heroVariant(hero.id), 0);
+      : makeWalker(this.art, hero.id, hero.name, heroVariant(hero.id), 0);
     return () => {
       if (this.departing.some((item) => item.walker.id === hero.id)) return;
       walker.paused = false;
-      leave(walker);
+      leave(this.art, walker);
       this.walkers = this.walkers.filter((item) => item.id !== hero.id);
       this.departing.push({ project: hero.project, terminal, walker });
     };
@@ -51,9 +54,9 @@ export class HeroTravel {
   }
 
   step(time: number, dt: number): void {
-    stepWalkers(this.walkers, time, dt);
+    stepWalkers(this.art, this.walkers, time, dt);
     const walkers = this.departing.map((item) => item.walker);
-    const gone = stepWalkers(walkers, time, dt);
+    const gone = stepWalkers(this.art, walkers, time, dt);
     this.departing = this.departing.filter((item) => !gone.includes(item.walker));
   }
 }

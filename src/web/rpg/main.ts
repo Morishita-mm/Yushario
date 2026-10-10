@@ -45,7 +45,7 @@ initTerminals((terminal) => {
 }, (terminal) => void expedition.openTerminal(terminal));
 const talk = initTalk((id) => room.agents.get(id), (id) => scene.names.get(id),
   (terminal) => void expedition.openTerminal(terminal),
-  (terminal) => [...room.agents.values()].find((agent) => agent.terminal === terminal));
+  (terminal) => [...room.agents.values()].find((agent) => agent.terminal === terminal), scene.art);
 const status = new Status(
   document.querySelector<HTMLElement>("#party")!,
   (id, decision) => {

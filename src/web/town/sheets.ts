@@ -1,15 +1,5 @@
 // Loads the packed pixel-art components (public/art) and draws single frames.
-type Entry = { id: string; frame: [number, number]; frames: string[] };
-
-// Hero colour variants: the tunic (blue ramp) and cape (red ramp) swapped for other palette ramps.
-const TUNIC = ["#323353", "#484a77", "#4d65b4", "#4d9be6"];
-const CAPE = ["#ae2334", "#e83b3b"];
-const VARIANTS: [string[], string[]][] = [
-  [["#165a4c", "#239063", "#1ebc73", "#91db69"], ["#4d65b4", "#4d9be6"]],
-  [["#45293f", "#6b3e75", "#905ea9", "#a884f3"], ["#f79617", "#f9c22b"]],
-  [["#0b5e65", "#0b8a8f", "#0eaf9b", "#30e1b9"], ["#6b3e75", "#905ea9"]],
-  [["#6e2727", "#b33831", "#ea4f36", "#f57d4a"], ["#239063", "#1ebc73"]],
-];
+import type { ArtEntry as Entry } from "./art-data";
 type Source = HTMLImageElement | HTMLCanvasElement;
 
 function rgb(hex: string): number {
@@ -31,6 +21,19 @@ export class Sheets {
     }));
   }
 
+  entry(id: string): Entry { return this.entries.get(id)!; }
+
+  index(id: string, name: string): number {
+    const entry = this.entries.get(id);
+    return (entry?.frameNames ?? entry?.frames ?? []).indexOf(name);
+  }
+
+  // A named sequence supplies the pose order; timing remains in each existing scene.
+  pose(id: string, sequence: string, step: number): string {
+    const frames = this.entry(id).sequences![sequence];
+    return frames[((step % frames.length) + frames.length) % frames.length];
+  }
+
   image(id: string): Source | undefined {
     return this.images.get(id);
   }
@@ -49,10 +52,12 @@ export class Sheets {
     const ctx = canvas.getContext("2d")!;
     ctx.drawImage(source, 0, 0);
     const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const [tunic, cape] = VARIANTS[(n - 1) % VARIANTS.length];
+    const colors = entry.recolor ?? this.entry("hero-model").recolor;
+    if (!colors) return id;
+    const [tunic, cape] = colors.variants[(n - 1) % colors.variants.length];
     const swap = new Map<number, number>([
-      ...TUNIC.map((hex, i) => [rgb(hex), rgb(tunic[i])] as [number, number]),
-      ...CAPE.map((hex, i) => [rgb(hex), rgb(cape[i])] as [number, number]),
+      ...colors.tunic.map((hex, i) => [rgb(hex), rgb(tunic[i])] as [number, number]),
+      ...colors.cape.map((hex, i) => [rgb(hex), rgb(cape[i])] as [number, number]),
     ]);
     for (let i = 0; i < data.data.length; i += 4) {
       const to = swap.get((data.data[i] << 16) | (data.data[i + 1] << 8) | data.data[i + 2]);
@@ -69,28 +74,31 @@ export class Sheets {
     return this.entries.get(id)?.frame ?? [0, 0];
   }
 
-  // Draws frame `index` with its bottom centre at (x, y). Missing components draw a placeholder box.
-  draw(ctx: CanvasRenderingContext2D, id: string, index: number, x: number, y: number, flip = false, scale = 1): void {
+  // Aligns the frame's manifest foot with (x, y). Missing components/poses draw a placeholder box.
+  draw(ctx: CanvasRenderingContext2D, id: string, name: string, x: number, y: number, flip = false, scale = 1): void {
     const entry = this.entries.get(id);
     const image = this.images.get(id);
-    if (!entry || !image) {
+    const frame = this.index(id, name);
+    if (!entry || !image || frame < 0) {
       ctx.strokeStyle = "#ff00ff";
       ctx.strokeRect(Math.round(x - 8), Math.round(y - 16), 16, 16);
       return;
     }
     const [w, h] = entry.frame;
-    const frame = ((index % entry.frames.length) + entry.frames.length) % entry.frames.length;
+    const [fx, fy] = entry.foot;
     ctx.save();
     ctx.translate(Math.round(x), Math.round(y));
     if (flip) ctx.scale(-1, 1);
-    ctx.drawImage(image, frame * w, 0, w, h, Math.round(-w * scale / 2), Math.round(-h * scale), w * scale, h * scale);
+    ctx.drawImage(image, frame * w, 0, w, h, Math.round(-fx * scale), Math.round(-fy * scale), w * scale, h * scale);
     ctx.restore();
   }
 
   // Seamless ground: fill with the tile's dominant colour, then scatter small patches cut from the tile
   // (their dominant-colour pixels left out), so there is no grid and no seam. Cached per id/frame/size.
-  texture(ctx: CanvasRenderingContext2D, id: string, index: number, x: number, y: number, w: number, h: number): void {
-    const key = `tex:${id}:${index}:${w}x${h}`;
+  texture(ctx: CanvasRenderingContext2D, id: string, name: string, x: number, y: number, w: number, h: number): void {
+    const index = this.index(id, name);
+    if (index < 0) return;
+    const key = `tex:${id}:${name}:${w}x${h}`;
     let canvas = this.images.get(key) as HTMLCanvasElement | undefined;
     if (!canvas) {
       canvas = this.synthesise(id, index, w, h);

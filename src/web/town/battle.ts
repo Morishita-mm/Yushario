@@ -3,7 +3,7 @@ import type { Sheets } from "./sheets";
 
 // The focused battle view. Demo data may opt into the original staged battle loop.
 export type Focus = {
-  backdrop: string; theme: Theme; monster: string; enemyFx: number; name: string; party: string[];
+  backdrop: string; theme: Theme; monster: string; enemyFx: string; name: string; party: string[];
   variant?: number; demo?: boolean; counter?: boolean; message: string;
   status: { name: string; hp?: number; mp?: number }[];
   damage?: { hero: number; party: number; enemy: number };
@@ -40,34 +40,34 @@ export function drawFocus(ctx: CanvasRenderingContext2D, art: Sheets, focus: Foc
   if (!victory) {
     if (counter) {
       const frame = c < 4700 ? 0 : c < 5400 ? 1 : 2;
-      art.draw(ctx, `${focus.monster}-attack`, frame, mx, my + (frame === 1 ? 8 : 0));
+      art.draw(ctx, `${focus.monster}-attack`, art.pose(`${focus.monster}-attack`, "attack", frame), mx, my + (frame === 1 ? 8 : 0));
     } else {
       const hit = (c > 1100 && c < 1600) || (c > 2800 && c < 3300);
-      art.draw(ctx, focus.monster, hit ? 2 : Math.floor(t / 450) % 2, mx + (hit ? 3 : 0), my);
-      if (hit) art.draw(ctx, "fx-battle", c < 2000 ? Math.floor((c - 1100) / 170) : 3 + Math.floor((c - 2800) / 170), mx, my - 20);
+      art.draw(ctx, focus.monster, hit ? "hurt" : art.pose(focus.monster, "idle", Math.floor(t / 450) % 2), mx + (hit ? 3 : 0), my);
+      if (hit) art.draw(ctx, "fx-battle", art.pose("fx-battle", c < 2000 ? "slash" : "spell", Math.floor((c - (c < 2000 ? 1100 : 2800)) / 170)), mx, my - 20);
       if (hit && focus.damage) line(ctx, String(c < 2000 ? focus.damage.hero : focus.damage.party), mx, my - 40 - (c % 500) / 40, 12, "#ffffff", "center");
     }
   } else if (c < 7300) {
-    art.draw(ctx, "fx-battle", 6 + Math.floor((c - 6600) / 240), mx, my - 10);
+    art.draw(ctx, "fx-battle", art.pose("fx-battle", "poof", Math.floor((c - 6600) / 240)), mx, my - 10);
   }
   // Party, seen from behind, standing in front of the window.
-  const slots = focus.party.map((id, i) => ({ id, x: W / 2 + (i - (focus.party.length - 1) / 2) * 64, y: H - 44 }));
+  const slots = focus.party.map((id, i) => ({ id, x: W / 2 + (i - (focus.party.length - 1) / 2) * art.size("hero-model")[0] * 2, y: H - 44 }));
   for (const slot of slots) {
     const hero = slot.id === "hero-back-battle";
-    let frame = 0;
+    let frame = "ready";
     if (hero) {
-      if (c > 500 && c < 1100) frame = 1;
-      else if (c >= 1100 && c < 1600) frame = 2;
-      else if (counter && c > 4800 && c < 5800) frame = 4;
-      else if (victory) frame = 5;
+      if (c > 500 && c < 1100) frame = "wind-up";
+      else if (c >= 1100 && c < 1600) frame = "slash";
+      else if (counter && c > 4800 && c < 5800) frame = "hurt";
+      else if (victory) frame = "victory";
     } else {
-      if (c > 2300 && c < 2800) frame = 1;
-      else if (c >= 2800 && c < 3300) frame = 2;
-      else if (counter && c > 4800 && c < 5800) frame = 3;
+      if (c > 2300 && c < 2800) frame = art.pose(slot.id, "attack", 0);
+      else if (c >= 2800 && c < 3300) frame = art.pose(slot.id, "attack", 1);
+      else if (counter && c > 4800 && c < 5800) frame = "hurt";
     }
     const lift = !counter && !victory ? Math.floor((t + slot.x * 7) / 400) % 2 : 0;
-    art.draw(ctx, hero ? art.variant(slot.id, focus.variant ?? 0) : slot.id, frame, slot.x, slot.y + (frame === 4 ? 4 : 0) - lift);
-    if (hero && counter && c > 4800 && c < 5400) art.draw(ctx, "fx-enemy", focus.enemyFx + (Math.floor(c / 120) % 2), slot.x, slot.y - 30);
+    art.draw(ctx, hero ? art.variant(slot.id, focus.variant ?? 0) : slot.id, frame, slot.x, slot.y + (hero && frame === "hurt" ? 4 : 0) - lift);
+    if (hero && counter && c > 4800 && c < 5400) art.draw(ctx, "fx-enemy", art.pose("fx-enemy", focus.enemyFx, Math.floor(c / 120) % 2), slot.x, slot.y - 30);
     if (hero && counter && c > 4850 && focus.damage) line(ctx, `-${focus.damage.enemy}`, slot.x, slot.y - 70 - Math.min(10, (c - 4850) / 30), 12, "#ff6b5b", "center");
   }
   ambient.drawFront(ctx, t, dt);

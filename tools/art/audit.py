@@ -10,7 +10,7 @@ from PIL import Image
 
 OUT = Path(__file__).parent.parent.parent / "public" / "art"
 for entry in json.loads((OUT / "manifest.json").read_text()):
-    if entry["group"] not in ("勇者", "仲間", "モンスター"):
+    if entry["group"] not in ("キャラクター", "モンスター"):
         continue
     sheet = np.array(Image.open(OUT / f"{entry['id']}.png").convert("RGBA"))
     w, h = entry["frame"]

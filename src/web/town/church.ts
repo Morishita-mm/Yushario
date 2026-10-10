@@ -2,11 +2,9 @@ import { label } from "./field";
 import type { Sheets } from "./sheets";
 import { TOWN_H, TOWN_W } from "./town";
 
-// Shared positions for drawing, commands and report signs, like the inn's six beds.
-export const CHURCH_SLOTS: readonly [number, number][] = [
-  [480, 300], [368, 300], [592, 300], [480, 380], [368, 380], [592, 380],
-];
-export const CHURCH_PRIEST = { x: 626, y: 205, w: 48, h: 70 };
+// Read the same art placements for drawing, commands and report signs.
+export const churchSlots = (art: Sheets) => art.entry("church-wall").church!.slots;
+export const churchPriest = (art: Sheets) => art.entry("church-wall").church!.priest;
 export const PRIEST_LINES = [
   "よく きましたね。こころを しずめて おいのりなさい。",
   "たびの あいだにも ひとやすみは たいせつですよ。",
@@ -16,42 +14,42 @@ export const PRIEST_LINES = [
 type Prayer = { name: string; variant: number };
 
 export function drawChurch(ctx: CanvasRenderingContext2D, art: Sheets, t: number, prayers: Prayer[]): void {
+  const room = art.entry("church-wall").church!, floor = room.floor;
   ctx.fillStyle = "#1d1726";
   ctx.fillRect(0, 0, TOWN_W, TOWN_H);
   const [ww, wh] = art.size("church-wall");
-  const width = ww * 3, left = Math.round((TOWN_W - width) / 2);
-  const wallBottom = 126 + wh;
-  // The taller wall starts below the title; its solid dado meets the stone floor.
-  ctx.fillStyle = "#8b9bb4";
-  ctx.fillRect(left, wallBottom, width, 500 - wallBottom);
-  for (let y = wallBottom, row = 0; y < 500; y += 18, row++) {
-    ctx.fillStyle = "#5a6988"; ctx.fillRect(left, y, width, 1);
-    ctx.fillStyle = "#c0cbdc"; ctx.fillRect(left, y + 1, width, 1);
-    ctx.fillStyle = "#5a6988";
-    for (let x = left + (row % 2) * 24; x < left + width; x += 48) ctx.fillRect(x, y + 1, 1, Math.min(17, 499 - y));
+  const width = ww * room.wallCopies, left = Math.round((TOWN_W - width) / 2);
+  const wallBottom = room.wallTop + wh;
+  ctx.fillStyle = floor.base;
+  ctx.fillRect(left, wallBottom, width, room.floorBottom - wallBottom);
+  for (let y = wallBottom, row = 0; y < room.floorBottom; y += floor.row, row++) {
+    ctx.fillStyle = floor.joint; ctx.fillRect(left, y, width, 1);
+    ctx.fillStyle = floor.highlight; ctx.fillRect(left, y + 1, width, 1);
+    ctx.fillStyle = floor.joint;
+    for (let x = left + (row % 2) * floor.stagger; x < left + width; x += floor.spacing) ctx.fillRect(x, y + 1, 1, Math.min(floor.row - 1, room.floorBottom - 1 - y));
   }
-  for (let i = 0; i < 3; i++) art.draw(ctx, "church-wall", 0, left + ww * i + ww / 2, wallBottom);
-  // The sheet is top cap / seamless middle / bottom cap; use its exact cell height with no gaps.
+  const [fx, fy] = art.entry("church-wall").foot;
+  for (let i = 0; i < room.wallCopies; i++) art.draw(ctx, "church-wall", "wall", left + ww * i + fx, room.wallTop + fy);
   const [, rugH] = art.size("church-rug");
   if (rugH > 0) {
-    const repeats = Math.max(1, Math.ceil((500 - 230) / rugH) - 2), top = 500 - rugH * (repeats + 2);
-    art.draw(ctx, "church-rug", 0, 480, top + rugH);
-    for (let i = 0; i < repeats; i++) art.draw(ctx, "church-rug", 1, 480, top + rugH * (i + 2));
-    art.draw(ctx, "church-rug", 2, 480, top + rugH * (repeats + 2));
+    const repeats = Math.max(1, Math.ceil((room.rug.bottom - room.rug.top) / rugH) - 2), top = room.rug.bottom - rugH * (repeats + 2);
+    art.draw(ctx, "church-rug", "far end (top border)", room.rug.x, top + rugH);
+    for (let i = 0; i < repeats; i++) art.draw(ctx, "church-rug", "seamless middle (no horizontal border)", room.rug.x, top + rugH * (i + 2));
+    art.draw(ctx, "church-rug", "near end (bottom border)", room.rug.x, top + rugH * (repeats + 2));
   }
-  art.draw(ctx, "church-altar", 0, 480, 230);
-  for (const x of [410, 550]) art.draw(ctx, "church-candles", 0, x, 230);
-  const priest = CHURCH_PRIEST;
-  art.draw(ctx, "church-priest", Math.floor(t / 360) % 2, priest.x + priest.w / 2, priest.y + priest.h);
+  art.draw(ctx, "church-altar", "altar", ...room.altar);
+  for (const point of room.candles) art.draw(ctx, "church-candles", "candles", ...point);
+  const priest = room.priest;
+  art.draw(ctx, "church-priest", art.pose("church-priest", "idle", Math.floor(t / 360) % 2), priest.x + priest.w / 2, priest.y + priest.h);
   label(ctx, "神父さま", priest.x + priest.w / 2, priest.y + priest.h + 14);
-  for (const y of [320, 400, 470]) for (const x of [220, 740]) art.draw(ctx, "church-pew", 0, x, y);
-  const [, prayerH] = art.size("hero-pray");
-  prayers.slice(0, CHURCH_SLOTS.length).forEach((prayer, i) => {
-    const [x, y] = CHURCH_SLOTS[i];
-    art.draw(ctx, art.variant("hero-pray", prayer.variant), Math.floor((t + i * 120) / 360) % 2, x, y);
-    art.draw(ctx, "ui-prayer-balloon", 0, x + 20, y - prayerH - 4 + (Math.floor((t + i * 400) / 500) % 2));
+  for (const point of room.pews) art.draw(ctx, "church-pew", "pew", ...point);
+  const [, prayerH] = art.entry("hero-pray").foot;
+  prayers.slice(0, room.slots.length).forEach((prayer, i) => {
+    const [x, y] = room.slots[i];
+    art.draw(ctx, art.variant("hero-pray", prayer.variant), art.pose("hero-pray", "prayer", Math.floor((t + i * 120) / 360) % 2), x, y);
+    art.draw(ctx, "ui-prayer-balloon", "praying hands", x + 20, y - prayerH - 4 + (Math.floor((t + i * 400) / 500) % 2));
     label(ctx, prayer.name, x, y + 14);
   });
   label(ctx, "きょうかい（なか）", TOWN_W / 2, 100, "#fff7d6", 16);
-  if (prayers.length > CHURCH_SLOTS.length) label(ctx, `ほか ${prayers.length - CHURCH_SLOTS.length}人`, TOWN_W / 2, 430, "#ffe066", 14);
+  if (prayers.length > room.slots.length) label(ctx, `ほか ${prayers.length - room.slots.length}人`, TOWN_W / 2, 430, "#ffe066", 14);
 }

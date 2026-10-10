@@ -5,7 +5,7 @@ const NAMES: Record<string, string> = {
   "hero-back-battle": "t12-vitals", "party-warrior-back": "せんし", "party-mage-back": "まほうつかい",
   "party-thief-back": "とうぞく", "party-priest-back": "そうりょ",
 };
-export function focusData(backdrop: string, theme: Theme, monster: string, enemyFx: number, name: string, party: string[]): Focus {
+export function focusData(backdrop: string, theme: Theme, monster: string, enemyFx: string, name: string, party: string[]): Focus {
   return { backdrop, theme, monster, enemyFx, name, party, demo: true, message: "", damage: { hero: 23, party: 18, enemy: 15 },
     status: party.map((id, i) => ({ name: NAMES[id] ?? id, hp: 0.77, mp: i === 0 ? 0.34 : 0.2 })) };
 }

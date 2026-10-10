@@ -17,7 +17,7 @@ import { drawTown, TOWN_H, TOWN_W } from "../town/town";
 import { drawWorld, markers, plate, regionName, sleeping, type Project } from "../town/world";
 import { patchTown, type TownChange, type TownRecord } from "./ledger";
 import { showSettings } from "./settings";
-import { fights, focus, SLOTS } from "./battles";
+import { fights, focus, battleSlots } from "./battles";
 import { updateMapNav } from "./navigation";
 import { localHotspots } from "./map-hotspots";
 import { unreadReports } from "./read-reports";
@@ -39,8 +39,8 @@ export class Scene {
   private records: TownRecord[] = [];
   private list: "sleeping" | "archived" | TownTheme | undefined;
   private listContent = "";
-  private readonly travel = new HeroTravel();
-  private readonly art = new Sheets();
+  readonly art = new Sheets();
+  private readonly travel = new HeroTravel(this.art);
   private readonly ctx: CanvasRenderingContext2D;
   private place: Place = "world";
   private project: string | undefined;
@@ -239,7 +239,7 @@ export class Scene {
     if (this.focused) return this.art.size(`bg-battle-${this.place}`);
     return this.place === "world" ? this.art.size("world-map") : [TOWN_W, TOWN_H];
   }
-  private signs() { return reportSigns(this.localHeroes(), this.travel.walkers, this.place, this.size(), this.focused); }
+  private signs() { return reportSigns(this.art, this.localHeroes(), this.travel.walkers, this.place, this.size(), this.focused); }
   private hotspots(): Hot[] {
     if (!this.layer.hidden) return [];
     const reports = this.signs().map((sign) => ({ x: sign.x - 18, y: sign.y - 42, w: 50, h: 46,
@@ -248,13 +248,13 @@ export class Scene {
     if (this.focused) return [...reports, { x: 0, y: 0, w, h, act: () => this.go(this.place) }];
     if (this.place === "world") {
       const towns = [...this.towns.values()];
-      return [...markers(w, h, towns).map((marker) => ({ x: marker.x - 34, y: marker.y - 22, w: 68, h: 60, act: () => {
+      return [...markers(this.art, w, h, towns).map((marker) => ({ x: marker.x - 34, y: marker.y - 22, w: 68, h: 60, act: () => {
         if (marker.projects.length > 1) this.openList(marker.theme);
         else this.enter(marker.projects[0]);
       } })), { ...this.sleepingPlate, act: () => this.openList("sleeping") },
         { ...this.archivedPlate, act: () => this.openList("archived") }];
     }
-    return [...reports, ...localHotspots(this.place, this.localHeroes(), this.travel.walkers, this.gateMenu,
+    return [...reports, ...localHotspots(this.art, this.place, this.localHeroes(), this.travel.walkers, this.gateMenu,
       (place, focused) => this.go(place, false, focused),
       (id, x, y, watch) => this.commands(id, x, y, watch), () => { this.gateMenu = true; },
       () => this.say(`神父さま「${PRIEST_LINES[this.priestLine++ % PRIEST_LINES.length]}」`, Date.now()))];
@@ -290,7 +290,7 @@ export class Scene {
     });
     else if (this.place === "inn") drawInn(ctx, this.art, time, local.filter((h) => h.place === "inn").map((h) => h.name));
     else if (this.place === "church") drawChurch(ctx, this.art, time, local.filter((h) => h.place === "church").map((h) => ({ name: h.name, variant: heroVariant(h.id) })));
-    else drawField(ctx, this.art, this.place, time, fights(local.filter((h) => h.place === this.place), now), undefined, Math.max(0, local.filter((h) => h.place === this.place).length - SLOTS.length));
+    else drawField(ctx, this.art, this.place, time, fights(this.art, local.filter((h) => h.place === this.place), now), undefined, Math.max(0, local.filter((h) => h.place === this.place).length - battleSlots(this.art, this.place).length));
     drawReportSigns(ctx, this.art, time, this.signs());
     drawNavigation(ctx, this.hotspots(), this.pointer, this.gateMenu);
     if (time - this.flashAt < 300) { ctx.fillStyle = `rgba(${this.flashWhite ? "255,255,255" : "0,0,0"},${1 - (time - this.flashAt) / 300})`; ctx.fillRect(0, 0, w, h); }

@@ -1,18 +1,18 @@
 import { label } from "./field";
-import { drawWeather, LOOKS, THEME_NAMES, type TownTheme } from "./themes";
-import { NODES, EDGES, drawWalker, type Walker, type TownSign } from "./walkers";
+import { drawWeather, THEME_NAMES, type TownTheme } from "./themes";
+import { drawWalker, type Walker, type TownSign } from "./walkers";
 import type { Sheets } from "./sheets";
+import type { Part } from "./art-data";
 
 export const TOWN_W = 960;
 export const TOWN_H = 540;
-export const TOWN_SPOTS = {
-  inn: { x: 195, y: 215, w: 120, h: 125 }, church: { x: 240, y: 0, w: 120, h: 145 },
-};
+export const townSpots = (art: Sheets) => art.entry("bld-inn").town!.spots;
 let streets: HTMLCanvasElement | undefined;
 let streetsTheme: TownTheme | undefined;
 
 // Streets are shared by every town: crisp discs along the graph, filled with cobbles.
-function paintStreets(art: Sheets, street: [string, number]): HTMLCanvasElement {
+function paintStreets(art: Sheets, street: Part): HTMLCanvasElement {
+  const { nodes, edges } = art.entry("bld-inn").town!;
   const mask = document.createElement("canvas");
   mask.width = TOWN_W; mask.height = TOWN_H;
   const m = mask.getContext("2d")!;
@@ -23,8 +23,8 @@ function paintStreets(art: Sheets, street: [string, number]): HTMLCanvasElement 
       m.fillRect(Math.round(cx - half), Math.round(cy + dy), half * 2 + 1, 1);
     }
   };
-  for (const [a, b] of EDGES) {
-    const [x0, y0] = NODES[a], [x1, y1] = NODES[b];
+  for (const [a, b] of edges) {
+    const [x0, y0] = nodes[a], [x1, y1] = nodes[b];
     const length = Math.hypot(x1 - x0, y1 - y0) || 1;
     const bend = ((x0 + y1) % 3) - 1;
     for (let i = 0, steps = Math.ceil(length / 2); i <= steps; i++) {
@@ -32,7 +32,8 @@ function paintStreets(art: Sheets, street: [string, number]): HTMLCanvasElement 
       disc(x0 + (x1 - x0) * t + curve * (y1 - y0) / length, y0 + (y1 - y0) * t - curve * (x1 - x0) / length, 12);
     }
   }
-  disc(480, 332, 62);
+  const [cx, cy] = nodes.plazaW;
+  disc((cx + nodes.plazaE[0]) / 2, cy + 2, 62);
   const canvas = document.createElement("canvas");
   canvas.width = TOWN_W; canvas.height = TOWN_H;
   const c = canvas.getContext("2d")!;
@@ -42,24 +43,24 @@ function paintStreets(art: Sheets, street: [string, number]): HTMLCanvasElement 
   return canvas;
 }
 
-// The stone bridge without its own water, so every town's river shows through under it. Cut once from
-// frame 1 of obj-canal (with its wing walls, or just the deck and pillars); water colours come from frame 0.
+// Keep the bridge's deck/wing walls, removing the water colours sampled from the named canal frame.
 const decks = new Map<boolean, HTMLCanvasElement>();
 function bridgeDeck(art: Sheets, walled: boolean): HTMLCanvasElement | undefined {
   const image = art.image("obj-canal");
   if (decks.has(walled) || !image) return decks.get(walled);
-  const [w, h] = art.size("obj-canal"), [left, width] = walled ? [26, 50] : [35, 32];
+  const entry = art.entry("obj-canal"), [w, h] = entry.frame, bridge = entry.bridge!;
+  const [left, width] = walled ? bridge.cuts.walled : bridge.cuts.open;
   const canvas = document.createElement("canvas");
-  canvas.width = w * 2; canvas.height = h;
+  canvas.width = image.width; canvas.height = h;
   const c = canvas.getContext("2d", { willReadFrequently: true })!;
   c.drawImage(image, 0, 0);
-  const sheet = c.getImageData(0, 0, w * 2, h).data;
-  const water = new Set<number>();
-  for (let y = 23; y <= 41; y++) for (let x = 0; x < w; x++) {
-    const i = (y * w * 2 + x) * 4;
+  const sheet = c.getImageData(0, 0, image.width, h).data;
+  const water = new Set<number>(), waterX = art.index("obj-canal", bridge.waterFrame) * w;
+  for (let y = bridge.waterRows[0]; y <= bridge.waterRows[1]; y++) for (let x = 0; x < w; x++) {
+    const i = (y * image.width + waterX + x) * 4;
     water.add((sheet[i] << 16) | (sheet[i + 1] << 8) | sheet[i + 2]);
   }
-  const cut = c.getImageData(w + left, 0, width, h);
+  const cut = c.getImageData(art.index("obj-canal", bridge.deckFrame) * w + left, 0, width, h);
   for (let i = 0; i < cut.data.length; i += 4) {
     if (water.has((cut.data[i] << 16) | (cut.data[i + 1] << 8) | cut.data[i + 2])) cut.data[i + 3] = 0;
   }
@@ -69,21 +70,16 @@ function bridgeDeck(art: Sheets, walled: boolean): HTMLCanvasElement | undefined
   return canvas;
 }
 
-// Glass locations in the five generated exteriors, relative to the church's bottom centre.
-const CHURCH_WINDOWS: Record<TownTheme, number[][]> = {
-  village: [[0, -43, 12, 12]], port: [[0, -59, 16, 16]], snow: [[0, -54, 12, 18]],
-  desert: [[-34, -32, 6, 10], [34, -32, 6, 10]], volcano: [[-3, -56, 7, 19]],
-};
-function churchLight(ctx: CanvasRenderingContext2D, theme: TownTheme, t: number): void {
+function churchLight(ctx: CanvasRenderingContext2D, art: Sheets, church: Part, x: number, y: number, t: number): void {
   ctx.save();
   ctx.fillStyle = "#ffe066";
-  for (const [dx, dy, w, h] of CHURCH_WINDOWS[theme]) {
-    const x = Math.round(300 + dx - w / 2), y = Math.round(140 + dy - h / 2);
+  for (const [dx, dy, w, h] of art.entry(church[0]).windows?.[church[1]] ?? []) {
+    const left = Math.round(x + dx - w / 2), top = Math.round(y + dy - h / 2);
     ctx.globalAlpha = 0.08 + Math.sin(t / 700) * 0.025;
-    ctx.fillRect(x - 7, y - 4, w + 14, h + 8);
-    ctx.fillRect(x - 4, y - 7, w + 8, h + 14);
+    ctx.fillRect(left - 7, top - 4, w + 14, h + 8);
+    ctx.fillRect(left - 4, top - 7, w + 8, h + 14);
     ctx.globalAlpha = 0.42 + Math.sin(t / 700) * 0.1;
-    ctx.fillRect(x, y, w, h);
+    ctx.fillRect(left, top, w, h);
   }
   ctx.restore();
 }
@@ -95,53 +91,53 @@ type TownData = {
 
 export function drawTown(ctx: CanvasRenderingContext2D, art: Sheets, t: number, data: TownData): void {
   const { theme, name, sleepers, walkers, reports = [], caller, read } = data;
-  const look = LOOKS[theme];
+  const town = art.entry("bld-inn").town!, look = town.looks[theme], building = town.buildings;
+  const bridge = art.entry("obj-canal").bridge!;
   if (!streets || streetsTheme !== theme) { streets = paintStreets(art, look.street); streetsTheme = theme; }
   art.texture(ctx, look.ground[0], look.ground[1], 0, 0, TOWN_W, TOWN_H);
   ctx.drawImage(streets, 0, 0);
   if (look.canal?.[0] === "obj-canal") {
     const canal = art.size("obj-canal")[0];
-    for (let x = canal / 2 - 8; x < TOWN_W + canal; x += canal - 2) art.draw(ctx, "obj-canal", 0, x, 240);
-  } else if (look.canal) art.texture(ctx, look.canal[0], look.canal[1], 0, 214, TOWN_W, 28);
-  // Centre the bridge's water band (rows 20–37) on the river: 211–229 for the canal strip, 214–242 for a band.
-  const walled = look.canal?.[0] === "obj-canal"; // only the stone canal has banks for the wing walls to meet
+    for (let x = canal / 2 + bridge.canal.start; x < TOWN_W + canal; x += canal - bridge.canal.overlap) art.draw(ctx, "obj-canal", bridge.waterFrame, x, bridge.canal.bottom);
+  } else if (look.canal) art.texture(ctx, look.canal[0], look.canal[1], 0, bridge.band.top, TOWN_W, bridge.band.height);
+  const walled = look.canal?.[0] === "obj-canal";
   const deck = look.canal && bridgeDeck(art, walled);
-  if (deck) ctx.drawImage(deck, 480 - deck.width / 2, walled ? 192 : 199);
+  if (deck) ctx.drawImage(deck, town.nodes.bridge[0] - deck.width / 2, walled ? bridge.top.walled : bridge.top.open);
   const items: { y: number; draw: () => void }[] = [];
-  const put = (id: string, frame: number, x: number, y: number) => items.push({ y, draw: () => art.draw(ctx, id, frame, x, y) });
-  items.push({ y: 140, draw: () => {
-    art.draw(ctx, look.church[0], look.church[1], 300, 140);
-    if (data.prayers) churchLight(ctx, theme, t);
+  const put = (id: string, frame: string, x: number, y: number) => items.push({ y, draw: () => art.draw(ctx, id, frame, x, y) });
+  items.push({ y: building.church[1], draw: () => {
+    art.draw(ctx, look.church[0], look.church[1], ...building.church);
+    if (data.prayers) churchLight(ctx, art, look.church, ...building.church, t);
   } });
-  put(look.library[0], look.library[1], 690, 140);
-  put(look.trees[0][0], look.trees[0][1], 120, 120); put(look.trees[1][0], look.trees[1][1], 870, 110);
-  put(look.trees[0][0], look.trees[0][1], 930, 170); put(look.trees[1][0], look.trees[1][1], 40, 190);
-  put(look.lamp[0], look.lamp[1], 420, 172); put(look.lamp[0], look.lamp[1], 560, 172);
+  put(look.library[0], look.library[1], ...building.library);
+  town.trees.forEach((point, i) => put(...look.trees[i % 2], ...point));
+  town.lamps.slice(0, 2).forEach((point) => put(...look.lamp, ...point));
   const [centre, frames] = look.centre;
-  put(centre, frames[Math.floor(t / 160) % frames.length], 480, 360);
-  put("obj-town", 3, 405, 400); put("obj-town", 3, 555, 400);
-  put(look.lamp[0], look.lamp[1], 412, 292); put(look.lamp[0], look.lamp[1], 548, 292);
-  put(look.inn[0], look.inn[1], 255, 332);
-  put("bld-questboard", 0, 620, 258); put(look.shop[0], look.shop[1], 718, 332);
-  put("obj-crystal", Math.floor(t / 220) % 4, 410, 455); put("obj-campfire", Math.floor(t / 140) % 4, 640, 468);
-  put(look.houses[0][0], look.houses[0][1], 150, 432); put(look.houses[1][0], look.houses[1][1], 805, 442);
+  put(centre, frames[Math.floor(t / 160) % frames.length], ...town.centre);
+  town.benches.forEach((point) => put("obj-town", "bench", ...point));
+  town.lamps.slice(2).forEach((point) => put(...look.lamp, ...point));
+  put(...look.inn, ...building.inn);
+  put("bld-questboard", "board", ...building.board); put(...look.shop, ...building.shop);
+  put("obj-crystal", art.pose("obj-crystal", "glow", Math.floor(t / 220) % 4), ...town.crystal);
+  put("obj-campfire", art.pose("obj-campfire", "fire", Math.floor(t / 140) % 4), ...town.fire);
+  building.houses.forEach((point, i) => put(...look.houses[i], ...point));
   for (const [id, frame, x, y] of look.extras) put(id, frame, x, y);
-  const fence = art.size("obj-fence-sign")[0] - 4;
-  for (let x = 40; x < 250; x += fence) put("obj-fence-sign", 0, x, 500);
-  for (let x = 720; x < 930; x += fence) put("obj-fence-sign", 0, x, 500);
-  const wall = art.size("town-wall")[0] - 4;
-  for (let x = 0; x < TOWN_W + wall; x += wall) if (Math.abs(x - 480) > 64) put("town-wall", 0, x, 552);
-  put("town-wall", 1, 14, 552); put("town-wall", 1, 946, 552); put("town-wall", 2, 480, 552);
+  const fence = art.size("obj-fence-sign")[0] - town.fences.overlap;
+  for (const [start, end] of town.fences.ranges) for (let x = start; x < end; x += fence) put("obj-fence-sign", "fence", x, town.fences.y);
+  const wall = art.size("town-wall")[0] - town.walls.overlap;
+  for (let x = 0; x < TOWN_W + wall; x += wall) if (Math.abs(x - town.walls.gate) > town.walls.gap) put("town-wall", "wall segment", x, town.walls.y);
+  for (const x of town.walls.towers) put("town-wall", "corner tower", x, town.walls.y);
+  put("town-wall", "town gate", town.walls.gate, town.walls.y);
   if (caller) items.push({ y: caller.y, draw: () => {
-    art.draw(ctx, art.variant("hero-town", 3), 2, caller.x, caller.y - (Math.floor(t / 300) % 2));
-    art.draw(ctx, "ui-balloons", 0, caller.x, caller.y - 59);
+    art.draw(ctx, art.variant("hero-town", 3), "call", caller.x, caller.y - (Math.floor(t / 300) % 2));
+    art.draw(ctx, "ui-balloons", "exclamation", caller.x, caller.y - 59);
     label(ctx, caller.name, caller.x, caller.y + 13);
   } });
   for (const report of reports) items.push({ y: report.y, draw: () => {
-    art.draw(ctx, art.variant("hero-model", report.name.length % 5), 0, report.x, report.y);
+    art.draw(ctx, art.variant("hero-model", report.name.length % 5), "front", report.x, report.y);
     const unread = !read?.has(report.name);
     art.draw(ctx, "ui-report", report.icon, report.x, report.y - 56 - (unread ? Math.floor(t / 400) % 2 : 0));
-    if (unread) art.draw(ctx, "ui-balloons", 0, report.x + 16, report.y - 72);
+    if (unread) art.draw(ctx, "ui-balloons", "exclamation", report.x + 16, report.y - 72);
     label(ctx, report.name, report.x, report.y + 13);
   } });
   for (const walker of walkers) items.push({ y: walker.y, draw: () => drawWalker(ctx, art, walker, t) });
@@ -149,9 +145,10 @@ export function drawTown(ctx: CanvasRenderingContext2D, art: Sheets, t: number, 
   drawWeather(ctx, art, theme, t);
   if (look.tint) { ctx.fillStyle = look.tint; ctx.fillRect(0, 0, TOWN_W, TOWN_H); }
   if (sleepers) {
-    art.draw(ctx, "ui-balloons", 2, 296, 226 + (Math.floor(t / 500) % 2));
-    label(ctx, `×${sleepers}`, 320, 216, "#ffffff", 11);
+    const [x, y] = building.inn, { balloon, count } = town.innSleep;
+    art.draw(ctx, "ui-balloons", "sleep Zz", x + balloon[0], y + balloon[1] + (Math.floor(t / 500) % 2));
+    label(ctx, `×${sleepers}`, x + count[0], y + count[1], "#ffffff", 11);
   }
-  for (const [text, x, y] of [["やどや", 255, 348], ["きょうかい", 300, 156], ["としょかん", 690, 156], ["どうぐや", 718, 348]] as const) label(ctx, text, x, y, "#fff7d6");
+  for (const [text, [x, y]] of [["やどや", building.inn], ["きょうかい", building.church], ["としょかん", building.library], ["どうぐや", building.shop]] as const) label(ctx, text, x, y + 16, "#fff7d6");
   label(ctx, `${name}の まち（${THEME_NAMES[theme]}）${data.unread ? ` 📜${data.unread}` : ""}`, TOWN_W / 2, 26, "#fff7d6", 14);
 }

@@ -4,8 +4,8 @@ import type { Sheets } from "./sheets";
 // and small particles per field (clouds, grass, butterflies / drips, dust, glints / fireflies, mist, leaves).
 export type Theme = "meadow" | "cave" | "forest";
 
-// Ramps of the shared palette (dark → light) that water pixels move along.
-const RAMPS = [
+// Compatibility fallback for a backdrop without colour metadata: keep the previous inference.
+const DEFAULT_RAMPS = [
   ["#323353", "#484a77", "#4d65b4", "#4d9be6", "#8fd3ff", "#ffffff"],
   ["#0b5e65", "#0b8a8f", "#0eaf9b", "#30e1b9", "#8ff8e2"],
 ].map((ramp) => ramp.map((hex) => [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16))));
@@ -30,9 +30,12 @@ export class Ambient {
   private readonly lights: Light[] = [];
   private readonly motes: Mote[] = [];
   private lastWater = -Infinity;
+  private readonly ramps: number[][][];
 
   constructor(private readonly art: Sheets, private readonly theme: Theme, private readonly backdrop: string) {
     const image = art.image(backdrop)!;
+    this.ramps = art.entry(backdrop).water?.ramps.map((ramp) => ramp.map((hex) =>
+      [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16)))) ?? DEFAULT_RAMPS;
     [this.W, this.H] = [image.width, image.height];
     this.canvas.width = this.W;
     this.canvas.height = this.H;
@@ -51,16 +54,17 @@ export class Ambient {
   // Water: palette-ramp pixels below the horizon. Lights: bright saturated clusters.
   private analyse(): void {
     const { data } = this.base;
+    const water = this.art.entry(this.backdrop).water;
     const cells = new Map<string, { x: number; y: number; n: number; kind: Light["kind"] }>();
     for (let y = 0; y < this.H; y++) {
       for (let x = 0; x < this.W; x++) {
         const i = (y * this.W + x) * 4;
         const [r, g, b] = [data[i], data[i + 1], data[i + 2]];
-        if (y > this.H * 0.45) {
-          RAMPS.forEach((ramp, rampIndex) => {
+        if (y > this.H * (water?.horizon ?? 0.45)) {
+          this.ramps.forEach((ramp, rampIndex) => {
             const step = ramp.findIndex(([rr, gg, bb]) => rr === r && gg === g && bb === b);
             // Dark blues are mostly shadow, not water.
-            if (step >= 0 && (rampIndex !== 0 || step >= 2)) this.water.push({ i, ramp: rampIndex, step, x, y });
+            if (step >= (water?.minimumSteps[rampIndex] ?? (rampIndex === 0 ? 2 : 0))) this.water.push({ i, ramp: rampIndex, step, x, y });
           });
         }
         const [h, s, v] = rgbToHsv(r, g, b);
@@ -90,7 +94,7 @@ export class Ambient {
       this.lastWater = t;
       const flow = this.theme === "meadow" ? 1 : 0.4;
       for (const px of this.water) {
-        const ramp = RAMPS[px.ramp];
+        const ramp = this.ramps[px.ramp];
         const wave = Math.sin(t * 0.0035 * flow - px.x * 0.21 + Math.sin(px.y * 0.7) * 1.4 + px.y * 0.35);
         const shift = wave > 0.82 ? 1 : wave < -0.9 ? -1 : 0;
         const [r, g, b] = ramp[Math.max(0, Math.min(ramp.length - 1, px.step + shift))];
@@ -100,7 +104,7 @@ export class Ambient {
     }
     ctx.drawImage(this.canvas, 0, 0);
     if (this.theme === "meadow") {
-      [[0, 0.06, 4], [1, 0.16, 7], [2, 0.1, 10], [1, 0.22, 5]].forEach(([frame, y, speed], i) => {
+      ([["cloud large", 0.06, 4], ["cloud medium", 0.16, 7], ["cloud small", 0.1, 10], ["cloud medium", 0.22, 5]] as const).forEach(([frame, y, speed], i) => {
         const x = ((t / 1000) * speed + i * 160) % (this.W + 80) - 40;
         ctx.globalAlpha = 0.9;
         this.art.draw(ctx, "amb-cloud", frame, x, this.H * y + 20);
@@ -150,11 +154,11 @@ export class Ambient {
     for (let i = 0; i < 2; i++) {
       const x = this.W * (0.3 + 0.4 * i) + Math.sin(t / 1700 + i * 2) * 60;
       const y = this.H * 0.55 + Math.sin(t / 900 + i) * 18;
-      this.art.draw(ctx, "amb-butterfly", i * 2 + (Math.floor(t / 110) % 2), x, y);
+      this.art.draw(ctx, "amb-butterfly", this.art.pose("amb-butterfly", i ? "white" : "yellow", Math.floor(t / 110) % 2), x, y);
     }
     [0.04, 0.22, 0.78, 0.96].forEach((fx, i) => {
       const sway = Math.sin(t / 700 + i * 1.7);
-      this.art.draw(ctx, "amb-grass", sway > 0.35 ? 2 : sway < -0.35 ? 0 : 1, this.W * fx, this.H + 2);
+      this.art.draw(ctx, "amb-grass", sway > 0.35 ? "sway right" : sway < -0.35 ? "sway left" : "upright", this.W * fx, this.H + 2);
     });
   }
 
@@ -166,8 +170,8 @@ export class Ambient {
     [0.18, 0.47, 0.83].forEach((fx, i) => {
       const cycle = (t + i * 1300) % 3200;
       const x = this.W * fx, top = this.H * 0.12, floor = this.H * (0.62 + i * 0.05);
-      if (cycle < 900) this.art.draw(ctx, "amb-drip", 0, x, top + (floor - top) * (cycle / 900) ** 2);
-      else if (cycle < 1400) this.art.draw(ctx, "amb-drip", 1 + Math.floor((cycle - 900) / 170), x, floor);
+      if (cycle < 900) this.art.draw(ctx, "amb-drip", "drop", x, top + (floor - top) * (cycle / 900) ** 2);
+      else if (cycle < 1400) this.art.draw(ctx, "amb-drip", this.art.pose("amb-drip", "splash", Math.floor((cycle - 900) / 170)), x, floor);
     });
   }
 
@@ -197,7 +201,7 @@ export class Ambient {
     ctx.restore();
     for (let i = 0; i < 3; i++) {
       const fall = ((t / 1000) * 14 + i * 90) % (this.H + 40) - 20;
-      this.art.draw(ctx, "amb-leaf", Math.floor(t / 180 + i) % 4, this.W * (0.2 + i * 0.3) + Math.sin(t / 800 + i) * 20, fall);
+      this.art.draw(ctx, "amb-leaf", this.art.pose("amb-leaf", "fall", Math.floor(t / 180 + i) % 4), this.W * (0.2 + i * 0.3) + Math.sin(t / 800 + i) * 20, fall);
     }
   }
 }

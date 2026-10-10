@@ -3,6 +3,16 @@
  "components": [
   {
    "id": "hero-model",
+   "recolor": {
+    "tunic": ["#323353", "#484a77", "#4d65b4", "#4d9be6"],
+    "cape": ["#ae2334", "#e83b3b"],
+    "variants": [
+     [["#165a4c", "#239063", "#1ebc73", "#91db69"], ["#4d65b4", "#4d9be6"]],
+     [["#45293f", "#6b3e75", "#905ea9", "#a884f3"], ["#f79617", "#f9c22b"]],
+     [["#0b5e65", "#0b8a8f", "#0eaf9b", "#30e1b9"], ["#6b3e75", "#905ea9"]],
+     [["#6e2727", "#b33831", "#ea4f36", "#f57d4a"], ["#239063", "#1ebc73"]]
+    ]
+   },
    "group": "キャラクター",
    "name": "勇者 設定画（正面・背面・横）",
    "size": [
@@ -24,6 +34,8 @@
   },
   {
    "id": "hero-walk",
+   "frameNames": ["front contact L", "front pass L", "front contact R", "front pass R", "right contact L", "right pass L", "right contact R", "right pass R"],
+   "sequences": {"front": ["front contact L", "front pass L", "front contact R", "front pass R"], "right": ["right contact L", "right pass L", "right contact R", "right pass R"]},
    "group": "キャラクター",
    "name": "勇者 歩き（正面4・横4）",
    "size": [
@@ -88,6 +100,7 @@
   },
   {
    "id": "hero-pray",
+   "sequences": {"prayer": ["kneel facing up (back)", "breathe facing up (back)"]},
    "group": "キャラクター",
    "name": "勇者 きょうかいで祈る（2コマ）",
    "size": [32, 40],
@@ -116,6 +129,7 @@
   },
   {
    "id": "party-warrior",
+   "sequences": {"attack": ["wind-up", "attack"], "follow": ["front", "right"]},
    "group": "キャラクター",
    "name": "せんし（正面・横・歩き・攻撃）",
    "size": [
@@ -136,6 +150,7 @@
   },
   {
    "id": "party-mage",
+   "sequences": {"attack": ["charge", "cast"], "follow": ["front", "right"]},
    "group": "キャラクター",
    "name": "まほうつかい（正面・横・歩き・詠唱）",
    "size": [
@@ -156,6 +171,7 @@
   },
   {
    "id": "party-thief",
+   "sequences": {"attack": ["crouch", "stab"], "follow": ["front", "right"]},
    "group": "キャラクター",
    "name": "とうぞく（正面・横・歩き・攻撃）",
    "size": [
@@ -176,6 +192,7 @@
   },
   {
    "id": "party-priest",
+   "sequences": {"attack": ["pray", "heal"], "follow": ["front", "right"]},
    "group": "キャラクター",
    "name": "そうりょ（正面・横・歩き・祈り）",
    "size": [
@@ -196,6 +213,7 @@
   },
   {
    "id": "monster-slime",
+   "sequences": {"idle": ["idle", "squash"]},
    "group": "モンスター",
    "name": "スライム（待機2・被弾）",
    "size": [
@@ -213,6 +231,7 @@
   },
   {
    "id": "monster-ghost",
+   "sequences": {"idle": ["idle", "float"]},
    "group": "モンスター",
    "name": "おばけ（待機2・被弾）",
    "size": [
@@ -230,6 +249,7 @@
   },
   {
    "id": "monster-golem",
+   "sequences": {"idle": ["idle", "breath"]},
    "group": "モンスター",
    "name": "しれんのゴーレム（待機2・被弾）",
    "size": [
@@ -247,6 +267,7 @@
   },
   {
    "id": "monster-dragon",
+   "sequences": {"idle": ["idle", "wings up"]},
    "group": "モンスター",
    "name": "ドラゴン（待機2・被弾）",
    "size": [
@@ -279,6 +300,7 @@
   },
   {
    "id": "bld-church",
+   "windows": {"building": [[0, -43, 12, 12]]},
    "group": "まち",
    "name": "きょうかい",
    "size": [
@@ -339,6 +361,12 @@
   },
   {
    "id": "inn-wall",
+   "inn": {
+    "wallCopies": 3, "wallBottom": 190, "floorTop": 150, "floorBottom": 500,
+    "floor": {"base": "#9e4539", "joint": "#7a3045", "highlight": "#cd683d", "row": 7, "spacing": 60, "stagger": 37},
+    "rug": [480, 480], "slots": [[200, 360], [312, 360], [424, 360], [536, 360], [648, 360], [760, 360]],
+    "hit": [-32, -70, 64, 90], "balloon": [20, -72], "report": [0, -80]
+   },
    "group": "まち",
    "name": "宿屋の奥の壁（窓・ランタン）",
    "size": [
@@ -392,6 +420,14 @@
   },
   {
    "id": "church-wall",
+   "church": {
+    "wallCopies": 3, "wallTop": 126, "floorBottom": 500,
+    "floor": {"base": "#8b9bb4", "joint": "#5a6988", "highlight": "#c0cbdc", "row": 18, "spacing": 48, "stagger": 24},
+    "rug": {"x": 480, "top": 230, "bottom": 500}, "altar": [480, 230], "candles": [[410, 230], [550, 230]],
+    "pews": [[220, 320], [740, 320], [220, 400], [740, 400], [220, 470], [740, 470]],
+    "slots": [[480, 300], [368, 300], [592, 300], [480, 380], [368, 380], [592, 380]],
+    "priest": {"x": 626, "y": 205, "w": 48, "h": 70}
+   },
    "group": "まち",
    "name": "きょうかいの奥の壁（ステンドグラス）",
    "size": [264, 64],
@@ -449,6 +485,7 @@
   },
   {
    "id": "church-priest",
+   "sequences": {"idle": ["idle", "blink"]},
    "group": "まち",
    "name": "神父さま（待機2コマ）",
    "size": [32, 48],
@@ -461,6 +498,7 @@
   },
   {
    "id": "obj-crystal",
+   "sequences": {"glow": ["glow 1", "glow 2", "glow 3", "glow 4"]},
    "group": "まち",
    "name": "ぼうけんのしょ（セーブクリスタル、光る4コマ）",
    "size": [
@@ -479,6 +517,7 @@
   },
   {
    "id": "obj-campfire",
+   "sequences": {"fire": ["fire 1", "fire 2", "fire 3", "fire 4"]},
    "group": "まち",
    "name": "たき火（4コマ）",
    "size": [
@@ -553,6 +592,7 @@
   },
   {
    "id": "fx-battle",
+   "sequences": {"slash": ["slash 1", "slash 2", "slash 3"], "spell": ["spell 1", "spell 2", "spell 3"], "poof": ["poof 1", "poof 2", "poof 3"]},
    "group": "演出",
    "name": "戦闘エフェクト（斬撃3・呪文3・煙3）",
    "size": [
@@ -609,6 +649,8 @@
   },
   {
    "id": "hero-walk-back",
+   "frameNames": ["back contact L", "back pass L", "back contact R", "back pass R"],
+   "sequences": {"back": ["back contact L", "back pass L", "back contact R", "back pass R"]},
    "group": "キャラクター",
    "name": "勇者 歩き（背中・上へ）",
    "size": [
@@ -649,6 +691,7 @@
   },
   {
    "id": "party-warrior-back",
+   "sequences": {"attack": ["wind-up", "attack"]},
    "group": "キャラクター",
    "name": "せんし 戦闘（背中）",
    "size": [
@@ -668,6 +711,7 @@
   },
   {
    "id": "party-mage-back",
+   "sequences": {"attack": ["charge", "cast"]},
    "group": "キャラクター",
    "name": "まほうつかい 戦闘（背中）",
    "size": [
@@ -691,6 +735,7 @@
   },
   {
    "id": "party-thief-back",
+   "sequences": {"attack": ["crouch", "stab"]},
    "group": "キャラクター",
    "name": "とうぞく 戦闘（背中）",
    "size": [
@@ -710,6 +755,7 @@
   },
   {
    "id": "party-priest-back",
+   "sequences": {"attack": ["pray", "heal"]},
    "group": "キャラクター",
    "name": "そうりょ 戦闘（背中）",
    "size": [
@@ -729,6 +775,7 @@
   },
   {
    "id": "monster-slime-attack",
+   "sequences": {"attack": ["wind-up", "pounce", "land"]},
    "group": "モンスター",
    "name": "スライムの攻撃",
    "size": [
@@ -753,6 +800,7 @@
   },
   {
    "id": "monster-ghost-attack",
+   "sequences": {"attack": ["wind-up", "spell", "drift back"]},
    "group": "モンスター",
    "name": "おばけの攻撃",
    "size": [
@@ -777,6 +825,7 @@
   },
   {
    "id": "monster-golem-attack",
+   "sequences": {"attack": ["wind-up", "punch", "recover"]},
    "group": "モンスター",
    "name": "ゴーレムの攻撃",
    "size": [
@@ -801,6 +850,7 @@
   },
   {
    "id": "monster-dragon-attack",
+   "sequences": {"attack": ["inhale", "fire breath", "roar"]},
    "group": "モンスター",
    "name": "ドラゴンの攻撃",
    "size": [
@@ -825,6 +875,7 @@
   },
   {
    "id": "fx-enemy",
+   "sequences": {"claw": ["claw 1", "claw 2"], "fire": ["fire 1", "fire 2"], "curse": ["curse 1", "curse 2"], "rocks": ["rocks 1", "rocks 2"]},
    "group": "演出",
    "name": "敵の攻撃エフェクト（衝撃・ひっかき・炎・呪い・岩）",
    "size": [
@@ -849,6 +900,12 @@
   },
   {
    "id": "bg-battle-meadow",
+   "field": {
+    "textures": [["tile-ground", "wild grass", 0, 0, 960, 540], ["tile-ground", "town grass", 0, 270, 120, 40]],
+    "props": [["obj-lake", "lake", 800, 330], ["obj-water", "reeds", 700, 300], ["obj-water", "puddle", 900, 470], ["obj-nature", "round tree", 40, 90], ["obj-nature", "pine tree", 120, 60], ["obj-nature", "round tree", 760, 80], ["obj-nature", "round tree", 880, 110], ["obj-nature", "pine tree", 940, 200], ["obj-nature", "round tree", 60, 520], ["obj-nature", "bush", 180, 520], ["obj-nature", "flowers", 450, 300], ["obj-nature", "flowers", 700, 520], ["obj-nature", "rock", 860, 520], ["obj-nature", "bush", 640, 300]],
+    "fights": [[250, 210], [560, 190], [360, 430], [640, 440]]
+   },
+   "water": {"ramps": [["#323353", "#484a77", "#4d65b4", "#4d9be6", "#8fd3ff", "#ffffff"], ["#0b5e65", "#0b8a8f", "#0eaf9b", "#30e1b9", "#8ff8e2"]], "minimumSteps": [2, 0], "horizon": 0.45},
    "group": "フィールド",
    "name": "戦闘背景：草原",
    "kind": "backdrop",
@@ -865,6 +922,12 @@
   },
   {
    "id": "bg-battle-cave",
+   "field": {
+    "textures": [["tile-field", "cave floor", 0, 0, 960, 540], ["tile-field", "cave rock wall", 0, 0, 960, 96], ["tile-field", "cave dark pit", 760, 420, 200, 120]],
+    "props": [["obj-cave", "cave entrance", 60, 150], ["obj-cave", "wall torch", 200, 92], ["obj-cave", "wall torch", 600, 92], ["obj-cave", "wall torch", 880, 92], ["obj-cave", "stalagmite", 140, 330], ["obj-cave", "stalagmite", 760, 250], ["obj-cave", "stalagmite", 880, 300], ["obj-cave", "boulder", 60, 470], ["obj-cave", "glowing crystal ore", 700, 420], ["obj-cave", "glowing crystal ore", 420, 520], ["obj-cave", "boulder", 900, 200], ["obj-water", "puddle", 420, 300], ["obj-water", "puddle", 680, 520], ["obj-water", "puddle", 160, 520]],
+    "fights": [[250, 210], [560, 190], [360, 430], [640, 440]]
+   },
+   "water": {"ramps": [["#323353", "#484a77", "#4d65b4", "#4d9be6", "#8fd3ff", "#ffffff"], ["#0b5e65", "#0b8a8f", "#0eaf9b", "#30e1b9", "#8ff8e2"]], "minimumSteps": [2, 0], "horizon": 0.45},
    "group": "フィールド",
    "name": "戦闘背景：洞窟",
    "kind": "backdrop",
@@ -881,6 +944,12 @@
   },
   {
    "id": "bg-battle-forest",
+   "field": {
+    "textures": [["tile-field", "night grass", 0, 0, 960, 540], ["tile-field", "night dirt path", 0, 300, 960, 40]],
+    "props": [["obj-water", "small pond", 800, 220], ["obj-water", "lily pad", 812, 210], ["obj-forest-night", "dark tree", 40, 90], ["obj-forest-night", "dark pine", 120, 70], ["obj-forest-night", "dark tree", 200, 100], ["obj-forest-night", "dark pine", 700, 80], ["obj-forest-night", "dark tree", 900, 100], ["obj-forest-night", "dark pine", 940, 320], ["obj-forest-night", "dark tree", 40, 540], ["obj-forest-night", "dark pine", 900, 540], ["obj-forest-night", "tree stump", 760, 520], ["obj-forest-night", "glowing mushrooms", 150, 380], ["obj-forest-night", "glowing mushrooms", 460, 160], ["obj-forest-night", "glowing mushrooms", 720, 400], ["obj-forest-night", "lantern post", 430, 330]],
+    "fights": [[250, 210], [560, 190], [360, 430], [640, 440]]
+   },
+   "water": {"ramps": [["#323353", "#484a77", "#4d65b4", "#4d9be6", "#8fd3ff", "#ffffff"], ["#0b5e65", "#0b8a8f", "#0eaf9b", "#30e1b9", "#8ff8e2"]], "minimumSteps": [2, 0], "horizon": 0.45},
    "group": "フィールド",
    "name": "戦闘背景：夜の森",
    "kind": "backdrop",
@@ -951,6 +1020,7 @@
   },
   {
    "id": "obj-cave",
+   "fieldLight": {"wall torch": [0, -22], "glowing crystal ore": [0, -20]},
    "group": "フィールド",
    "name": "洞窟の小物（入口・石筍・岩・松明・鉱石）",
    "size": [
@@ -970,6 +1040,7 @@
   },
   {
    "id": "obj-forest-night",
+   "fieldLight": {"lantern post": [0, -30], "glowing mushrooms": [0, -15]},
    "group": "フィールド",
    "name": "夜の森の小物（木・切り株・光るキノコ・街灯）",
    "size": [
@@ -1023,6 +1094,7 @@
   },
   {
    "id": "amb-butterfly",
+   "sequences": {"yellow": ["yellow open", "yellow closed"], "white": ["white open", "white closed"]},
    "group": "フィールド",
    "name": "ちょうちょ（羽ばたき2コマ×2色）",
    "size": [
@@ -1041,6 +1113,7 @@
   },
   {
    "id": "amb-leaf",
+   "sequences": {"fall": ["leaf 1", "leaf 2", "leaf 3", "leaf 4"]},
    "group": "フィールド",
    "name": "舞い落ちる葉（回転4コマ）",
    "size": [
@@ -1059,6 +1132,7 @@
   },
   {
    "id": "amb-drip",
+   "sequences": {"splash": ["splash", "ripple", "ripple wide"]},
    "group": "フィールド",
    "name": "水滴と波紋（4コマ）",
    "size": [
@@ -1077,6 +1151,8 @@
   },
   {
    "id": "monster-slime-side",
+   "reach": 50,
+   "sequences": {"idle": ["idle", "squash"], "attack": ["wind-up", "pounce"]},
    "group": "モンスター",
    "name": "スライム（横向き：待機2・被弾・溜め・攻撃）",
    "size": [
@@ -1103,6 +1179,8 @@
   },
   {
    "id": "monster-ghost-side",
+   "reach": 54,
+   "sequences": {"idle": ["idle", "float"], "attack": ["wind-up", "spell"]},
    "group": "モンスター",
    "name": "おばけ（斜め向き：待機2・被弾・溜め・攻撃）",
    "size": [
@@ -1129,6 +1207,8 @@
   },
   {
    "id": "monster-golem-side",
+   "reach": 68,
+   "sequences": {"idle": ["idle", "breath"], "attack": ["wind-up", "punch"]},
    "group": "モンスター",
    "name": "ゴーレム（横向き：待機2・被弾・溜め・攻撃）",
    "size": [
@@ -1155,6 +1235,8 @@
   },
   {
    "id": "monster-dragon-side",
+   "reach": 92,
+   "sequences": {"idle": ["idle", "wings up"], "attack": ["inhale", "fire breath"]},
    "group": "モンスター",
    "name": "ドラゴン（横向き：待機2・被弾・溜め・火を吹く）",
    "size": [
@@ -1181,6 +1263,50 @@
   },
   {
    "id": "bld-inn",
+   "town": {
+    "buildings": {"church": [300, 140], "library": [690, 140], "inn": [255, 332], "shop": [718, 332], "board": [620, 258], "houses": [[150, 432], [805, 442]]},
+    "innSleep": {"balloon": [41, -106], "count": [65, -116]},
+    "trees": [[120, 120], [870, 110], [930, 170], [40, 190]], "lamps": [[420, 172], [560, 172], [412, 292], [548, 292]],
+    "benches": [[405, 400], [555, 400]], "centre": [480, 360], "crystal": [410, 455], "fire": [640, 468],
+    "fences": {"ranges": [[40, 250], [720, 930]], "y": 500, "overlap": 4},
+    "walls": {"y": 552, "overlap": 4, "gap": 64, "towers": [14, 946], "gate": 480},
+    "spots": {"inn": {"x": 195, "y": 215, "w": 120, "h": 125}, "church": {"x": 240, "y": 0, "w": 120, "h": 145}},
+    "nodes": {"church": [300, 150], "library": [690, 150], "north": [480, 150], "bridge": [480, 225], "plazaN": [480, 270], "plazaW": [395, 330], "plazaE": [565, 330], "plazaS": [480, 395], "inn": [250, 330], "board": [620, 268], "shop": [700, 340], "crystal": [410, 430], "homeW": [190, 440], "well": [120, 470], "homeE": [770, 450], "fire": [640, 450], "gate": [480, 500]},
+    "edges": [["church", "north"], ["library", "north"], ["north", "bridge"], ["bridge", "plazaN"], ["plazaN", "plazaW"], ["plazaN", "plazaE"], ["plazaW", "plazaS"], ["plazaE", "plazaS"], ["plazaW", "inn"], ["plazaE", "board"], ["plazaE", "shop"], ["plazaS", "crystal"], ["crystal", "homeW"], ["homeW", "well"], ["plazaS", "fire"], ["fire", "homeE"], ["plazaS", "gate"]],
+    "looks": {
+     "village": {
+      "ground": ["tile-ground", "town grass"], "street": ["tile-ground", "cobblestone"], "canal": ["obj-canal", "canal segment"],
+      "inn": ["bld-inn", "inn"], "shop": ["bld-shop", "stall"], "church": ["bld-church", "building"], "library": ["bld-library", "building"], "houses": [["bld-house", "red roof house"], ["bld-house", "thatched house"]],
+      "centre": ["obj-fountain", ["water 1", "water 2", "water 3"]], "trees": [["obj-nature", "round tree"], ["obj-nature", "pine tree"]], "lamp": ["obj-town", "lamp post"],
+      "extras": [["obj-town", "well", 92, 472], ["obj-town", "firewood pile", 222, 444], ["obj-town", "wooden cart", 880, 472], ["obj-town", "flower planter", 742, 456], ["obj-town", "barrel", 196, 344], ["obj-town", "crates", 812, 344]]
+     },
+     "port": {
+      "ground": ["tile-port", "beach sand"], "street": ["tile-port", "wooden boardwalk planks"], "canal": ["tile-port", "shallow sea water"],
+      "inn": ["bld-port", "inn"], "shop": ["bld-port", "item shop"], "church": ["bld-port", "church"], "library": ["bld-port", "house 2"], "houses": [["bld-port", "house"], ["bld-port", "house"]],
+      "centre": ["obj-fountain", ["water 1", "water 2", "water 3"]], "trees": [["obj-desert", "palm tree"], ["obj-nature", "round tree"]], "lamp": ["obj-town", "lamp post"],
+      "extras": [["obj-port", "lighthouse", 60, 300], ["obj-port", "docked sailboat", 120, 250], ["obj-port", "fish market stall", 812, 350], ["obj-port", "crates of fish", 230, 450], ["obj-port", "wooden pier with posts", 900, 260], ["obj-town", "barrel", 196, 344]]
+     },
+     "snow": {
+      "ground": ["tile-snow", "fresh snow"], "street": ["tile-snow", "trodden snow path"], "canal": ["tile-snow", "blue ice"],
+      "inn": ["bld-snow", "inn"], "shop": ["bld-snow", "item shop"], "church": ["bld-snow", "church"], "library": ["bld-snow", "house 2"], "houses": [["bld-snow", "house"], ["bld-snow", "house"]],
+      "centre": ["obj-snow", ["frozen fountain"]], "trees": [["obj-snow", "snowy fir tree"], ["obj-snow", "snowy fir tree"]], "lamp": ["obj-snow", "snowy street lamp"],
+      "extras": [["obj-snow", "snowman", 230, 450], ["obj-snow", "wooden sled", 880, 472], ["obj-snow", "snow-covered well", 92, 472], ["obj-town", "firewood pile", 812, 350]]
+     },
+     "desert": {
+      "ground": ["tile-desert", "desert sand"], "street": ["tile-desert", "sandstone paving"],
+      "inn": ["bld-desert", "inn"], "shop": ["bld-desert", "item shop"], "church": ["bld-desert", "church"], "library": ["bld-desert", "house 2"], "houses": [["bld-desert", "house"], ["bld-desert", "house"]],
+      "centre": ["obj-desert", ["small oasis pond with reeds"]], "trees": [["obj-desert", "palm tree"], ["obj-desert", "cactus"]], "lamp": ["obj-town", "lamp post"],
+      "extras": [["obj-desert", "camel", 600, 505], ["obj-desert", "striped canvas tent", 812, 350], ["obj-desert", "clay pots", 196, 344], ["obj-desert", "clay pots", 230, 450], ["obj-desert", "cactus", 880, 472]]
+     },
+     "volcano": {
+      "ground": ["tile-volcano", "volcanic ash ground"], "street": ["tile-volcano", "basalt paving"],
+      "inn": ["bld-volcano", "inn"], "shop": ["bld-volcano", "item shop"], "church": ["bld-volcano", "church"], "library": ["bld-volcano", "house 2"], "houses": [["bld-volcano", "house"], ["bld-volcano", "house"]],
+      "centre": ["obj-volcano", ["blacksmith forge with anvil"]], "trees": [["obj-volcano", "charred dead tree"], ["obj-volcano", "obsidian rocks"]], "lamp": ["obj-volcano", "glowing magma street lamp"],
+      "extras": [["obj-volcano", "small lava pool", 120, 250], ["obj-volcano", "small lava pool", 860, 250], ["obj-volcano", "smoking volcanic vent", 230, 450], ["obj-volcano", "smoking volcanic vent", 880, 472], ["obj-volcano", "obsidian rocks", 92, 472]],
+      "tint": "rgba(120, 30, 10, 0.12)"
+     }
+    }
+   },
    "group": "まち",
    "name": "やどや（外観、ベッドの看板）",
    "size": [
@@ -1288,6 +1414,7 @@
   },
   {
    "id": "obj-canal",
+   "bridge": {"waterFrame": "canal segment", "deckFrame": "stone bridge", "waterRows": [23, 41], "cuts": {"walled": [26, 50], "open": [35, 32]}, "top": {"walled": 192, "open": 199}, "canal": {"bottom": 240, "start": -8, "overlap": 2}, "band": {"top": 214, "height": 28}},
    "group": "まち",
    "name": "水路と石の橋",
    "size": [
@@ -1308,6 +1435,7 @@
   },
   {
    "id": "bld-port",
+   "windows": {"church": [[0, -59, 16, 16]]},
    "group": "まち",
    "sub": "町のタイプ：海辺の港町",
    "use": "海辺の港町の建物（宿屋・道具屋・教会・民家2）",
@@ -1334,6 +1462,7 @@
   },
   {
    "id": "bld-snow",
+   "windows": {"church": [[0, -54, 12, 18]]},
    "group": "まち",
    "sub": "町のタイプ：雪国の町",
    "use": "雪国の町の建物（宿屋・道具屋・教会・民家2）",
@@ -1360,6 +1489,7 @@
   },
   {
    "id": "bld-desert",
+   "windows": {"church": [[-34, -32, 6, 10], [34, -32, 6, 10]]},
    "group": "まち",
    "sub": "町のタイプ：砂漠のオアシス",
    "use": "砂漠のオアシスの建物（宿屋・道具屋・教会・民家2）",
@@ -1386,6 +1516,7 @@
   },
   {
    "id": "bld-volcano",
+   "windows": {"church": [[-3, -56, 7, 19]]},
    "group": "まち",
    "sub": "町のタイプ：火山の町",
    "use": "火山の町の建物（宿屋・道具屋・教会・民家2）",
@@ -1609,6 +1740,13 @@
   },
   {
    "id": "world-map",
+   "regions": {
+    "village": [[0.47, 0.5], [0.36, 0.42], [0.6, 0.6], [0.56, 0.36]],
+    "port": [[0.16, 0.55], [0.1, 0.38], [0.22, 0.7], [0.08, 0.66]],
+    "snow": [[0.5, 0.17], [0.35, 0.2], [0.65, 0.22], [0.42, 0.28]],
+    "desert": [[0.48, 0.84], [0.33, 0.78], [0.62, 0.8], [0.55, 0.92]],
+    "volcano": [[0.83, 0.42], [0.88, 0.58], [0.78, 0.3], [0.75, 0.55]]
+   },
    "group": "フィールド",
    "sub": "ワールドマップ",
    "use": "プロジェクトの町が並ぶワールドマップの地形",
@@ -1648,6 +1786,7 @@
   },
   {
    "id": "amb-gull",
+   "sequences": {"flap": ["wings up", "wings level", "wings down", "wings level"]},
    "group": "フィールド",
    "sub": "背景の動き",
    "use": "港町の空を飛ぶカモメ（羽ばたき）",
