@@ -3,7 +3,7 @@
 AIエージェントの状態イベントを受け、キャラクターの表情・姿勢として表示する表示専用レイヤーです。
 トップページは **エージェントの町**（RPG 風のドット表示）で、フックを設定した複数の Claude Code セッションが勇者として町にやってきて、
 作業はモンスターとの戦い、休みは宿屋、サブエージェントは仲間として、何を・どう・どれくらいやっているかを見せます（仕様は `docs/OBSERVATION.md`）。
-1体を大きく表示する Live2D 版は `/live2d.html` に残しています。
+埋め込みターミナルだけの画面は `/terminal.html`、1体を大きく表示する Live2D 版（ターミナル付き）は `/live2d.html` に残しています。
 server側のJev（APIキー未設定・失敗時は `MockDecider`）が判断し、Cubism 4のLive2DモデルまたはCanvasの簡易顔で表示します。
 Cubism Core・モデルは利用者が配置します。未配置・読込失敗時は簡易顔へフォールバックし、画面隅に理由を表示します。
 Core・モデルをこのリポジトリには含めません。
@@ -34,8 +34,8 @@ npm start
 ### Live2D 表示（`/live2d.html`）
 
 1. serverが表示する `http://127.0.0.1:8790/live2d.html?token=...` のURLをブラウザで開きます。
-2. 上部のプリセットを選び、「起動」を押します。左がキャラクター、右がエージェントのターミナルです（狭い画面では縦積み）。
-3. ターミナルで普段通りCLIを使います。Claude Codeの許可要求は頭上の吹き出しで「許可 / 拒否 / ターミナルで答える」を選べます。「再起動」は現在のプロセスを終了して選択中のプリセットを起動します。ページを閉じると子プロセスも終了します。
+2. 上部のプリセットと作業ディレクトリ（絶対パス・空欄なら既定）を指定し、「起動」で新しいセッションを作成します。左がキャラクター、右がターミナルです（狭い画面では縦積み）。既存セッションは一覧から選び「接続」、選んだセッションを終えて削除する時は「終了」を押します。「一覧を更新」で他の画面から作ったセッションも確認できます。
+3. ターミナルで普段通りCLIを使います。Claude Codeの許可要求は頭上の吹き出しで「許可 / 拒否 / ターミナルで答える」を選べます。ページを閉じてもプロセスは動き続け、開き直すと同じセッションに再接続し、直近256KBの出力が表示されます（接続先はタブの `sessionStorage` に記憶）。同じセッションに複数画面から接続できます。プロセスが終了しても一覧と出力は「終了」で削除するまで残ります。
 4. ページを隠すかウィンドウのフォーカスを外して60秒以上経つと、復帰時に受信できた完了・エラー・呼び出しの回数を吹き出しで報告します。7秒後またはクリックで閉じます（許可要求があればそちらを優先します）。
 
 | プリセット | 起動内容 |
@@ -45,9 +45,9 @@ npm start
 | pi | `pi -e <アダプタの絶対パス>` |
 | codex | `codex`。フックは信頼登録が必要なので自動設定しません（下記の手動手順を参照） |
 
-PATHにCLIが無ければターミナルに起動エラーを表示します。ブラウザからはプリセット名だけを受け付け、任意の起動コマンドは受け付けません。
-作業ディレクトリは `AGENT_CHARACTER_CWD` → npmの `INIT_CWD` → serverの `process.cwd()` の順です。
-子プロセスには `AGENT_CHARACTER_URL=http://127.0.0.1:<port>/event` を自動設定します。
+PATHにCLIが無ければ起動エラーを表示します。任意の起動コマンドは受け付けません。上限は終了済みを含め16セッションです。
+作業ディレクトリは存在する絶対パスのディレクトリのみ。省略時は `AGENT_CHARACTER_CWD` → npmの `INIT_CWD` → serverの `process.cwd()` の順です。プロジェクト名はgitの本体リポジトリ名（ワークツリーも同じ）、gitでなければフォルダ名です。
+子プロセスには `AGENT_CHARACTER_URL=http://127.0.0.1:<port>/event` と `AGENT_CHARACTER_SESSION=<セッションID>` を自動設定します。
 
 1プロセスで `dist/` のweb、`models/` のモデル一式、`public/` のCore等を配信します。
 `PORT=8791 AGENT_CHARACTER_CWD=/path/to/project npm start` でポートと作業ディレクトリを変更できます。`Ctrl+C` でPTY・serverを停止し、一時JSONを削除します。
@@ -62,8 +62,8 @@ PTYはMicrosoftの `node-pty` **1.2.0-beta.15** を使用します。Node 26.4/m
 別々に起動する場合は、`PORT=8791 AGENT_CHARACTER_TOKEN=local-dev npm run dev:relay` と
 `PORT=8791 npm run dev:web -- --port 5175` を実行し、`http://localhost:5175/?token=local-dev` を開きます。
 **両方のターミナルに同じ `PORT`** を渡してください。
-webは開発時のみViteの `/ws`・`/pty` プロキシ経由でrelayへ接続します。
-切断時は3秒後に再接続しますが、接続前・切断中のイベントは保持されません。
+webは開発時のみViteの `/ws`・`/pty`・`/api` プロキシ経由でrelayへ接続します。
+状態WSは切断時に3秒後に再接続し、直近2000イベントを再送します。ターミナルは一覧の「接続」またはページの再読込で再接続できます。
 画面左下に現在のstateと接続状態を表示します。
 
 体調はコンテキスト使用率に連動します。50%までは元気、50〜90%で徐々にまぶたが重く、呼吸が遅く深く、頭が少し下がり、揺れが控えめになります。80%を初めて超えると `/compact` による会話整理を一度だけ提案します（許可要求を優先し、自動実行はしません）。体調用に送るのは `context`（0〜1 の使用率の数値）のみです。Claude Code 2.1.295は通常フックに使用率・ウィンドウサイズがないため、ローカルの `transcript_path` の末尾最大256KBから最後のassistantの入力＋キャッシュ読取＋キャッシュ作成トークンを読み取ります（SessionStartのresume/forkでは直接の `context_tokens` を使用）。ウィンドウは `AGENT_CHARACTER_CONTEXT_WINDOW`（既定200000、1M等のモデルでは実際のサイズを指定）で割り、piは拡張API `ctx.getContextUsage().percent` を使用します。本文・トークンの内訳・ファイルパスはアダプタの外へ送らず、取得失敗・不明時は `context` を省略して最後の体調を維持します。
@@ -87,11 +87,27 @@ Jevには `{event, recent, previous}`（状態・ツール名等のイベント�
 ### ローカルトークン
 
 起動ごとに暗号学的乱数でトークンを作り、表示URLに含めます。URLは外部へ共有しないでください。
-**serverは127.0.0.1限定で待ち受け、WS `/ws` と `/pty` はトークン必須です。URLを他人に共有しないでください。** ターミナルはローカル利用者と同じ権限で動きます。リバースプロキシ等で外部へ公開しないでください。
+**serverは127.0.0.1限定で待ち受け、WS `/ws`・`/pty` と `/api/sessions` はトークン必須です。URLを他人に共有しないでください。** ターミナルはローカル利用者と同じ権限で動きます。リバースプロキシ等で外部へ公開しないでください。
 ターミナル内のプロセスには Jev の API キー（`TYPESAFE_API_KEY`）と server トークン（`AGENT_CHARACTER_TOKEN`）を渡しません。
-両WSは正しい `?token=` とserver自身のOriginが必要です（開発時のみlocalhost/127.0.0.1の任意ポートを許可）。
+両WSは正しい `?token=` とserver自身のOriginが必要です（開発時のみlocalhost/127.0.0.1の任意ポートを許可）。セッションAPIも同じ検査を行いますが、Originが無い同一オリジンGETやcurlはトークンのみで許可します。
 開発時は `AGENT_CHARACTER_TOKEN=local-dev npm run dev` で固定できます。本番起動では固定値を使いません。
 フック向け `POST /event` はトークン不要ですが、Origin付きのブラウザ発リクエストはローカル以外を拒否します。
+
+## ターミナルのセッションAPI
+
+すべて `?token=<起動URLのトークン>` を付けます。ブラウザからは同じオリジンで利用してください。
+
+| 操作 | API |
+| --- | --- |
+| 一覧 | `GET /api/sessions` → セッションの配列 |
+| 作成 | `POST /api/sessions`、JSON `{ "preset": "shell", "cwd": "/absolute/project" }`（cwd省略可）→ 201と作成したセッション |
+| 終了・削除 | `DELETE /api/sessions/:id` → 204。子プロセスとその子孫を終了し一覧から削除 |
+| 接続 | `WS /pty?session=<id>&cols=80&rows=24&token=...` → 保持出力を先に送信し、その後はライブ出力 |
+
+セッションは `{ id, preset, cwd, project, createdAt, exited?: { code } }`。`createdAt` はUnixミリ秒です。
+WSへの入力は `{ "type": "input", "data": "echo hello\r" }`、サイズ変更は `{ "type": "resize", "cols": 80, "rows": 24 }`。
+不正な作成入力は400、トークン・Origin違反は403、17個目の作成は409、未知のセッションへのWSは1008で切断します。
+セッションと出力はサーバーのメモリのみで、サーバー停止で消えます。永続化・`--resume`・ワークツリー作成は行いません。
 
 ## イベントを送る
 
@@ -151,7 +167,7 @@ relayを起動してから利用してください。
 `source` は `claude-code` / `pi`、`tool` はツール名（任意）で、どちらも最大200文字です。
 プロンプト・ツール出力・ファイルの中身は送らず、`detail` は短い固定文言だけです。
 部屋の表示用に、Claude Code アダプタは `agent`（session_id）・`name`（作業ディレクトリ名）・`hook`（フック名）・`subagent`・`task` と、
-`target`（ファイルのベース名／コマンドの先頭のパスや値を含まない語を最大3語／WebFetch のホスト名／サブエージェント種別）を送ります。
+`target`（ファイルのベース名／コマンドの先頭のパスや値を含まない語を最大3語／WebFetch のホスト名／サブエージェント種別）、`terminal`（`AGENT_CHARACTER_SESSION` がある時）・`project`（cwdの本体リポジトリ名、gitでなければフォルダ名、各最大200文字）を送ります。
 TaskCreated / TaskCompleted のタスク件名はホワイトボード用に送ります。これらはローカルの表示だけに使い、Jev には送りません（Jev へは従来どおり state・tool・context 等のみ）。
 
 ### Claude Code
@@ -188,7 +204,7 @@ SessionStart→`idle`、UserPromptSubmit→`thinking`、PreToolUse / PostToolUse
 Claude Code 2.1.295の同梱フック説明では、PostToolUseは成功時、PostToolUseFailureは失敗時に発火します（存在しないファイルのReadでも実機確認済み）。
 PostToolUseは `tool_response` に明示的なエラーフラグ・エラー値・非ゼロの終了コードがある場合だけ `error` にします（自由文からは推測しません）。
 SessionEnd / SubagentStart / SubagentStop / TaskCreated / TaskCompleted / PreCompact / PostCompact / StopFailure は部屋の表示（退勤・助っ人・ホワイトボード・整理中・異常終了）に使います。ユーザーによる中断（PostToolUseFailure の `is_interrupt`）は失敗に数えません。未知のイベントは何もしません。スクリプトは失敗してもexit 0、stdout / stderrへの出力なしで終了します。
-`AGENT_CHARACTER_DEBUG=1 npm start` でserverが受信したイベントの `state` / `source` / `tool` / `ts` / `context` / `hook` / `agent` / `target` だけを1行JSONで表示します（本文やツール出力は記録しません）。
+`AGENT_CHARACTER_DEBUG=1 npm start` でserverが受信したイベントの `state` / `source` / `tool` / `ts` / `context` / `hook` / `agent` / `target` / `terminal` / `project` だけを1行JSONで表示します（本文やツール出力は記録しません）。
 許可要求はClaude Code **2.1.295** 同梱スキーマで確認した `http` 型を使用し、`POST /hooks/permission` の応答を待ちます。ポートを変える外部ターミナルでは上のHTTPフックURLも変更してください。
 serverはツール名と短い入力要約（Bashはコマンド先頭120文字、Edit/Writeはパス）だけをローカルWSに配信し、Jevや外部へ送りません。要約には機密情報が含まれうるため、画面共有時には注意してください。
 応答JSONは `{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"allow"}}}`、拒否は `behavior: "deny"` と固定の `message` です。ターミナルで答える・120秒の時間切れ・web未接続/全切断では `{}` を返してClaudeの通常プロンプトに戻します。autoモードや既存の許可ルールで自動許可されるツールは吹き出しが出ません。
@@ -364,5 +380,5 @@ Coreは `public/` からViteがコピーします。Core未配置のビルドで
 静的ファイルだけを別配信する構成は本番のOrigin検査に合いません。通常は `npm start` の同一Origin配信を使ってください。
 
 これはローカル用PoCです。serverは `127.0.0.1` のみで待ち受けます。
-トークンはローカルWS接続の保護用で、ユーザー認証ではありません。履歴はメモリ上の直近10件だけで、永続化・再送はしません。
+トークンはローカルWS・セッションAPIの保護用で、ユーザー認証ではありません。状態の直近2000イベント・判断用の直近10件・各ターミナルの直近256KBの出力はメモリ上のみで、永続化しません。
 インターネットへ公開する用途は想定していません。

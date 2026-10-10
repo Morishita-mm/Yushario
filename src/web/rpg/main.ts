@@ -36,8 +36,8 @@ function live(event: AgentEvent, at: number): void {
   const levelUp = agent !== undefined && stats(agent, at).level > level;
   scene.event(event, agent, levelUp, Date.now());
   const line = narrate(event);
-  if (line) messages.say(line);
-  if (levelUp) messages.say(`${agent!.name}は レベル${stats(agent!, at).level}に あがった！`);
+  if (line) messages.say(line, at);
+  if (levelUp) messages.say(`${agent!.name}は レベル${stats(agent!, at).level}に あがった！`, at);
 }
 
 function permission(value: Record<string, unknown>): Permission | undefined {
@@ -58,17 +58,17 @@ function connect(): void {
       if (data.type === "replay" && Array.isArray(data.events)) {
         // Rebuild who is in town; retell only the last few lines.
         room = new Room();
-        const told: string[] = [];
+        const told: [string, number][] = [];
         for (const item of data.events) {
           const parsed = parse(item?.event, item?.at);
           if (!parsed) continue;
           room.apply(parsed.event, parsed.at);
           const line = narrate(parsed.event);
-          if (line) told.push(line);
+          if (line) told.push([line, parsed.at]);
         }
         scene.settle();
-        for (const line of told.slice(-3)) messages.say(line, true);
-        if (!told.length) messages.say("ここは エージェントたちの まち。 ゆうしゃの とうちゃくを まっている…", true);
+        for (const [line, at] of told.slice(-3)) messages.say(line, at, true);
+        if (!told.length) messages.say("ここは エージェントたちの まち。 ゆうしゃの とうちゃくを まっている…", undefined, true);
       } else if (data.type === "event") {
         const parsed = parse(data.event, data.at);
         if (parsed) live(parsed.event, parsed.at);

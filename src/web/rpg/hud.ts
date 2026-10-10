@@ -142,20 +142,22 @@ export class Status {
 }
 
 // The message window: narration typed out a character at a time, newest at the bottom.
+// Lines about an event start with its time (shown at once, not typed), so it reads as a log.
 export class Messages {
-  private lines: { text: string; shown: number }[] = [];
+  private lines: { time: string; text: string; shown: number }[] = [];
 
   constructor(private readonly root: HTMLElement) {}
 
-  say(text: string, instant = false): void {
-    this.lines.push({ text, shown: instant ? text.length : 0 });
+  say(text: string, at?: number, instant = false): void {
+    const time = at === undefined ? "" : `${new Date(at).toLocaleTimeString("ja-JP", { hour12: false, hour: "2-digit", minute: "2-digit" })}  `;
+    this.lines.push({ time, text, shown: instant ? text.length : 0 });
     if (this.lines.length > 4) this.lines.shift();
   }
 
   tick(): void {
     const typing = this.lines.find((line) => line.shown < line.text.length);
     if (typing) typing.shown = Math.min(typing.text.length, typing.shown + 2);
-    const text = this.lines.map((line) => line.text.slice(0, line.shown)).join("\n");
+    const text = this.lines.map((line) => line.time + line.text.slice(0, line.shown)).join("\n");
     if (this.root.textContent !== text) this.root.textContent = text;
   }
 }

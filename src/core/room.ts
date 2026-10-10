@@ -28,6 +28,8 @@ export interface LogEntry { at: number; activity: Activity; target?: string; out
 export interface RoomAgent {
   id: string;
   name: string;
+  terminal?: string;
+  project?: string;
   activity: Activity;
   target?: string;
   since: number; // When the current activity (or its target) began.
@@ -66,6 +68,8 @@ export class Room {
       this.agents.set(id, agent);
     }
     if (event.name) agent.name = event.name;
+    if (event.terminal) agent.terminal = event.terminal;
+    if (event.project) agent.project = event.project;
     agent.lastEventAt = Math.max(agent.lastEventAt, at);
     if (event.context !== undefined) agent.context = event.context;
     if (event.task) updateTask(agent, event.task);

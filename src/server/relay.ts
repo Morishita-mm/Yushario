@@ -48,7 +48,21 @@ function localOrigin(origin: string): boolean {
   return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
 }
 
+function authorized(url: URL, origin: string | undefined, requireOrigin: boolean): boolean {
+  const ownOrigin = origin === `http://127.0.0.1:${port}` || origin === `http://localhost:${port}`;
+  return url.searchParams.get("token") === token
+    && (origin === undefined ? !requireOrigin : ownOrigin || (development && localOrigin(origin)));
+}
+
 const server = createServer(async (request, response) => {
+  let url: URL;
+  try { url = new URL(request.url ?? "/", `http://127.0.0.1:${port}`); }
+  catch { response.writeHead(400).end(); return; }
+  if (url.pathname === "/api/sessions" || url.pathname.startsWith("/api/sessions/")) {
+    if (!authorized(url, request.headers.origin, false)) { response.writeHead(403).end(); return; }
+    await pty.handleRequest(request, response, url);
+    return;
+  }
   if (request.url !== "/event" && request.url !== "/hooks/permission") {
     await serveStatic(request, response);
     return;
@@ -112,8 +126,8 @@ const server = createServer(async (request, response) => {
 
   permissions.observe(result.event);
   if (process.env.AGENT_CHARACTER_DEBUG === "1") {
-    const { state, source, tool, ts, context, hook, agent, target } = result.event;
-    console.log(JSON.stringify({ state, source, tool, ts, context, hook, agent, target }));
+    const { state, source, tool, ts, context, hook, agent, target, terminal, project } = result.event;
+    console.log(JSON.stringify({ state, source, tool, ts, context, hook, agent, target, terminal, project }));
   }
   response.writeHead(204).end();
   record(result.event);
@@ -160,10 +174,7 @@ server.on("upgrade", (request, socket, head) => {
     socket.end("HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n");
     return;
   }
-  const origin = request.headers.origin;
-  const ownOrigin = origin === `http://127.0.0.1:${port}` || origin === `http://localhost:${port}`;
-  if (!["/ws", "/pty"].includes(url.pathname) || url.searchParams.get("token") !== token
-    || !origin || !(ownOrigin || (development && localOrigin(origin)))) {
+  if (!["/ws", "/pty"].includes(url.pathname) || !authorized(url, request.headers.origin, true)) {
     socket.end("HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n");
     return;
   }
@@ -207,5 +218,6 @@ process.once("exit", () => pty.dispose());
 server.listen(port, "127.0.0.1", () => {
   console.log(`Decider: ${decider.constructor.name}`);
   console.log(`Open http://127.0.0.1:${port}/?token=${token}`);
+  console.log(`Terminal: http://127.0.0.1:${port}/terminal.html?token=${token}`);
   console.log(`Live2D view: http://127.0.0.1:${port}/live2d.html?token=${token}`);
 });

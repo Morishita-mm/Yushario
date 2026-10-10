@@ -16,6 +16,8 @@ export interface AgentEvent {
   // Room fields (docs/OBSERVATION.md). Local display only: never sent to the Decider.
   agent?: string; // Session id; one character per session.
   name?: string; // Display name (last segment of the working directory).
+  terminal?: string; // Embedded terminal session id.
+  project?: string; // Repository name (shared by its worktrees).
   hook?: string; // Harness hook name, e.g. "PreToolUse".
   target?: string; // What the activity is about: file basename, command head, domain…
   subagent?: { id: string; type?: string };
@@ -53,7 +55,7 @@ export function parseAgentEvent(
     return { ok: false, error: "context must be a finite number between 0 and 1" };
   }
 
-  for (const field of ["source", "tool", "agent", "name", "hook", "target"] as const) {
+  for (const field of ["source", "tool", "agent", "name", "hook", "target", "terminal", "project"] as const) {
     const metadata = value[field];
     if (metadata !== undefined) {
       if (typeof metadata !== "string") {
@@ -91,7 +93,7 @@ export function parseAgentEvent(
   if (value.source !== undefined) event.source = value.source as string;
   if (value.tool !== undefined) event.tool = value.tool as string;
   if (value.context !== undefined) event.context = value.context as number;
-  for (const field of ["agent", "name", "hook", "target"] as const) {
+  for (const field of ["agent", "name", "hook", "target", "terminal", "project"] as const) {
     if (value[field] !== undefined) event[field] = value[field] as string;
   }
   if (subagent) event.subagent = subagent;

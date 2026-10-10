@@ -23,6 +23,18 @@ describe("Room", () => {
     expect(agent).toMatchObject({ name: "t12-vitals", activity: "read", target: "motion.ts", since: 5, running: true });
   });
 
+  it("keeps the latest terminal/project values", () => {
+    const room = new Room();
+    const agent = room.apply(a({ terminal: "pty1", project: "repo" }), 10)!;
+    expect(agent).toMatchObject({ terminal: "pty1", project: "repo" });
+    room.apply(a({ terminal: "pty2", project: "next" }), 20);
+    room.apply(post("Read"), 30);
+    expect(agent).toMatchObject({ terminal: "pty2", project: "next" });
+    const external = room.apply({ state: "idle", agent: "external", project: "repo" }, 40)!;
+    expect(external.terminal).toBeUndefined();
+    expect(external.project).toBe("repo");
+  });
+
   it("keeps the activity after a tool finishes and stops the running clock", () => {
     const room = new Room();
     room.apply(pre("Edit", "room.ts"), 0);

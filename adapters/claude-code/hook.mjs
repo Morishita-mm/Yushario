@@ -1,4 +1,9 @@
 import { openSync, fstatSync, readSync, closeSync, constants } from "node:fs";
+import { execFile } from "node:child_process";
+import { basename } from "node:path";
+import { promisify } from "node:util";
+
+const execute = promisify(execFile);
 
 // Command hooks must never emit text or interfere with Claude Code.
 const started = performance.now();
@@ -88,6 +93,18 @@ function text(value) {
   return typeof value === "string" && value ? value.slice(0, 200) : undefined;
 }
 
+async function projectName(cwd) {
+  try {
+    const { stdout } = await execute("git", ["-C", cwd, "worktree", "list", "--porcelain", "-z"], {
+      timeout: Math.max(1, Math.min(150, Math.ceil(budgetMs - (performance.now() - started) - 50))),
+      maxBuffer: 64 * 1024,
+    });
+    const main = stdout.split("\0")[0];
+    if (main.startsWith("worktree ")) return basename(main.slice(9));
+  } catch { /* No repository or Git unavailable: use the directory name. */ }
+  return basename(cwd);
+}
+
 function hookTask(hook) {
   const id = text(hook.task_id);
   if (id && hook.hook_event_name === "TaskCreated") return { id, subject: text(hook.task_subject), status: "pending" };
@@ -123,7 +140,11 @@ async function toEvent(hook) {
   const event = { state, source: "claude-code", ts: Date.now(), hook: name };
   const agent = text(hook.session_id);
   if (agent) event.agent = agent;
-  if (typeof hook.cwd === "string") event.name = text(hook.cwd.split(/[\\/]/).filter(Boolean).pop());
+  const terminal = text(process.env.AGENT_CHARACTER_SESSION);
+  if (terminal) event.terminal = terminal;
+  const cwd = typeof hook.cwd === "string" ? hook.cwd : process.cwd();
+  event.name = text(cwd.split(/[\\/]/).filter(Boolean).pop());
+  event.project = text(await projectName(cwd));
   if (text(hook.agent_id)) event.subagent = { id: text(hook.agent_id), type: text(hook.agent_type) };
   const task = hookTask(hook);
   if (task) event.task = task;
