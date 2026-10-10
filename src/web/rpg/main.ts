@@ -6,20 +6,32 @@ import { Messages, Status, type Permission } from "./hud";
 import { Scene } from "./scene";
 import { loadTowns } from "./ledger";
 import { initExpedition } from "./expedition";
+import { initTalk } from "./talk";
 import "./rpg.css";
+import "./talk.css";
 
 const token = new URLSearchParams(location.search).get("token") ?? "";
 const canvas = document.querySelector<HTMLCanvasElement>("#world")!;
 const connectionLabel = document.querySelector<HTMLElement>("#connection")!;
 document.querySelector<HTMLAnchorElement>("#live2d-link")!.search = location.search;
-const scene = new Scene(canvas, document.querySelector<HTMLElement>("#town-layer")!);
+const scene = new Scene(canvas, document.querySelector<HTMLElement>("#town-layer")!,
+  (id) => talk.open(id), (terminal) => void expedition.openTerminal(terminal),
+  (id) => status.openDetails(room, Date.now(), id, scene.names),
+  (text, at) => messages.say(text, at));
 const messages = new Messages(document.querySelector<HTMLElement>("#messages")!);
 let room = new Room();
 let socket: WebSocket | undefined;
 const expedition = initExpedition(() => scene.currentTown, (terminal) => {
   const agent = [...room.agents.values()].find((item) => item.terminal === terminal);
   return agent && (scene.names.get(agent.id) ?? agent.name);
+}, (session, towns) => {
+  // The session registers its town before returning, even before its hero arrives.
+  scene.setTowns(towns);
+  scene.enterTown(session.project, () => talk.openSession(session.id));
 });
+const talk = initTalk((id) => room.agents.get(id), (id) => scene.names.get(id),
+  (terminal) => void expedition.openTerminal(terminal),
+  (terminal) => [...room.agents.values()].find((agent) => agent.terminal === terminal));
 const status = new Status(
   document.querySelector<HTMLElement>("#party")!,
   (id, decision) => {
@@ -64,6 +76,7 @@ function connect(): void {
       if (data.type === "replay" && Array.isArray(data.events)) {
         // Rebuild who is in town; retell only the last few lines.
         room = new Room();
+        talk.resetPending();
         const told: [string, number][] = [];
         for (const item of data.events) {
           const parsed = parse(item?.event, item?.at);
@@ -78,6 +91,9 @@ function connect(): void {
         if (!told.length) messages.say("ここは エージェントたちの まち。 ゆうしゃの とうちゃくを まっている…", undefined, true);
       } else if (data.type === "towns" && Array.isArray(data.towns)) {
         scene.setTowns(data.towns);
+      } else if (data.type === "pending" && typeof data.terminal === "string" && Array.isArray(data.texts)
+        && data.texts.every((text: unknown) => typeof text === "string")) {
+        talk.setPending(data.terminal, data.texts);
       } else if (data.type === "event") {
         const parsed = parse(data.event, data.at);
         if (parsed) live(parsed.event, parsed.at);
@@ -106,10 +122,12 @@ function frame(time: number): void {
     scene.sync(room, now);
     status.render(room, now, scene.selected, scene.names);
     expedition.updateTitle();
+    talk.update();
     lastStatus = now;
   }
   scene.frame(time, now);
   messages.tick();
+  talk.tick(time);
   requestAnimationFrame(frame);
 }
 

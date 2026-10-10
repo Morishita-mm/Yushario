@@ -1,8 +1,9 @@
 import { connectSessionTerminal, sessionRequest, type Session } from "../terminal";
-import { loadTowns } from "./ledger";
+import { loadTowns, type TownRecord } from "./ledger";
 
 // Page-local windows. All session ownership stays on the server.
-export function initExpedition(currentTown: () => string | undefined, heroName: (terminal: string) => string | undefined) {
+export function initExpedition(currentTown: () => string | undefined, heroName: (terminal: string) => string | undefined,
+  launched: (session: Session, towns: TownRecord[]) => void) {
   const launch = document.querySelector<HTMLDialogElement>("#expedition-dialog")!;
   const dialog = document.querySelector<HTMLDialogElement>("#session-dialog")!;
   const title = document.querySelector<HTMLElement>("#session-title")!;
@@ -137,10 +138,15 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
     const cwd = destination.value || path.value.trim();
     start.disabled = true;
     status.textContent = "しゅつじん中…";
-    void sessionRequest("POST", "", { preset: preset.value, cwd }).then((result) => {
+    void sessionRequest("POST", "", { preset: preset.value, cwd }).then(async (result) => {
       if (launching !== request || !launch.open) return; // Closing never cancels or deletes a created session.
-      prepareTerminal();
-      attach(result as Session);
+      const session = result as Session;
+      // Shell has no arriving hero or conversation; keep its existing terminal entry.
+      if (session.preset === "shell") { prepareTerminal(); attach(session); return; }
+      const towns = await loadTowns();
+      if (launching !== request || !launch.open) return;
+      closeLaunch();
+      launched(session, towns);
     }).catch((error: Error) => {
       if (launching === request && launch.open) status.textContent = error.message;
     }).finally(() => { if (launching === request) start.disabled = false; });

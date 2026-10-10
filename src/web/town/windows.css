@@ -40,7 +40,10 @@
 .commands { display: flex; flex-direction: column; align-items: flex-start; }
 .commands.row { flex-direction: row; gap: 18px; }
 .command-window button, .roster-row button { font: inherit; background: none; border: 0; color: #fff; cursor: pointer; padding: 3px 2px; text-align: left; }
-.command-window button:hover:not(:disabled), .command-window button:focus-visible, .roster-row button:hover { color: #ffe066; outline: none; }
+.command-window button:focus { outline: none; }
+.command-window button.selected, .command-window .answer button:hover, .command-window .answer button:focus-visible, .roster-row button:hover { color: #ffe066; }
+.commands button::before { content: ""; display: inline-block; width: 1.3em; }
+.commands button.selected::before { content: "▶"; }
 .command-window button:disabled { color: #5d5a73; cursor: default; }
 .command-window .answer { display: flex; gap: 8px; align-items: flex-end; }
 .command-window textarea { flex: 1; font: inherit; font-size: 14px; background: #1d1726; color: #fff; border: 2px solid #6e6a8a; border-radius: 4px; padding: 6px 8px; }

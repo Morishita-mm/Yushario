@@ -24,7 +24,7 @@ const STOPS: { node: string; pose: [string, number]; balloon?: number }[] = [
 export type Walker = {
   id: string; name: string; variant: number; x: number; y: number; at: string; stop: number; path: string[];
   waitUntil: number; walked: number; dx: number; dy: number; party: string[];
-  leaving?: boolean; wavedAt?: number;
+  leaving?: boolean; wavedAt?: number; paused?: boolean;
 };
 export type TownSign = { name: string; x: number; y: number; icon: number };
 export type Departed = { name: string; repo: string; left: string; last: string };
@@ -67,6 +67,7 @@ export function returnWalker(walker: Walker): void {
 export function stepWalkers(walkers: Walker[], t: number, dt: number): Walker[] {
   const departed: Walker[] = [];
   for (const walker of walkers) {
+    if (walker.paused) continue;
     if (walker.leaving && !walker.path.length) {
       walker.wavedAt ??= t;
       if (t - walker.wavedAt > 1600) departed.push(walker);
@@ -108,7 +109,9 @@ export function drawWalker(ctx: CanvasRenderingContext2D, art: Sheets, walker: W
     ctx.globalAlpha = 1;
     return;
   }
-  if (!walker.path.length) {
+  if (walker.paused) {
+    art.draw(ctx, art.variant("hero-model", walker.variant), 0, walker.x, walker.y);
+  } else if (!walker.path.length) {
     const stop = STOPS[walker.stop];
     const [sheet, frame] = stop.pose;
     art.draw(ctx, art.variant(sheet, walker.variant), frame, walker.x, walker.y - (Math.floor((t + walker.variant * 300) / 700) % 2));

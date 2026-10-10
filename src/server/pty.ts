@@ -1,29 +1,14 @@
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { accessSync, constants, mkdtempSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, statSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { tmpdir } from "node:os";
-import { delimiter, isAbsolute, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { spawn } from "node-pty";
+import { isAbsolute, join } from "node:path";
+import { MAX_EVENT_TEXT_LENGTH, type AgentEvent } from "../core/events";
 import { WebSocket, WebSocketServer } from "ws";
 import { appendOutput, dimensions, SESSION_LIMIT, sessionInput, type TerminalSession } from "./pty-session";
 import { projectName } from "./project";
-
-const root = fileURLToPath(new URL("../../", import.meta.url));
-// Keep user configuration (e.g. CLAUDE_CODE_USE_BEDROCK), but not inherited child-session markers.
-const serverOnlyEnvironment = ["TYPESAFE_API_KEY", "AGENT_CHARACTER_TOKEN", "CLAUDE_CODE_CHILD_SESSION", "CLAUDECODE"];
-
-function executable(command: string): string | undefined {
-  const paths = command.includes("/") ? [command]
-    : (process.env.PATH ?? "").split(delimiter).map((directory) => join(directory, command));
-  return paths.find((path) => {
-    try { accessSync(path, constants.X_OK); return true; } catch { return false; }
-  });
-}
-
-// Both shells and Claude's hook runner interpret this command; quote absolute paths safely.
-function quote(value: string): string { return `'${value.replaceAll("'", "'\\''")}'`; }
+import { launchPty, writeClaudeSettings } from "./pty-launch";
 
 function json(response: ServerResponse, status: number, value: unknown): void {
   response.writeHead(status, { "Content-Type": "application/json", "Cache-Control": "no-store" })
@@ -48,30 +33,61 @@ function descendants(rootPid: number): number[] {
 }
 
 type Session = {
-  info: TerminalSession; terminal: ReturnType<typeof spawn>; output: Buffer;
+  info: TerminalSession; terminal: ReturnType<typeof launchPty>; output: Buffer;
   clients: Set<WebSocket>; stop: () => void;
+  waiting: boolean; eventAt: number; texts: string[]; enter?: ReturnType<typeof setTimeout>;
 };
 
-export function createPtyServer(port: number, registerTown: (session: TerminalSession) => void) {
+export function createPtyServer(port: number, registerTown: (session: TerminalSession) => void,
+  pendingChanged: (message: { type: "pending"; terminal: string; texts: string[] }) => void) {
   const temporary = mkdtempSync(join(tmpdir(), "agent-character-"));
-  const settings = join(temporary, "claude-settings.json");
-  const command = `${quote(process.execPath)} ${quote(join(root, "adapters/claude-code/hook.mjs"))}`;
-  const hooks = Object.fromEntries([
-    "SessionStart", "SessionEnd", "UserPromptSubmit", "PreToolUse", "PostToolUse", "PostToolUseFailure",
-    "Notification", "SubagentStart", "SubagentStop", "TaskCreated", "TaskCompleted", "PreCompact", "PostCompact",
-    "Stop", "StopFailure",
-  ].map((event) => [event, [{ matcher: "*", hooks: [{ type: "command", command, timeout: 1 }] }]]));
-  writeFileSync(settings, JSON.stringify({ hooks: { ...hooks,
-    PermissionRequest: [{ matcher: "*", hooks: [{
-      type: "http", url: `http://127.0.0.1:${port}/hooks/permission`, timeout: 125,
-    }] }],
-  } }), { mode: 0o600 });
+  const settings = writeClaudeSettings(port, temporary);
   const sockets = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 });
   const sessions = new Map<string, Session>();
   const kills = new Set<ReturnType<typeof setTimeout>>();
   const groups = new Set<number>();
   const children = new Set<number>();
   let disposed = false;
+
+  function pending(session: Session) {
+    return { type: "pending" as const, terminal: session.info.id, texts: [...session.texts] };
+  }
+
+  function clearPending(session: Session): void {
+    if (!session.texts.length) return;
+    session.texts = [];
+    pendingChanged(pending(session));
+  }
+
+  // Paste the text as one block (bracketed paste) so its newlines are not Enter and no control keys get through.
+  function deliver(session: Session, text: string): void {
+    const body = text.replace(/\r\n?/g, "\n").replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, "");
+    session.terminal.write(`\x1b[200~${body}\x1b[201~`);
+    session.waiting = false; // Reserve the next turn, including the delay before Enter.
+    session.enter = setTimeout(() => {
+      session.enter = undefined;
+      if (sessions.get(session.info.id) !== session || session.info.exited || disposed) return;
+      try { session.terminal.write("\r"); }
+      catch (error) { console.error("Conversation delivery failed:", error instanceof Error ? error.message : String(error)); }
+    }, 300);
+  }
+
+  // Only the main conversation's turn boundaries decide waiting/working. Subagents (including background
+  // ones that finish after Stop) and notifications arrive at any time and must not flip the state.
+  const IDLE_HOOKS = ["SessionStart", "Stop", "StopFailure"];
+  const BUSY_HOOKS = ["UserPromptSubmit", "PreToolUse", "PostToolUse", "PostToolUseFailure"];
+  function observe(event: AgentEvent, at: number): void {
+    const session = event.terminal ? sessions.get(event.terminal) : undefined;
+    const hook = event.hook ?? "";
+    if (!session || session.info.exited || event.subagent || at < session.eventAt) return;
+    if (!IDLE_HOOKS.includes(hook) && !BUSY_HOOKS.includes(hook)) return;
+    session.eventAt = at;
+    session.waiting = !session.enter && IDLE_HOOKS.includes(hook);
+    if (session.waiting && session.texts.length) {
+      try { deliver(session, session.texts.join("\n")); clearPending(session); }
+      catch (error) { console.error("Conversation delivery failed:", error instanceof Error ? error.message : String(error)); }
+    }
+  }
 
   function killPid(pid: number, signal: NodeJS.Signals): void {
     try { process.kill(pid, signal); } catch { /* Already exited. */ }
@@ -87,26 +103,19 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
     try {
       if (!statSync(cwd).isDirectory()) throw new Error();
     } catch { throw new Error("cwd must be an existing directory"); }
-    const program = preset === "shell" ? process.env.SHELL || "/bin/sh" : preset;
-    const path = executable(program);
-    if (!path) throw new Error(`${program} が PATH に見つかりません。インストールして server を再起動してください`);
     const project = await projectName(cwd);
     // Check after the await too: concurrent requests must not exceed the limit.
     if (disposed) throw new Error("Server is stopping");
     if (sessions.size >= SESSION_LIMIT) throw new Error("Session limit reached (16)");
     const id = randomBytes(6).toString("hex");
-    const args = preset === "claude" ? ["--settings", settings]
-      : preset === "pi" ? ["-e", join(root, "adapters/pi/agent-character.ts")] : [];
-    const env = Object.fromEntries(Object.entries(process.env).filter((entry): entry is [string, string] => entry[1] !== undefined));
-    for (const name of serverOnlyEnvironment) delete env[name];
-    env.AGENT_CHARACTER_URL = `http://127.0.0.1:${port}/event`;
-    env.AGENT_CHARACTER_SESSION = id;
-    const terminal = spawn(path, args, { name: "xterm-256color", cols: 80, rows: 24, cwd, env });
+    const terminal = launchPty(preset, cwd, id, port, settings);
     groups.add(terminal.pid);
     let stopped = false;
     const stop = (): void => {
       if (stopped) return;
       stopped = true;
+      clearTimeout(session.enter);
+      clearPending(session);
       const pids = descendants(terminal.pid);
       for (const pid of pids) { children.add(pid); killPid(pid, "SIGHUP"); }
       // Keep the original group cleanup too, including jobs that are not in the snapshot.
@@ -122,7 +131,7 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
     };
     const session: Session = {
       info: { id, preset, cwd, project, createdAt: Date.now() }, terminal,
-      output: Buffer.alloc(0), clients: new Set(), stop,
+      output: Buffer.alloc(0), clients: new Set(), stop, waiting: false, eventAt: -Infinity, texts: [],
     };
     sessions.set(id, session);
     const output = (data: string): void => {
@@ -138,7 +147,7 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
       output(`\r\n[終了: ${exitCode}]\r\n`);
       for (const client of session.clients) client.close(1000, "Process exited");
     });
-    try { registerTown(session.info); }
+    try { if (preset !== "shell") registerTown(session.info); }
     catch (error) { sessions.delete(id); stop(); throw error; }
     return session.info;
   }
@@ -160,6 +169,30 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
         const message = error instanceof Error ? error.message : String(error);
         json(response, message.startsWith("Session limit") ? 409 : 400, { error: message });
       }
+    } else if (/^\/api\/sessions\/[^/]+\/say$/.test(url.pathname) && request.method === "POST") {
+      const session = sessions.get(url.pathname.split("/")[3]);
+      if (!session) { json(response, 404, { error: "Unknown session" }); return; }
+      let body = "";
+      request.setEncoding("utf8");
+      try {
+        for await (const chunk of request) {
+          body += chunk;
+          if (body.length > 64 * 1024) { json(response, 400, { error: "Body too large" }); return; }
+        }
+        const value: unknown = JSON.parse(body);
+        const text = value && typeof value === "object" && !Array.isArray(value)
+          ? (value as Record<string, unknown>).text : undefined;
+        if (typeof text !== "string" || text.length < 1 || text.length > MAX_EVENT_TEXT_LENGTH) {
+          json(response, 400, { error: "text must be a string of 1–8000 characters" }); return;
+        }
+        if (session.info.exited || sessions.get(session.info.id) !== session) {
+          json(response, 409, { error: "Session exited" }); return;
+        }
+        const delivered = session.waiting;
+        if (delivered) deliver(session, text);
+        else { session.texts.push(text); pendingChanged(pending(session)); }
+        json(response, 200, { delivered });
+      } catch { json(response, 400, { error: "Invalid conversation request" }); }
     } else if (url.pathname.startsWith("/api/sessions/") && request.method === "DELETE") {
       const id = url.pathname.slice("/api/sessions/".length);
       const session = sessions.get(id);
@@ -201,10 +234,11 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
   });
   sockets.on("error", (error) => console.error("PTY server error:", error.message));
   return {
-    sockets, handleRequest,
+    sockets, handleRequest, observe,
+    pending: () => [...sessions.values()].filter((session) => session.texts.length).map(pending),
     getSession: (id: string) => sessions.get(id)?.info,
     activeProjects: () => new Set([...sessions.values()]
-      .filter((session) => !session.info.exited).map((session) => session.info.project)),
+      .filter((session) => !session.info.exited && session.info.preset !== "shell").map((session) => session.info.project)),
     dispose: () => {
       if (disposed) return;
       disposed = true;

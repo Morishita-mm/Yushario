@@ -42,13 +42,14 @@ function record(event: AgentEvent): void {
   const now = Date.now();
   const at = event.ts !== undefined && Math.abs(event.ts - now) < 60_000 ? event.ts : now;
   const session = event.terminal ? pty.getSession(event.terminal) : undefined;
-  if (session) {
+  if (session && session.preset !== "shell") {
     try { ledger.observe(session.project, now); }
     catch (error) { console.error("Town activity save failed:", error); }
   }
   history.push({ event, at });
   if (history.length > HISTORY_LIMIT) history.shift();
   broadcast({ type: "event", event, at });
+  pty.observe(event, at);
   if (event.hook === "SessionEnd") minds.delete(event.agent ?? "default");
 }
 
@@ -143,7 +144,8 @@ const server = createServer(async (request, response) => {
   }
   response.writeHead(204).end();
   record(result.event);
-  if (result.event.hook === "SessionEnd") return;
+  // A subagent ending (often a background one, after the main Stop) says nothing about the main agent's state.
+  if (result.event.hook === "SessionEnd" || result.event.hook === "SubagentStop") return;
   const key = result.event.agent ?? "default";
   const mind = minds.get(key) ?? { recent: [], lastDecisionMs: performance.now(), latestEvent: 0 };
   minds.set(key, mind);
@@ -177,7 +179,7 @@ const server = createServer(async (request, response) => {
 });
 
 const sockets = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 });
-const pty = createPtyServer(port, (session) => ledger.register(session.project, session.cwd, session.createdAt));
+const pty = createPtyServer(port, (session) => ledger.register(session.project, session.cwd, session.createdAt), broadcast);
 function archive(): void {
   try { ledger.archive(pty.activeProjects(), Date.now()); }
   catch (error) { console.error("Town archive failed:", error); }
@@ -207,6 +209,7 @@ sockets.on("connection", (client) => {
   client.on("error", (error) => console.error("WebSocket error:", error.message));
   client.send(JSON.stringify({ type: "replay", events: history }));
   client.send(JSON.stringify({ type: "towns", towns: ledger.towns }));
+  for (const message of pty.pending()) client.send(JSON.stringify(message));
   if (permissions.current) client.send(JSON.stringify(permissions.current));
   client.on("message", (data, binary) => {
     if (binary) return;

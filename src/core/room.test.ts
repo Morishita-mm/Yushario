@@ -35,6 +35,37 @@ describe("Room", () => {
     expect(external.project).toBe("repo");
   });
 
+  it("records prompt and final reply text with their speaker and time", () => {
+    const room = new Room();
+    const agent = room.apply(a({ hook: "SessionStart", state: "idle" }), 0)!;
+    expect(agent.talk).toEqual([]);
+    room.apply(a({ hook: "UserPromptSubmit", state: "thinking", text: "こんにちは" }), 10);
+    room.apply(a({ hook: "Stop", state: "success", text: "こんにちは！" }), 20);
+    room.apply(a({ hook: "PostToolUse", tool: "Read", text: "not conversation" }), 30);
+    room.apply(a({ hook: "Stop", state: "success" }), 40);
+    expect(agent.talk).toEqual([
+      { at: 10, from: "you", text: "こんにちは" },
+      { at: 20, from: "hero", text: "こんにちは！" },
+    ]);
+    expect(room.apply({ state: "success", agent: "s2", hook: "Stop", text: "another hero" }, 50)!.talk)
+      .toEqual([{ at: 50, from: "hero", text: "another hero" }]);
+    expect(agent.talk).toHaveLength(2);
+  });
+
+  it("keeps the most recent 30 talk entries in event-time order, including replay", () => {
+    const room = new Room();
+    for (let i = 0; i < 35; i++) {
+      room.apply(a({ hook: i % 2 ? "Stop" : "UserPromptSubmit", text: String(i) }), i);
+    }
+    room.apply(a({ hook: "Stop", text: "late old event" }), 2);
+    const agent = room.agents.get("s1")!;
+    expect(agent.talk).toHaveLength(30);
+    expect(agent.talk[0]).toEqual({ at: 5, from: "hero", text: "5" });
+    expect(agent.talk.at(-1)).toEqual({ at: 34, from: "you", text: "34" });
+    room.apply(a({ hook: "SessionEnd", state: "idle" }), 40);
+    expect(room.apply(a({ hook: "SessionStart", state: "idle" }), 50)!.talk).toEqual([]);
+  });
+
   it("keeps the activity after a tool finishes and stops the running clock", () => {
     const room = new Room();
     room.apply(pre("Edit", "room.ts"), 0);

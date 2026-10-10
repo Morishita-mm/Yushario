@@ -17,6 +17,7 @@ export const MOOD_RULES = {
   callingMs: 60_000,
   dozingMs: 10 * 60_000,
 } as const;
+const TALK_LIMIT = 30;
 const LOG_LIMIT = 50;
 const TASK_LIMIT = 50;
 const HISTORY_LIMIT = 20;
@@ -44,6 +45,7 @@ export interface RoomAgent {
   tasks: RoomTask[];
   helpers: Helper[];
   log: LogEntry[]; // Oldest first.
+  talk: { at: number; from: "you" | "hero"; text: string }[]; // Local conversation, oldest first.
   activityAt: number; // Hooks post concurrently; older events never overwrite newer activity.
   postAt: number;
 }
@@ -62,7 +64,7 @@ export class Room {
     if (!agent) {
       agent = {
         id, name: event.name ?? "agent", activity: "idle", since: at, running: false, lastEventAt: at,
-        failures: [], edits: [], wins: 0, quests: 0, tasks: [], helpers: [], log: [],
+        failures: [], edits: [], wins: 0, quests: 0, tasks: [], helpers: [], log: [], talk: [],
         activityAt: -Infinity, postAt: -Infinity,
       };
       this.agents.set(id, agent);
@@ -72,6 +74,11 @@ export class Room {
     if (event.project) agent.project = event.project;
     agent.lastEventAt = Math.max(agent.lastEventAt, at);
     if (event.context !== undefined) agent.context = event.context;
+    if (event.text !== undefined && (event.hook === "UserPromptSubmit" || event.hook === "Stop")) {
+      agent.talk.push({ at, from: event.hook === "UserPromptSubmit" ? "you" : "hero", text: event.text });
+      agent.talk.sort((left, right) => left.at - right.at);
+      if (agent.talk.length > TALK_LIMIT) agent.talk.shift();
+    }
     if (event.task) updateTask(agent, event.task);
     if (event.subagent) updateHelper(agent, event);
     else updateActivity(agent, event, at);

@@ -1,0 +1,31 @@
+dialog.talk-window {
+  position: fixed; inset: auto 16px 16px; margin: 0 auto; width: min(1060px, calc(100vw - 32px));
+  max-height: 70svh; padding: 14px 20px;
+}
+dialog.talk-window::backdrop { background: rgba(0, 0, 0, 0.25); }
+.talk-heading { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; }
+.talk-heading h3 { flex: 1; text-align: left; margin: 0; }
+.talk-heading button { flex: none; }
+#talk-history { max-height: 25svh; min-height: 3em; overflow-y: auto; padding-right: 8px; cursor: pointer; }
+.talk-line { margin: 8px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.talk-line.you { color: #ffe7a3; }
+.talk-speaker { color: #9fd3ff; }
+.talk-body pre { font: 14px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; background: #1d1726; padding: 8px 12px; margin: 4px 0; }
+.talk-pages { text-align: right; min-height: 1.5em; }
+.talk-pages button { color: #ffe066; }
+#talk-pending { max-height: 12svh; overflow-y: auto; border-top: 1px dashed #6e6a8a; color: #ffd38a; }
+#talk-pending p { margin: 4px 0; }
+.pending-text { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; }
+#talk-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 6px 12px; }
+#talk-form label { grid-column: 1 / -1; color: #9fd3ff; font-size: 13px; }
+#talk-input { min-width: 0; width: 100%; max-height: 16svh; }
+#talk-status { margin: 4px 0 0; min-height: 1.5em; color: #ffe7a3; overflow-wrap: anywhere; }
+#talk-foreign { margin: 8px 0; }
+.talk-window .actions { justify-content: flex-start; margin-top: 4px; }
+.talk-window [hidden] { display: none !important; }
+.talk-window button:focus-visible, #talk-history:focus-visible { outline: 1px solid #ffe066; outline-offset: 2px; }
+@media (max-width: 600px) {
+  dialog.talk-window { inset: auto 8px 8px; width: calc(100vw - 16px); padding: 10px 12px; max-height: 80svh; }
+  #talk-form { grid-template-columns: minmax(0, 1fr); }
+  #talk-send { justify-self: end; }
+}

@@ -16,6 +16,11 @@ a { color: #9fd3ff; font-size: 14px; }
 .stage { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 #world { display: block; width: 100%; image-rendering: pixelated; border: 3px solid #ffffff; border-radius: 6px; cursor: pointer; background: #000; }
 .map-stage { position: relative; }
+.following { display: flex; align-items: center; gap: 12px; padding: 6px 10px; border: 1px solid #ffe066; background: #1d1726; color: #ffe7a3; }
+.following[hidden] { display: none; }
+#following-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+#following-stop { flex: none; font: inherit; color: #fff; background: none; border: 1px solid #6e6a8a; padding: 4px 8px; cursor: pointer; }
+#following-stop:hover, #following-stop:focus-visible { color: #ffe066; border-color: #ffe066; }
 .map-nav { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; font-size: 14px; }
 .map-nav button, #settings, #expedition { font: inherit; background: #1d1726; color: #fff; border: 1px solid #6e6a8a; padding: 4px 8px; cursor: pointer; }
 .map-nav button:hover, .map-nav button:focus-visible, #settings:hover, #settings:focus-visible, #expedition:hover, #expedition:focus-visible { color: #ffe066; border-color: #ffe066; }
@@ -88,6 +93,16 @@ dialog.terminal-window[open] { display: flex; flex-direction: column; gap: 8px; 
 .actions { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 6px; }
 .actions button { font: inherit; font-size: 14px; background: none; border: 0; color: #ffffff; padding: 2px 0; cursor: pointer; }
 .actions button:hover, .actions button:focus-visible { color: #ffe066; outline: none; }
+dialog.strength-window { width: min(720px, calc(100vw - 32px)); padding: 14px 20px; overflow: hidden; }
+dialog.strength-window[open] { display: flex; flex-direction: column; gap: 10px; }
+.strength-heading { display: flex; align-items: center; gap: 16px; flex: none; }
+.strength-heading h3 { flex: 1; text-align: left; margin: 0; overflow-wrap: anywhere; }
+.strength-heading button { flex: none; }
+#strength-content { min-height: 0; overflow-y: auto; padding-right: 8px; }
+.strength-window .hero { cursor: default; }
+.strength-window .hero header { flex-wrap: wrap; }
+.strength-window .party, .strength-window .quests, .strength-window .log { overflow-wrap: anywhere; }
+.strength-window button:focus-visible, #strength-content:focus-visible { outline: 1px solid #ffe066; outline-offset: 2px; }
 @media (max-width: 960px) {
   .quest { grid-template-columns: 1fr; }
   #party { max-height: none; }

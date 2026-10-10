@@ -5,7 +5,7 @@ import { promisify } from "node:util";
 
 const execute = promisify(execFile);
 
-// Command hooks must never emit text or interfere with Claude Code.
+// Command hooks must stay silent on stdout/stderr and never interfere with Claude Code.
 const started = performance.now();
 const budgetMs = 500;
 const deadline = setTimeout(() => process.exit(0), budgetMs);
@@ -62,7 +62,7 @@ function toolFailed(response) {
     || (typeof response.exitCode === "number" && response.exitCode !== 0);
 }
 
-// Only short, local-display targets leave the adapter (docs/OBSERVATION.md):
+// Tool input leaves the adapter only as short local-display targets (docs/OBSERVATION.md):
 // file basenames, the first plain words of a command, a URL's host, a subagent type.
 function commandHead(command) {
   const segments = command.split(/&&|\|\||;|\||\n/).map((part) => part.trim().split(/\s+/));
@@ -164,7 +164,10 @@ async function toEvent(hook) {
     context = contextUsage(hook);
   }
   if (context !== undefined) event.context = context;
-  // Never include prompt, notification, or tool output text; tool input only as `target` above.
+  // Only these two conversation bodies go to the local relay/display, never Jev or files.
+  const body = name === "UserPromptSubmit" ? hook.prompt : name === "Stop" ? hook.last_assistant_message : undefined;
+  if (typeof body === "string") event.text = body.slice(0, 8000);
+  // Notification/tool output bodies remain private; tool input only as `target` above.
   event.detail = {
     idle: name === "SessionEnd" ? "Session ended" : name === "PostToolUseFailure" ? "Interrupted" : "Session started",
     thinking: "Prompt received",

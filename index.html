@@ -21,6 +21,10 @@
           <button id="town-look" type="button" hidden>町のすがたを かえる</button>
           <button id="town-pin" type="button" aria-pressed="false" hidden>ピンどめ</button>
         </nav>
+        <div id="following" class="following" role="status" hidden>
+          <span id="following-name"></span>
+          <button id="following-stop" type="button">やめる</button>
+        </div>
         <div class="map-stage">
           <canvas id="world" role="img" aria-label="エージェントたちの町とフィールド"></canvas>
           <div id="town-layer" class="report-layer" hidden></div>
@@ -59,6 +63,31 @@
       <p id="session-status" role="status"></p>
       <div id="session-terminal" aria-label="勇者のターミナル"></div>
       <p class="terminal-hint">Esc・窓の外・とじる で 町にもどる。勇者は うごきつづけます。</p>
+    </dialog>
+    <dialog id="talk-dialog" class="report-window talk-window" aria-labelledby="talk-title">
+      <div class="talk-heading">
+        <h3 id="talk-title">勇者と はなす</h3>
+        <button id="talk-close" type="button">▶ とじる</button>
+      </div>
+      <div id="talk-history" aria-label="勇者との会話" tabindex="0"></div>
+      <div class="talk-pages"><button id="talk-next" type="button" hidden>▼ つぎへ</button></div>
+      <div id="talk-pending" aria-live="polite" hidden></div>
+      <form id="talk-form" class="answer">
+        <label for="talk-input">勇者に つたえる</label>
+        <textarea id="talk-input" rows="2" maxlength="8000" required placeholder="いらいを かく（Ctrl+Enter でも つたえる）"></textarea>
+        <button id="talk-send" type="submit">▶ つたえる</button>
+      </form>
+      <p id="talk-foreign" class="hint" hidden>外から来た勇者なので 読むだけです。このアプリの ターミナルでは ないため、ここからは つたえられません。</p>
+      <p id="talk-status" role="status"></p>
+      <div class="actions"><button id="talk-terminal" type="button">▶ ターミナルで みる</button></div>
+    </dialog>
+    <dialog id="strength-dialog" class="report-window strength-window" aria-labelledby="strength-title">
+      <div class="strength-heading">
+        <h3 id="strength-title">つよさ</h3>
+        <button id="strength-close" type="button">▶ とじる</button>
+      </div>
+      <div id="strength-content" aria-label="勇者の つよさ" tabindex="0"></div>
+      <p class="terminal-hint">Esc・窓の外・とじる で 町にもどる。</p>
     </dialog>
     <script type="module" src="/src/web/rpg/main.ts"></script>
   </body>

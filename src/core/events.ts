@@ -18,6 +18,7 @@ export interface AgentEvent {
   name?: string; // Display name (last segment of the working directory).
   terminal?: string; // Embedded terminal session id.
   project?: string; // Repository name (shared by its worktrees).
+  text?: string; // Prompt/final reply for local conversation display only.
   hook?: string; // Harness hook name, e.g. "PreToolUse".
   target?: string; // What the activity is about: file basename, command head, domain…
   subagent?: { id: string; type?: string };
@@ -28,6 +29,7 @@ export type TaskStatus = "pending" | "in_progress" | "completed" | "deleted";
 const TASK_STATUSES: readonly TaskStatus[] = ["pending", "in_progress", "completed", "deleted"];
 
 export const MAX_EVENT_METADATA_LENGTH = 200;
+export const MAX_EVENT_TEXT_LENGTH = 8000;
 
 const STATES: readonly AgentState[] = [
   "idle", "thinking", "working", "waiting_input", "success", "error",
@@ -53,6 +55,10 @@ export function parseAgentEvent(
   if (value.context !== undefined && (typeof value.context !== "number"
     || !Number.isFinite(value.context) || value.context < 0 || value.context > 1)) {
     return { ok: false, error: "context must be a finite number between 0 and 1" };
+  }
+
+  if (value.text !== undefined && (typeof value.text !== "string" || value.text.length > MAX_EVENT_TEXT_LENGTH)) {
+    return { ok: false, error: `text must be a string of at most ${MAX_EVENT_TEXT_LENGTH} characters` };
   }
 
   for (const field of ["source", "tool", "agent", "name", "hook", "target", "terminal", "project"] as const) {
@@ -93,7 +99,7 @@ export function parseAgentEvent(
   if (value.source !== undefined) event.source = value.source as string;
   if (value.tool !== undefined) event.tool = value.tool as string;
   if (value.context !== undefined) event.context = value.context as number;
-  for (const field of ["agent", "name", "hook", "target", "terminal", "project"] as const) {
+  for (const field of ["agent", "name", "hook", "target", "terminal", "project", "text"] as const) {
     if (value[field] !== undefined) event[field] = value[field] as string;
   }
   if (subagent) event.subagent = subagent;
@@ -105,7 +111,7 @@ function shortText(value: unknown): boolean {
   return typeof value === "string" && value.length > 0 && value.length <= MAX_EVENT_METADATA_LENGTH;
 }
 
-// The Decider (and so Jev) only sees what it saw before rooms: no names, targets or tasks.
+// The Decider (and so Jev) never sees conversation text, names, targets or tasks.
 export function deciderEvent(event: AgentEvent): AgentEvent {
   const { state, detail, ts, source, tool, context } = event;
   return Object.fromEntries(Object.entries({ state, detail, ts, source, tool, context })

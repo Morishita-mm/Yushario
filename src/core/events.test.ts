@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MAX_EVENT_METADATA_LENGTH, deciderEvent, parseAgentEvent, type AgentState } from "./events";
+import { MAX_EVENT_METADATA_LENGTH, MAX_EVENT_TEXT_LENGTH, deciderEvent, parseAgentEvent, type AgentState } from "./events";
 
 const states: AgentState[] = ["idle", "thinking", "working", "waiting_input", "success", "error"];
 
@@ -34,6 +34,21 @@ describe("parseAgentEvent", () => {
       expect(result.ok).toBe(false);
       if (!result.ok) expect(result.error).toContain(field);
     }
+  });
+
+  it("accepts local conversation text up to 8000 characters", () => {
+    for (const text of ["", "こんにちは\n```ts\nconst n = 1;\n```", "x".repeat(MAX_EVENT_TEXT_LENGTH)]) {
+      expect(parseAgentEvent({ state: "success", hook: "Stop", text })).toEqual({
+        ok: true, event: { state: "success", hook: "Stop", text },
+      });
+    }
+    expect(parseAgentEvent({ state: "idle", text: undefined })).toEqual({ ok: true, event: { state: "idle" } });
+  });
+
+  it.each([null, 1, false, {}, [], "x".repeat(MAX_EVENT_TEXT_LENGTH + 1)])("rejects invalid text", (text) => {
+    const result = parseAgentEvent({ state: "success", text });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain("text");
   });
 
   it.each([0, 0.2, 0.7, 0.95, 1])("preserves context usage %s", (context) => {
@@ -86,11 +101,13 @@ describe("parseAgentEvent", () => {
     expect(parseAgentEvent({ state: "working", ...fields }).ok).toBe(false);
   });
 
-  it("keeps names, targets and tasks away from the Decider", () => {
+  it("keeps conversation text, names, targets and tasks away from the Decider", () => {
     expect(deciderEvent({
       state: "working", source: "claude-code", tool: "Read", ts: 1, context: 0.5, detail: "Tool activity",
       agent: "s1", name: "secret-project", hook: "PreToolUse", target: "secret.ts", terminal: "pty1", project: "secret-repo",
-      subagent: { id: "h1" }, task: { id: "1", subject: "secret", status: "pending" },
+      subagent: { id: "h1" }, task: { id: "1", subject: "secret", status: "pending" }, text: "private conversation",
     })).toEqual({ state: "working", source: "claude-code", tool: "Read", ts: 1, context: 0.5, detail: "Tool activity" });
+    expect(deciderEvent({ state: "success", hook: "Stop", text: "private reply" })).toEqual({ state: "success" });
+    expect(deciderEvent({ state: "thinking", hook: "UserPromptSubmit", text: "private prompt" })).toEqual({ state: "thinking" });
   });
 });

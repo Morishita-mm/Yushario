@@ -20,7 +20,7 @@ function element<K extends keyof HTMLElementTagNameMap>(tag: K, className?: stri
   return node;
 }
 
-function place(layer: HTMLElement, box: HTMLElement, at: [number, number]): void {
+function place(layer: HTMLElement, box: HTMLElement, at: [number, number], dismiss = () => close(layer)): void {
   layer.classList.add("menu-layer");
   layer.replaceChildren(box);
   layer.hidden = false;
@@ -29,6 +29,40 @@ function place(layer: HTMLElement, box: HTMLElement, at: [number, number]): void
   const top = Math.min(Math.max(8, at[1] - box.offsetHeight / 2), height - box.offsetHeight - 8);
   box.style.left = `${left}px`;
   box.style.top = `${top}px`;
+
+  const buttons = [...box.querySelectorAll<HTMLButtonElement>(".commands button:not(:disabled)")];
+  let selected = 0;
+  function select(index: number): void {
+    selected = index;
+    for (const [i, button] of buttons.entries()) {
+      button.classList.toggle("selected", i === selected);
+      button.tabIndex = i === selected ? 0 : -1;
+      if (i === selected) button.setAttribute("aria-current", "true");
+      else button.removeAttribute("aria-current");
+    }
+    buttons[selected]?.focus({ preventScroll: true });
+  }
+  for (const [index, button] of buttons.entries()) {
+    button.addEventListener("mouseenter", () => select(index));
+    button.addEventListener("focus", () => { if (selected !== index) select(index); });
+  }
+  box.addEventListener("keydown", (event) => {
+    if (event.isComposing || event.keyCode === 229) return;
+    if (event.key === "Escape") {
+      event.preventDefault(); event.stopPropagation(); dismiss();
+      return;
+    }
+    if (!buttons.length || event.target instanceof HTMLTextAreaElement) return;
+    const direction = event.key === "ArrowUp" || event.key === "ArrowLeft" ? -1
+      : event.key === "ArrowDown" || event.key === "ArrowRight" ? 1 : 0;
+    if (direction) {
+      event.preventDefault(); event.stopPropagation();
+      select((selected + direction + buttons.length) % buttons.length);
+    } else if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault(); event.stopPropagation(); buttons[selected].click();
+    }
+  });
+  select(0);
 }
 
 function close(layer: HTMLElement): void {
@@ -37,7 +71,7 @@ function close(layer: HTMLElement): void {
 }
 
 function option(label: string, action: () => void, disabled?: string): HTMLButtonElement {
-  const button = element("button", undefined, `▶ ${label}`);
+  const button = element("button", undefined, label);
   button.type = "button";
   if (disabled) {
     button.disabled = true;
@@ -45,6 +79,34 @@ function option(label: string, action: () => void, disabled?: string): HTMLButto
   }
   button.addEventListener("click", action);
   return button;
+}
+
+// Stage 3 uses the same frame, positioning and buttons as the mock, without its future commands.
+export function showHeroCommands(layer: HTMLElement, name: string, at: [number, number], on: {
+  talk: () => void; status: () => void; follow: () => void; terminal?: () => void; watch?: () => void; closed: () => void;
+}): () => void {
+  const box = element("div", "command-window");
+  box.setAttribute("role", "dialog");
+  box.setAttribute("aria-label", `${name}の コマンド`);
+  box.append(element("h4", undefined, name));
+  let closed = false;
+  const dismiss = () => {
+    if (closed) return;
+    closed = true;
+    close(layer);
+    on.closed();
+  };
+  const choose = (action: () => void) => () => { dismiss(); action(); };
+  const list = element("div", "commands");
+  if (on.watch) list.append(option("たたかいを みる", choose(on.watch)));
+  list.append(option("はなす", choose(on.talk)), option("ようすを みる", choose(on.status)),
+    option("ついていく", choose(on.follow)),
+    option("ターミナル", choose(on.terminal ?? (() => undefined)), on.terminal ? undefined : "外から来た勇者の ターミナルは ひらけません"),
+    option("とじる", dismiss));
+  box.append(list);
+  if (!on.terminal) box.append(element("p", "hint", "外から来た勇者\nこのアプリの ターミナルでは ない"));
+  place(layer, box, at, dismiss);
+  return dismiss;
 }
 
 export function showCommands(layer: HTMLElement, hero: HeroState, on: Handlers): void {
@@ -123,12 +185,12 @@ export function showRoster(layer: HTMLElement, roster: Departed[], onRecall: (na
     const row = element("div", "roster-row");
     const text = element("div");
     text.append(element("p", "name", `${d.name}（${d.repo}）　${d.left} に たびだった`), element("p", "last", d.last));
-    const recall = option("よびもどす", () => { layer.hidden = true; onRecall(d.name); });
+    const recall = option("▶ よびもどす", () => { layer.hidden = true; onRecall(d.name); });
     row.append(text, recall);
     box.append(row);
   }
   const actions = element("div", "actions");
-  actions.append(option("とじる", () => { layer.hidden = true; }));
+  actions.append(option("▶ とじる", () => { layer.hidden = true; }));
   box.append(actions);
   layer.replaceChildren(box);
   layer.hidden = false;
