@@ -7,6 +7,7 @@ import { Scene } from "./scene";
 import { loadTowns } from "./ledger";
 import { initExpedition } from "./expedition";
 import { initTalk } from "./talk";
+import { initNotices } from "./notices";
 import "./rpg.css";
 import "./talk.css";
 
@@ -15,7 +16,7 @@ const canvas = document.querySelector<HTMLCanvasElement>("#world")!;
 const connectionLabel = document.querySelector<HTMLElement>("#connection")!;
 document.querySelector<HTMLAnchorElement>("#live2d-link")!.search = location.search;
 const scene = new Scene(canvas, document.querySelector<HTMLElement>("#town-layer")!,
-  (id) => talk.open(id), (terminal) => void expedition.openTerminal(terminal),
+  (id, at) => talk.open(id, at), (terminal) => void expedition.openTerminal(terminal),
   (id) => status.openDetails(room, Date.now(), id, scene.names),
   (text, at) => messages.say(text, at));
 const messages = new Messages(document.querySelector<HTMLElement>("#messages")!);
@@ -41,6 +42,10 @@ const status = new Status(
   (terminal) => void expedition.openTerminal(terminal),
 );
 
+const notices = initNotices(document.querySelector<HTMLElement>("#herald")!, (notice) => {
+  scene.visitNotice(notice.repo, notice.hero, notice.at);
+});
+
 function parse(input: unknown, at: unknown): { event: AgentEvent; at: number } | undefined {
   const result = parseAgentEvent(input);
   if (result.ok && typeof at === "number" && Number.isFinite(at)) return { event: result.event, at };
@@ -52,6 +57,7 @@ function live(event: AgentEvent, at: number): void {
   const level = before ? stats(before, at).level : 1;
   const agent = room.apply(event, at);
   const levelUp = agent !== undefined && stats(agent, at).level > level;
+  talk.update();
   scene.sync(room, at);
   const line = narrate({ ...event, name: scene.names.get(event.agent ?? "default") ?? event.name });
   if (line) messages.say(line, at);
@@ -119,10 +125,11 @@ let lastStatus = 0;
 function frame(time: number): void {
   const now = Date.now();
   if (now - lastStatus > 250) {
+    talk.update();
     scene.sync(room, now);
+    notices(room, scene.projects, status.permissions, scene.names, now);
     status.render(room, now, scene.selected, scene.names);
     expedition.updateTitle();
-    talk.update();
     lastStatus = now;
   }
   scene.frame(time, now);

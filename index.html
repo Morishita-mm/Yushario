@@ -32,7 +32,10 @@
         <p id="town-feedback" role="status" hidden></p>
         <div id="messages" class="window messages" aria-live="polite"></div>
       </section>
-      <aside id="party" aria-label="ゆうしゃたちの つよさ"></aside>
+      <div class="sidebar">
+        <aside id="herald" aria-label="でんれい"></aside>
+        <aside id="party" aria-label="ゆうしゃたちの つよさ"></aside>
+      </div>
     </main>
     <dialog id="expedition-dialog" class="report-window expedition-window" aria-labelledby="expedition-title">
       <h3 id="expedition-title">しゅつじん</h3>
@@ -66,11 +69,11 @@
     </dialog>
     <dialog id="talk-dialog" class="report-window talk-window" aria-labelledby="talk-title">
       <div class="talk-heading">
-        <h3 id="talk-title">勇者と はなす</h3>
+        <h3 id="talk-title">会話と報告</h3>
         <button id="talk-close" type="button">▶ とじる</button>
       </div>
-      <div id="talk-history" aria-label="勇者との会話" tabindex="0"></div>
-      <div class="talk-pages"><button id="talk-next" type="button" hidden>▼ つぎへ</button></div>
+      <div id="talk-history" aria-label="勇者との会話と報告" tabindex="0"></div>
+      <div class="talk-pages"><button id="talk-next" type="button" hidden>▼ すべて みる</button></div>
       <div id="talk-pending" aria-live="polite" hidden></div>
       <form id="talk-form" class="answer">
         <label for="talk-input">勇者に つたえる</label>

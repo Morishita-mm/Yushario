@@ -45,7 +45,9 @@ describe("Room", () => {
     room.apply(a({ hook: "Stop", state: "success" }), 40);
     expect(agent.talk).toEqual([
       { at: 10, from: "you", text: "こんにちは" },
-      { at: 20, from: "hero", text: "こんにちは！" },
+      { at: 20, from: "hero", text: "こんにちは！", report: {
+        kind: "talk", files: [], tests: { passed: 0, failed: 0 }, failures: 0, tools: 0, startedAt: 10, endedAt: 20,
+      } },
     ]);
     expect(room.apply({ state: "success", agent: "s2", hook: "Stop", text: "another hero" }, 50)!.talk)
       .toEqual([{ at: 50, from: "hero", text: "another hero" }]);
@@ -60,7 +62,7 @@ describe("Room", () => {
     room.apply(a({ hook: "Stop", text: "late old event" }), 2);
     const agent = room.agents.get("s1")!;
     expect(agent.talk).toHaveLength(30);
-    expect(agent.talk[0]).toEqual({ at: 5, from: "hero", text: "5" });
+    expect(agent.talk[0]).toMatchObject({ at: 5, from: "hero", text: "5", report: { startedAt: 4, endedAt: 5 } });
     expect(agent.talk.at(-1)).toEqual({ at: 34, from: "you", text: "34" });
     room.apply(a({ hook: "SessionEnd", state: "idle" }), 40);
     expect(room.apply(a({ hook: "SessionStart", state: "idle" }), 50)!.talk).toEqual([]);

@@ -14,36 +14,40 @@ export function talkParts(text: string): Part[] {
   return parts;
 }
 
-// Keep code styling across page boundaries, with a small RPG-sized page of text.
-export function talkPages(text: string): Part[][] {
-  const pages: Part[][] = [[]];
+// Only the first preview and whether more text follows are needed.
+export function talkPreview(parts: Part[]): { parts: Part[]; more: boolean } {
+  const preview: Part[] = [];
   let count = 0, lines = 0;
-  for (const part of talkParts(text)) {
-    for (const char of Array.from(part.text)) {
-      if (count >= 420 || lines >= 8) { pages.push([]); count = lines = 0; }
-      const page = pages[pages.length - 1];
-      let run = page[page.length - 1];
-      if (!run || run.code !== part.code) { run = { code: part.code, text: "" }; page.push(run); }
+  for (const part of parts) {
+    for (const char of part.text) {
+      if (count >= 420 || lines >= 8) return { parts: preview, more: true };
+      let run = preview[preview.length - 1];
+      if (!run || run.code !== part.code) { run = { code: part.code, text: "" }; preview.push(run); }
       run.text += char;
       count++;
       if (char === "\n") lines++;
     }
   }
-  return pages;
+  return { parts: preview, more: false };
 }
 
-export function pageLength(page: Part[]): number {
-  return page.reduce((sum, part) => sum + Array.from(part.text).length, 0);
-}
-
-export function renderTalk(root: HTMLElement, parts: Part[], shown = Infinity): void {
+export function renderTalk(root: HTMLElement, parts: Part[], shown = Infinity) {
   root.replaceChildren();
-  for (const part of parts) {
-    const chars = Array.from(part.text);
+  const runs = parts.map((part) => {
     const node = document.createElement(part.code ? "pre" : "span");
-    node.textContent = chars.slice(0, shown).join("");
-    root.append(node);
-    shown -= Math.min(shown, chars.length);
-    if (shown <= 0) break;
+    const text = document.createTextNode(""); node.append(text); root.append(node);
+    return { node, text, chars: Array.from(part.text), shown: -1 };
+  });
+  function show(remaining: number): void {
+    runs.forEach((run, index) => {
+      run.node.hidden = index > 0 && remaining <= 0;
+      const count = Math.min(remaining, run.chars.length);
+      if (count !== run.shown) {
+        run.text.data = run.chars.slice(0, count).join(""); run.shown = count;
+      }
+      remaining -= count;
+    });
   }
+  show(shown);
+  return { length: runs.reduce((sum, run) => sum + run.chars.length, 0), show };
 }

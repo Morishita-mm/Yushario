@@ -41,7 +41,7 @@ function paintStreets(art: Sheets, street: [string, number]): HTMLCanvasElement 
 }
 
 type TownData = {
-  sleepers: number; theme: TownTheme; name: string; walkers: Walker[];
+  sleepers: number; theme: TownTheme; name: string; walkers: Walker[]; unread?: number;
   reports?: TownSign[]; caller?: { name: string; x: number; y: number }; read?: Set<string>;
 };
 
@@ -98,5 +98,5 @@ export function drawTown(ctx: CanvasRenderingContext2D, art: Sheets, t: number, 
     label(ctx, `×${sleepers}`, 320, 216, "#ffffff", 11);
   }
   for (const [text, x, y] of [["やどや", 255, 348], ["きょうかい", 300, 156], ["としょかん", 690, 156], ["どうぐや", 718, 348]] as const) label(ctx, text, x, y, "#fff7d6");
-  label(ctx, `${name}の まち（${THEME_NAMES[theme]}）`, TOWN_W / 2, 26, "#fff7d6", 14);
+  label(ctx, `${name}の まち（${THEME_NAMES[theme]}）${data.unread ? ` 📜${data.unread}` : ""}`, TOWN_W / 2, 26, "#fff7d6", 14);
 }

@@ -1,5 +1,7 @@
 import type { RoomAgent } from "../../core/room";
-import { pageLength, renderTalk, talkPages, talkParts } from "./talk-text";
+import { renderTalk, talkParts } from "./talk-text";
+import { createReportCard } from "./report-card";
+import { markReportRead, reportRead } from "./read-reports";
 
 // One page-local conversation window. Talk itself always comes from Room/replay.
 export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id: string) => string | undefined,
@@ -16,14 +18,14 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
   const terminal = document.querySelector<HTMLButtonElement>("#talk-terminal")!;
   const next = document.querySelector<HTMLButtonElement>("#talk-next")!;
   const token = new URLSearchParams(location.search).get("token") ?? "";
-  const pending = new Map<string, string[]>();
-  const sending = new Set<string>();
+  const pending = new Map<string, string[]>(), sending = new Set<string>();
+  const expanded = new Set<number>();
   let selected: { hero: string } | { terminal: string } | undefined;
-  let signature = "";
-  let latestKey = "";
-  let pages = talkPages("");
-  let page = 0, shown = 0, lastChar = 0;
-  let latestBody: HTMLElement | undefined;
+  let signature = "", texts: string[] = [];
+  let latestAt: number | undefined, latestText: string | undefined;
+  let shown = 0, length = 0, lastChar = 0;
+  let latest: ReturnType<typeof createReportCard> | undefined;
+  let scrollTo: number | undefined;
 
   function terminalId(): string | undefined {
     return selected && ("terminal" in selected ? selected.terminal : hero(selected.hero)?.terminal);
@@ -39,9 +41,13 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
     if (event.key === "Escape") { event.preventDefault(); close(); }
     else if (event.key === "Enter" && (event.ctrlKey || event.metaKey) && !form.hidden) {
       event.preventDefault(); form.requestSubmit();
-    } else if (event.key === "Enter" && event.target !== input) {
-      event.preventDefault(); advancePage();
+    } else if (event.key === "Enter" && event.target !== input && !(event.target instanceof HTMLButtonElement)) {
+      event.preventDefault(); skipTyping();
     }
+  });
+  dialog.addEventListener("click", (event) => {
+    const rect = dialog.getBoundingClientRect();
+    if (event.target === dialog && (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom)) close();
   });
   document.querySelector("#talk-close")!.addEventListener("click", close);
   terminal.addEventListener("click", () => {
@@ -49,40 +55,49 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
     if (id) { close(); openTerminal(id); }
   });
 
-  function renderPage(): void {
-    if (!latestBody) return;
-    renderTalk(latestBody, pages[page], shown);
-    const typing = shown < pageLength(pages[page]);
-    next.hidden = !typing && page >= pages.length - 1;
-    next.textContent = typing ? "▼ すべて みる" : `▼ つぎへ（${page + 1}/${pages.length}）`;
-    next.setAttribute("aria-label", typing ? "このページの 返事を すべて みる" : "返事の つぎのページ");
+  function position(): void {
+    const rect = document.querySelector(".map-stage")!.getBoundingClientRect();
+    dialog.style.left = `${Math.max(8, rect.left)}px`;
+    dialog.style.top = `${Math.max(8, Math.min(rect.top, innerHeight - 320))}px`;
+    dialog.style.width = `${Math.min(rect.width, innerWidth - 16)}px`;
+    dialog.style.height = `${Math.min(Math.max(rect.height, 520), innerHeight - Math.max(8, rect.top) - 8)}px`;
   }
-  function advancePage(): void {
-    if (!latestBody) return;
-    if (shown < pageLength(pages[page])) shown = pageLength(pages[page]);
-    else if (page < pages.length - 1) { page++; shown = 0; lastChar = performance.now(); }
-    renderPage();
-    history.scrollTop = history.scrollHeight;
+  window.addEventListener("resize", () => { if (dialog.open) { position(); markVisible(); } });
+  function renderLatest(): void {
+    if (!latest) return;
+    latest.show(shown);
+    next.hidden = shown >= length;
   }
-  next.addEventListener("click", advancePage);
-  history.addEventListener("click", () => {
-    history.focus({ preventScroll: true });
-    advancePage();
+  function skipTyping(): void {
+    shown = length; renderLatest(); markVisible();
+  }
+  next.addEventListener("click", skipTyping);
+  history.addEventListener("click", (event) => {
+    if ((event.target as HTMLElement).closest("button")) return;
+    history.focus({ preventScroll: true }); skipTyping();
   });
+  function markVisible(): void {
+    if (!dialog.open || !selected || !("hero" in selected)) return;
+    const bounds = history.getBoundingClientRect();
+    for (const row of history.querySelectorAll<HTMLElement>("[data-report-at]")) {
+      const rect = row.getBoundingClientRect();
+      // A visible heading is enough: collapsed long reports can be read later.
+      if (rect.top < bounds.bottom && rect.top + Math.min(rect.height, 64) > bounds.top) {
+        markReportRead(selected.hero, Number(row.dataset.reportAt));
+        row.classList.remove("unread");
+      }
+    }
+  }
+  history.addEventListener("scroll", markVisible);
 
-  function renderPending(terminalId: string | undefined): void {
-    const texts = terminalId ? pending.get(terminalId) ?? [] : [];
-    pendingBox.hidden = !texts.length;
-    pendingBox.replaceChildren();
+  function renderPending(id: string | undefined): void {
+    const texts = id ? pending.get(id) ?? [] : [];
+    pendingBox.hidden = !texts.length; pendingBox.replaceChildren();
     if (!texts.length) return;
-    const heading = document.createElement("p");
-    heading.textContent = heldMessage();
-    pendingBox.append(heading);
+    const heading = document.createElement("p"); heading.textContent = heldMessage(); pendingBox.append(heading);
     for (const text of texts) {
-      const item = document.createElement("p");
-      item.className = "pending-text";
-      item.textContent = `あなた「${text}」`;
-      pendingBox.append(item);
+      const item = document.createElement("p"); item.className = "pending-text";
+      item.textContent = `あなた「${text}」`; pendingBox.append(item);
     }
   }
   function setPending(id: string, texts: string[]): void {
@@ -93,10 +108,7 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
       if (delivered) status.textContent = "あずかった ことばを つたえた！";
     }
   }
-  function resetPending(): void {
-    pending.clear();
-    if (selected) renderPending(terminalId());
-  }
+  function resetPending(): void { pending.clear(); if (selected) renderPending(terminalId()); }
 
   function update(): void {
     if (!selected || !dialog.open) return;
@@ -107,67 +119,67 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
         title.textContent = "勇者が 町に むかっている…";
         form.hidden = false; foreign.hidden = true; terminal.disabled = false;
         send.disabled = sending.has(selected.terminal);
-        if (signature !== "arriving") {
-          signature = "arriving";
-          history.textContent = "町に つくまでに 依頼を つたえられます。";
-        }
-        renderPending(selected.terminal);
-        return;
+        if (signature !== "arriving") { signature = "arriving"; history.textContent = "町に つくまでに 依頼を つたえられます。"; }
+        renderPending(selected.terminal); return;
       }
     }
     const agent = hero(selected.hero);
     if (!agent) {
       form.hidden = true; foreign.hidden = true; terminal.disabled = true;
-      renderPending(undefined);
-      status.textContent = "この勇者は たびだちました。会話は ここまでです。";
-      return;
+      renderPending(undefined); status.textContent = "この勇者は たびだちました。会話は ここまでです。"; return;
     }
     const heroName = name(agent.id) ?? agent.name;
-    title.textContent = `${heroName}と はなす`;
-    form.hidden = !agent.terminal;
-    foreign.hidden = Boolean(agent.terminal);
-    terminal.disabled = !agent.terminal;
+    title.textContent = `${heroName} · 会話と報告`;
+    form.hidden = !agent.terminal; foreign.hidden = Boolean(agent.terminal); terminal.disabled = !agent.terminal;
     send.disabled = Boolean(agent.terminal && sending.has(agent.terminal));
     const talk = agent.talk;
-    const nextSignature = JSON.stringify([heroName, agent.terminal, talk]);
-    if (nextSignature === signature) return;
-    signature = nextSignature;
-    let latest = talk.length - 1;
-    while (latest >= 0 && talk[latest].from !== "hero") latest--;
-    const key = latest < 0 ? "" : JSON.stringify(talk[latest]);
-    const changed = key !== latestKey;
+    const nextSignature = JSON.stringify([heroName, agent.terminal, talk.map(({ at, from, report }) => [at, from, report])]);
+    if (nextSignature === signature && talk.every((entry, i) => entry.text === texts[i])) return;
+    signature = nextSignature; texts = talk.map((entry) => entry.text);
+    const reply = [...talk].reverse().find((entry) => entry.from === "hero");
+    const changed = reply?.at !== latestAt || reply?.text !== latestText;
     if (changed) {
-      latestKey = key; page = shown = 0; lastChar = performance.now();
-      pages = talkPages(latest < 0 ? "" : talk[latest].text);
-      status.textContent = "";
+      latestAt = reply?.at; latestText = reply?.text; shown = 0; lastChar = performance.now(); status.textContent = "";
     }
     const atBottom = history.scrollHeight - history.scrollTop - history.clientHeight < 24;
-    history.replaceChildren(); latestBody = undefined;
+    const scroll = history.scrollTop;
+    history.replaceChildren(); latest = undefined;
     if (!talk.length) history.textContent = "まだ 会話は ありません。勇者に はなしかけてみよう。";
-    for (const [index, entry] of talk.entries()) {
-      const row = document.createElement("div");
-      row.className = `talk-line ${entry.from}`;
-      const speaker = document.createElement("span");
-      speaker.className = "talk-speaker";
-      speaker.textContent = `${entry.from === "you" ? "あなた" : heroName}「`;
-      const body = document.createElement("span");
-      body.className = "talk-body";
-      row.append(speaker, body, document.createTextNode("」"));
-      if (index === latest) latestBody = body;
-      else renderTalk(body, talkParts(entry.text));
-      history.append(row);
+    for (const entry of talk) {
+      if (entry.from === "you") {
+        const row = document.createElement("div"); row.className = "talk-line you";
+        const speaker = document.createElement("span"); speaker.className = "talk-speaker"; speaker.textContent = "あなた「";
+        const body = document.createElement("span"); body.className = "talk-body"; renderTalk(body, talkParts(entry.text));
+        row.append(speaker, body, document.createTextNode("」")); history.append(row); continue;
+      }
+      const card = createReportCard(entry, heroName);
+      card.row.classList.toggle("unread", !reportRead(agent.id, entry.at));
+      const bodyLength = card.renderBody(expanded.has(entry.at), entry === reply ? shown : Infinity);
+      if (entry === reply) { latest = card; length = bodyLength; }
+      card.more.addEventListener("click", () => {
+        if (expanded.has(entry.at)) expanded.delete(entry.at); else expanded.add(entry.at);
+        const bodyLength = card.renderBody(expanded.has(entry.at), entry === reply ? shown : Infinity);
+        if (entry === reply) { length = bodyLength; renderLatest(); }
+        markVisible();
+      });
+      history.append(card.row);
     }
-    next.hidden = latest < 0;
-    renderPage();
-    if (changed || atBottom) history.scrollTop = history.scrollHeight;
-    renderPending(agent.terminal);
+    next.hidden = !latest; renderLatest();
+    if (scrollTo !== undefined) {
+      const target = [...history.querySelectorAll<HTMLElement>("[data-report-at]")].find((row) => Number(row.dataset.reportAt) === scrollTo);
+      if (target) history.scrollTop += target.getBoundingClientRect().top - history.getBoundingClientRect().top;
+      scrollTo = undefined;
+    } else if (changed && latest) history.scrollTop += latest.row.getBoundingClientRect().top - history.getBoundingClientRect().top;
+    else history.scrollTop = atBottom ? history.scrollHeight : scroll;
+    renderPending(agent.terminal); markVisible();
   }
 
   function tick(time: number): void {
-    if (!dialog.open || !latestBody || shown >= pageLength(pages[page]) || time - lastChar < 24) return;
+    if (!dialog.open) return;
+    if (!latest || shown >= length || time - lastChar < 24) return;
     lastChar = time;
     const atBottom = history.scrollHeight - history.scrollTop - history.clientHeight < 24;
-    shown++; renderPage();
+    shown++; renderLatest();
     if (atBottom) history.scrollTop = history.scrollHeight;
   }
 
@@ -175,8 +187,7 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
     event.preventDefault();
     const id = terminalId(), text = input.value;
     if (!id || !text.trim() || text.length > 8000 || sending.has(id)) return;
-    sending.add(id); send.disabled = true;
-    status.textContent = "つたえている…";
+    sending.add(id); send.disabled = true; status.textContent = "つたえている…";
     void fetch(`/api/sessions/${encodeURIComponent(id)}/say?token=${encodeURIComponent(token)}`, {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }),
     }).then(async (response) => {
@@ -184,29 +195,22 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
         const data = await response.json().catch(() => ({}));
         throw new Error(data.error ?? `つたえられませんでした（${response.status}）`);
       }
-      // Held texts are shown from the server's pending message, not added here.
       const result = await response.json() as { delivered: boolean };
       if (terminalId() !== id || !dialog.open) return;
       if (input.value === text) input.value = "";
-      status.textContent = result.delivered ? "つたえた！ へんじを まっている…" : "あずかった！";
-      input.focus();
+      status.textContent = result.delivered ? "つたえた！ へんじを まっている…" : "あずかった！"; input.focus();
     }).catch((error: unknown) => {
       if (terminalId() === id && dialog.open) status.textContent = error instanceof Error ? error.message : String(error);
-    }).finally(() => {
-      sending.delete(id);
-      if (terminalId() === id) send.disabled = false;
-    });
+    }).finally(() => { sending.delete(id); if (terminalId() === id) send.disabled = false; });
   });
 
-  function openConversation(target: { hero: string } | { terminal: string }): void {
-    selected = target; signature = latestKey = ""; page = shown = 0;
-    input.value = ""; status.textContent = ""; history.replaceChildren();
-    latestBody = undefined; next.hidden = true;
-    if (!dialog.open) dialog.showModal();
+  function openConversation(target: { hero: string } | { terminal: string }, at?: number): void {
+    selected = target; signature = ""; texts = []; latestAt = latestText = undefined; shown = 0; expanded.clear(); scrollTo = at;
+    input.value = ""; status.textContent = ""; history.replaceChildren(); latest = undefined; next.hidden = true;
+    position(); if (!dialog.open) dialog.showModal();
     update(); renderPending(terminalId());
-    if (terminalId()) input.focus();
-    else document.querySelector<HTMLButtonElement>("#talk-close")!.focus();
+    if (terminalId() && at === undefined) input.focus(); else history.focus({ preventScroll: true });
   }
-  return { open: (id: string) => openConversation({ hero: id }),
+  return { open: (id: string, at?: number) => openConversation({ hero: id }, at),
     openSession: (id: string) => openConversation({ terminal: id }), update, tick, setPending, resetPending };
 }

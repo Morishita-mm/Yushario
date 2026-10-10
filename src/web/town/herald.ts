@@ -4,7 +4,7 @@ import type { Sheets } from "./sheets";
 
 // The herald (でんれい): everything that needs you, across all projects, most urgent first.
 // With many projects you don't browse towns; you work down this list.
-export interface Notice { kind: "permission" | "call" | "new" | "struggle" | "report"; repo: string; text: string; ago: string }
+export interface Notice { kind: "permission" | "call" | "new" | "struggle" | "report"; repo: string; text: string; ago: string; hero?: string; at?: number }
 
 const ICONS: Record<Notice["kind"], string> = { permission: "🔑", call: "❗", new: "🏗", struggle: "💦", report: "📜" };
 
@@ -16,14 +16,21 @@ function element<K extends keyof HTMLElementTagNameMap>(tag: K, className?: stri
 }
 
 export function renderHerald(root: HTMLElement, list: Notice[], onPick: (notice: Notice) => void): void {
+  const heading = root.querySelector("h2") ?? element("h2");
+  heading.textContent = `でんれい（${list.length}）`;
+  const existing = [...root.querySelectorAll<HTMLButtonElement>(".notice")];
   const items = list.map((notice) => {
-    const button = element("button", `notice ${notice.kind}`);
-    button.type = "button";
-    button.append(element("span", "icon", ICONS[notice.kind]), element("span", "text", notice.text), element("span", "ago", notice.ago));
-    button.addEventListener("click", () => onPick(notice));
+    const key = JSON.stringify([notice.kind, notice.repo, notice.hero, notice.at, notice.text]);
+    const button = existing.find((item) => item.dataset.notice === key) ?? element("button", `notice ${notice.kind}`);
+    button.type = "button"; button.dataset.notice = key;
+    button.setAttribute("aria-label", notice.text);
+    if (!button.children.length) button.append(element("span", "icon", ICONS[notice.kind]), element("span", "text", notice.text), element("span", "ago"));
+    button.querySelector(".ago")!.textContent = notice.ago;
+    button.onclick = () => onPick(notice);
     return button;
   });
-  root.replaceChildren(element("h2", undefined, `でんれい（${list.length}）`), ...items);
+  const nodes = [heading, ...items];
+  if (root.children.length !== nodes.length || nodes.some((node, index) => root.children[index] !== node)) root.replaceChildren(...nodes);
 }
 
 export function windowBox(layer: HTMLElement, title: string, onClose: () => void): HTMLElement {

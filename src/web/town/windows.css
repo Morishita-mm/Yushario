@@ -1,3 +1,10 @@
+#herald { background: #0a0a1a; border: 3px solid #fff; border-radius: 8px; padding: 10px; max-height: 80vh; overflow-y: auto; }
+#herald h2 { margin: 0 0 8px; font-size: 16px; color: #ffe066; border: 0; padding: 0; }
+.notice { display: grid; grid-template-columns: 1.6em 1fr; gap: 2px 6px; width: 100%; text-align: left; font: inherit; font-size: 13px; color: #fff; background: none; border: 0; border-bottom: 1px dashed #3a3550; padding: 7px 2px; cursor: pointer; }
+.notice:hover, .notice:focus-visible { background: #1d1a30; outline: none; }
+.notice .icon { grid-row: span 2; font-family: system-ui, "Apple Color Emoji", sans-serif; }
+.notice .ago { color: #8a86a0; font-size: 11px; }
+.notice.permission .text, .notice.call .text { color: #ffe7a3; }
 .report-layer { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.45); }
 .report-layer[hidden] { display: none; }
 .report-window {

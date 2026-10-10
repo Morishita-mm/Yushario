@@ -1,5 +1,6 @@
 import { classifyActivity, toolActivity, type Activity } from "./activity";
 import type { AgentEvent, TaskStatus } from "./events";
+import { attachReports, emptyTurns, pruneTurns, recordTurn, type TalkEntry, type Turns } from "./turns";
 
 // How an agent is doing, derived from its recent history (docs/OBSERVATION.md).
 export type Mood =
@@ -21,6 +22,8 @@ const TALK_LIMIT = 30;
 const LOG_LIMIT = 50;
 const TASK_LIMIT = 50;
 const HISTORY_LIMIT = 20;
+
+export type { TalkEntry, TalkReport } from "./turns";
 
 export interface RoomTask { id: string; subject?: string; status: Exclude<TaskStatus, "deleted"> }
 export interface Helper { id: string; type?: string; activity: Activity; target?: string }
@@ -45,19 +48,22 @@ export interface RoomAgent {
   tasks: RoomTask[];
   helpers: Helper[];
   log: LogEntry[]; // Oldest first.
-  talk: { at: number; from: "you" | "hero"; text: string }[]; // Local conversation, oldest first.
+  talk: TalkEntry[]; // Local conversation, oldest first; replies carry their round's report.
   activityAt: number; // Hooks post concurrently; older events never overwrite newer activity.
   postAt: number;
+  contextAt: number;
 }
 
 export class Room {
   readonly agents = new Map<string, RoomAgent>();
+  private readonly turns = new Map<string, Turns>();
 
   // `at` is the event time in ms. Returns the agent the event belongs to, if it is still present.
   apply(event: AgentEvent, at: number): RoomAgent | undefined {
     const id = event.agent ?? "default";
-    if (event.hook === "SessionEnd") {
+    if (event.hook === "SessionEnd" && !event.subagent) {
       this.agents.delete(id);
+      this.turns.delete(id);
       return;
     }
     let agent = this.agents.get(id);
@@ -65,7 +71,7 @@ export class Room {
       agent = {
         id, name: event.name ?? "agent", activity: "idle", since: at, running: false, lastEventAt: at,
         failures: [], edits: [], wins: 0, quests: 0, tasks: [], helpers: [], log: [], talk: [],
-        activityAt: -Infinity, postAt: -Infinity,
+        activityAt: -Infinity, postAt: -Infinity, contextAt: -Infinity,
       };
       this.agents.set(id, agent);
     }
@@ -73,17 +79,34 @@ export class Room {
     if (event.terminal) agent.terminal = event.terminal;
     if (event.project) agent.project = event.project;
     agent.lastEventAt = Math.max(agent.lastEventAt, at);
-    if (event.context !== undefined) agent.context = event.context;
-    if (event.text !== undefined && (event.hook === "UserPromptSubmit" || event.hook === "Stop")) {
-      agent.talk.push({ at, from: event.hook === "UserPromptSubmit" ? "you" : "hero", text: event.text });
-      agent.talk.sort((left, right) => left.at - right.at);
-      if (agent.talk.length > TALK_LIMIT) agent.talk.shift();
+    if (!event.subagent) {
+      if (event.context !== undefined && at >= agent.contextAt) {
+        agent.context = event.context;
+        agent.contextAt = at;
+      }
+      this.updateTalk(agent, event, at);
     }
     if (event.task) updateTask(agent, event.task);
     if (event.subagent) updateHelper(agent, event);
     else updateActivity(agent, event, at);
     updateOutcome(agent, event, at);
     return agent;
+  }
+
+  private updateTalk(agent: RoomAgent, event: AgentEvent, at: number): void {
+    const turns = this.turns.get(agent.id) ?? emptyTurns();
+    this.turns.set(agent.id, turns);
+    recordTurn(turns, event, at);
+    const reply = event.hook === "Stop" || event.hook === "StopFailure";
+    if (event.text !== undefined && (event.hook === "UserPromptSubmit" || reply)) {
+      agent.talk.push({ at, from: reply ? "hero" : "you", text: event.text });
+      agent.talk.sort((left, right) => left.at - right.at);
+      if (agent.talk.length > TALK_LIMIT) {
+        agent.talk.shift();
+        pruneTurns(turns, agent.talk[0].at);
+      }
+    }
+    attachReports(agent.talk, turns);
   }
 }
 

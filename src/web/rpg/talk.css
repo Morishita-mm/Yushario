@@ -1,31 +1,47 @@
 dialog.talk-window {
-  position: fixed; inset: auto 16px 16px; margin: 0 auto; width: min(1060px, calc(100vw - 32px));
-  max-height: 70svh; padding: 14px 20px;
+  position: fixed; inset: auto; margin: 0; max-width: none; max-height: calc(100svh - 16px);
+  padding: 14px 20px; overflow: hidden;
 }
-dialog.talk-window::backdrop { background: rgba(0, 0, 0, 0.25); }
-.talk-heading { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; }
-.talk-heading h3 { flex: 1; text-align: left; margin: 0; }
+dialog.talk-window[open] { display: flex; flex-direction: column; }
+dialog.talk-window::backdrop { background: rgba(0, 0, 0, 0.35); }
+.talk-heading { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; flex: none; }
+.talk-heading h3 { flex: 1; text-align: left; margin: 0; overflow-wrap: anywhere; }
 .talk-heading button { flex: none; }
-#talk-history { max-height: 25svh; min-height: 3em; overflow-y: auto; padding-right: 8px; cursor: pointer; }
-.talk-line { margin: 8px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
-.talk-line.you { color: #ffe7a3; }
+#talk-history { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 8px 4px 0; position: relative; }
+.talk-line { margin: 12px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.talk-line.you { color: #ffe7a3; background: #1d1a30; border: 1px solid #6e6a8a; border-radius: 8px 8px 0 8px; padding: 8px 12px; margin-left: 12%; }
 .talk-speaker { color: #9fd3ff; }
+.talk-body { white-space: pre-wrap; overflow-wrap: anywhere; }
 .talk-body pre { font: 14px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; background: #1d1726; padding: 8px 12px; margin: 4px 0; }
-.talk-pages { text-align: right; min-height: 1.5em; }
+.report-card { border: 1px solid #6e6a8a; border-left: 3px solid #9fd3ff; padding: 12px 14px; margin: 16px 0; background: #11101f; }
+.report-card.chest { border-left-color: #ffe066; }
+.report-card.scroll { border-left-color: #b6dca0; }
+.report-card.unread { border-color: #ffe066; }
+.report-card-heading { display: flex; align-items: center; gap: 12px; }
+.report-icon { width: 44px; height: 34px; flex: none; background: url('/art/ui-report.png') no-repeat; image-rendering: pixelated; }
+.report-caption { min-width: 0; }
+.report-card .report-headline { margin: 0; color: #ffe7a3; font-size: 17px; }
+.report-time { color: #c9c3dc; font-size: 12px; margin: 2px 0 0; }
+.report-tally { color: #b6dca0; font-size: 13px; margin: 8px 0; border-top: 1px dashed #3a3550; border-bottom: 1px dashed #3a3550; padding: 6px 0; overflow-wrap: anywhere; }
+.report-tally p { margin: 0; }
+.report-files { margin: 0 0 4px; padding-left: 18px; color: #9fd3ff; }
+.report-more { color: #ffe066 !important; margin-top: 6px; }
+.talk-pages { text-align: right; flex: none; }
 .talk-pages button { color: #ffe066; }
-#talk-pending { max-height: 12svh; overflow-y: auto; border-top: 1px dashed #6e6a8a; color: #ffd38a; }
+#talk-pending { max-height: 12svh; flex: none; overflow-y: auto; border-top: 1px dashed #6e6a8a; color: #ffd38a; }
 #talk-pending p { margin: 4px 0; }
 .pending-text { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; }
-#talk-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 6px 12px; }
+#talk-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 6px 12px; flex: none; }
 #talk-form label { grid-column: 1 / -1; color: #9fd3ff; font-size: 13px; }
 #talk-input { min-width: 0; width: 100%; max-height: 16svh; }
-#talk-status { margin: 4px 0 0; min-height: 1.5em; color: #ffe7a3; overflow-wrap: anywhere; }
-#talk-foreign { margin: 8px 0; }
-.talk-window .actions { justify-content: flex-start; margin-top: 4px; }
+#talk-status { margin: 4px 0 0; min-height: 1.5em; color: #ffe7a3; overflow-wrap: anywhere; flex: none; }
+#talk-foreign { margin: 8px 0; flex: none; }
+.talk-window .actions { justify-content: flex-start; margin-top: 4px; flex: none; }
 .talk-window [hidden] { display: none !important; }
 .talk-window button:focus-visible, #talk-history:focus-visible { outline: 1px solid #ffe066; outline-offset: 2px; }
 @media (max-width: 600px) {
-  dialog.talk-window { inset: auto 8px 8px; width: calc(100vw - 16px); padding: 10px 12px; max-height: 80svh; }
+  dialog.talk-window { padding: 10px 12px; }
   #talk-form { grid-template-columns: minmax(0, 1fr); }
   #talk-send { justify-self: end; }
+  .report-card { padding: 8px; }
 }

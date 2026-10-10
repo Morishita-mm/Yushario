@@ -285,7 +285,7 @@
   - `failures`：失敗したツールの数
   - `tools`：使ったツールの数（0 なら単純な会話）
   - `startedAt` / `endedAt`、`mp`：始まりと終わりの MP（context から。わからなければ省略）
-  - `kind`：ファイル編集あり＝`chest`（宝箱・しょうり）、読む・探す・Web だけ＝`scroll`（巻物）、ツールなし＝`talk`（吹き出し）
+  - `kind`：ファイル編集あり＝`chest`（宝箱・しょうり）、ツールなし＝`talk`（吹き出し）、それ以外（読む・探す・Web・テスト・コマンド・git など、編集なしで何かした）＝`scroll`（巻物）
 - `RoomAgent.talk` の勇者の返事（`from: "hero"`）に `report`（上の集計）を付ける。UserPromptSubmit が無いまま Stop が来た時は、集計の無い返事として扱う。
 
 ### 会話と報告の窓（「はなす」の窓を大きくする）
