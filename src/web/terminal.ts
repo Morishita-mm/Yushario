@@ -2,10 +2,77 @@ import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 
-type Session = {
+export type Session = {
   id: string; preset: string; cwd: string; project: string; createdAt: number;
   exited?: { code: number };
 };
+const token = new URLSearchParams(location.search).get("token") ?? "";
+
+export async function sessionRequest(method = "GET", suffix = "", body?: object): Promise<Session | Session[] | undefined> {
+  const response = await fetch(`/api/sessions${suffix}?${new URLSearchParams({ token })}`, {
+    method, cache: "no-store",
+    ...(body ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {}),
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.error ?? `API ${response.status}（トークン付き URL を確認してください）`);
+  }
+  return response.status === 204 ? undefined : response.json();
+}
+
+function openXterm(container: HTMLElement) {
+  container.replaceChildren();
+  const terminal = new Terminal({
+    cursorBlink: true, fontSize: 14,
+    fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+    theme: { background: "#10141c", foreground: "#e4e8f2" },
+  });
+  const fit = new FitAddon();
+  terminal.loadAddon(fit);
+  terminal.open(container);
+  fit.fit();
+  const observer = new ResizeObserver(() => {
+    if (container.clientWidth && container.clientHeight) fit.fit();
+  });
+  observer.observe(container);
+  return { terminal, dispose: () => { observer.disconnect(); terminal.dispose(); } };
+}
+
+// One attachment, shared by the standalone page and the town window.
+// Disposing disconnects only the browser; the server keeps the PTY and its output.
+export function connectSessionTerminal(container: HTMLElement, session: Session, status: HTMLElement,
+  onDisconnect: () => void = () => undefined) {
+  const view = openXterm(container);
+  const terminal = view.terminal;
+  const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+  const query = new URLSearchParams({ token, session: session.id, cols: String(terminal.cols), rows: String(terminal.rows) });
+  const socket = new WebSocket(`${protocol}//${location.host}/pty?${query}`);
+  let disposed = false;
+  const send = (message: object): void => {
+    if (!disposed && socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message));
+  };
+  terminal.onData((data) => send({ type: "input", data }));
+  terminal.onResize(({ cols, rows }) => send({ type: "resize", cols, rows }));
+  status.textContent = `${session.preset} / ${session.id} 接続中…`;
+  socket.onopen = () => {
+    if (disposed) return;
+    status.textContent = session.exited ? `${session.id} 終了 (${session.exited.code})・出力は保持されています`
+      : `${session.preset} / ${session.id} 接続済み`;
+    terminal.focus();
+    send({ type: "resize", cols: terminal.cols, rows: terminal.rows });
+  };
+  socket.onmessage = (event) => { if (!disposed) terminal.write(event.data); };
+  socket.onerror = () => {
+    if (!disposed) terminal.writeln("\r\n接続できません。server のトークン付き URL とセッション一覧を確認してください。");
+  };
+  socket.onclose = () => {
+    if (disposed) return;
+    status.textContent = `${session.id} 切断（セッションはサーバーに残ります）`;
+    onDisconnect();
+  };
+  const disconnect = (): void => { disposed = true; socket.close(); };
+  return { disconnect, dispose: () => { disconnect(); view.dispose(); } };
+}
 
 export function initTerminal(): void {
   const container = document.querySelector<HTMLElement>("#terminal")!;
@@ -17,56 +84,20 @@ export function initTerminal(): void {
   const end = document.querySelector<HTMLButtonElement>("#end-session")!;
   const refreshButton = document.querySelector<HTMLButtonElement>("#refresh-sessions")!;
   const status = document.querySelector<HTMLElement>("#terminal-status")!;
-  const token = new URLSearchParams(location.search).get("token") ?? "";
   const storageKey = "agent-character-terminal-session";
-  let terminal!: Terminal;
-  let fit!: FitAddon;
-  let socket: WebSocket | undefined;
+  const welcome = openXterm(container);
+  welcome.terminal.writeln("プリセットと作業ディレクトリを選んで「起動」、またはセッションに「接続」してください。");
+  let attachment: ReturnType<typeof connectSessionTerminal> | undefined;
   let attachedId: string | undefined;
   let sessions: Session[] = [];
   let busy = false;
-  const send = (message: object): void => {
-    if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message));
-  };
-  function resetTerminal(): void {
-    terminal?.dispose();
-    container.replaceChildren();
-    terminal = new Terminal({
-      cursorBlink: true, fontSize: 14,
-      fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-      theme: { background: "#10141c", foreground: "#e4e8f2" },
-    });
-    fit = new FitAddon();
-    terminal.loadAddon(fit);
-    terminal.open(container);
-    const current = terminal;
-    current.onData((data) => { if (terminal === current) send({ type: "input", data }); });
-    current.onResize(({ cols, rows }) => { if (terminal === current) send({ type: "resize", cols, rows }); });
-    fit.fit();
-  }
-  resetTerminal();
-  new ResizeObserver(() => { if (container.clientWidth && container.clientHeight) fit.fit(); }).observe(container);
-  terminal.writeln("プリセットと作業ディレクトリを選んで「起動」、またはセッションに「接続」してください。");
 
   function controls(): void {
     start.disabled = refreshButton.disabled = busy;
     connectButton.disabled = end.disabled = busy || !list.value;
   }
-
-  async function api(method: string, suffix = "", body?: object): Promise<Session | Session[] | undefined> {
-    const response = await fetch(`/api/sessions${suffix}?${new URLSearchParams({ token })}`, {
-      method, cache: "no-store",
-      ...(body ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {}),
-    });
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.error ?? `API ${response.status}（トークン付き URL を確認してください）`);
-    }
-    return response.status === 204 ? undefined : response.json();
-  }
-
   async function refresh(selected = list.value || attachedId): Promise<void> {
-    sessions = await api("GET") as Session[];
+    sessions = await sessionRequest() as Session[];
     list.replaceChildren(new Option("セッションを選択", ""));
     for (const session of sessions) {
       const option = new Option(`${session.project} / ${session.preset} / ${session.id}${
@@ -77,44 +108,23 @@ export function initTerminal(): void {
     if (sessions.some((session) => session.id === selected)) list.value = selected!;
     controls();
   }
-
+  const dispose = (): void => (attachment ?? welcome).dispose();
   function connect(session: Session): void {
-    const previous = socket;
-    socket = undefined; // Detach old input/receive callbacks before disposing its queued writes.
-    previous?.close();
-    resetTerminal();
+    dispose();
     attachedId = session.id;
     sessionStorage.setItem(storageKey, session.id);
     list.value = session.id;
-    status.textContent = `${session.preset} / ${session.id} 接続中…`;
-    const protocol = location.protocol === "https:" ? "wss:" : "ws:";
-    const query = new URLSearchParams({ token, session: session.id, cols: String(terminal.cols), rows: String(terminal.rows) });
-    const current = new WebSocket(`${protocol}//${location.host}/pty?${query}`);
-    socket = current;
-    current.onopen = () => {
-      if (socket !== current) return;
-      status.textContent = `${session.preset} / ${session.id} 接続済み`;
-      terminal.focus();
-      send({ type: "resize", cols: terminal.cols, rows: terminal.rows });
-    };
-    current.onmessage = (event) => { if (socket === current) terminal.write(event.data); };
-    current.onerror = () => {
-      if (socket !== current) return;
-      terminal.writeln("\r\n接続できません。server のトークン付き URL とセッション一覧を確認してください。");
-    };
-    current.onclose = () => {
-      if (socket !== current) return;
-      status.textContent = `${session.id} 切断（セッションはサーバーに残ります）`;
+    // Late callbacks from an earlier attachment (even to the same session) must not touch the status.
+    const current = attachment = connectSessionTerminal(container, session, status, () => {
       void refresh().then(() => {
-        if (socket !== current) return;
+        if (attachment !== current) return;
         const latest = sessions.find((item) => item.id === session.id);
         if (latest?.exited) status.textContent = `${session.id} 終了 (${latest.exited.code})・出力は保持されています`;
         else if (!latest) status.textContent = "セッションは削除されました";
-      }).catch((error: Error) => { if (socket === current) status.textContent = error.message; });
-    };
+      }).catch((error: Error) => { if (attachment === current) status.textContent = error.message; });
+    });
     controls();
   }
-
   async function run(action: () => Promise<void>): Promise<void> {
     busy = true;
     controls();
@@ -122,10 +132,9 @@ export function initTerminal(): void {
       status.textContent = error instanceof Error ? error.message : String(error);
     } finally { busy = false; controls(); }
   }
-
   start.addEventListener("click", () => void run(async () => {
     status.textContent = "起動中…";
-    const session = await api("POST", "", { preset: preset.value, ...(cwd.value ? { cwd: cwd.value } : {}) }) as Session;
+    const session = await sessionRequest("POST", "", { preset: preset.value, ...(cwd.value ? { cwd: cwd.value } : {}) }) as Session;
     connect(session);
     await refresh(session.id);
   }));
@@ -135,11 +144,9 @@ export function initTerminal(): void {
   });
   end.addEventListener("click", () => void run(async () => {
     const id = list.value;
-    await api("DELETE", `/${encodeURIComponent(id)}`);
+    await sessionRequest("DELETE", `/${encodeURIComponent(id)}`);
     if (id === attachedId) {
-      const previous = socket;
-      socket = undefined;
-      previous?.close();
+      attachment?.disconnect();
       attachedId = undefined;
       sessionStorage.removeItem(storageKey);
       status.textContent = "セッションを終了・削除しました";
@@ -148,7 +155,7 @@ export function initTerminal(): void {
   }));
   list.addEventListener("change", controls);
   refreshButton.addEventListener("click", () => void run(() => refresh()));
-  window.addEventListener("pagehide", () => socket?.close());
+  window.addEventListener("pagehide", () => dispose());
   void run(async () => {
     const remembered = sessionStorage.getItem(storageKey);
     await refresh(remembered ?? undefined);

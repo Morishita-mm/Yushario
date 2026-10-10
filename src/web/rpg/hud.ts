@@ -50,6 +50,7 @@ export class Status {
     private readonly root: HTMLElement,
     private readonly respond: (id: string, decision: Decision) => void,
     private readonly select: (agent: string | undefined) => void,
+    private readonly openTerminal: (terminal: string) => void,
   ) {}
 
   render(room: Room, now: number, selected: string | undefined, names: Map<string, string>): void {
@@ -77,7 +78,7 @@ export class Status {
       const agentMoods = moods(agent, now);
       const agentStats = stats(agent, now);
       const signature = JSON.stringify([names.get(agent.id), agent.activity, agent.target, agentMoods, agentStats,
-        agent.tasks, agent.helpers, permission?.id, agent.log]);
+        agent.tasks, agent.helpers, agent.terminal, permission?.id, agent.log]);
       let card = this.root.querySelector<HTMLElement>(`[data-agent="${CSS.escape(agent.id)}"]`);
       if (!card || this.signatures.get(agent.id) !== signature) {
         card = this.card(agent, agentMoods, permission, now, names.get(agent.id) ?? agent.name);
@@ -94,7 +95,7 @@ export class Status {
       cards.push(this.permissionBlock(permission, project === undefined ? name : `${name} — ${project}`));
     }
     if (!cards.length) {
-      cards.push(element("p", "empty window", "まだ だれも いない ようだ…\nフックを せっていした Claude Code を きどうすると、ゆうしゃが まちに やってくる。"));
+      cards.push(element("p", "empty window", "まだ だれも いない ようだ…\n「しゅつじん」で Claude Code を きどうすると、ゆうしゃが まちに やってくる。"));
     }
     if (cards.length !== this.root.children.length || cards.some((card, index) => this.root.children[index] !== card)) {
       this.root.replaceChildren(...cards);
@@ -113,6 +114,14 @@ export class Status {
     head.append(crest, element("strong", undefined, name), element("span", "level", `Lv ${level}`));
     card.append(head, bar("HP", hp, hp > 0.5 ? "#7ee08a" : hp > 0.25 ? "#ffd35a" : "#ff6b5b"), bar("MP", mp, "#62b8ff"));
     card.append(element("p", "doing", `▶ ${DOING[agent.activity](agent.target ?? "")}`));
+    if (agent.terminal) {
+      const actions = element("div", "actions");
+      const terminal = element("button", undefined, "▶ ターミナル");
+      terminal.type = "button";
+      terminal.addEventListener("click", (event) => { event.stopPropagation(); this.openTerminal(agent.terminal!); });
+      actions.append(terminal);
+      card.append(actions);
+    } else card.append(element("p", "hint", "外から来た勇者（このアプリの ターミナルでは ない）"));
     if (agentMoods.length) {
       const chips = element("p", "moods");
       for (const mood of agentMoods) chips.append(element("span", "chip", MOODS[mood]));

@@ -10,6 +10,7 @@
       <h1>AGENT QUEST</h1>
       <span id="connection" aria-live="polite">せつぞく中…</span>
       <a id="live2d-link" href="/live2d.html">Live2D 表示</a>
+      <button id="expedition" type="button">しゅつじん</button>
       <button id="settings" type="button">せってい</button>
     </header>
     <main class="quest">
@@ -29,6 +30,36 @@
       </section>
       <aside id="party" aria-label="ゆうしゃたちの つよさ"></aside>
     </main>
+    <dialog id="expedition-dialog" class="report-window expedition-window" aria-labelledby="expedition-title">
+      <h3 id="expedition-title">しゅつじん</h3>
+      <form id="expedition-form">
+        <label for="expedition-preset">勇者の種類</label>
+        <select id="expedition-preset">
+          <option value="claude">Claude Code</option>
+          <option value="codex">Codex</option>
+          <option value="pi">pi</option>
+          <option value="shell">shell</option>
+        </select>
+        <label for="expedition-destination">行き先（作業ディレクトリ）</label>
+        <select id="expedition-destination"><option value="">ほかの フォルダ</option></select>
+        <label id="expedition-path-label" for="expedition-path">絶対パス</label>
+        <input id="expedition-path" type="text" placeholder="/absolute/path/to/project" required />
+        <button id="expedition-start" type="submit">▶ しゅつじん！</button>
+      </form>
+      <p id="expedition-status" class="settings-status" role="status"></p>
+      <h4>ひらいている ターミナル</h4>
+      <div id="expedition-sessions" class="town-list"></div>
+      <div class="actions"><button id="expedition-close" type="button">▶ とじる</button></div>
+    </dialog>
+    <dialog id="session-dialog" class="report-window terminal-window" aria-labelledby="session-title">
+      <div class="terminal-heading">
+        <h3 id="session-title">ターミナル</h3>
+        <button id="session-close" type="button">▶ とじる</button>
+      </div>
+      <p id="session-status" role="status"></p>
+      <div id="session-terminal" aria-label="勇者のターミナル"></div>
+      <p class="terminal-hint">Esc・窓の外・とじる で 町にもどる。勇者は うごきつづけます。</p>
+    </dialog>
     <script type="module" src="/src/web/rpg/main.ts"></script>
   </body>
 </html>

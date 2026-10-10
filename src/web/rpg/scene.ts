@@ -26,6 +26,7 @@ const FIELD_NAMES = { meadow: "そうげん", cave: "どうくつ", forest: "よ
 // Page-local drawing state only. Room remains the source of agent state.
 export class Scene {
   selected: string | undefined;
+  get currentTown(): string | undefined { return this.place === "world" ? undefined : this.project; }
   readonly names = new Map<string, string>();
   private history: TownNames = [];
   private heroes: TownHero[] = [];
@@ -228,7 +229,12 @@ export class Scene {
       } })), { ...this.sleepingPlate, act: () => this.openList("sleeping") },
         { ...this.archivedPlate, act: () => this.openList("archived") }];
     }
-    if (this.place === "inn") return [{ x: 0, y: 0, w, h, act: () => this.go("town") }];
+    if (this.place === "inn") {
+      // Each bed selects its sleeper (same order as drawInn); the door leads back to town.
+      const sleepers = this.localHeroes().filter((hero) => hero.place === "inn").slice(0, 6);
+      return [...sleepers.map((hero, i) => ({ x: 200 + i * 112 - 32, y: 290, w: 64, h: 90, act: () => { this.selected = hero.id; } })),
+        { x: 430, y: 500, w: 100, h: 34, text: "▼ そとへ", act: () => this.go("town") }];
+    }
     if (this.place === "town") {
       const spots: Hot[] = [{ ...TOWN_SPOTS.inn, act: () => this.go("inn") }];
       for (const walker of this.walkers.filter((w) => this.localHeroes().some((h) => h.id === w.id))) {

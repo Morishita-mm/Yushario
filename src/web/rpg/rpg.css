@@ -17,9 +17,31 @@ a { color: #9fd3ff; font-size: 14px; }
 #world { display: block; width: 100%; image-rendering: pixelated; border: 3px solid #ffffff; border-radius: 6px; cursor: pointer; background: #000; }
 .map-stage { position: relative; }
 .map-nav { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; font-size: 14px; }
-.map-nav button, #settings { font: inherit; background: #1d1726; color: #fff; border: 1px solid #6e6a8a; padding: 4px 8px; cursor: pointer; }
-.map-nav button:hover, .map-nav button:focus-visible, #settings:hover, #settings:focus-visible { color: #ffe066; border-color: #ffe066; }
-#settings { font-size: 14px; }
+.map-nav button, #settings, #expedition { font: inherit; background: #1d1726; color: #fff; border: 1px solid #6e6a8a; padding: 4px 8px; cursor: pointer; }
+.map-nav button:hover, .map-nav button:focus-visible, #settings:hover, #settings:focus-visible, #expedition:hover, #expedition:focus-visible { color: #ffe066; border-color: #ffe066; }
+#settings, #expedition { font-size: 14px; }
+body > header { flex-wrap: wrap; }
+dialog.report-window { color: inherit; max-height: 90svh; }
+dialog::backdrop { background: rgba(0, 0, 0, 0.65); }
+#expedition-form { display: grid; gap: 8px; }
+#expedition-form label { color: #9fd3ff; }
+#expedition-form select, #expedition-form input {
+  width: 100%; min-width: 0; font: inherit; background: #1d1726; color: #fff;
+  border: 1px solid #6e6a8a; padding: 6px 8px;
+}
+#expedition-form [hidden] { display: none; }
+#expedition-start { justify-self: start; margin-top: 6px; color: #ffe066; }
+#expedition-status { white-space: pre-line; }
+.session-row { text-align: left; overflow-wrap: anywhere; }
+dialog.terminal-window { width: min(1200px, 94vw); height: 82svh; padding: 14px 18px; overflow: hidden; }
+dialog.terminal-window[open] { display: flex; flex-direction: column; gap: 8px; }
+.terminal-heading { display: flex; align-items: center; gap: 12px; }
+.terminal-heading h3 { flex: 1; text-align: left; margin: 0; overflow-wrap: anywhere; }
+.terminal-heading button { flex: none; }
+#session-status, .terminal-hint { font-size: 13px; color: #c9c3dc; margin: 0; overflow-wrap: anywhere; }
+#session-terminal { flex: 1; min-width: 0; min-height: 0; background: #10141c; }
+#session-terminal .xterm { height: 100%; }
+.terminal-hint { font-size: 12px; }
 #town-pin[aria-pressed="true"] { color: #ffe066; }
 #town-feedback { color: #ffb899; margin: 0; }
 #archive-days { display: flex; flex-wrap: wrap; gap: 8px 18px; border: 1px solid #6e6a8a; margin: 12px 0; padding: 12px; }

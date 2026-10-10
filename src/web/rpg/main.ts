@@ -5,6 +5,7 @@ import { narrate, stats } from "../../core/story";
 import { Messages, Status, type Permission } from "./hud";
 import { Scene } from "./scene";
 import { loadTowns } from "./ledger";
+import { initExpedition } from "./expedition";
 import "./rpg.css";
 
 const token = new URLSearchParams(location.search).get("token") ?? "";
@@ -15,12 +16,17 @@ const scene = new Scene(canvas, document.querySelector<HTMLElement>("#town-layer
 const messages = new Messages(document.querySelector<HTMLElement>("#messages")!);
 let room = new Room();
 let socket: WebSocket | undefined;
+const expedition = initExpedition(() => scene.currentTown, (terminal) => {
+  const agent = [...room.agents.values()].find((item) => item.terminal === terminal);
+  return agent && (scene.names.get(agent.id) ?? agent.name);
+});
 const status = new Status(
   document.querySelector<HTMLElement>("#party")!,
   (id, decision) => {
     if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: "permission-decision", id, decision }));
   },
   (agent) => scene.select(agent),
+  (terminal) => void expedition.openTerminal(terminal),
 );
 
 function parse(input: unknown, at: unknown): { event: AgentEvent; at: number } | undefined {
@@ -99,6 +105,7 @@ function frame(time: number): void {
   if (now - lastStatus > 250) {
     scene.sync(room, now);
     status.render(room, now, scene.selected, scene.names);
+    expedition.updateTitle();
     lastStatus = now;
   }
   scene.frame(time, now);
