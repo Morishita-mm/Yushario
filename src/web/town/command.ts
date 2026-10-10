@@ -30,21 +30,21 @@ function place(layer: HTMLElement, box: HTMLElement, at: [number, number], dismi
   box.style.left = `${left}px`;
   box.style.top = `${top}px`;
 
-  const buttons = [...box.querySelectorAll<HTMLButtonElement>(".commands button:not(:disabled)")];
-  let selected = 0;
+  const enabled = () => [...box.querySelectorAll<HTMLButtonElement>(".commands button:not(:disabled)")];
+  let selected: HTMLButtonElement | undefined;
   function select(index: number): void {
-    selected = index;
-    for (const [i, button] of buttons.entries()) {
-      button.classList.toggle("selected", i === selected);
-      button.tabIndex = i === selected ? 0 : -1;
-      if (i === selected) button.setAttribute("aria-current", "true");
+    selected = enabled()[index];
+    for (const button of box.querySelectorAll<HTMLButtonElement>(".commands button")) {
+      button.classList.toggle("selected", button === selected);
+      button.tabIndex = button === selected ? 0 : -1;
+      if (button === selected) button.setAttribute("aria-current", "true");
       else button.removeAttribute("aria-current");
     }
-    buttons[selected]?.focus({ preventScroll: true });
+    selected?.focus({ preventScroll: true });
   }
-  for (const [index, button] of buttons.entries()) {
-    button.addEventListener("mouseenter", () => select(index));
-    button.addEventListener("focus", () => { if (selected !== index) select(index); });
+  for (const button of box.querySelectorAll<HTMLButtonElement>(".commands button")) {
+    button.addEventListener("mouseenter", () => { if (!button.disabled) select(enabled().indexOf(button)); });
+    button.addEventListener("focus", () => { if (selected !== button && !button.disabled) select(enabled().indexOf(button)); });
   }
   box.addEventListener("keydown", (event) => {
     if (event.isComposing || event.keyCode === 229) return;
@@ -52,14 +52,16 @@ function place(layer: HTMLElement, box: HTMLElement, at: [number, number], dismi
       event.preventDefault(); event.stopPropagation(); dismiss();
       return;
     }
+    const buttons = enabled();
     if (!buttons.length || event.target instanceof HTMLTextAreaElement) return;
     const direction = event.key === "ArrowUp" || event.key === "ArrowLeft" ? -1
       : event.key === "ArrowDown" || event.key === "ArrowRight" ? 1 : 0;
     if (direction) {
       event.preventDefault(); event.stopPropagation();
-      select((selected + direction + buttons.length) % buttons.length);
+      select((Math.max(0, buttons.indexOf(selected!)) + direction + buttons.length) % buttons.length);
     } else if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault(); event.stopPropagation(); buttons[selected].click();
+      event.preventDefault(); event.stopPropagation();
+      (selected && !selected.disabled ? selected : buttons[0]).click();
     }
   });
   select(0);
@@ -81,10 +83,11 @@ function option(label: string, action: () => void, disabled?: string): HTMLButto
   return button;
 }
 
-// Stage 3 uses the same frame, positioning and buttons as the mock, without its future commands.
+// The real app and mock share the command frame, cursor, plans and confirmation.
 export function showHeroCommands(layer: HTMLElement, name: string, at: [number, number], on: {
   talk: () => void; status: () => void; follow: () => void; terminal?: () => void; watch?: () => void; closed: () => void;
-}): () => void {
+  working: boolean; plan?: (text: string) => void; interrupt?: () => void; compact?: () => void; farewell?: () => void;
+}) {
   const box = element("div", "command-window");
   box.setAttribute("role", "dialog");
   box.setAttribute("aria-label", `${name}の コマンド`);
@@ -99,14 +102,33 @@ export function showHeroCommands(layer: HTMLElement, name: string, at: [number, 
   const choose = (action: () => void) => () => { dismiss(); action(); };
   const list = element("div", "commands");
   if (on.watch) list.append(option("たたかいを みる", choose(on.watch)));
+  const foreign = "外から来た勇者なので このアプリからは 操作できません";
+  const unavailable = on.terminal ? undefined : foreign;
+  const hero = { name, fighting: on.working, at };
+  const interrupt = option("にげる", choose(on.interrupt ?? (() => undefined)));
+  const compact = option("やすむ", () => showDraftConfirmation(layer, at,
+    () => { dismiss(); on.compact?.(); }, dismiss));
+  const hint = element("p", "hint");
   list.append(option("はなす", choose(on.talk)), option("ようすを みる", choose(on.status)),
     option("ついていく", choose(on.follow)),
-    option("ターミナル", choose(on.terminal ?? (() => undefined)), on.terminal ? undefined : "外から来た勇者の ターミナルは ひらけません"),
+    option("さくせん", () => showPlans(layer, hero, (text) => { dismiss(); on.plan?.(text); }, dismiss), unavailable),
+    interrupt, compact,
+    option("ターミナル", choose(on.terminal ?? (() => undefined)), unavailable),
+    option("みおくる", () => showFarewell(layer, hero, () => { dismiss(); on.farewell?.(); }, dismiss), unavailable),
     option("とじる", dismiss));
-  box.append(list);
-  if (!on.terminal) box.append(element("p", "hint", "外から来た勇者\nこのアプリの ターミナルでは ない"));
+  box.append(list, hint);
+  const update = (working: boolean) => {
+    hero.fighting = working;
+    interrupt.disabled = Boolean(unavailable) || !working;
+    compact.disabled = Boolean(unavailable) || working;
+    interrupt.title = unavailable ?? (!working ? "作業中だけ つかえます" : "");
+    compact.title = unavailable ?? (working ? "待機中だけ つかえます" : "");
+    hint.textContent = unavailable ?? (working ? "やすむ：待機中だけ つかえます" : "にげる：作業中だけ つかえます");
+    if (box.querySelector("button.selected:disabled")) list.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus();
+  };
+  update(on.working);
   place(layer, box, at, dismiss);
-  return dismiss;
+  return Object.assign(dismiss, { update });
 }
 
 export function showCommands(layer: HTMLElement, hero: HeroState, on: Handlers): void {
@@ -117,12 +139,12 @@ export function showCommands(layer: HTMLElement, hero: HeroState, on: Handlers):
   if (on.watch) list.append(option("たたかいを みる", () => { close(layer); on.watch!(); }));
   list.append(
     option("めいれい", () => showOrder(layer, hero, done)),
-    option("さくせん", () => showPlans(layer, hero, done)),
+    option("さくせん", () => showPlans(layer, hero, (plan) => done(`${hero.name} に さくせん「${plan}」を つたえた`))),
     option("にげる", () => done(`${hero.name} は たたかいを ちゅうだんした（Esc を おくった）`), hero.fighting ? undefined : "たたかっていない ときは つかえません"),
     option("やすむ", () => done(`${hero.name} は ひとやすみ した（/compact）… MPが かいふくした！`), hero.fighting ? "たたかいの さいちゅうは つかえません" : undefined),
     option("ターミナル", () => undefined, "モックには ターミナルが ありません（本体で ひらく）"),
     option("きろく", () => { close(layer); on.report(); }, hero.hasReport ? undefined : "まだ ほうこくが ありません"),
-    option("みおくる", () => showFarewell(layer, hero, on)),
+    option("みおくる", () => showFarewell(layer, hero, () => { close(layer); on.farewell(); })),
   );
   box.append(list);
   place(layer, box, hero.at);
@@ -154,24 +176,39 @@ function showOrder(layer: HTMLElement, hero: HeroState, done: (text: string) => 
   input.focus();
 }
 
-function showPlans(layer: HTMLElement, hero: HeroState, done: (text: string) => void): void {
+function showPlans(layer: HTMLElement, hero: Pick<HeroState, "at">, done: (text: string) => void, dismiss = () => close(layer)): void {
   const box = element("div", "command-window");
   box.append(element("h4", undefined, "さくせん"));
   const list = element("div", "commands");
-  for (const plan of PLANS) list.append(option(plan, () => done(`${hero.name} に さくせん「${plan}」を つたえた`)));
+  for (const plan of PLANS) list.append(option(plan, () => done(plan)));
   box.append(list);
-  place(layer, box, hero.at);
+  place(layer, box, hero.at, dismiss);
 }
 
-function showFarewell(layer: HTMLElement, hero: HeroState, on: Handlers): void {
+function showFarewell(layer: HTMLElement, hero: Pick<HeroState, "name" | "fighting" | "at">,
+  farewell: () => void, dismiss = () => close(layer)): void {
+  const working = hero.fighting;
+  showConfirmation(layer, hero.at, working ? "中断して たびだたせますか？" : `${hero.name} を みおくりますか？`,
+    "セッションを おわります。Claude Code の勇者は めいぼから よびもどせます。", () => {
+      if (!working && hero.fighting) showFarewell(layer, hero, farewell, dismiss);
+      else farewell();
+    }, dismiss);
+}
+
+function showConfirmation(layer: HTMLElement, at: [number, number], title: string, hint: string,
+  yes: () => void, no: () => void): void {
   const box = element("div", "command-window wide");
-  box.append(element("h4", undefined, `${hero.name} を みおくりますか？`));
-  box.append(element("p", "hint", (hero.fighting ? "たたかいの さいちゅうです。ちゅうだんして たびだたせます。\n" : "")
-    + "セッションを おわります。ぼうけんしゃの めいぼから いつでも よびもどせます。"));
+  box.setAttribute("role", "dialog"); box.setAttribute("aria-label", title);
+  box.append(element("h4", undefined, title), element("p", "hint", hint));
   const list = element("div", "commands row");
-  list.append(option("はい", () => { close(layer); on.farewell(); }), option("いいえ", () => close(layer)));
+  list.append(option("はい", yes), option("いいえ", no));
   box.append(list);
-  place(layer, box, hero.at);
+  place(layer, box, at, no);
+}
+
+export function showDraftConfirmation(layer: HTMLElement, at: [number, number], yes: () => void, no: () => void): void {
+  showConfirmation(layer, at, "ターミナルに 書きかけの 文字が あれば 消えます", "はい を えらぶと 実行します。",
+    () => { close(layer); yes(); }, () => { close(layer); no(); });
 }
 
 // The roster of heroes who have set off; call one back to resume the same session.

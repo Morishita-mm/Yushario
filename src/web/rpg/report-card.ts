@@ -44,7 +44,7 @@ export function createReportCard(entry: Reply, name: string) {
       tally.append(files);
     }
     const start = report.mp ? Math.round(report.mp.start * 100) : 0, end = report.mp ? Math.round(report.mp.end * 100) : 0;
-    const mp = report.mp ? ` · MP ${start} → ${end}（${start >= end ? "−" : "+"}${Math.abs(start - end)}）` : "";
+    const mp = report.mp && start !== end ? ` · MP ${start} → ${end}（${start >= end ? "−" : "+"}${Math.abs(start - end)}）` : "";
     // Only what actually happened: a plain conversation shows no tally line at all.
     const facts = [
       report.tests.passed + report.tests.failed ? `テスト ○${report.tests.passed} ×${report.tests.failed}` : "",

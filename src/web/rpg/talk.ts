@@ -2,6 +2,16 @@ import type { RoomAgent } from "../../core/room";
 import { renderTalk, talkParts } from "./talk-text";
 import { createReportCard } from "./report-card";
 import { markReportRead, reportRead } from "./read-reports";
+import { initArrival } from "./arrival";
+
+// The talk and terminal windows cover the map in the same place, so switching between them keeps the layout.
+export function coverMap(dialog: HTMLElement): void {
+  const rect = document.querySelector(".map-stage")!.getBoundingClientRect();
+  dialog.style.left = `${Math.max(8, rect.left)}px`;
+  dialog.style.top = `${Math.max(8, Math.min(rect.top, innerHeight - 320))}px`;
+  dialog.style.width = `${Math.min(rect.width, innerWidth - 16)}px`;
+  dialog.style.height = `${Math.min(Math.max(rect.height, 520), innerHeight - Math.max(8, rect.top) - 8)}px`;
+}
 
 // One page-local conversation window. Talk itself always comes from Room/replay.
 export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id: string) => string | undefined,
@@ -17,8 +27,9 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
   const foreign = document.querySelector<HTMLElement>("#talk-foreign")!;
   const terminal = document.querySelector<HTMLButtonElement>("#talk-terminal")!;
   const next = document.querySelector<HTMLButtonElement>("#talk-next")!;
+  const arrival = initArrival(title, history, form, terminal);
   const token = new URLSearchParams(location.search).get("token") ?? "";
-  const pending = new Map<string, string[]>(), sending = new Set<string>();
+  const pending = new Map<string, string[]>(), sending = new Set<string>(), interrupting = new Set<string>();
   const expanded = new Set<number>();
   let selected: { hero: string } | { terminal: string } | undefined;
   let signature = "", texts: string[] = [];
@@ -33,7 +44,7 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
   function heldMessage(): string {
     return selected && "terminal" in selected ? "勇者が ついたら つたえる" : "たたかいが おわったら つたえる";
   }
-  function close(): void { selected = undefined; dialog.close(); }
+  function close(): void { arrival.watch(); selected = undefined; dialog.close(); }
   dialog.addEventListener("cancel", (event) => { event.preventDefault(); close(); });
   dialog.addEventListener("keydown", (event) => {
     event.stopPropagation();
@@ -55,13 +66,7 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
     if (id) { close(); openTerminal(id); }
   });
 
-  function position(): void {
-    const rect = document.querySelector(".map-stage")!.getBoundingClientRect();
-    dialog.style.left = `${Math.max(8, rect.left)}px`;
-    dialog.style.top = `${Math.max(8, Math.min(rect.top, innerHeight - 320))}px`;
-    dialog.style.width = `${Math.min(rect.width, innerWidth - 16)}px`;
-    dialog.style.height = `${Math.min(Math.max(rect.height, 520), innerHeight - Math.max(8, rect.top) - 8)}px`;
-  }
+  const position = () => coverMap(dialog);
   window.addEventListener("resize", () => { if (dialog.open) { position(); markVisible(); } });
   function renderLatest(): void {
     if (!latest) return;
@@ -105,7 +110,7 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
     pending.set(id, texts);
     if (id === terminalId()) {
       renderPending(id);
-      if (delivered) status.textContent = "あずかった ことばを つたえた！";
+      if (delivered && !interrupting.has(id)) status.textContent = "あずかった ことばを つたえた！";
     }
   }
   function resetPending(): void { pending.clear(); if (selected) renderPending(terminalId()); }
@@ -114,13 +119,10 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
     if (!selected || !dialog.open) return;
     if ("terminal" in selected) {
       const agent = arrivingHero(selected.terminal);
-      if (agent) selected = { hero: agent.id };
+      if (agent) { selected = { hero: agent.id }; arrival.watch(); }
       else {
-        title.textContent = "勇者が 町に むかっている…";
-        form.hidden = false; foreign.hidden = true; terminal.disabled = false;
-        send.disabled = sending.has(selected.terminal);
-        if (signature !== "arriving") { signature = "arriving"; history.textContent = "町に つくまでに 依頼を つたえられます。"; }
-        renderPending(selected.terminal); return;
+        foreign.hidden = true; send.disabled = sending.has(selected.terminal);
+        arrival.update(); renderPending(selected.terminal); return;
       }
     }
     const agent = hero(selected.hero);
@@ -183,12 +185,12 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
     if (atBottom) history.scrollTop = history.scrollHeight;
   }
 
-  form.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const id = terminalId(), text = input.value;
+  async function sendText(text: string): Promise<void> {
+    const id = terminalId();
     if (!id || !text.trim() || text.length > 8000 || sending.has(id)) return;
-    sending.add(id); send.disabled = true; status.textContent = "つたえている…";
-    void fetch(`/api/sessions/${encodeURIComponent(id)}/say?token=${encodeURIComponent(token)}`, {
+    sending.add(id); send.disabled = true;
+    status.textContent = "つたえている…";
+    await fetch(`/api/sessions/${encodeURIComponent(id)}/say?token=${encodeURIComponent(token)}`, {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }),
     }).then(async (response) => {
       if (!response.ok) {
@@ -202,9 +204,11 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
     }).catch((error: unknown) => {
       if (terminalId() === id && dialog.open) status.textContent = error instanceof Error ? error.message : String(error);
     }).finally(() => { sending.delete(id); if (terminalId() === id) send.disabled = false; });
-  });
+  }
+  form.addEventListener("submit", (event) => { event.preventDefault(); void sendText(input.value); });
 
   function openConversation(target: { hero: string } | { terminal: string }, at?: number): void {
+    arrival.watch("terminal" in target ? target.terminal : undefined);
     selected = target; signature = ""; texts = []; latestAt = latestText = undefined; shown = 0; expanded.clear(); scrollTo = at;
     input.value = ""; status.textContent = ""; history.replaceChildren(); latest = undefined; next.hidden = true;
     position(); if (!dialog.open) dialog.showModal();
@@ -212,5 +216,7 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
     if (terminalId() && at === undefined) input.focus(); else history.focus({ preventScroll: true });
   }
   return { open: (id: string, at?: number) => openConversation({ hero: id }, at),
-    openSession: (id: string) => openConversation({ terminal: id }), update, tick, setPending, resetPending };
+    openSession: (id: string) => openConversation({ terminal: id }), update, tick, setPending, resetPending, sendText, close,
+    notice: (text: string) => { status.textContent = text; },
+    interrupting: (id: string, active: boolean) => { if (active) interrupting.add(id); else interrupting.delete(id); } };
 }

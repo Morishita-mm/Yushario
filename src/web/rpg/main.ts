@@ -4,10 +4,14 @@ import { Room } from "../../core/room";
 import { narrate, stats } from "../../core/story";
 import { Messages, Status, type Permission } from "./hud";
 import { Scene } from "./scene";
-import { loadTowns } from "./ledger";
+import { loadTowns, type TownRecord } from "./ledger";
+import type { Session } from "../terminal";
+import { initHeroActions } from "./hero-commands";
+import { initRoster } from "./roster";
 import { initExpedition } from "./expedition";
 import { initTalk } from "./talk";
 import { initNotices } from "./notices";
+import { loadNames, parseNames } from "./names";
 import "./rpg.css";
 import "./talk.css";
 
@@ -18,18 +22,21 @@ document.querySelector<HTMLAnchorElement>("#live2d-link")!.search = location.sea
 const scene = new Scene(canvas, document.querySelector<HTMLElement>("#town-layer")!,
   (id, at) => talk.open(id, at), (terminal) => void expedition.openTerminal(terminal),
   (id) => status.openDetails(room, Date.now(), id, scene.names),
-  (text, at) => messages.say(text, at));
-const messages = new Messages(document.querySelector<HTMLElement>("#messages")!);
+  (text, at) => messages.say(text, at), (id) => actions.options(id));
+const messages = new Messages(document.querySelector<HTMLElement>("#messages")!, (id) => scene.names.get(id));
 let room = new Room();
 let socket: WebSocket | undefined;
 const expedition = initExpedition(() => scene.currentTown, (terminal) => {
   const agent = [...room.agents.values()].find((item) => item.terminal === terminal);
   return agent && (scene.names.get(agent.id) ?? agent.name);
-}, (session, towns) => {
-  // The session registers its town before returning, even before its hero arrives.
-  scene.setTowns(towns);
+}, arrived, (terminal) => [...room.agents.values()].find((agent) => agent.terminal === terminal)?.id,
+  (id) => talk.open(id));
+function arrived(session: Session, towns: TownRecord[]): void {
+  // Launch and recall both register the town before the hero reaches its gate.
+  scene.setTowns(towns); scene.expectArrival(session.id);
   scene.enterTown(session.project, () => talk.openSession(session.id));
-});
+}
+initRoster(arrived);
 const talk = initTalk((id) => room.agents.get(id), (id) => scene.names.get(id),
   (terminal) => void expedition.openTerminal(terminal),
   (terminal) => [...room.agents.values()].find((agent) => agent.terminal === terminal));
@@ -40,7 +47,16 @@ const status = new Status(
   },
   (agent) => scene.select(agent),
   (terminal) => void expedition.openTerminal(terminal),
+  namesChanged,
 );
+function namesChanged(names: Record<string, string>): void {
+  scene.savedNames.clear();
+  for (const [id, name] of Object.entries(names)) scene.savedNames.set(id, name);
+  scene.sync(room, Date.now()); talk.update();
+}
+
+const actions = initHeroActions((id) => room.agents.get(id), talk,
+  (id) => scene.prepareDeparture(id), () => status.closeDetails(), (text) => messages.say(text, Date.now()));
 
 const notices = initNotices(document.querySelector<HTMLElement>("#herald")!, (notice) => {
   scene.visitNotice(notice.repo, notice.hero, notice.at);
@@ -51,17 +67,35 @@ function parse(input: unknown, at: unknown): { event: AgentEvent; at: number } |
   if (result.ok && typeof at === "number" && Number.isFinite(at)) return { event: result.event, at };
 }
 
+const endedTerminals = new Set<string>();
+function currentTerminal(event: AgentEvent): boolean {
+  if (!event.terminal) return true;
+  if (endedTerminals.has(event.terminal)) return false;
+  const previous = room.agents.get(event.agent ?? "default")?.terminal;
+  if (previous && previous !== event.terminal) {
+    if (event.hook !== "SessionStart" || event.subagent) return false;
+    endedTerminals.add(previous);
+  }
+  if (event.hook === "SessionEnd" && !event.subagent) endedTerminals.add(event.terminal);
+  return true;
+}
+
 // A live event: update the world, then tell it as a story.
 function live(event: AgentEvent, at: number): void {
+  if (!currentTerminal(event)) return;
   const before = room.agents.get(event.agent ?? "default");
   const level = before ? stats(before, at).level : 1;
+  actions.observe(event, at);
   const agent = room.apply(event, at);
   const levelUp = agent !== undefined && stats(agent, at).level > level;
-  talk.update();
   scene.sync(room, at);
-  const line = narrate({ ...event, name: scene.names.get(event.agent ?? "default") ?? event.name });
-  if (line) messages.say(line, at);
-  if (levelUp) messages.say(`${scene.names.get(agent!.id) ?? agent!.name}は レベル${stats(agent!, at).level}に あがった！`, at);
+  talk.update();
+  // A second SessionEnd (the hook arriving after the server's own) has no hero left to see off.
+  if (event.hook !== "SessionEnd" || before) messages.event(event, at);
+  if (levelUp) {
+    const name = scene.names.get(agent!.id) ?? agent!.name;
+    messages.say(`${name}は レベル${stats(agent!, at).level}に あがった！`, at, false, { id: agent!.id, name });
+  }
 }
 
 function permission(value: Record<string, unknown>): Permission | undefined {
@@ -82,19 +116,25 @@ function connect(): void {
       if (data.type === "replay" && Array.isArray(data.events)) {
         // Rebuild who is in town; retell only the last few lines.
         room = new Room();
-        talk.resetPending();
-        const told: [string, number][] = [];
+        talk.resetPending(); actions.reset(); endedTerminals.clear();
+        const told: [AgentEvent, number][] = [];
         for (const item of data.events) {
           const parsed = parse(item?.event, item?.at);
-          if (!parsed) continue;
+          if (!parsed || !currentTerminal(parsed.event)) continue;
+          actions.observe(parsed.event, parsed.at);
+          const present = room.agents.has(parsed.event.agent ?? "default");
           room.apply(parsed.event, parsed.at);
           scene.sync(room, parsed.at, true);
-          const line = narrate({ ...parsed.event, name: scene.names.get(parsed.event.agent ?? "default") ?? parsed.event.name });
-          if (line) told.push([line, parsed.at]);
+          const line = parsed.event.hook === "SessionEnd" && !present ? undefined
+            : narrate({ ...parsed.event, name: scene.names.get(parsed.event.agent ?? "default") ?? parsed.event.name });
+          if (line) told.push([parsed.event, parsed.at]);
         }
         scene.sync(room, Date.now());
-        for (const [line, at] of told.slice(-3)) messages.say(line, at, true);
+        for (const [event, at] of told.slice(-3)) messages.event(event, at, true);
         if (!told.length) messages.say("ここは エージェントたちの まち。 ゆうしゃの とうちゃくを まっている…", undefined, true);
+      } else if (data.type === "names") {
+        const names = parseNames(data.names);
+        if (names) namesChanged(names);
       } else if (data.type === "towns" && Array.isArray(data.towns)) {
         scene.setTowns(data.towns);
       } else if (data.type === "pending" && typeof data.terminal === "string" && Array.isArray(data.texts)
@@ -128,7 +168,7 @@ function frame(time: number): void {
     talk.update();
     scene.sync(room, now);
     notices(room, scene.projects, status.permissions, scene.names, now);
-    status.render(room, now, scene.selected, scene.names);
+    status.render(room, now, scene.selected, scene.names, scene.currentTown);
     expedition.updateTitle();
     lastStatus = now;
   }
@@ -144,6 +184,8 @@ void scene.load().then(async () => {
     messages.say("町の台帳を よみこめませんでした。せつぞくを おたしかめください。", undefined, true);
     console.warn(error);
   }
+  try { namesChanged(await loadNames()); }
+  catch (error) { messages.say("勇者の なまえを よみこめませんでした。", undefined, true); console.warn(error); }
   connect();
   requestAnimationFrame(frame);
 }).catch((error: unknown) => {

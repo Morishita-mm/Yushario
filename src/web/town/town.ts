@@ -40,6 +40,33 @@ function paintStreets(art: Sheets, street: [string, number]): HTMLCanvasElement 
   return canvas;
 }
 
+// The stone bridge without its own water, so every town's river shows through under it. Cut once from
+// frame 1 of obj-canal (with its wing walls, or just the deck and pillars); water colours come from frame 0.
+const decks = new Map<boolean, HTMLCanvasElement>();
+function bridgeDeck(art: Sheets, walled: boolean): HTMLCanvasElement | undefined {
+  const image = art.image("obj-canal");
+  if (decks.has(walled) || !image) return decks.get(walled);
+  const [w, h] = art.size("obj-canal"), [left, width] = walled ? [26, 50] : [35, 32];
+  const canvas = document.createElement("canvas");
+  canvas.width = w * 2; canvas.height = h;
+  const c = canvas.getContext("2d", { willReadFrequently: true })!;
+  c.drawImage(image, 0, 0);
+  const sheet = c.getImageData(0, 0, w * 2, h).data;
+  const water = new Set<number>();
+  for (let y = 23; y <= 41; y++) for (let x = 0; x < w; x++) {
+    const i = (y * w * 2 + x) * 4;
+    water.add((sheet[i] << 16) | (sheet[i + 1] << 8) | sheet[i + 2]);
+  }
+  const cut = c.getImageData(w + left, 0, width, h);
+  for (let i = 0; i < cut.data.length; i += 4) {
+    if (water.has((cut.data[i] << 16) | (cut.data[i + 1] << 8) | cut.data[i + 2])) cut.data[i + 3] = 0;
+  }
+  canvas.width = width;
+  c.putImageData(cut, 0, 0);
+  decks.set(walled, canvas);
+  return canvas;
+}
+
 type TownData = {
   sleepers: number; theme: TownTheme; name: string; walkers: Walker[]; unread?: number;
   reports?: TownSign[]; caller?: { name: string; x: number; y: number }; read?: Set<string>;
@@ -55,7 +82,10 @@ export function drawTown(ctx: CanvasRenderingContext2D, art: Sheets, t: number, 
     const canal = art.size("obj-canal")[0];
     for (let x = canal / 2 - 8; x < TOWN_W + canal; x += canal - 2) art.draw(ctx, "obj-canal", 0, x, 240);
   } else if (look.canal) art.texture(ctx, look.canal[0], look.canal[1], 0, 214, TOWN_W, 28);
-  if (look.canal) art.draw(ctx, "obj-canal", 1, 480, 248);
+  // Centre the bridge's water band (rows 20–37) on the river: 211–229 for the canal strip, 214–242 for a band.
+  const walled = look.canal?.[0] === "obj-canal"; // only the stone canal has banks for the wing walls to meet
+  const deck = look.canal && bridgeDeck(art, walled);
+  if (deck) ctx.drawImage(deck, 480 - deck.width / 2, walled ? 192 : 199);
   const items: { y: number; draw: () => void }[] = [];
   const put = (id: string, frame: number, x: number, y: number) => items.push({ y, draw: () => art.draw(ctx, id, frame, x, y) });
   put(look.church[0], look.church[1], 300, 140); put(look.library[0], look.library[1], 690, 140);

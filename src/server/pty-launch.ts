@@ -3,6 +3,7 @@ import { delimiter, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node-pty";
 import type { Preset } from "./pty-session";
+import { isClaudeSessionId } from "../core/roster";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
 // Keep user configuration, but not server secrets or inherited child-session markers.
@@ -35,11 +36,12 @@ export function writeClaudeSettings(port: number, temporary: string): string {
   return settings;
 }
 
-export function launchPty(preset: Preset, cwd: string, id: string, port: number, settings: string) {
+export function launchPty(preset: Preset, cwd: string, id: string, port: number, settings: string, resume?: string) {
+  if (resume !== undefined && !isClaudeSessionId(resume)) throw new Error("Invalid Claude sessionId");
   const program = preset === "shell" ? process.env.SHELL || "/bin/sh" : preset;
   const path = executable(program);
   if (!path) throw new Error(`${program} が PATH に見つかりません。インストールして server を再起動してください`);
-  const args = preset === "claude" ? ["--settings", settings]
+  const args = preset === "claude" ? ["--settings", settings, ...(resume ? ["--resume", resume] : [])]
     : preset === "pi" ? ["-e", join(root, "adapters/pi/agent-character.ts")] : [];
   const env = Object.fromEntries(Object.entries(process.env).filter((entry): entry is [string, string] => entry[1] !== undefined));
   for (const name of serverOnlyEnvironment) delete env[name];

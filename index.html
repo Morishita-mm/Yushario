@@ -11,6 +11,7 @@
       <span id="connection" aria-live="polite">せつぞく中…</span>
       <a id="live2d-link" href="/live2d.html">Live2D 表示</a>
       <button id="expedition" type="button">しゅつじん</button>
+      <button id="roster" type="button">めいぼ</button>
       <button id="settings" type="button">せってい</button>
     </header>
     <main class="quest">
@@ -34,6 +35,11 @@
       </section>
       <div class="sidebar">
         <aside id="herald" aria-label="でんれい"></aside>
+        <div class="status-size" role="group" aria-label="つよさの 表示">
+          <button type="button" data-status-size="small" aria-pressed="false">ちいさく</button>
+          <span aria-hidden="true">/</span>
+          <button type="button" data-status-size="detailed" aria-pressed="true">くわしく</button>
+        </div>
         <aside id="party" aria-label="ゆうしゃたちの つよさ"></aside>
       </div>
     </main>
@@ -58,9 +64,16 @@
       <div id="expedition-sessions" class="town-list"></div>
       <div class="actions"><button id="expedition-close" type="button">▶ とじる</button></div>
     </dialog>
+    <dialog id="roster-dialog" class="report-window" aria-labelledby="roster-title">
+      <h3 id="roster-title">ぼうけんしゃの めいぼ</h3>
+      <p id="roster-status" class="settings-status" role="status"></p>
+      <div id="roster-list" class="town-list"></div>
+      <div class="actions"><button id="roster-close" type="button">▶ とじる</button></div>
+    </dialog>
     <dialog id="session-dialog" class="report-window terminal-window" aria-labelledby="session-title">
       <div class="terminal-heading">
         <h3 id="session-title">ターミナル</h3>
+        <button id="session-talk" class="switch-view" type="button" hidden>▶ はなす</button>
         <button id="session-close" type="button">▶ とじる</button>
       </div>
       <p id="session-status" role="status"></p>
@@ -70,6 +83,7 @@
     <dialog id="talk-dialog" class="report-window talk-window" aria-labelledby="talk-title">
       <div class="talk-heading">
         <h3 id="talk-title">会話と報告</h3>
+        <button id="talk-terminal" class="switch-view" type="button">▶ ターミナル</button>
         <button id="talk-close" type="button">▶ とじる</button>
       </div>
       <div id="talk-history" aria-label="勇者との会話と報告" tabindex="0"></div>
@@ -82,12 +96,21 @@
       </form>
       <p id="talk-foreign" class="hint" hidden>外から来た勇者なので 読むだけです。このアプリの ターミナルでは ないため、ここからは つたえられません。</p>
       <p id="talk-status" role="status"></p>
-      <div class="actions"><button id="talk-terminal" type="button">▶ ターミナルで みる</button></div>
     </dialog>
     <dialog id="strength-dialog" class="report-window strength-window" aria-labelledby="strength-title">
       <div class="strength-heading">
         <h3 id="strength-title">つよさ</h3>
         <button id="strength-close" type="button">▶ とじる</button>
+      </div>
+      <div class="name-controls">
+        <button id="strength-rename" type="button">▶ なまえを かえる</button>
+        <form id="name-form" hidden>
+          <label for="hero-name">なまえ（1〜24文字・空で じどうの なまえ）</label>
+          <input id="hero-name" type="text" maxlength="24" autocomplete="off" />
+          <button id="name-save" type="submit">▶ ほぞん</button>
+          <button id="name-cancel" type="button">やめる</button>
+        </form>
+        <p id="name-status" role="status"></p>
       </div>
       <div id="strength-content" aria-label="勇者の つよさ" tabindex="0"></div>
       <p class="terminal-hint">Esc・窓の外・とじる で 町にもどる。</p>

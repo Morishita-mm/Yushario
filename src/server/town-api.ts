@@ -1,18 +1,22 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { activateTown, archiveTowns, registerTown, type TownRecord, type TownTheme } from "../core/town-ledger";
-import { readSettings, readTowns, validSettings, validTheme, writeSettings, writeTowns } from "./town-data";
+import { namedHero, normalizeHeroName, type HeroNames } from "../core/names";
+import { isClaudeSessionId } from "../core/roster";
+import { readNames, readSettings, readTowns, validSettings, validTheme, writeNames, writeSettings, writeTowns } from "./town-data";
 
 function json(response: ServerResponse, status: number, value: unknown): void {
   response.writeHead(status, { "Content-Type": "application/json", "Cache-Control": "no-store" })
     .end(JSON.stringify(value));
 }
 
-// The concrete town ledger: no session, report, or other history is persisted here.
+// Town and display preferences only: no session, report, or conversation history.
 export class TownLedger {
   towns = readTowns();
+  names = readNames();
   private settings = readSettings();
 
-  constructor(private readonly changed: (towns: TownRecord[]) => void) {}
+  constructor(private readonly changed: (towns: TownRecord[]) => void,
+    private readonly namesChanged: (names: HeroNames) => void) {}
 
   private save(towns: TownRecord[]): void {
     if (towns === this.towns) return;
@@ -42,13 +46,26 @@ export class TownLedger {
       json(response, 200, this.settings);
       return;
     }
+    if (url.pathname === "/api/names" && request.method === "GET") {
+      json(response, 200, this.names);
+      return;
+    }
     const patch = url.pathname.startsWith("/api/towns/") && request.method === "PATCH";
     const settings = url.pathname === "/api/settings" && request.method === "PUT";
-    if (!patch && !settings) {
-      response.writeHead(405, { Allow: url.pathname === "/api/settings" ? "GET, PUT" : "GET, PATCH" }).end();
+    const rename = url.pathname.startsWith("/api/names/") && request.method === "PUT";
+    if (!patch && !settings && !rename) {
+      const allow = url.pathname === "/api/names" ? "GET"
+        : url.pathname.startsWith("/api/names/") ? "PUT"
+        : url.pathname === "/api/settings" ? "GET, PUT" : "GET, PATCH";
+      response.writeHead(405, { Allow: allow }).end();
       return;
     }
     let name: string | undefined;
+    if (rename) {
+      try { name = decodeURIComponent(url.pathname.slice("/api/names/".length)); }
+      catch { json(response, 400, { error: "Invalid Claude sessionId" }); return; }
+      if (!isClaudeSessionId(name)) { json(response, 400, { error: "Invalid Claude sessionId" }); return; }
+    }
     if (patch) {
       try { name = decodeURIComponent(url.pathname.slice("/api/towns/".length)); }
       catch { json(response, 400, { error: "Invalid town name" }); return; }
@@ -68,7 +85,25 @@ export class TownLedger {
       input = JSON.parse(body);
     } catch { json(response, 400, { error: "Invalid JSON body" }); return; }
     try {
-      if (settings) {
+      if (rename) {
+        const value = input && typeof input === "object" && !Array.isArray(input)
+          ? (input as Record<string, unknown>).name : undefined;
+        const chosen = normalizeHeroName(value);
+        if (chosen === undefined) {
+          json(response, 400, { error: "name must be a string of 1–24 characters, or empty to reset" });
+          return;
+        }
+        const id = name!;
+        if (chosen !== (namedHero(this.names, id) ?? "")) {
+          const updated = { ...this.names };
+          if (chosen) updated[id] = chosen;
+          else delete updated[id];
+          writeNames(updated);
+          this.names = updated;
+          this.namesChanged(updated);
+        }
+        json(response, 200, this.names);
+      } else if (settings) {
         if (!validSettings(input)) {
           json(response, 400, { error: "archiveAfterDays must be an integer between 0 and 365" });
           return;

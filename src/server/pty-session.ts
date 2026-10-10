@@ -1,4 +1,6 @@
 import { isAbsolute } from "node:path";
+import type { IPty } from "node-pty";
+import type { WebSocket } from "ws";
 
 export const PRESETS = ["shell", "claude", "pi", "codex"] as const;
 export const SESSION_LIMIT = 16;
@@ -9,6 +11,15 @@ export type TerminalSession = {
   id: string; preset: Preset; cwd: string; project: string; createdAt: number;
   exited?: { code: number };
 };
+
+export type Session = {
+  info: TerminalSession; terminal: IPty; output: Buffer; clients: Set<WebSocket>; stop: () => void;
+  waiting: boolean; eventAt: number; texts: string[]; enter?: ReturnType<typeof setTimeout>;
+  interrupted: boolean; interrupting: boolean; departing: boolean; ended?: boolean;
+  claudeId?: string; hasPrompt: boolean; name: string;
+  finished: Promise<void>; finish: () => void;
+};
+export type PendingMessage = { type: "pending"; terminal: string; texts: string[] };
 
 export function sessionInput(input: unknown): { preset: Preset; cwd?: string } {
   if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("Session must be an object");

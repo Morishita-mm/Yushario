@@ -6,6 +6,7 @@ import { deciderEvent, parseAgentEvent, type AgentEvent } from "../core/events";
 import { MockDecider } from "../core/mock-decider";
 import { selectCandidate } from "../core/selector";
 import { DAY_MS } from "../core/town-ledger";
+import { namedHero } from "../core/names";
 import { TownLedger } from "./town-api";
 import { JevDecider } from "./jev-decider";
 import { serveStatic } from "./static";
@@ -35,9 +36,14 @@ const minds = new Map<string, Mind>();
 // Recent events let a newly opened room rebuild who is present and what they are doing.
 const HISTORY_LIMIT = 2000;
 const history: { event: AgentEvent; at: number }[] = [];
-const ledger = new TownLedger((towns) => broadcast({ type: "towns", towns }));
+// A resumed conversation has a new terminal; never replay late hooks from its old one.
+const endedTerminals = new Set<string>();
+const ledger = new TownLedger((towns) => broadcast({ type: "towns", towns }),
+  (names) => broadcast({ type: "names", names }));
 
-function record(event: AgentEvent): void {
+function record(event: AgentEvent): boolean {
+  if (event.terminal && endedTerminals.has(event.terminal)) return false;
+  if (event.terminal && event.hook === "SessionEnd" && !event.subagent) endedTerminals.add(event.terminal);
   // Hooks run concurrently, so order by the hook's own clock when it is plausible.
   const now = Date.now();
   const at = event.ts !== undefined && Math.abs(event.ts - now) < 60_000 ? event.ts : now;
@@ -50,7 +56,8 @@ function record(event: AgentEvent): void {
   if (history.length > HISTORY_LIMIT) history.shift();
   broadcast({ type: "event", event, at });
   pty.observe(event, at);
-  if (event.hook === "SessionEnd") minds.delete(event.agent ?? "default");
+  if (event.hook === "SessionEnd" && !event.subagent) minds.delete(event.agent ?? "default");
+  return true;
 }
 
 function localOrigin(origin: string): boolean {
@@ -67,9 +74,10 @@ const server = createServer(async (request, response) => {
   let url: URL;
   try { url = new URL(request.url ?? "/", `http://127.0.0.1:${port}`); }
   catch { response.writeHead(400).end(); return; }
-  const sessionApi = url.pathname === "/api/sessions" || url.pathname.startsWith("/api/sessions/");
+  const sessionApi = url.pathname === "/api/sessions" || url.pathname.startsWith("/api/sessions/")
+    || url.pathname === "/api/roster" || url.pathname.startsWith("/api/roster/");
   const townApi = url.pathname === "/api/towns" || url.pathname.startsWith("/api/towns/")
-    || url.pathname === "/api/settings";
+    || url.pathname === "/api/settings" || url.pathname === "/api/names" || url.pathname.startsWith("/api/names/");
   if (sessionApi || townApi) {
     if (!authorized(url, request.headers.origin, false)) { response.writeHead(403).end(); return; }
     if (sessionApi) await pty.handleRequest(request, response, url);
@@ -137,13 +145,13 @@ const server = createServer(async (request, response) => {
     return;
   }
 
+  response.writeHead(204).end();
+  if (!record(result.event)) return;
   permissions.observe(result.event);
   if (process.env.AGENT_CHARACTER_DEBUG === "1") {
     const { state, source, tool, ts, context, hook, agent, target, terminal, project } = result.event;
     console.log(JSON.stringify({ state, source, tool, ts, context, hook, agent, target, terminal, project }));
   }
-  response.writeHead(204).end();
-  record(result.event);
   // A subagent ending (often a background one, after the main Stop) says nothing about the main agent's state.
   if (result.event.hook === "SessionEnd" || result.event.hook === "SubagentStop") return;
   const key = result.event.agent ?? "default";
@@ -160,7 +168,8 @@ const server = createServer(async (request, response) => {
     try {
       const candidates = await decider.decide(context);
       // Preserve the web's former latest-event-wins behavior, without a queue.
-      if (sequence === mind.latestEvent) {
+      if (minds.get(key) === mind && sequence === mind.latestEvent
+        && (!result.event.terminal || !endedTerminals.has(result.event.terminal))) {
         mind.previous = selectCandidate(candidates, Math.random);
         mind.lastDecisionMs = now;
         const message = JSON.stringify({ type: "decision", event: result.event, candidate: mind.previous });
@@ -179,7 +188,8 @@ const server = createServer(async (request, response) => {
 });
 
 const sockets = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 });
-const pty = createPtyServer(port, (session) => ledger.register(session.project, session.cwd, session.createdAt), broadcast);
+const pty = createPtyServer(port, (session) => ledger.register(session.project, session.cwd, session.createdAt), broadcast,
+  record, (terminal) => { endedTerminals.add(terminal); }, (id) => namedHero(ledger.names, id));
 function archive(): void {
   try { ledger.archive(pty.activeProjects(), Date.now()); }
   catch (error) { console.error("Town archive failed:", error); }
@@ -209,6 +219,7 @@ sockets.on("connection", (client) => {
   client.on("error", (error) => console.error("WebSocket error:", error.message));
   client.send(JSON.stringify({ type: "replay", events: history }));
   client.send(JSON.stringify({ type: "towns", towns: ledger.towns }));
+  client.send(JSON.stringify({ type: "names", names: ledger.names }));
   for (const message of pty.pending()) client.send(JSON.stringify(message));
   if (permissions.current) client.send(JSON.stringify(permissions.current));
   client.on("message", (data, binary) => {

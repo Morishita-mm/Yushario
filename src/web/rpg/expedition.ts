@@ -1,12 +1,15 @@
 import { connectSessionTerminal, sessionRequest, type Session } from "../terminal";
 import { loadTowns, type TownRecord } from "./ledger";
+import { coverMap } from "./talk";
 
 // Page-local windows. All session ownership stays on the server.
 export function initExpedition(currentTown: () => string | undefined, heroName: (terminal: string) => string | undefined,
-  launched: (session: Session, towns: TownRecord[]) => void) {
+  launched: (session: Session, towns: TownRecord[]) => void, talkHero: (terminal: string) => string | undefined,
+  openTalk: (id: string) => void) {
   const launch = document.querySelector<HTMLDialogElement>("#expedition-dialog")!;
   const dialog = document.querySelector<HTMLDialogElement>("#session-dialog")!;
   const title = document.querySelector<HTMLElement>("#session-title")!;
+  const talk = document.querySelector<HTMLButtonElement>("#session-talk")!;
   const terminalStatus = document.querySelector<HTMLElement>("#session-status")!;
   const container = document.querySelector<HTMLElement>("#session-terminal")!;
   const form = document.querySelector<HTMLFormElement>("#expedition-form")!;
@@ -44,9 +47,14 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
     event.preventDefault(); event.stopPropagation(); closeTerminal();
   }, true);
   document.querySelector("#session-close")!.addEventListener("click", closeTerminal);
+  talk.addEventListener("click", () => {
+    const id = attached?.preset === "claude" && !attached.exited ? talkHero(attached.id) : undefined;
+    if (id) { closeTerminal(); openTalk(id); }
+  });
   document.querySelector("#expedition-close")!.addEventListener("click", closeLaunch);
 
   function updateTitle(): void {
+    talk.hidden = !attached || attached.preset !== "claude" || Boolean(attached.exited) || !talkHero(attached.id);
     if (!attached) return;
     const name = heroName(attached.id) ?? `${attached.project} / ${attached.preset}`;
     const text = `${name} — ターミナル`;
@@ -66,9 +74,10 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
   }
   function prepareTerminal(): number {
     closeLaunch(); closeTerminal();
-    title.textContent = "ターミナル";
+    title.textContent = "ターミナル"; talk.hidden = true;
     terminalStatus.textContent = "よみこみ中…";
     container.replaceChildren();
+    coverMap(dialog);
     dialog.showModal();
     return opening;
   }
@@ -151,6 +160,7 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
       if (launching === request && launch.open) status.textContent = error.message;
     }).finally(() => { if (launching === request) start.disabled = false; });
   });
+  window.addEventListener("resize", () => { if (dialog.open) coverMap(dialog); });
   window.addEventListener("pagehide", () => dispose?.());
   return { openTerminal, updateTitle };
 }

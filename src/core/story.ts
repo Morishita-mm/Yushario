@@ -65,6 +65,7 @@ export function narrate(event: AgentEvent): string | undefined {
   switch (event.hook) {
     case "SessionStart": return `${name}が 町に やってきた！`;
     case "SessionEnd": return `${name}は 旅立っていった。`;
+    case "Interrupt": return `${name}は たたかいから にげだした！`;
     case "UserPromptSubmit": return `${name}は あたらしい いらいを うけた！`;
     case "Notification": return `${name}は あなたを よんでいる！`;
     case "PermissionRequest": return `${name}は ${event.tool ?? "じゅもん"}の きょかを もとめている！`;

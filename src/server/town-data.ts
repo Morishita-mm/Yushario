@@ -3,6 +3,8 @@ import { closeSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, write
 import { homedir } from "node:os";
 import { isAbsolute, join } from "node:path";
 import { TOWN_THEMES, type TownRecord, type TownSettings, type TownTheme } from "../core/town-ledger";
+import { isClaudeSessionId, ROSTER_LIMIT, type RosterEntry } from "../core/roster";
+import { validHeroNames, type HeroNames } from "../core/names";
 
 const directory = process.env.AGENT_CHARACTER_HOME || join(homedir(), ".config", "agent-character");
 mkdirSync(directory, { recursive: true, mode: 0o700 });
@@ -62,8 +64,34 @@ export function readSettings(): TownSettings {
   } catch (error) { quarantine("settings.json", error); return { archiveAfterDays: 30 }; }
 }
 
+export function readRoster(): RosterEntry[] {
+  try {
+    const input = read("roster.json");
+    const ids = new Set<string>();
+    if (!Array.isArray(input) || !input.every((entry: unknown) => {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) return false;
+      const value = entry as Record<string, unknown>;
+      if (Object.keys(value).length !== 5 || !isClaudeSessionId(value.sessionId) || ids.has(value.sessionId)
+        || typeof value.name !== "string" || !value.name || typeof value.project !== "string" || !value.project
+        || typeof value.cwd !== "string" || !isAbsolute(value.cwd)
+        || typeof value.leftAt !== "number" || !Number.isFinite(value.leftAt) || value.leftAt < 0) return false;
+      ids.add(value.sessionId);
+      return true;
+    })) throw new Error("Invalid roster records");
+    return (input as RosterEntry[]).sort((a, b) => a.leftAt - b.leftAt).slice(-ROSTER_LIMIT);
+  } catch (error) { quarantine("roster.json", error); return []; }
+}
+
+export function readNames(): HeroNames {
+  try {
+    const input = read("names.json");
+    if (!validHeroNames(input)) throw new Error("Invalid hero names");
+    return input;
+  } catch (error) { quarantine("names.json", error); return {}; }
+}
+
 // Synchronous writes keep concurrent hooks ordered; rename never exposes a partial JSON file.
-function write(file: string, value: TownRecord[] | TownSettings): void {
+function write(file: string, value: TownRecord[] | TownSettings | RosterEntry[] | HeroNames): void {
   const path = join(directory, file);
   const temporary = `${path}.${randomUUID()}.tmp`;
   const descriptor = openSync(temporary, "wx", 0o600);
@@ -78,3 +106,5 @@ function write(file: string, value: TownRecord[] | TownSettings): void {
 
 export function writeTowns(towns: TownRecord[]): void { write("towns.json", towns); }
 export function writeSettings(settings: TownSettings): void { write("settings.json", settings); }
+export function writeRoster(roster: RosterEntry[]): void { write("roster.json", roster); }
+export function writeNames(names: HeroNames): void { write("names.json", names); }
