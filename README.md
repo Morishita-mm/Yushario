@@ -103,9 +103,11 @@ Claude Code / pi の UserPromptSubmit の依頼本文と Stop の最終返答だ
 
 | 操作 | API |
 | --- | --- |
-| エージェント | `GET /api/agents` → `[{ id, label, hero, resume, compact }]`（対応能力は真偽値） |
+| エージェント | `GET /api/agents` → `[{ id, label, hero, resume, compact, equipWeapon, equipAccessory }]`（対応能力は真偽値） |
+| そうびマスタ | `GET /api/equipment` → 種類ごとの `{ weapons: [{ id, name, model }], accessories: [{ id, name, value }] }` |
 | 一覧 | `GET /api/sessions` → セッションの配列 |
-| 作成 | `POST /api/sessions`、JSON `{ "preset": "shell", "cwd": "/absolute/project" }`（cwd省略可）→ 201と作成したセッション |
+| 作成 | `POST /api/sessions`、JSON `{ "preset": "claude", "cwd": "/absolute/project", "weapon": "steel", "accessory": "low" }`（cwd・weapon・accessory省略可）→ 201と作成したセッション |
+| そうび変更 | `POST /api/sessions/:id/equip`、JSON `{ "weapon": "steel", "accessory": "high" }` → 200 `{ "delivered": boolean }`、未対応は409 |
 | 返事 | `POST /api/sessions/:id/say`、JSON `{ "text": "こんにちは" }`（1〜8000文字）→ 200 `{ "delivered": true }` または `{ "delivered": false }` |
 | 勇者のコマンド | `POST /api/sessions/:id/action`、JSON `{ "action": "interrupt" }`（`interrupt` / `compact` / `farewell`）→ 200 `{ "ok": true }` |
 | めいぼ | `GET /api/roster` → 旅立った Claude Code / pi の配列 |
@@ -113,14 +115,17 @@ Claude Code / pi の UserPromptSubmit の依頼本文と Stop の最終返答だ
 | 終了・削除 | `DELETE /api/sessions/:id` → 204。子プロセスとその子孫を終了し一覧から削除 |
 | 接続 | `WS /pty?session=<id>&cols=80&rows=24&token=...` → 保持出力を先に送信し、その後はライブ出力 |
 
-セッションは `{ id, preset, cwd, project, createdAt, exited?: { code } }`。`createdAt` はUnixミリ秒です。
+セッションは `{ id, preset, cwd, project, createdAt, weapon?, accessory?, exited?: { code } }`。`createdAt` はUnixミリ秒です。
 WSへの入力は `{ "type": "input", "data": "echo hello\r" }`、サイズ変更は `{ "type": "resize", "cols": 80, "rows": 24 }`。
 不正な作成入力は400、トークン・Origin違反は403、17個目の作成は409、未知のセッションへのWSは1008で切断します。
 返事はセッションの最後のイベントで待機を判断します。SessionStart / Stop / StopFailure / PostCompact の後は待機中で、本文をPTYへ書き、300ms後に Enter（`\r`）を送り `delivered: true` を返します。UserPromptSubmit・ツール・PreCompact の後やまだイベントが無い時は作業中です。通知やサブエージェントは待機判定を変えません。作業中は預かって `delivered: false` を返し、次の Stop / SessionStart で複数の本文を改行でつないで送ります（StopFailure では預かりを送信しません）。終了済み・旅立ち中は409、未知は404、不正な本文・JSONは400です。
 `interrupt`（にげる）は Claude Code / pi に Esc を送り、預かりを空にして待機中に戻します。`compact`（やすむ）は待機中だけ `/compact` を実行し、作業中・非対応の種類は409です。`farewell`（みおくる）は作業中なら Esc の後に少し待ち、表の終了コマンドで終了して一覧から消します。5秒で終了しない時は DELETE と同じ終了処理を使います。CLIコマンドは下書きを Ctrl+C で全文消して通常の文字として送り、300ms後に Enter を送ります（Claude Code 2.1.296 と実際の pi で確認）。Claude Code の中断後の返事は、Escで復元される下書きも消してから送ります。ターミナルのみの種類への say / interrupt は409です。
 状態WS `/ws` は預かりの変更時に `{ "type": "pending", "terminal": "セッションID", "texts": ["本文"] }` を送り、送信・終了・削除で空の `texts` を送ります。接続直後にも預かりのあるセッション分を送ります。
+pi と Codex の武器は利用者のプロバイダ次第なので既定のマスタには入れていません。使う場合は `<データフォルダ>/equipment.json` に例えば `{ "pi": { "weapons": [{ "id": "steel", "name": "はがねの つるぎ", "model": "<provider/model>" }], "accessories": [...] } }` と書きます（エージェント単位の丸ごと上書きなので accessories も書く）。
+そうびの既定は両方とも「そうびなし」（引数なしでCLI自身の設定）。`src/server/equipment.json` を起動時に読み、`<データフォルダ>/equipment.json` があればエージェント単位で丸ごと上書きします（個別の武器の継ぎ足しはしません）。壊れた上書きは `.broken` に退避して既定を使います。未知の装備ID・不正JSONは400、未知セッションは404、終了済みは409です。モデル名自体の有効性はCLIに任せます。
+pi は `/model <値>` と `/thinking <値>` を貼り付け＋300ms後Enterで送り、作業中なら預かります。作業が終わった後（StopFailureも含む）は、預かった装備を先に持ちかえ、その後に次の依頼を送ります（StopFailureでは装備のみ、依頼は送りません）。モデル変更後はアクセサリも再適用します。未配送の装備は最後の選択が優先され、にげる・終了で捨てます。Claude Code 2.1.296 は途中コマンドが利用者の既定も保存するため、Codex・shell とともに途中変更は409、しゅつじん・よびもどす時だけです。途中で装備を外して起動前の既定に戻す操作も409です。装備の預かりは `pending` に任意の `equipment: { weapon?, accessory? }` を添え、変更コマンドを送ったら `{ type: "equipped", session }` を状態WSで通知します。これらもメモリのみです。
 状態WSは初回のフォルダ信頼確認をPTY出力から検出すると `{ "type": "attention", "terminal": "セッションID", "reason": "trust" }` を同じセッションで1回送ります。勇者が着くまでは再接続時にも再送します。アプリ産の勇者は、CLI自身の終了イベントが来なくてもPTY終了時に SessionEnd を合成して町から退場します。
-セッション・出力・会話・預かりはサーバーのメモリのみで、サーバー停止で消えます。依頼を送った Claude Code / pi の終了時に、めいぼへ `{ sessionId, name, project, cwd, leftAt, preset }` を保存します。`sessionId` は `terminal` 付きの本体イベントの `agent` から覚え、本文・報告・返事は保存しません。最大50件で古いものから消します。
+セッション・出力・会話・預かりはサーバーのメモリのみで、サーバー停止で消えます。依頼を送った Claude Code / pi の終了時に、めいぼへ `{ sessionId, name, project, cwd, leftAt, preset, weapon?, accessory? }` を保存します。装備IDも保存し、よびもどす時は同じ装備を起動引数で渡します。`sessionId` は `terminal` 付きの本体イベントの `agent` から覚え、本文・報告・返事は保存しません。最大50件で古いものから消します。
 めいぼは `AGENT_CHARACTER_HOME`（未指定なら `~/.config/agent-character`）の `roster.json` に、台帳と同じ一時ファイルからの置き換えで保存します。読めない・壊れたファイルは `.broken` に退避し空で起動します。よびもどす時は同じ `cwd` と種類で、Claude Code は `--resume <sessionId>`、pi は `--session <sessionId>`（通常と同じフック・拡張設定）を起動し、めいぼから消します。旧めいぼの `preset` 省略は Claude Code として扱います。英数字とハイフンだけの1〜200文字の ID を受け付け、不正な ID は400、未知は404、同じ ID の同時よびもどしやセッション上限は409です。Codex の resume やワークツリー作成は行いません。めいぼAPIもセッションAPIと同じトークン・Origin検査です。
 
 ## 勇者の名前API

@@ -12,12 +12,13 @@ export function parseSessionAction(input: unknown): SessionAction {
 }
 
 export function pending(session: Session): PendingMessage {
-  return { type: "pending", terminal: session.info.id, texts: [...session.texts] };
+  return { type: "pending", terminal: session.info.id, texts: [...session.texts],
+    ...(session.pendingEquipment ? { equipment: session.pendingEquipment } : {}) };
 }
 
 export function clearPending(session: Session, changed: (message: PendingMessage) => void): void {
-  if (!session.texts.length) return;
-  session.texts = [];
+  if (!session.texts.length && !session.pendingEquipment) return;
+  session.texts = []; session.pendingEquipment = undefined;
   changed(pending(session));
 }
 
@@ -48,7 +49,7 @@ export function deliver(session: Session, text: string): void {
 }
 
 export function observe(session: Session, event: AgentEvent, at: number,
-  changed: (message: PendingMessage) => void): void {
+  changed: (message: PendingMessage) => void, flushEquipment?: (sendHeldText: boolean) => void): void {
   if (session.info.exited || session.ended || event.subagent) return;
   if (AGENTS[session.info.preset].hero && isClaudeSessionId(event.agent)) {
     session.agentId = event.agent;
@@ -61,7 +62,8 @@ export function observe(session: Session, event: AgentEvent, at: number,
   if (waiting === undefined) return;
   session.eventAt = at;
   if (event.hook === "UserPromptSubmit") session.interrupted = false;
-  session.waiting = !session.enter && waiting;
+  session.waiting = !session.enter && !session.equipping && waiting;
+  if (session.waiting && session.pendingEquipment) { flushEquipment?.(event.hook !== "StopFailure"); return; }
   if (session.waiting && session.texts.length && event.hook !== "StopFailure") {
     try { deliver(session, session.texts.join("\n")); clearPending(session, changed); }
     catch (error) { console.error("Conversation delivery failed:", error); }
@@ -80,7 +82,7 @@ export async function act(session: Session, action: SessionAction,
   if (action === "compact") { command(session, agent.compactCommand); return; }
   const working = !session.waiting;
   cancelEnter(session);
-  session.texts = [];
+  session.texts = []; session.pendingEquipment = undefined; session.equipping = undefined;
   changed(pending(session));
   if (action === "interrupt" || working) session.terminal.write(agent.interrupt);
   session.interrupted = true;

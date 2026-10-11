@@ -10,7 +10,7 @@ import { showCommands, showRoster } from "../town/command";
 import { drawInn } from "../town/inn";
 import { churchPriest, churchSlots, drawChurch, PRIEST_LINES } from "../town/church";
 import { drawTown, TOWN_H, townSpots, TOWN_W } from "../town/town";
-import { FIGHTS, PROJECTS, farewell, recall, ROSTER, SLEEPERS, PRAYERS, TOWN_REPORTS, townHeroes, walkers, townReports, CALLER, walkTown, initTown } from "./mock-data";
+import { FIGHTS, PROJECTS, farewell, recall, ROSTER, SLEEPERS, PRAYERS, TOWN_REPORTS, townHeroes, walkers, equippedWalkers, townReports, CALLER, walkTown, initTown } from "./mock-data";
 import { notices } from "./mock-notices";
 import { renderHerald, showTownList, showThemeChooser, type Notice } from "../town/herald";
 import { drawWorld, markers, plate, regionName, sleeping, type Project } from "../town/world";
@@ -21,6 +21,8 @@ import { focusData as FOCUS, battleBeat } from "./mock-battle-data";
 type Place = "world" | "town" | "inn" | "church" | Theme;
 type Scene = { id: string; label: string; caption: string; place?: Place; focus?: Focus };
 const SCENES: Scene[] = [
+  { id: "equipment-town", label: "そうびの町", place: "town", caption: "そうびなし・鉄のたんけん・青い鋼・金のでんせつ。同じ服の勇者と名前札横の武器の印を見くらべる。" },
+  { id: "equipment-battle", label: "そうびの戦闘", focus: { ...FOCUS("bg-battle-meadow", "meadow", "monster-dragon", "fire", "ドラゴン", ["hero-back-battle", "party-warrior-back", "party-mage-back"]), weaponTier: 3, accessoryTier: 5 }, caption: "でんせつのつるぎ＋高いアクセサリ。長いため・大きいダメージ・ときどき会心。失敗の反撃は変わらない。" },
   { id: "world", label: "ワールド", place: "world", caption: "ワールドマップ。プロジェクト（リポジトリ）ごとに町がある。町の種類は5つ（草原の村・海辺の港町・雪国・砂漠のオアシス・火山）。人数・戦闘中・未読の報告・呼び出しを町の上に表示。クリックで町へ。" },
   { id: "town", label: "まち", place: "town", caption: "待機中のエージェントが暮らす町。広場の噴水を中心に宿屋・店が向き合い、通りに沿って歩く。宿屋・きょうかいをクリックで中へ、南の門から各フィールドへ。" },
   { id: "meadow", label: "そうげん", place: "meadow", caption: "ファイル編集の戦場。勇者とモンスターが向き合って戦う。勇者をクリックでその戦闘にフォーカス。端の立て札で他のマップへ。" },
@@ -39,7 +41,7 @@ const ctx = canvas.getContext("2d")!;
 const caption = document.querySelector<HTMLElement>("#caption")!;
 const tabs = document.querySelector<HTMLElement>("#tabs")!;
 const art = new Sheets();
-let current = SCENES.find((s) => s.id === new URLSearchParams(location.search).get("scene")) ?? SCENES[0];
+let current = SCENES.find((s) => s.id === new URLSearchParams(location.search).get("scene")) ?? SCENES.find((scene) => scene.id === "world")!;
 let ambient: Ambient | undefined;
 let returnTo: Scene | undefined;
 let gateMenu = false;
@@ -232,7 +234,7 @@ function frame(now: number): void {
   if (current.place === "world") sleepingPlate = drawWorld(ctx, art, now, w, h, PROJECTS);
   else if (current.place === "town") {
     walkTown(art, now);
-    drawTown(ctx, art, now, { sleepers: SLEEPERS.length, prayers: PRAYERS.length, theme: town.theme, name: town.repo, walkers, reports: townReports(), caller: CALLER, read });
+    drawTown(ctx, art, now, { sleepers: SLEEPERS.length, prayers: PRAYERS.length, theme: town.theme, name: town.repo, walkers: current.id === "equipment-town" ? equippedWalkers : walkers, reports: current.id === "equipment-town" ? [] : townReports(), caller: current.id === "equipment-town" ? undefined : CALLER, read });
     rosterPlate = plate(ctx, [[`📖 ぼうけんしゃの めいぼ ${ROSTER.length}`, "#fff7d6", 10]], w - 92, 8);
   }
   else if (current.place === "inn") drawInn(ctx, art, now, SLEEPERS);
@@ -267,7 +269,8 @@ canvas.addEventListener("click", (event) => {
   else gateMenu = false;
 });
 
-for (const scene of SCENES) {
+// Equipment samples are direct scene URLs; keep the existing review tabs pixel-identical.
+for (const scene of SCENES.filter((scene) => !scene.id.startsWith("equipment-"))) {
   const button = document.createElement("button");
   button.type = "button";
   button.dataset.id = scene.id;

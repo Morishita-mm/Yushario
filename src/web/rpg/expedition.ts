@@ -2,6 +2,8 @@ import { connectSessionTerminal, sessionRequest, type Session } from "../termina
 import { loadTowns, type TownRecord } from "./ledger";
 import { coverMap } from "./talk";
 import { loadAgents, supportText, type AgentInfo } from "./agents";
+import type { EquipmentMaster } from "../../core/equipment";
+import { loadEquipment } from "./equipment";
 
 // Page-local windows. All session ownership stays on the server.
 export function initExpedition(currentTown: () => string | undefined, heroName: (terminal: string) => string | undefined,
@@ -21,8 +23,19 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
   const start = document.querySelector<HTMLButtonElement>("#expedition-start")!;
   const status = document.querySelector<HTMLElement>("#expedition-status")!;
   const support = document.querySelector<HTMLElement>("#expedition-support")!;
-  let agents: AgentInfo[] = [];
-  const describe = () => { const agent = agents.find((item) => item.id === preset.value); support.textContent = agent ? supportText(agent) : ""; };
+  let agents: AgentInfo[] = [], equipment: EquipmentMaster = {};
+  const weapon = document.querySelector<HTMLSelectElement>("#expedition-weapon")!;
+  const accessory = document.querySelector<HTMLSelectElement>("#expedition-accessory")!;
+  const describe = () => {
+    const agent = agents.find((item) => item.id === preset.value); support.textContent = agent ? supportText(agent) : "";
+    const items = equipment[preset.value];
+    weapon.replaceChildren(new Option("そうびなし（きほん）", ""));
+    accessory.replaceChildren(new Option("そうびなし（きほん）", ""));
+    for (const item of items?.weapons ?? []) weapon.add(new Option(`${item.name}（${item.model}）`, item.id));
+    for (const item of items?.accessories ?? []) accessory.add(new Option(`${item.name}（${item.value}）`, item.id));
+    weapon.hidden = document.querySelector<HTMLElement>("#expedition-weapon-label")!.hidden = !items?.weapons.length;
+    accessory.hidden = document.querySelector<HTMLElement>("#expedition-accessory-label")!.hidden = !items?.accessories.length;
+  };
   preset.addEventListener("change", describe);
   let dispose: (() => void) | undefined;
   let attached: Session | undefined;
@@ -115,9 +128,11 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
     status.textContent = "よみこみ中…";
     launch.showModal();
     const selectedTown = currentTown();
-    void Promise.allSettled([loadTowns(), loadAgents()]).then(([towns, kinds]) => {
+    void Promise.allSettled([loadTowns(), loadAgents(), loadEquipment()]).then(([towns, kinds, gear]) => {
       if (launching !== request || !launch.open) return;
       const errors: string[] = [];
+      equipment = gear.status === "fulfilled" ? gear.value : {};
+      if (gear.status === "rejected") errors.push("そうびを よみこめませんでした。そうびなしで 起動できます。");
       if (towns.status === "fulfilled") {
         for (const town of towns.value.filter((item) => item.archivedAt === undefined)) {
           const option = new Option(`${town.name} — ${town.path}`, town.path);
@@ -147,7 +162,8 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
     const cwd = destination.value || path.value.trim();
     start.disabled = true;
     status.textContent = "しゅつじん中…";
-    void sessionRequest("POST", "", { preset: preset.value, cwd }).then(async (result) => {
+    void sessionRequest("POST", "", { preset: preset.value, cwd,
+      ...(weapon.value ? { weapon: weapon.value } : {}), ...(accessory.value ? { accessory: accessory.value } : {}) }).then(async (result) => {
       if (launching !== request || !launch.open) return; // Closing never cancels or deletes a created session.
       const session = result as Session;
       // Terminal-only presets must never wait for a hero who cannot arrive.

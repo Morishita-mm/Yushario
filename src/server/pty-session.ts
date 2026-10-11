@@ -3,6 +3,7 @@ import type { IPty } from "node-pty";
 import type { WebSocket } from "ws";
 
 import { PRESETS, type Preset } from "./agents";
+import type { Equipment } from "../core/equipment";
 export { PRESETS, type Preset } from "./agents";
 export const SESSION_LIMIT = 16;
 export const OUTPUT_LIMIT = 256 * 1024;
@@ -10,7 +11,7 @@ export const OUTPUT_LIMIT = 256 * 1024;
 export type TerminalSession = {
   id: string; preset: Preset; cwd: string; project: string; createdAt: number;
   exited?: { code: number };
-};
+} & Equipment;
 
 export type Session = {
   info: TerminalSession; terminal: IPty; output: Buffer; clients: Set<WebSocket>; stop: () => void;
@@ -18,8 +19,10 @@ export type Session = {
   interrupted: boolean; interrupting: boolean; departing: boolean; ended?: boolean;
   agentId?: string; hasPrompt: boolean; name: string; attention?: boolean;
   finished: Promise<void>; finish: () => void;
+  pendingEquipment?: Equipment; equipping?: Equipment;
 };
-export type PendingMessage = { type: "pending"; terminal: string; texts: string[] };
+export type PendingMessage = { type: "pending"; terminal: string; texts: string[]; equipment?: Equipment };
+export type EquippedMessage = { type: "equipped"; session: TerminalSession };
 
 export function sessionInput(input: unknown): { preset: Preset; cwd?: string } {
   if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("起動の設定を指定してください");

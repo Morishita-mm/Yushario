@@ -45,8 +45,12 @@ export const PROJECTS: Project[] = [
 export const SLEEPERS = ["t15-infra", "t16-ops"];
 export const PRAYERS = [{ name: "t18-compact", variant: 0 }, { name: "t22-context", variant: 2 }];
 export const walkers: Walker[] = [];
+export const equippedWalkers: Walker[] = [];
 export function initTown(art: Sheets): void {
   walkers.push(...["t23-lint", "t4-api", "t6-gesture", "t9-fixes", "t13-auth", "t14-db", "t17-ci"].map((name, i) => makeWalker(art, name, name, i % 5, i)));
+  equippedWalkers.push(...["そうびなし", "たんけん", "はがね", "でんせつ"].map((name, i) => ({
+    ...makeWalker(art, name, name, 0, i), x: 310 + i * 115, y: 445, paused: true, weaponTier: i,
+  })));
 }
 export const CALLER = { name: "t11-callme", x: 560, y: 432 };
 export const TOWN_REPORTS = [

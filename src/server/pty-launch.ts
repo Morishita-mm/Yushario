@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { spawn } from "node-pty";
 import { AGENTS, type Preset } from "./agents";
 import { isClaudeSessionId } from "../core/roster";
+import { equipmentArgs, type AgentEquipment, type Equipment } from "../core/equipment";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
 // Keep user configuration, but not server secrets or inherited child-session markers.
@@ -36,14 +37,15 @@ export function writeClaudeSettings(port: number, temporary: string): string {
   return settings;
 }
 
-export function launchPty(preset: Preset, cwd: string, id: string, port: number, settings: string, resume?: string) {
+export function launchPty(preset: Preset, cwd: string, id: string, port: number, settings: string,
+  equipment: Equipment, master: AgentEquipment, resume?: string) {
   const agent = AGENTS[preset];
   if (resume !== undefined && (!agent.resume || !isClaudeSessionId(resume))) throw new Error("再開する勇者の ID が正しくありません");
   const program = agent.command;
   const path = executable(program);
   if (!path) throw new Error(`${program} が PATH に見つかりません。インストールして server を再起動してください`);
   const args = [...agent.args.map((arg) => arg === "$settings" ? settings : arg),
-    ...(resume ? [...agent.resumeArgs, resume] : [])];
+    ...(resume ? [...agent.resumeArgs, resume] : []), ...equipmentArgs(equipment, master, agent)];
   const env = Object.fromEntries(Object.entries(process.env).filter((entry): entry is [string, string] => entry[1] !== undefined));
   for (const name of serverOnlyEnvironment) delete env[name];
   env.AGENT_CHARACTER_URL = `http://127.0.0.1:${port}/event`;

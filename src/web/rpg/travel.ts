@@ -1,5 +1,6 @@
 import type { Sheets } from "../town/sheets";
 import type { TownHero } from "../../core/town";
+import type { EquipmentTiers } from "../../core/battle-presentation";
 import { heroVariant } from "../town/appearance";
 import { leave, makeWalker, returnWalker, stepWalkers, type Walker } from "../town/walkers";
 
@@ -16,7 +17,7 @@ export class HeroTravel {
     this.sync(heroes);
   }
 
-  sync(heroes: TownHero[]): void {
+  sync(heroes: TownHero[], gear?: (terminal?: string) => EquipmentTiers): void {
     // A recalled terminal is a new journey, not the old hero finishing its farewell.
     this.departing = this.departing.filter((item) => !heroes.some((hero) => hero.id === item.walker.id
       && hero.agent.terminal !== item.terminal && hero.agent.terminal && this.arriving.has(hero.agent.terminal)));
@@ -31,6 +32,7 @@ export class HeroTravel {
       if (hero.agent.terminal && this.arriving.delete(hero.agent.terminal)) returnWalker(this.art, walker);
       walker.name = hero.name;
       walker.party = hero.party.map((job) => `party-${job}`);
+      if (gear) walker.weaponTier = gear(hero.agent.terminal).weaponTier;
     }
   }
 

@@ -1,8 +1,11 @@
+import { battlePresentation, type EquipmentTiers } from "../../core/battle-presentation";
+import { drawWeapon } from "./weapon";
 import type { Ambient, Theme } from "./ambient";
 import type { Sheets } from "./sheets";
 
 // The focused battle view. Demo data may opt into the original staged battle loop.
-export type Focus = {
+export type Focus = EquipmentTiers & {
+  success?: boolean;
   backdrop: string; theme: Theme; monster: string; enemyFx: string; name: string; party: string[];
   variant?: number; demo?: boolean; counter?: boolean; message: string;
   status: { name: string; hp?: number; mp?: number }[];
@@ -28,6 +31,9 @@ function line(ctx: CanvasRenderingContext2D, value: string, x: number, y: number
 
 export function drawFocus(ctx: CanvasRenderingContext2D, art: Sheets, focus: Focus, ambient: Ambient, t: number, dt: number, W: number, H: number): void {
   const c = t % LOOP;
+  const effects = battlePresentation(focus, focus.demo ? true : focus.success, Math.floor(t / LOOP), focus.damage?.hero ?? 23);
+  const strikeAt = 500 + effects.windup;
+  const heroHit = c > strikeAt && c < strikeAt + 500;
   const counter = focus.demo ? c > 4200 && c < 6200 : Boolean(focus.counter);
   const shake = counter && c > 4700 && c < 5100 ? (Math.floor(c / 40) % 2 ? 2 : -2) : 0;
   ctx.save();
@@ -42,10 +48,11 @@ export function drawFocus(ctx: CanvasRenderingContext2D, art: Sheets, focus: Foc
       const frame = c < 4700 ? 0 : c < 5400 ? 1 : 2;
       art.draw(ctx, `${focus.monster}-attack`, art.pose(`${focus.monster}-attack`, "attack", frame), mx, my + (frame === 1 ? 8 : 0));
     } else {
-      const hit = (c > 1100 && c < 1600) || (c > 2800 && c < 3300);
+      const hit = heroHit || (c > 2800 && c < 3300);
       art.draw(ctx, focus.monster, hit ? "hurt" : art.pose(focus.monster, "idle", Math.floor(t / 450) % 2), mx + (hit ? 3 : 0), my);
-      if (hit) art.draw(ctx, "fx-battle", art.pose("fx-battle", c < 2000 ? "slash" : "spell", Math.floor((c - (c < 2000 ? 1100 : 2800)) / 170)), mx, my - 20);
-      if (hit && focus.damage) line(ctx, String(c < 2000 ? focus.damage.hero : focus.damage.party), mx, my - 40 - (c % 500) / 40, 12, "#ffffff", "center");
+      if (hit) art.draw(ctx, "fx-battle", art.pose("fx-battle", heroHit ? "slash" : "spell", Math.floor((c - (heroHit ? strikeAt : 2800)) / 170)), mx, my - 20);
+      const damage = heroHit ? effects.damage : focus.damage?.party;
+      if (hit && (focus.damage || focus.weaponTier) && damage !== undefined) line(ctx, String(damage), mx, my - 40 - (c % 500) / 40, 12, "#ffffff", "center");
     }
   } else if (c < 7300) {
     art.draw(ctx, "fx-battle", art.pose("fx-battle", "poof", Math.floor((c - 6600) / 240)), mx, my - 10);
@@ -56,8 +63,8 @@ export function drawFocus(ctx: CanvasRenderingContext2D, art: Sheets, focus: Foc
     const hero = slot.id === "hero-back-battle";
     let frame = "ready";
     if (hero) {
-      if (c > 500 && c < 1100) frame = "wind-up";
-      else if (c >= 1100 && c < 1600) frame = "slash";
+      if (c > 500 && c < strikeAt) frame = "wind-up";
+      else if (c >= strikeAt && c < strikeAt + 500) frame = "slash";
       else if (counter && c > 4800 && c < 5800) frame = "hurt";
       else if (victory) frame = "victory";
     } else {
@@ -78,9 +85,14 @@ export function drawFocus(ctx: CanvasRenderingContext2D, art: Sheets, focus: Foc
     const w = 84, x = 8 + i * (w + 6);
     windowBox(ctx, x, 6, w, 34);
     line(ctx, status.name, x + 8, 19, 8);
+    if (i === 0) drawWeapon(ctx, art, focus.weaponTier, t, x + w - art.size("ui-weapons")[0] / 2 - 3, 23);
     const values = status.hp === undefined ? "なかま" : `HP ${Math.round(status.hp * 100)}  MP ${Math.round((status.mp ?? 1) * 100)}`;
     line(ctx, values, x + 8, 32, 7, "#c9c3dc");
   });
   windowBox(ctx, 6, H - 46, W - 12, 40);
-  focus.message.split("\n").forEach((row, i) => line(ctx, row, 16, H - 28 + i * 14, 10));
+  const charging = !counter && !victory && c > 500 && c < strikeAt && effects.charging;
+  const critical = !counter && heroHit && effects.critical;
+  const message = charging ? `ちからを ためている…\n${focus.message.split("\n")[1] ?? ""}`
+    : critical ? `かいしんの いちげき！\n${focus.name}に ${effects.damage}の ダメージ！` : focus.message;
+  message.split("\n").forEach((row, i) => line(ctx, row, 16, H - 28 + i * 14, 10));
 }

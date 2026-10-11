@@ -1806,6 +1806,19 @@
     "w": 24
    },
    "prompt": "The same seagull as in the reference, now FLYING, seen from the side facing RIGHT, wings spread, three animation frames of a flap cycle: wings raised high; wings level and gliding; wings pushed down. Small and simple."
+  },
+  {
+   "id": "ui-weapons",
+   "group": "演出",
+   "sub": "UI",
+   "use": "そうびした武器の段階：名前札の横（町・宿屋・きょうかい・戦闘）",
+   "name": "武器の印（鉄のたんけん・青い鋼・金のつるぎ）",
+   "size": [16, 16],
+   "ref": "ui-balloons",
+   "frames": ["iron dagger", "blue steel sword", "gold legend sword"],
+   "fit": {"frame": 0, "h": 14},
+   "prompt": "Exactly THREE very small standalone JRPG weapon HUD icons, each readable at 14 art pixels tall. Same one-art-pixel outlines, Resurrect 64 palette and pixel density as the reference UI. No balloons, no badges, no text, no hands. All weapons diagonal from bottom-left handle to upper-right tip: (1) a short IRON GREY dagger with a brown grip; (2) a BLUE STEEL sword, blue blade, brown grip; (3) a GOLD legendary sword, gold blade, brown grip. Equal visual scale, generous pure green gaps, no detached sparkles or extra decorations. Use dark purple outlines and left-top highlights.",
+   "sequences": {"tiers": ["iron dagger", "blue steel sword", "gold legend sword"]}
   }
  ]
 }

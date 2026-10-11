@@ -1,4 +1,5 @@
 import type { Room } from "../../core/room";
+import type { EquipmentTiers } from "../../core/battle-presentation";
 import { townView, type HeroPlace, type TownHero, type TownNames } from "../../core/town";
 import { Ambient, type Theme } from "../town/ambient";
 import { HeroTravel } from "./travel";
@@ -46,21 +47,20 @@ export class Scene {
   private project: string | undefined;
   private focused: string | undefined;
   private ambient: Ambient | undefined;
-  private gateMenu = false;
-  private priestLine = 0;
+  private gateMenu = false; private priestLine = 0;
   private sleepingPlate = { x: 0, y: 0, w: 0, h: 0 };
   private archivedPlate = { x: 0, y: 0, w: 0, h: 0 };
   private pointer: [number, number] = [-1, -1];
   private last = 0;
-  private flashAt = -Infinity;
-  private flashWhite = false;
+  private flashAt = -Infinity; private flashWhite = false;
   private readonly following: Following;
   private closeCommands: ReturnType<typeof openHeroCommands> | undefined;
   private commanding: string | undefined;
 
   constructor(private readonly canvas: HTMLCanvasElement, private readonly layer: HTMLElement,
     private readonly talk: (id: string, at?: number) => void, private readonly terminal: (id: string) => void, private readonly status: (id: string) => void,
-    private readonly say: (text: string, at: number) => void, private readonly actions: (id: string) => Parameters<typeof openHeroCommands>[7]) {
+    private readonly say: (text: string, at: number) => void, private readonly actions: (id: string) => Parameters<typeof openHeroCommands>[7],
+    private readonly gear: (terminal?: string) => EquipmentTiers) {
     this.following = new Following(say);
     this.ctx = canvas.getContext("2d")!;
     canvas.addEventListener("mousemove", (event) => {
@@ -107,7 +107,7 @@ export class Scene {
       this.project = undefined;
       this.go("world");
     }
-    this.travel.sync(this.heroes);
+    this.travel.sync(this.heroes, this.gear);
     if (this.commanding) this.closeCommands?.update(this.actions(this.commanding).working);
     if (this.selected && !room.agents.has(this.selected)) this.selected = undefined;
     if (!this.selected) this.selected = this.localHeroes()[0]?.id;
@@ -278,7 +278,7 @@ export class Scene {
     ctx.setTransform(2, 0, 0, 2, 0, 0); ctx.imageSmoothingEnabled = false;
     const local = this.localHeroes(), hero = local.find((h) => h.id === this.focused);
     if (hero && this.ambient) {
-      drawFocus(ctx, this.art, focus(hero, now), this.ambient, time, dt, w, h);
+      drawFocus(ctx, this.art, focus(hero, now, this.gear(hero.agent.terminal)), this.ambient, time, dt, w, h);
       label(ctx, "クリックで もどる", w - 64, 58, "#ffe066", 9);
     } else if (this.place === "world") {
       this.sleepingPlate = drawWorld(ctx, this.art, time, w, h, [...this.towns.values()]);
@@ -288,9 +288,9 @@ export class Scene {
       sleepers: local.filter((h) => h.place === "inn").length, prayers: local.filter((h) => h.place === "church").length, theme: theme!, name: this.project!, unread: this.towns.get(this.project!)?.unread,
       walkers: this.travel.local(this.project, local),
     });
-    else if (this.place === "inn") drawInn(ctx, this.art, time, local.filter((h) => h.place === "inn").map((h) => h.name));
-    else if (this.place === "church") drawChurch(ctx, this.art, time, local.filter((h) => h.place === "church").map((h) => ({ name: h.name, variant: heroVariant(h.id) })));
-    else drawField(ctx, this.art, this.place, time, fights(this.art, local.filter((h) => h.place === this.place), now), undefined, Math.max(0, local.filter((h) => h.place === this.place).length - battleSlots(this.art, this.place).length));
+    else if (this.place === "inn") drawInn(ctx, this.art, time, local.filter((h) => h.place === "inn").map((h) => ({ name: h.name, ...this.gear(h.agent.terminal) })));
+    else if (this.place === "church") drawChurch(ctx, this.art, time, local.filter((h) => h.place === "church").map((h) => ({ name: h.name, variant: heroVariant(h.id), ...this.gear(h.agent.terminal) })));
+    else drawField(ctx, this.art, this.place, time, fights(this.art, local.filter((h) => h.place === this.place), now, this.gear), undefined, Math.max(0, local.filter((h) => h.place === this.place).length - battleSlots(this.art, this.place).length));
     drawReportSigns(ctx, this.art, time, this.signs());
     drawNavigation(ctx, this.hotspots(), this.pointer, this.gateMenu);
     if (time - this.flashAt < 300) { ctx.fillStyle = `rgba(${this.flashWhite ? "255,255,255" : "0,0,0"},${1 - (time - this.flashAt) / 300})`; ctx.fillRect(0, 0, w, h); }

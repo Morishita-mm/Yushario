@@ -7,6 +7,7 @@ import { Scene } from "./scene";
 import { loadTowns, type TownRecord } from "./ledger";
 import type { Session } from "../terminal";
 import { initHeroActions } from "./hero-commands";
+import { initEquipment } from "./equipment";
 import { initRoster } from "./roster";
 import { initExpedition } from "./expedition";
 import { initTerminals } from "./terminals";
@@ -23,7 +24,7 @@ const connectionLabel = document.querySelector<HTMLElement>("#connection")!;
 const scene = new Scene(canvas, document.querySelector<HTMLElement>("#town-layer")!,
   (id, at) => talk.open(id, at), (terminal) => void expedition.openTerminal(terminal),
   (id) => status.openDetails(room, Date.now(), id, scene.names),
-  (text, at) => messages.say(text, at), (id) => actions.options(id));
+  (text, at) => messages.say(text, at), (id) => actions.options(id), (terminal) => equipment.tiers(terminal));
 const messages = new Messages(document.querySelector<HTMLElement>("#messages")!, (id) => scene.names.get(id));
 let room = new Room();
 let socket: WebSocket | undefined;
@@ -33,6 +34,7 @@ const expedition = initExpedition(() => scene.currentTown, (terminal) => {
 }, arrived, (terminal) => [...room.agents.values()].find((agent) => agent.terminal === terminal)?.id,
   (id) => talk.open(id));
 function arrived(session: Session, towns: TownRecord[], recalled = false): void {
+  equipment.remember(session);
   // Launch and recall both register the town before the hero reaches its gate.
   scene.setTowns(towns); scene.expectArrival(session.id);
   scene.enterTown(session.project, () => talk.openSession(session.id, recalled));
@@ -46,6 +48,8 @@ initTerminals((terminal) => {
 const talk = initTalk((id) => room.agents.get(id), (id) => scene.names.get(id),
   (terminal) => void expedition.openTerminal(terminal),
   (terminal) => [...room.agents.values()].find((agent) => agent.terminal === terminal), scene.art);
+const equipment = initEquipment((id) => room.agents.get(id), (id) => scene.names.get(id),
+  (text) => messages.say(text, Date.now()), (terminal) => [...room.agents.values()].find((agent) => agent.terminal === terminal));
 const status = new Status(
   document.querySelector<HTMLElement>("#party")!,
   (id, decision) => {
@@ -55,6 +59,7 @@ const status = new Status(
   (terminal) => void expedition.openTerminal(terminal),
   namesChanged,
   (id) => scene.select(id, true),
+  equipment.describe,
 );
 function namesChanged(names: Record<string, string>): void {
   scene.savedNames.clear();
@@ -64,7 +69,7 @@ function namesChanged(names: Record<string, string>): void {
 
 const actions = initHeroActions((id) => room.agents.get(id), talk,
   (id) => scene.prepareDeparture(id), () => status.closeDetails(), (text) => messages.say(text, Date.now()),
-  (id) => scene.names.get(id));
+  (id) => scene.names.get(id), equipment.open);
 
 const notices = initNotices(document.querySelector<HTMLElement>("#herald")!, (notice) => {
   scene.visitNotice(notice.repo, notice.hero, notice.at);
@@ -95,6 +100,7 @@ function live(event: AgentEvent, at: number): void {
   const level = before ? stats(before, at).level : 1;
   actions.observe(event, at);
   const agent = room.apply(event, at);
+  if (event.hook === "SessionStart") void equipment.refresh().catch((error: Error) => messages.say(error.message));
   if (agent?.terminal && !event.subagent) talk.clearAttention(agent.terminal);
   const levelUp = agent !== undefined && stats(agent, at).level > level;
   scene.sync(room, at);
@@ -125,7 +131,8 @@ function connect(): void {
       if (data.type === "replay" && Array.isArray(data.events)) {
         // Rebuild who is in town; retell only the last few lines.
         room = new Room();
-        talk.resetPending(); actions.reset(); endedTerminals.clear();
+        talk.resetPending(); actions.reset(); equipment.reset(); endedTerminals.clear();
+        void equipment.refresh().catch((error: Error) => messages.say(error.message));
         const told: [AgentEvent, number][] = [];
         for (const item of data.events) {
           const parsed = parse(item?.event, item?.at);
@@ -149,8 +156,11 @@ function connect(): void {
       } else if (data.type === "pending" && typeof data.terminal === "string" && Array.isArray(data.texts)
         && data.texts.every((text: unknown) => typeof text === "string")) {
         talk.setPending(data.terminal, data.texts);
+        equipment.setPending(data.terminal, data.equipment);
       } else if (data.type === "attention" && typeof data.terminal === "string" && data.reason === "trust") {
         if (![...room.agents.values()].some((agent) => agent.terminal === data.terminal)) talk.attention(data.terminal);
+      } else if (data.type === "equipped" && typeof data.session?.id === "string") {
+        equipment.changed(data.session);
       } else if (data.type === "event") {
         const parsed = parse(data.event, data.at);
         if (parsed) live(parsed.event, parsed.at);

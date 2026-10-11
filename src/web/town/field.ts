@@ -1,3 +1,5 @@
+import { battlePresentation, type EquipmentTiers } from "../../core/battle-presentation";
+import { weaponBesideLabel } from "./weapon";
 import type { Theme } from "./ambient";
 import type { Sheets } from "./sheets";
 
@@ -5,7 +7,7 @@ import type { Sheets } from "./sheets";
 export const FIELD_W = 960;
 export const FIELD_H = 540;
 
-export type Fight = { id?: string; x: number; y: number; name: string; variant: number; monster: string; target: string; party: string[]; fx: string; done?: boolean; level: number; demo?: boolean; counter?: boolean; damage?: { hero: number; enemy: number } };
+export type Fight = EquipmentTiers & { success?: boolean; id?: string; x: number; y: number; name: string; variant: number; monster: string; target: string; party: string[]; fx: string; done?: boolean; level: number; demo?: boolean; counter?: boolean; damage?: { hero: number; enemy: number } };
 
 export function label(ctx: CanvasRenderingContext2D, value: string, x: number, y: number, color = "#ffffff", size = 10): void {
   ctx.font = `${size}px "DotGothic16", monospace`;
@@ -29,7 +31,9 @@ function battle(ctx: CanvasRenderingContext2D, art: Sheets, fight: Fight, t: num
   const { x, y } = fight;
   const cycle = t % 4200;
   const enemyTurn = fight.demo ? cycle > 2600 && cycle < 3600 : Boolean(fight.counter);
-  const heroFrame = enemyTurn ? (cycle > 2950 ? "hurt" : "ready") : cycle % 1400 < 700 ? "ready" : cycle % 1400 < 1000 ? "wind-up" : "slash";
+  const effects = battlePresentation(fight, fight.demo ? true : fight.success, Math.floor(t / 4200), fight.damage?.hero ?? 23, 300);
+  const phase = cycle % (1100 + effects.windup);
+  const heroFrame = enemyTurn ? (cycle > 2950 ? "hurt" : "ready") : phase < 700 ? "ready" : phase < 700 + effects.windup ? "wind-up" : "slash";
   const side = `${fight.monster}-side`;
   const mx = x + (art.entry(side).reach ?? 60);
   fight.party.forEach((id, i) => {
@@ -47,11 +51,16 @@ function battle(ctx: CanvasRenderingContext2D, art: Sheets, fight: Fight, t: num
     art.draw(ctx, side, hurt ? "hurt" : art.pose(side, "idle", Math.floor(t / 450) % 2), mx + (hurt ? 3 : 0), y);
     if (hurt) {
       art.draw(ctx, "fx-battle", art.pose("fx-battle", "slash", Math.floor((cycle % 300) / 100)), mx - 8, y - 18);
-      if (fight.damage) label(ctx, String(fight.damage.hero), mx, y - 66, "#ffffff", 14);
+      if (fight.damage || fight.weaponTier) {
+        if (effects.damage !== undefined) label(ctx, String(effects.damage), mx, y - 66, "#ffffff", 14);
+        if (effects.critical) label(ctx, "かいしんの いちげき！", mx, y - 84, "#ffe066", 10);
+      }
     }
   }
   label(ctx, fight.target, mx, y + 14, "#ffe7a3");
+  if (!enemyTurn && heroFrame === "wind-up" && effects.charging) label(ctx, "ちからを ためている…", x, y - 76, "#ffe066", 10);
   label(ctx, `${fight.name} Lv${fight.level}`, x - 6, y + 28);
+  weaponBesideLabel(ctx, art, fight.weaponTier, t, `${fight.name} Lv${fight.level}`, x - 6, y + 28);
 }
 
 // A won battle: the hero stands in victory and a chest is left where the monster fell.
@@ -66,6 +75,7 @@ function victory(ctx: CanvasRenderingContext2D, art: Sheets, fight: Fight, t: nu
   }
   label(ctx, read ? "かくにん ずみ" : "しょうり！", cx, fight.y + 14, read ? "#c9c3dc" : "#ffe066");
   label(ctx, `${fight.name} Lv${fight.level}`, fight.x - 6, fight.y + 28);
+  weaponBesideLabel(ctx, art, fight.weaponTier, t, `${fight.name} Lv${fight.level}`, fight.x - 6, fight.y + 28);
 }
 
 // Ways out of each field: back to town and over to the other fields.

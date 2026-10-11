@@ -92,9 +92,10 @@ Notification は実際の入力要求だけ waiting_input。pi の整理失敗�
 | 経路 | 契約 |
 |---|---|
 | `POST /event` | AgentEvent を検証して受付。正常時204、不正入力400 |
-| `WS /ws` | `event` / `replay`、`towns`、`names`、`pending`、`attention`、`permission` / `permission-resolved`。web からは `permission-decision` |
-| `/api/agents` | 起動できる種類と町・再開・整理の対応範囲の公開部分 |
-| `/api/sessions` | 端末の一覧・作成・削除、`/:id/say` で依頼、`/:id/action` で中断・整理・終了 |
+| `WS /ws` | `event` / `replay`、`towns`、`names`、`pending`、`equipped`、`attention`、`permission` / `permission-resolved`。web からは `permission-decision` |
+| `/api/agents` | 起動できる種類と町・再開・整理・途中のそうび変更の対応範囲の公開部分 |
+| `/api/equipment` | エージェントごとの武器（モデル）・アクセサリ（考える量）の読み込み済みマスタ |
+| `/api/sessions` | 装備つき端末の一覧・作成・削除、`/:id/say` で依頼、`/:id/action` で中断・整理・終了、`/:id/equip` で装備の持ちかえ（作業中は預かる） |
 | `WS /pty?session=<id>` | 同じ端末の保持出力とライブ出力。web からは `input` / `resize` |
 | `/api/roster` | 旅立った勇者の一覧と `/:sessionId/recall` で再開 |
 | `/api/names`, `/api/towns`, `/api/settings` | 名前、町の台帳・すがた、町をしまうまでの日数 |

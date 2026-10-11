@@ -6,6 +6,7 @@ import { TOWN_THEMES, type TownRecord, type TownSettings, type TownTheme } from 
 import { isClaudeSessionId, ROSTER_LIMIT, type RosterEntry } from "../core/roster";
 import { validHeroNames, type HeroNames } from "../core/names";
 import { AGENTS, PRESETS, type Preset } from "./agents";
+import { isEquipmentId, parseEquipmentMaster, resolveEquipmentMaster, type EquipmentMaster } from "../core/equipment";
 export type StoredRosterEntry = RosterEntry & { preset?: Preset };
 
 const directory = process.env.AGENT_CHARACTER_HOME || join(homedir(), ".config", "agent-character");
@@ -73,8 +74,10 @@ export function readRoster(): StoredRosterEntry[] {
     if (!Array.isArray(input) || !input.every((entry: unknown) => {
       if (!entry || typeof entry !== "object" || Array.isArray(entry)) return false;
       const value = entry as Record<string, unknown>;
-      if (Object.keys(value).some((key) => !["sessionId", "name", "project", "cwd", "leftAt", "preset"].includes(key))
+      if (Object.keys(value).some((key) => !["sessionId", "name", "project", "cwd", "leftAt", "preset", "weapon", "accessory"].includes(key))
         || (value.preset !== undefined && (!PRESETS.includes(value.preset as Preset) || !AGENTS[value.preset as Preset].resume))
+        || (value.weapon !== undefined && !isEquipmentId(value.weapon))
+        || (value.accessory !== undefined && !isEquipmentId(value.accessory))
         || !isClaudeSessionId(value.sessionId) || ids.has(value.sessionId)
         || typeof value.name !== "string" || !value.name || typeof value.project !== "string" || !value.project
         || typeof value.cwd !== "string" || !isAbsolute(value.cwd)
@@ -84,6 +87,12 @@ export function readRoster(): StoredRosterEntry[] {
     })) throw new Error("Invalid roster records");
     return (input as StoredRosterEntry[]).sort((a, b) => a.leftAt - b.leftAt).slice(-ROSTER_LIMIT);
   } catch (error) { quarantine("roster.json", error); return []; }
+}
+
+export function readEquipment(): EquipmentMaster {
+  const defaults = parseEquipmentMaster(JSON.parse(readFileSync(new URL("./equipment.json", import.meta.url), "utf8")));
+  try { return resolveEquipmentMaster(defaults, read("equipment.json")); }
+  catch (error) { quarantine("equipment.json", error); return defaults; }
 }
 
 export function readNames(): HeroNames {

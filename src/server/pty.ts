@@ -3,12 +3,15 @@ import { mkdtempSync, rmSync, statSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { tmpdir } from "node:os";
 import { basename, isAbsolute, join } from "node:path";
-import { MAX_EVENT_TEXT_LENGTH, type AgentEvent } from "../core/events";
+import type { AgentEvent } from "../core/events";
+import { equipmentInput } from "../core/equipment";
 import { WebSocket, WebSocketServer } from "ws";
-import { appendOutput, dimensions, SESSION_LIMIT, sessionInput, type PendingMessage, type Session, type TerminalSession } from "./pty-session";
-import { act, clearPending, deliver, observe as observeSession, parseSessionAction, pending } from "./pty-actions";
+import { appendOutput, dimensions, SESSION_LIMIT, sessionInput, type EquippedMessage, type PendingMessage, type Session, type TerminalSession } from "./pty-session";
+import { clearPending, observe as observeSession, pending } from "./pty-actions";
+import { flushEquipment } from "./pty-equipment";
+import { handlePtyAction } from "./pty-api-actions";
 import { addRosterEntry, isClaudeSessionId } from "../core/roster";
-import { readRoster, writeRoster } from "./town-data";
+import { readEquipment, readRoster, writeRoster } from "./town-data";
 import { projectName } from "./project";
 import { launchPty, writeClaudeSettings } from "./pty-launch";
 import { AGENTS, publicAgents } from "./agents";
@@ -23,7 +26,8 @@ function json(response: ServerResponse, status: number, value: unknown): void {
 export function createPtyServer(port: number, registerTown: (session: TerminalSession) => void,
   pendingChanged: (message: PendingMessage) => void, recordEvent: (event: AgentEvent) => void,
   terminalEnded: (terminal: string) => void, chosenName: (id: string) => string | undefined,
-  attentionChanged: (message: { type: "attention"; terminal: string; reason: "trust" }) => void) {
+  attentionChanged: (message: { type: "attention"; terminal: string; reason: "trust" }) => void,
+  equipmentChanged: (message: EquippedMessage) => void) {
   const temporary = mkdtempSync(join(tmpdir(), "agent-character-"));
   const settings = writeClaudeSettings(port, temporary);
   const sockets = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 });
@@ -33,6 +37,7 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
   const children = new Set<number>();
   let disposed = false;
   let roster = readRoster();
+  const equipment = readEquipment();
   const recalling = new Set<string>();
 
   function rememberDeparture(session: Session): void {
@@ -40,7 +45,8 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
     try {
       const { project, cwd } = session.info;
       const updated = addRosterEntry(roster, { sessionId: session.agentId,
-        name: chosenName(session.agentId) ?? session.name, project, cwd, leftAt: Date.now() })
+        name: chosenName(session.agentId) ?? session.name, project, cwd, leftAt: Date.now(),
+        weapon: session.info.weapon, accessory: session.info.accessory })
         .map((entry) => entry.sessionId === session.agentId ? { ...entry, preset: session.info.preset } : entry);
       writeRoster(updated);
       roster = updated;
@@ -56,12 +62,13 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
       // Retire only the conversation: terminal-bearing SessionEnd would block the new one.
       recordEvent({ state: "idle", hook: "SessionEnd", agent: previous, name: session.name,
         project: session.info.project, source: AGENTS[session.info.preset].source });
-      clearTimeout(session.enter); session.enter = undefined;
+      clearTimeout(session.enter); session.enter = undefined; session.equipping = undefined;
       clearPending(session, pendingChanged);
       session.hasPrompt = false; session.ended = false; session.interrupted = false;
       session.eventAt = -Infinity; session.name = basename(session.info.cwd);
     }
-    observeSession(session, event, at, pendingChanged);
+    observeSession(session, event, at, pendingChanged,
+      (sendHeldText) => void flushEquipment(session, equipment[session.info.preset], pendingChanged, equipmentChanged, sendHeldText));
   }
 
   function killPid(pid: number, signal: NodeJS.Signals): void {
@@ -78,18 +85,19 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
     try {
       if (!statSync(cwd).isDirectory()) throw new Error();
     } catch { throw new Error("行き先のフォルダが見つかりません。存在するフォルダを指定してください"); }
+    const selectedEquipment = equipmentInput(input, equipment[preset]);
     const project = await projectName(cwd);
     // Check after the await too: concurrent requests must not exceed the limit.
     if (disposed) throw new Error("サーバーは停止中です");
     if (sessions.size >= SESSION_LIMIT) throw new Error("ターミナルの上限（16）に達しました。使わないものを終わらせて消してください");
     const id = randomBytes(6).toString("hex");
-    const terminal = launchPty(preset, cwd, id, port, settings, resume);
+    const terminal = launchPty(preset, cwd, id, port, settings, selectedEquipment, equipment[preset], resume);
     groups.add(terminal.pid);
     let stopped = false;
     const stop = (): void => {
       if (stopped) return;
-      stopped = true;
-      clearTimeout(session.enter);
+      stopped = true; session.departing = true;
+      clearTimeout(session.enter); session.equipping = undefined;
       clearPending(session, pendingChanged);
       const pids = descendants(terminal.pid);
       for (const pid of pids) { children.add(pid); killPid(pid, "SIGHUP"); }
@@ -107,7 +115,7 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
     let finish!: () => void;
     const finished = new Promise<void>((resolve) => { finish = resolve; });
     const session: Session = {
-      info: { id, preset, cwd, project, createdAt: Date.now() }, terminal,
+      info: { id, preset, cwd, project, createdAt: Date.now(), ...selectedEquipment }, terminal,
       output: Buffer.alloc(0), clients: new Set(), stop, waiting: false, eventAt: -Infinity, texts: [],
       interrupted: false, interrupting: false, departing: false, agentId: resume,
       hasPrompt: Boolean(resume), name: basename(cwd), finished, finish,
@@ -142,7 +150,9 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
   }
 
   async function handleRequest(request: IncomingMessage, response: ServerResponse, url: URL): Promise<void> {
-    if (url.pathname === "/api/agents" && request.method === "GET") {
+    if (url.pathname === "/api/equipment" && request.method === "GET") {
+      json(response, 200, equipment);
+    } else if (url.pathname === "/api/agents" && request.method === "GET") {
       json(response, 200, publicAgents());
     } else if (url.pathname === "/api/sessions" && request.method === "GET") {
       json(response, 200, [...sessions.values()].map((session) => session.info));
@@ -172,7 +182,8 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
       if (recalling.has(sessionId)) { json(response, 409, { error: "この勇者はよびもどしている途中です" }); return; }
       recalling.add(sessionId);
       try {
-        const info = await create({ preset: entry.preset ?? "claude", cwd: entry.cwd }, sessionId);
+        const info = await create({ preset: entry.preset ?? "claude", cwd: entry.cwd,
+          weapon: entry.weapon, accessory: entry.accessory }, sessionId);
         try {
           const updated = roster.filter((item) => item.sessionId !== sessionId);
           writeRoster(updated);
@@ -188,44 +199,12 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
         const message = error instanceof Error ? error.message : String(error);
         json(response, message.startsWith("ターミナルの上限") ? 409 : 400, { error: message });
       } finally { recalling.delete(sessionId); }
-    } else if (/^\/api\/sessions\/[^/]+\/(say|action)$/.test(url.pathname) && request.method === "POST") {
+    } else if (/^\/api\/sessions\/[^/]+\/(say|action|equip)$/.test(url.pathname) && request.method === "POST") {
       const session = sessions.get(url.pathname.split("/")[3]);
       if (!session) { json(response, 404, { error: "そのターミナルが見つかりません" }); return; }
-      let body = "";
-      request.setEncoding("utf8");
-      try {
-        for await (const chunk of request) {
-          body += chunk;
-          if (body.length > 64 * 1024) { json(response, 400, { error: "送る内容が長すぎます" }); return; }
-        }
-        const value: unknown = JSON.parse(body);
-        if (session.info.exited || session.ended || session.departing || session.interrupting || sessions.get(session.info.id) !== session) {
-          json(response, 409, { error: "この勇者は終了済み・旅立ち中・中断中のいずれかです" }); return;
-        }
-        if (url.pathname.endsWith("/action")) {
-          const action = parseSessionAction(value);
-          if (action === "compact" && !AGENTS[session.info.preset].compact) { json(response, 409, { error: "この種類の勇者は会話の整理に対応していません" }); return; }
-          if (action === "interrupt" && !AGENTS[session.info.preset].hero) { json(response, 409, { error: "このターミナルは勇者のコマンドに対応していません" }); return; }
-          if (action === "compact" && !session.waiting) { json(response, 409, { error: "勇者は作業中です。終わってからやすませてください" }); return; }
-          await act(session, action, pendingChanged);
-          if (action === "farewell") sessions.delete(session.info.id);
-          // Claude sends no hook when Esc stops a turn, so tell the town the hero stopped.
-          if (action === "interrupt" && session.agentId) recordEvent({ state: "idle", hook: "Interrupt",
-            agent: session.agentId, name: session.name, terminal: session.info.id, project: session.info.project,
-            source: AGENTS[session.info.preset].source });
-          json(response, 200, { ok: true }); return;
-        }
-        if (!AGENTS[session.info.preset].hero) { json(response, 409, { error: "このターミナルは町での会話に対応していません" }); return; }
-        const text = value && typeof value === "object" && !Array.isArray(value)
-          ? (value as Record<string, unknown>).text : undefined;
-        if (typeof text !== "string" || text.length < 1 || text.length > MAX_EVENT_TEXT_LENGTH) {
-          json(response, 400, { error: "ことばは 1〜8000 文字で入力してください" }); return;
-        }
-        const delivered = session.waiting;
-        if (delivered) deliver(session, text);
-        else { session.texts.push(text); pendingChanged(pending(session)); }
-        json(response, 200, { delivered });
-      } catch { json(response, 400, { error: "会話またはコマンドの内容が正しくありません" }); }
+      const departed = await handlePtyAction(request, response, url.pathname, session,
+        equipment[session.info.preset], pendingChanged, equipmentChanged, recordEvent);
+      if (departed) sessions.delete(session.info.id);
     } else if (url.pathname.startsWith("/api/sessions/") && request.method === "DELETE") {
       const id = url.pathname.slice("/api/sessions/".length);
       const session = sessions.get(id);
@@ -269,7 +248,7 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
   sockets.on("error", (error) => console.error("PTY server error:", error.message));
   return {
     sockets, handleRequest, observe,
-    pending: () => [...sessions.values()].filter((session) => session.texts.length).map(pending),
+    pending: () => [...sessions.values()].filter((session) => session.texts.length || session.pendingEquipment).map(pending),
     attention: () => [...sessions.values()].filter((session) => session.attention && !session.agentId && !session.info.exited)
       .map((session) => ({ type: "attention", terminal: session.info.id, reason: "trust" })),
     getSession: (id: string) => sessions.get(id)?.info,

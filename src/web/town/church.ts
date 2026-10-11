@@ -1,5 +1,6 @@
 import { label } from "./field";
 import type { Sheets } from "./sheets";
+import { weaponBesideLabel } from "./weapon";
 import { TOWN_H, TOWN_W } from "./town";
 
 // Read the same art placements for drawing, commands and report signs.
@@ -11,7 +12,7 @@ export const PRIEST_LINES = [
   "MPが へってきたら ここで いのりなさい。",
   "ゆうしゃの「やすむ」で おはなしを せいりできますよ。",
 ] as const;
-type Prayer = { name: string; variant: number };
+type Prayer = { name: string; variant: number; weaponTier?: number };
 
 export function drawChurch(ctx: CanvasRenderingContext2D, art: Sheets, t: number, prayers: Prayer[]): void {
   const room = art.entry("church-wall").church!, floor = room.floor;
@@ -49,6 +50,7 @@ export function drawChurch(ctx: CanvasRenderingContext2D, art: Sheets, t: number
     art.draw(ctx, art.variant("hero-pray", prayer.variant), art.pose("hero-pray", "prayer", Math.floor((t + i * 120) / 360) % 2), x, y);
     art.draw(ctx, "ui-prayer-balloon", "praying hands", x + 20, y - prayerH - 4 + (Math.floor((t + i * 400) / 500) % 2));
     label(ctx, prayer.name, x, y + 14);
+    weaponBesideLabel(ctx, art, prayer.weaponTier, t, prayer.name, x, y + 14);
   });
   label(ctx, "きょうかい（なか）", TOWN_W / 2, 100, "#fff7d6", 16);
   if (prayers.length > room.slots.length) label(ctx, `ほか ${prayers.length - room.slots.length}人`, TOWN_W / 2, 430, "#ffe066", 14);

@@ -1,4 +1,5 @@
 import { label } from "./field";
+import { weaponBesideLabel } from "./weapon";
 import type { Sheets } from "./sheets";
 
 // Street graph coordinates/edges come from the same data that places the buildings.
@@ -12,7 +13,7 @@ const STOPS: { node: string; pose: [string, string]; balloon?: string }[] = [
 export type Walker = {
   id: string; name: string; variant: number; x: number; y: number; at: string; stop: number; path: string[];
   waitUntil: number; walked: number; dx: number; dy: number; party: string[];
-  leaving?: boolean; wavedAt?: number; paused?: boolean;
+  leaving?: boolean; wavedAt?: number; paused?: boolean; weaponTier?: number;
 };
 export type TownSign = { name: string; x: number; y: number; icon: string };
 export type Departed = { name: string; repo: string; left: string; last: string };
@@ -97,6 +98,7 @@ export function drawWalker(ctx: CanvasRenderingContext2D, art: Sheets, walker: W
     ctx.globalAlpha = Math.max(0, 1 - Math.max(0, age - 1000) / 600);
     art.draw(ctx, art.variant(Math.floor(age / 250) % 2 ? "hero-town" : "hero-model", walker.variant), Math.floor(age / 250) % 2 ? "call" : "front", walker.x, walker.y);
     label(ctx, "またね！", walker.x, walker.y - 62, "#ffe066", 11);
+    weaponBesideLabel(ctx, art, walker.weaponTier, t, "またね！", walker.x, walker.y - 62);
     ctx.globalAlpha = 1;
     return;
   }
@@ -114,4 +116,5 @@ export function drawWalker(ctx: CanvasRenderingContext2D, art: Sheets, walker: W
     art.draw(ctx, art.variant(id, walker.variant), art.pose(id, walker.dy > 0 ? "front" : "back", stride), walker.x, walker.y);
   }
   label(ctx, walker.name, walker.x, walker.y + 13);
+  weaponBesideLabel(ctx, art, walker.weaponTier, t, walker.name, walker.x, walker.y + 13);
 }

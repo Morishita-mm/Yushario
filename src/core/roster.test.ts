@@ -23,6 +23,11 @@ describe("roster metadata", () => {
     expect(addRosterEntry(old, entry("very-old", 0))).toEqual(old);
   });
 
+  it("retains only equipment IDs alongside departure metadata", () => {
+    const next = addRosterEntry([], { ...entry("equipped"), weapon: "steel", accessory: "low", model: "secret" } as RosterEntry);
+    expect(next[0]).toEqual({ ...entry("equipped"), weapon: "steel", accessory: "low" });
+  });
+
   it("updates recalled conversations once and never copies conversation bodies", () => {
     const old = [entry("same"), entry("other", 2)];
     const next = addRosterEntry(old, { ...entry("same", 3), text: "secret", talk: ["secret"] } as RosterEntry);

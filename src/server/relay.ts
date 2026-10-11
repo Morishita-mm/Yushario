@@ -65,7 +65,7 @@ const server = createServer(async (request, response) => {
   let url: URL;
   try { url = new URL(request.url ?? "/", `http://127.0.0.1:${port}`); }
   catch { response.writeHead(400).end(); return; }
-  const sessionApi = url.pathname === "/api/agents" || url.pathname === "/api/sessions" || url.pathname.startsWith("/api/sessions/")
+  const sessionApi = url.pathname === "/api/equipment" || url.pathname === "/api/agents" || url.pathname === "/api/sessions" || url.pathname.startsWith("/api/sessions/")
     || url.pathname === "/api/roster" || url.pathname.startsWith("/api/roster/");
   const townApi = url.pathname === "/api/towns" || url.pathname.startsWith("/api/towns/")
     || url.pathname === "/api/settings" || url.pathname === "/api/names" || url.pathname.startsWith("/api/names/");
@@ -148,7 +148,7 @@ const server = createServer(async (request, response) => {
 
 const sockets = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 });
 const pty = createPtyServer(port, (session) => ledger.register(session.project, session.cwd, session.createdAt), broadcast,
-  record, (terminal) => { endedTerminals.add(terminal); }, (id) => namedHero(ledger.names, id), broadcast);
+  record, (terminal) => { endedTerminals.add(terminal); }, (id) => namedHero(ledger.names, id), broadcast, broadcast);
 function archive(): void {
   try { ledger.archive(pty.activeProjects(), Date.now()); }
   catch (error) { console.error("Town archive failed:", error); }

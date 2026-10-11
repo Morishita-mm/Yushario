@@ -6,7 +6,7 @@ import type { Walker } from "../town/walkers";
 import type { initTalk } from "./talk";
 
 type Commands = Parameters<typeof showHeroCommands>[3];
-type Actions = Pick<Commands, "working" | "plan" | "interrupt" | "compact" | "farewell">;
+type Actions = Pick<Commands, "working" | "plan" | "interrupt" | "compact" | "farewell" | "equip">;
 
 export function openHeroCommands(layer: HTMLElement, canvas: HTMLCanvasElement, size: [number, number],
   name: string, walker: Walker | undefined, x: number, y: number, actions: Actions,
@@ -24,7 +24,8 @@ export function openHeroCommands(layer: HTMLElement, canvas: HTMLCanvasElement, 
 
 export function initHeroActions(hero: (id: string) => RoomAgent | undefined, talk: ReturnType<typeof initTalk>,
   prepareDeparture: (id: string) => () => void, closeStrength: () => void, say: (text: string) => void,
-  name: (id: string) => string | undefined) {
+  name: (id: string) => string | undefined,
+  equip: (id: string, layer: HTMLElement, at: [number, number], dismiss: () => void) => void) {
   const waiting = new Map<string, boolean>();
   const busy = new Set<string>(), interrupted = new Set<string>();
   const eventAt = new Map<string, number>();
@@ -76,6 +77,7 @@ export function initHeroActions(hero: (id: string) => RoomAgent | undefined, tal
     return { working: !terminal || !waiting.get(terminal),
       ...(terminal ? {
         plan: (text: string) => { talk.open(id); void talk.sendText(text); },
+        equip: (layer: HTMLElement, at: [number, number], dismiss: () => void) => equip(id, layer, at, dismiss),
         interrupt: () => void act(id, "interrupt"), compact: () => void act(id, "compact"), farewell: () => void act(id, "farewell"),
       } : {}),
     };

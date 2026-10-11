@@ -1,0 +1,33 @@
+{
+  "claude": {
+    "weapons": [
+      { "id": "dagger", "name": "たんけん", "model": "haiku" },
+      { "id": "steel", "name": "はがねの つるぎ", "model": "sonnet" },
+      { "id": "legend", "name": "でんせつの つるぎ", "model": "opus" }
+    ],
+    "accessories": [
+      { "id": "low", "name": "きあいの はちまき（かるく）", "value": "low" },
+      { "id": "medium", "name": "きあいの はちまき（ふつう）", "value": "medium" },
+      { "id": "high", "name": "きあいの はちまき（ためる）", "value": "high" },
+      { "id": "xhigh", "name": "きあいの はちまき（ためにためる）", "value": "xhigh" },
+      { "id": "max", "name": "きあいの はちまき（げんかい）", "value": "max" }
+    ]
+  },
+  "pi": {
+    "weapons": [],
+    "accessories": [
+      { "id": "off", "name": "きあいの はちまき（ひとやすみ）", "value": "off" },
+      { "id": "minimal", "name": "きあいの はちまき（すこし）", "value": "minimal" },
+      { "id": "low", "name": "きあいの はちまき（かるく）", "value": "low" },
+      { "id": "medium", "name": "きあいの はちまき（ふつう）", "value": "medium" },
+      { "id": "high", "name": "きあいの はちまき（ためる）", "value": "high" },
+      { "id": "xhigh", "name": "きあいの はちまき（ためにためる）", "value": "xhigh" },
+      { "id": "max", "name": "きあいの はちまき（げんかい）", "value": "max" }
+    ]
+  },
+  "codex": {
+    "weapons": [],
+    "accessories": []
+  },
+  "shell": { "weapons": [], "accessories": [] }
+}

@@ -63,6 +63,7 @@
 | `hero-walk` / `hero-walk-back` / `hero-pray` | `front, right` / `back` / `prayer` |
 | `party-{warrior,mage,thief,priest}` / 同じ ID の `-back` | `attack, follow` / `attack` |
 | `monster-{slime,ghost,golem,dragon}` / 同じ ID の `-side` / `-attack` | `idle` / `idle, attack` / `attack` |
+| `ui-weapons` | `tiers`（`iron dagger, blue steel sword, gold legend sword` の順） |
 | `church-priest` / `obj-crystal` / `obj-campfire` | `idle` / `glow` / `fire` |
 | `fx-battle` / `fx-enemy` | `slash, spell, poof` / `claw, fire, curse, rocks` |
 | `amb-butterfly` / `amb-leaf` / `amb-drip` / `amb-gull` | `yellow, white` / `fall` / `splash` / `flap` |
@@ -150,6 +151,13 @@
 - `ui-prayer-balloon` は、白い吹き出しの中に合わせた両手を描く1コマ。`ui-balloons` を参照し、宿屋の Zz と同じ大きさ・画風にする。既存の `ui-balloons` の絵と0〜6のコマ番号は変更しない。
 - `drawChurch` は祈る勇者全員の頭上に描く。宿屋の Zz と同じ500msごとの1ドット上下の揺れで、勇者ごとに400msずらす。本体と `/mock.html?scene=church` は同じ描画を使い、一覧は `/art.html` の「演出／UI」に出す。
 - 作り直したら、きょうかいの画面写真で合わせた両手が読めることと、既存の Zz・！などの吹き出しが変わっていないことを確認する。
+
+### 段階7.1：そうびの印と戦闘の演出
+
+- 現在の勇者PNGの剣は、白 `#ffffff`・淡灰 `#c7dcd0`・灰 `#9babb2` を袖・脚・目・紙・斬撃と共有している。剣だけの色の段階は作れないため、服やPNGを変えず **名前札横の武器アイコン** を使う（仕様の代替案）。`ui-weapons` は既存UIを参照して生成・packした3コマ、鉄色／青い鋼／金色。マスタの武器の並び順で選び、3段階以上は金。金だけ時々小さくきらめく。アクセサリのマップ表示はしない。
+- 町・宿屋・きょうかい・フィールドでは名前札横、戦闘アップでは先頭のつよさ札の名前横。そうびなしはアイコンを描かず、既存PNG・服の色違い・動きも維持する。
+- ダメージ・会心・溜めは `src/core/battle-presentation.ts` の純粋関数。実際の成功だけに数値を出し、未完了・失敗を装備で成功にしない。アクセサリの並び順でためを延ばし、高い段階だけ「ちからを ためている…」。
+- モックは `/mock.html?scene=equipment-town`（4勇者の比較）、`/mock.html?scene=equipment-battle`（でんせつ＋高いアクセサリ）。既存場面・タブの見た目は維持する。
 
 ## ワールドマップ（プロジェクトが増えた時）
 

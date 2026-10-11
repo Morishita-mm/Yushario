@@ -1,4 +1,5 @@
 import type { Focus } from "../town/battle";
+import { battlePresentation } from "../../core/battle-presentation";
 import type { Theme } from "../town/ambient";
 
 const NAMES: Record<string, string> = {
@@ -12,7 +13,8 @@ export function focusData(backdrop: string, theme: Theme, monster: string, enemy
 
 export function battleBeat(focus: Focus, t: number): Focus {
   const c = t % 9000, counter = c > 4200 && c < 6200;
-  const message = c < 1700 ? `t12-vitalsの こうげき！\n${focus.name}に 23の ダメージ！`
+  const effects = battlePresentation(focus, true, Math.floor(t / 9000), focus.damage?.hero ?? 23);
+  const message = c < 1100 + effects.windup ? `t12-vitalsの こうげき！\n${focus.name}に ${effects.damage}の ダメージ！`
     : c < 3600 ? "なかまの こうげき！\nかいしんの いちげき！ 18の ダメージ！"
       : c < 4200 ? `${focus.name}の ようすが おかしい…`
         : c < 6200 ? `テストが しっぱいした！ ${focus.name}の はんげき！\nt12-vitalsは 15の ダメージを うけた！`

@@ -30,6 +30,7 @@ export class Status {
     private readonly openTerminal: (terminal: string) => void,
     namesChanged: (names: Record<string, string>) => void,
     private readonly commands: (id: string) => void,
+    private readonly equipment: (terminal?: string) => string[],
   ) {
     this.rename = initNameEditor(() => this.detailed, namesChanged);
     try { this.compact = localStorage.getItem("agent-character-status-size") === "small"; } catch { /* Page-local fallback. */ }
@@ -66,7 +67,7 @@ export class Status {
 
   private signature(agent: RoomAgent, now: number, name: string, permission?: Permission, detailed = false): string {
     return JSON.stringify([name, agent.activity, agent.target, moods(agent, now), stats(agent, now),
-      agent.tasks, agent.helpers, agent.terminal, permission, agent.log,
+      agent.tasks, agent.helpers, agent.terminal, permission, agent.log, this.equipment(agent.terminal),
       detailed ? Math.max(0, Math.floor((now - agent.since) / 1000)) : undefined]);
   }
 
@@ -137,7 +138,7 @@ export class Status {
 
   private card(agent: RoomAgent, now: number, name: string, permission?: Permission, detailed = false): HTMLElement {
     return statusCard(agent, moods(agent, now), permission && this.permissionBlock(permission, undefined, agent.terminal), now, name, detailed,
-      () => this.select(agent.id), this.openTerminal);
+      () => this.select(agent.id), this.openTerminal, this.equipment(agent.terminal));
   }
 
   private permissionBlock(permission: Permission, heading?: string, terminal?: string): HTMLElement {

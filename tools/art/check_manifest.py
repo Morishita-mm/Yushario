@@ -192,6 +192,7 @@ def main():
         check("field" in entries.get(f"bg-battle-{theme}", {}), f"{theme}: field metadata missing")
     required_sequences = {
         "hero-walk": ("front", "right"), "hero-walk-back": ("back",), "hero-pray": ("prayer",),
+        "ui-weapons": ("tiers",),
         "church-priest": ("idle",), "obj-crystal": ("glow",), "obj-campfire": ("fire",),
         "fx-battle": ("slash", "spell", "poof"), "fx-enemy": ("claw", "fire", "curse", "rocks"),
         "amb-butterfly": ("yellow", "white"), "amb-leaf": ("fall",), "amb-drip": ("splash",), "amb-gull": ("flap",),
@@ -206,6 +207,8 @@ def main():
     for cid, names in required_sequences.items():
         for name in names:
             check(name in entries.get(cid, {}).get("sequences", {}), f"{cid}: required sequence {name} missing")
+    check(entries.get("ui-weapons", {}).get("sequences", {}).get("tiers")
+          == ["iron dagger", "blue steel sword", "gold legend sword"], "ui-weapons: expected three ordered weapon tiers")
     if errors:
         print("\n".join(errors), file=sys.stderr)
         sys.exit(1)

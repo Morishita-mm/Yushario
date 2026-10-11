@@ -44,6 +44,9 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.65); }
 #expedition-form [hidden] { display: none; }
 #expedition-start { justify-self: start; margin-top: 6px; color: #ffe066; }
 #expedition-status { white-space: pre-line; }
+.equipment-window { max-height: calc(100% - 16px); overflow-y: auto; }
+.equipment-window button { overflow-wrap: anywhere; white-space: normal; }
+.equipment-window .hint { white-space: normal; }
 .session-row { text-align: left; overflow-wrap: anywhere; }
 dialog.terminal-window { position: fixed; inset: auto; margin: 0; max-width: none; max-height: calc(100svh - 16px); padding: 14px 20px; overflow: hidden; }
 dialog.terminal-window[open] { display: flex; flex-direction: column; gap: 8px; }

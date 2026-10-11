@@ -58,7 +58,7 @@ export function compactRow(agent: RoomAgent, now: number, name: string, selected
 }
 
 export function statusCard(agent: RoomAgent, agentMoods: Mood[], permission: HTMLElement | undefined, now: number,
-  name: string, detailed: boolean, select: () => void, openTerminal: (terminal: string) => void): HTMLElement {
+  name: string, detailed: boolean, select: () => void, openTerminal: (terminal: string) => void, equipment: string[] = []): HTMLElement {
   const { level, hp, mp } = stats(agent, now);
   const card = element("article", detailed ? "hero" : "window hero selected");
   card.dataset.agent = agent.id;
@@ -68,6 +68,10 @@ export function statusCard(agent: RoomAgent, agentMoods: Mood[], permission: HTM
   head.append(crest, element("strong", undefined, name), levelLabel(level));
   card.append(head, bar("HP", hp, hpColor(hp)), bar("MP", mp, "#62b8ff"));
   card.append(element("p", "doing", `▶ ${DOING[agent.activity](agent.target ?? "")}`));
+  if (equipment.length) {
+    card.append(element("p", "section", "そうび"));
+    for (const text of equipment) card.append(element("p", "hint", text));
+  }
   if (detailed) {
     const seconds = Math.max(0, Math.floor((now - agent.since) / 1000));
     card.append(element("p", "hint", `この行動を ${Math.floor(seconds / 60)}分 ${seconds % 60}秒 つづけている`));

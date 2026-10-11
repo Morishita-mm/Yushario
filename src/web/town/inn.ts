@@ -1,11 +1,12 @@
 import { label } from "./field";
 import type { Sheets } from "./sheets";
+import { weaponBesideLabel } from "./weapon";
 import { TOWN_H, TOWN_W } from "./town";
 
 export const innSlots = (art: Sheets) => art.entry("inn-wall").inn!.slots;
 
 // Inside the inn: placements are shared by drawing, commands and report signs.
-export function drawInn(ctx: CanvasRenderingContext2D, art: Sheets, t: number, sleepers: string[]): void {
+export function drawInn(ctx: CanvasRenderingContext2D, art: Sheets, t: number, sleepers: (string | { name: string; weaponTier?: number })[]): void {
   const room = art.entry("inn-wall").inn!, floor = room.floor;
   ctx.fillStyle = "#1d1726";
   ctx.fillRect(0, 0, TOWN_W, TOWN_H);
@@ -22,11 +23,13 @@ export function drawInn(ctx: CanvasRenderingContext2D, art: Sheets, t: number, s
   for (let i = 0; i < room.wallCopies; i++) art.draw(ctx, "inn-wall", "wall", left + ww * i + ww / 2, room.wallBottom);
   art.draw(ctx, "inn-rug", "rug", ...room.rug);
   room.slots.forEach(([x, y], i) => {
-    const name = sleepers[i];
+    const sleeper = sleepers[i];
+    const name = typeof sleeper === "string" ? sleeper : sleeper?.name;
     art.draw(ctx, name ? "hero-sleep" : "inn-bed", name ? "sleeping" : "bed", x, y);
     if (name) {
       art.draw(ctx, "ui-balloons", "sleep Zz", x + room.balloon[0], y + room.balloon[1] + (Math.floor((t + i * 400) / 500) % 2));
       label(ctx, name, x, y + 14);
+      weaponBesideLabel(ctx, art, typeof sleeper === "string" ? undefined : sleeper.weaponTier, t, name, x, y + 14);
     }
   });
   label(ctx, "やどや（なか）", TOWN_W / 2, 120, "#fff7d6", 16);

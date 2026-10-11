@@ -20,7 +20,7 @@ function element<K extends keyof HTMLElementTagNameMap>(tag: K, className?: stri
   return node;
 }
 
-function place(layer: HTMLElement, box: HTMLElement, at: [number, number], dismiss = () => close(layer), initial = 0): void {
+export function place(layer: HTMLElement, box: HTMLElement, at: [number, number], dismiss = () => close(layer), initial = 0): void {
   layer.classList.add("menu-layer");
   layer.replaceChildren(box);
   layer.hidden = false;
@@ -87,6 +87,7 @@ function option(label: string, action: () => void, disabled?: string): HTMLButto
 export function showHeroCommands(layer: HTMLElement, name: string, at: [number, number], on: {
   talk: () => void; status: () => void; follow: () => void; terminal?: () => void; watch?: () => void; closed: () => void;
   working: boolean; plan?: (text: string) => void; interrupt?: () => void; compact?: () => void; farewell?: () => void;
+  equip?: (layer: HTMLElement, at: [number, number], dismiss: () => void) => void;
 }) {
   const box = element("div", "command-window");
   box.setAttribute("role", "dialog");
@@ -111,6 +112,7 @@ export function showHeroCommands(layer: HTMLElement, name: string, at: [number, 
   const hint = element("p", "hint");
   list.append(option("はなす", choose(on.talk)), option("ようすを みる", choose(on.status)),
     option("ついていく", choose(on.follow)),
+    option("そうび", () => on.equip?.(layer, at, dismiss), unavailable),
     option("さくせん", () => showPlans(layer, hero, (text) => { dismiss(); on.plan?.(text); }, dismiss), unavailable),
     interrupt, compact,
     option("ターミナル", choose(on.terminal ?? (() => undefined)), unavailable),

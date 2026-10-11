@@ -3771,5 +3771,33 @@
    14.0,
    21
   ]
+ },
+ {
+  "id": "ui-weapons",
+  "group": "演出",
+  "name": "武器の印（鉄のたんけん・青い鋼・金のつるぎ）",
+  "frame": [
+   24,
+   15
+  ],
+  "frames": [
+   "iron dagger",
+   "blue steel sword",
+   "gold legend sword"
+  ],
+  "colors": 15,
+  "sub": "UI",
+  "use": "そうびした武器の段階：名前札の横（町・宿屋・きょうかい・戦闘）",
+  "sequences": {
+   "tiers": [
+    "iron dagger",
+    "blue steel sword",
+    "gold legend sword"
+   ]
+  },
+  "foot": [
+   12.0,
+   15
+  ]
  }
 ]
