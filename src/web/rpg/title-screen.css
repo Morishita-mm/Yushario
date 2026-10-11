@@ -1,0 +1,38 @@
+h1:has(.quest-logo) { line-height: 0; letter-spacing: 0; text-shadow: none; }
+.quest-logo { display: block; width: 184px; height: 54px; image-rendering: pixelated; }
+body:has(#title-screen[open]) { overflow: hidden; }
+.title-screen {
+  position: fixed; inset: 0; margin: 0; width: 100vw; max-width: none;
+  height: 100svh; max-height: none; border: 0; padding: 24px;
+  background: #2e222f; color: #c7dcd0; text-align: center;
+  font-family: "DotGothic16", system-ui, sans-serif;
+}
+.title-screen[open] { display: grid; place-content: center; justify-items: center; gap: 24px; }
+.title-screen::backdrop { background: #2e222f; }
+.title-screen::before, .title-screen::after {
+  content: ""; height: 2px; width: min(688px, 80vw); background: #694f62;
+}
+.title-logo { display: block; width: 688px; height: 256px; image-rendering: pixelated; animation: title-arrive 180ms ease-out; }
+.title-screen p { margin: 0; font-size: 20px; line-height: 1.7; }
+#title-start {
+  font: inherit; font-size: 17px; color: #fbff86; cursor: pointer;
+  background: #323353; border: 2px solid #fbb954; padding: 12px 20px;
+}
+#title-start:hover { background: #484a77; }
+#title-start:focus-visible { outline: 2px solid #c7dcd0; outline-offset: 5px; }
+.title-caption { color: #9babb2; font: 12px system-ui, sans-serif; letter-spacing: 0.16em; }
+@keyframes title-arrive { from { opacity: 0; } to { opacity: 1; } }
+@media (max-width: 760px), (max-height: 600px) {
+  .title-screen { padding: 8px; }
+  .title-screen[open] { gap: 20px; }
+  .title-logo { width: 344px; height: 128px; }
+  .title-screen p { font-size: 16px; }
+  #title-start { font-size: 14px; padding: 10px 14px; }
+}
+@media (max-width: 350px), (max-height: 360px) {
+  .title-screen[open] { gap: 12px; }
+  .title-logo { width: 172px; height: 64px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .title-logo { animation: none; }
+}

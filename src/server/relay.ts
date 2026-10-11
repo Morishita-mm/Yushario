@@ -12,6 +12,7 @@ import { PermissionWaiter, permissionOutput, permissionSummary } from "./permiss
 import { allowedHost } from "../core/local-request";
 import { EVENT_BODY_LIMIT, readJsonBody } from "./http-body";
 import { listenAvailable, openBrowser, prepareDataDirectory, startupOptions } from "./startup";
+import { printStartupLogo } from "./startup-logo";
 
 const permissions = new PermissionWaiter();
 function broadcast(message: object): void {
@@ -218,6 +219,7 @@ process.once("exit", () => pty.dispose());
 
 const url = `http://127.0.0.1:${port}/?token=${token}`;
 if (port !== options.port) console.log(`Port ${options.port} is in use; using ${port}.`);
+printStartupLogo();
 console.log(`Open ${url}`);
 console.log(`Terminal: http://127.0.0.1:${port}/terminal.html?token=${token}`);
 if (options.open) openBrowser(url);

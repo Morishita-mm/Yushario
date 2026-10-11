@@ -12,12 +12,14 @@ import { initRoster } from "./roster";
 import { initExpedition } from "./expedition";
 import { initTerminals } from "./terminals";
 import { initHelp } from "./help";
+import { initTitleScreen } from "./title-screen";
 import { initTalk } from "./talk";
 import { initNotices } from "./notices";
 import { loadNames, parseNames } from "./names";
 import "./rpg.css";
 import "./talk.css";
 
+initTitleScreen();
 const token = new URLSearchParams(location.search).get("token") ?? "";
 const canvas = document.querySelector<HTMLCanvasElement>("#world")!;
 const connectionLabel = document.querySelector<HTMLElement>("#connection")!;

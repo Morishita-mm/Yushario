@@ -4,10 +4,25 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Agent Quest</title>
+    <link rel="icon" href="/favicon.ico" sizes="16x16 32x32" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/logo/icon-32.png" />
+    <meta property="og:title" content="Agent Quest" />
+    <meta property="og:description" content="AI agents at work, made visible as an RPG town." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/logo/og-1280x640.png" />
+    <meta property="og:image:width" content="1280" />
+    <meta property="og:image:height" content="640" />
+    <meta property="og:image:alt" content="Agent Quest — a pixel sword and stone-and-gold title" />
   </head>
   <body>
+    <dialog id="title-screen" class="title-screen" aria-label="Agent Quest 起動画面" aria-describedby="title-tagline">
+      <img class="title-logo" src="/logo/title.png" width="688" height="256" alt="AGENT QUEST" />
+      <p id="title-tagline">AI のしごとが、冒険に みえる。</p>
+      <button id="title-start" type="button">▶ クリックか キーで はじめる</button>
+      <span class="title-caption" aria-hidden="true">AI AGENTS · A LIVING RPG</span>
+    </dialog>
     <header>
-      <h1>AGENT QUEST</h1>
+      <h1><img class="quest-logo" src="/logo/logo.png" width="184" height="54" alt="AGENT QUEST" /></h1>
       <span id="connection" aria-live="polite">せつぞく中…</span>
       <button id="expedition" type="button">しゅつじん</button>
       <button id="terminals" type="button">ターミナル</button>
