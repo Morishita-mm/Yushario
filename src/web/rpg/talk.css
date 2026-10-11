@@ -39,7 +39,7 @@ dialog.talk-window::backdrop { background: rgba(0, 0, 0, 0.12); }
 #talk-foreign { margin: 8px 0; flex: none; }
 .talk-window [hidden] { display: none !important; }
 #talk-terminal.terminal-attention { color: #ffe066; border: 2px solid #ffe066; padding: 8px 12px; }
-.arrival-guidance { color: #ffe7a3; border-left: 3px solid #ffe066; padding: 10px 14px; background: #1d1a30; }
+.arrival-guidance { color: #ffe7a3; border-left: 3px solid #ffe066; padding: 10px 14px; background: #1d1a30; white-space: pre-line; }
 .talk-window button:focus-visible, #talk-history:focus-visible { outline: 1px solid #ffe066; outline-offset: 2px; }
 @media (max-width: 600px) {
   dialog.talk-window { padding: 10px 12px; }

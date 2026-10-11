@@ -7,6 +7,8 @@ await build({
   build: {
     ssr: true, outDir: "lib",
     rolldownOptions: { input: {
+      "core/startup": "src/core/startup.ts",
+      "server/startup": "src/server/startup.ts",
       "server/relay": "src/server/relay.ts",
       "adapters/pi/agent-character": "adapters/pi/agent-character.ts",
     } },

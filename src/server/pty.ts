@@ -134,7 +134,7 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
     };
     terminal.onData(output);
     terminal.onExit(({ exitCode }) => {
-      session.info.exited = { code: exitCode };
+      session.info.exited = { code: exitCode, at: Date.now() };
       stop();
       output(`\r\n[終了: ${exitCode}]\r\n`);
       for (const client of session.clients) client.close(1000, "終了しました");

@@ -5,6 +5,8 @@ import { loadAgents, supportText, type AgentInfo } from "./agents";
 import type { EquipmentMaster } from "../../core/equipment";
 import { loadEquipment } from "./equipment";
 
+const CLAUDE_SETUP = "https://code.claude.com/docs/en/setup";
+
 // Page-local windows. All session ownership stays on the server.
 export function initExpedition(currentTown: () => string | undefined, heroName: (terminal: string) => string | undefined,
   launched: (session: Session, towns: TownRecord[]) => void, talkHero: (terminal: string) => string | undefined,
@@ -77,8 +79,14 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
     const text = `${name} — ターミナル`;
     if (title.textContent !== text) title.textContent = text;
   }
+  const hint = dialog.querySelector<HTMLElement>(".terminal-hint")!;
+  function showEnded(ended: boolean): void {
+    hint.textContent = ended ? "Esc・窓の外・とじる で 町にもどる。この ターミナルは おわっています（出力は のこります）。"
+      : "Esc・窓の外・とじる で 町にもどる。勇者は うごきつづけます。";
+  }
   function attach(session: Session): void {
     attached = session;
+    showEnded(Boolean(session.exited));
     updateTitle();
     dispose = connectSessionTerminal(container, session, terminalStatus, () => {
       void sessionRequest().then((result) => {
@@ -86,6 +94,7 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
         const latest = (result as Session[]).find((item) => item.id === session.id);
         if (latest?.exited) terminalStatus.textContent = `おわった (${latest.exited.code})・会話は のこっています`;
         else if (!latest) terminalStatus.textContent = "この ターミナルは なくなりました。";
+        showEnded(Boolean(latest?.exited) || !latest);
       }).catch((error: Error) => { if (attached === session) terminalStatus.textContent = error.message; });
     }).dispose;
   }
@@ -131,6 +140,7 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
     void Promise.allSettled([loadTowns(), loadAgents(), loadEquipment(), loadSettings()]).then(([towns, kinds, gear, settings]) => {
       if (launching !== request || !launch.open) return;
       const errors: string[] = [];
+      let noAgent = false;
       equipment = gear.status === "fulfilled" ? gear.value : {};
       if (gear.status === "rejected") errors.push("そうびを よみこめませんでした。そうびなしで 起動できます。");
       const startupCwd = settings.status === "fulfilled" ? settings.value.startupCwd : undefined;
@@ -154,14 +164,19 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
         for (const agent of agents) preset.add(new Option(`${agent.label} — ${agent.hero ? "町・会話に 対応" : "ターミナルのみ"}`, agent.id));
         if (agents.some((agent) => agent.id === "claude")) preset.value = "claude";
         preset.disabled = false; start.disabled = !agents.length; describe();
-        if (agents.every((agent) => agent.id === "shell")) errors.push(
-          "勇者の CLI が 見つかりません。Claude Code: https://code.claude.com/docs/en/setup ／ pi: npm install -g @earendil-works/pi-coding-agent ／ Codex: npm install -g @openai/codex。インストールして PATH に追加し、agent-quest を再起動してください。shell は 使えます。",
+        noAgent = agents.every((agent) => agent.id === "shell");
+        if (noAgent) errors.push(
+          "勇者の CLI が 見つかりません。① 下から1つ入れて PATH に追加 → ② agent-quest を止める（Ctrl+C）→ ③ 起動し直す。shell は 使えます。\npi: npm install -g @earendil-works/pi-coding-agent\nCodex: npm install -g @openai/codex\nClaude Code: ",
         );
       } else {
         support.textContent = "対応範囲を よみこめないため 起動できません。";
         errors.push(kinds.reason instanceof Error ? kinds.reason.message : "勇者の 種類を よみこめませんでした。");
       }
       status.textContent = errors.join("\n");
+      if (noAgent) {
+        const link = Object.assign(document.createElement("a"), { href: CLAUDE_SETUP, textContent: CLAUDE_SETUP, target: "_blank", rel: "noopener" });
+        status.append(link);
+      }
     });
   });
   form.addEventListener("submit", (event) => {

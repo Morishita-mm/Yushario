@@ -10,7 +10,7 @@ export const OUTPUT_LIMIT = 256 * 1024;
 
 export type TerminalSession = {
   id: string; preset: Preset; cwd: string; project: string; createdAt: number;
-  exited?: { code: number };
+  exited?: { code: number; at: number };
 } & Equipment;
 
 export type Session = {

@@ -181,7 +181,8 @@ export class Scene {
   }
   enterTown(project: string, entered: () => void): void {
     const town = this.towns.get(project);
-    if (town) this.enter(town, "town", undefined, entered);
+    // Closing the town look chooser must not hide the launched hero's guidance (e.g. an early exit).
+    if (town) this.enter(town, "town", undefined, entered, entered);
   }
   visitNotice(project: string, id?: string, at?: number): void {
     this.selected = id;
@@ -204,15 +205,15 @@ export class Scene {
     this.ambient = focused ? new Ambient(this.art, place as Theme, `bg-battle-${place}`) : undefined;
     this.layer.hidden = true; this.list = undefined;
   }
-  private enter(project: Project, place: HeroPlace = "town", followed?: TownHero, entered?: () => void): void {
-    if (!this.look(project.repo)) { this.go("world", Boolean(followed)); this.chooseLook(project, place, followed, entered); return; }
+  private enter(project: Project, place: HeroPlace = "town", followed?: TownHero, entered?: () => void, skipped?: () => void): void {
+    if (!this.look(project.repo)) { this.go("world", Boolean(followed)); this.chooseLook(project, place, followed, entered, skipped); return; }
     this.project = project.repo;
     this.selected = this.heroes.find((hero) => hero.project === project.repo && hero.id === this.selected)?.id
       ?? this.heroes.find((hero) => hero.project === project.repo)?.id;
     this.go(place, Boolean(followed), followed?.monster ? followed.id : undefined);
     entered?.();
   }
-  private chooseLook(project: Project, place: HeroPlace = "town", followed?: TownHero, entered?: () => void): void {
+  private chooseLook(project: Project, place: HeroPlace = "town", followed?: TownHero, entered?: () => void, skipped?: () => void): void {
     this.closeCommands?.(); this.list = undefined;
     showThemeChooser(this.layer, project, this.art, (theme) => {
       void (async () => {
@@ -221,7 +222,7 @@ export class Scene {
         } else { this.foreignLooks.set(project.repo, theme); this.rebuildTowns(); }
         this.enter(this.towns.get(project.repo) ?? { ...project, theme }, place, followed, entered);
       })();
-    }, () => undefined);
+    }, () => skipped?.());
   }
   private commands(id: string, x: number, y: number, watch?: () => void): void {
     this.closeCommands?.();

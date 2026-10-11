@@ -2,6 +2,12 @@ import type { AgentEvent } from "./events";
 
 export type SessionAction = "interrupt" | "compact" | "farewell";
 
+// Use the exit clock when available, so a delayed arrival check still recognizes an early exit.
+export function earlyEquippedExit(session: { createdAt: number; exited?: { code: number; at?: number }; weapon?: string; accessory?: string }, now: number): boolean {
+  const elapsed = (session.exited?.at ?? now) - session.createdAt;
+  return Boolean(session.exited && (session.weapon || session.accessory) && elapsed >= 0 && elapsed <= 5000);
+}
+
 // A CLI can replace its conversation without ending the terminal (/new, resume, fork).
 // Reload starts the same ID again and must not retire it.
 export function replacedSession(event: AgentEvent, previous: string | undefined): string | undefined {

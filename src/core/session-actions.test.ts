@@ -1,5 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { hasTrustPrompt, replacedSession, waitingAfterEvent } from "./session-actions";
+import { earlyEquippedExit, hasTrustPrompt, replacedSession, waitingAfterEvent } from "./session-actions";
+
+describe("early equipped exit", () => {
+  const session = { createdAt: 1000, exited: { code: 1 }, weapon: "steel" };
+  it("suggests removing either kind of equipment within five seconds, regardless of exit code", () => {
+    expect(earlyEquippedExit(session, 1000)).toBe(true);
+    expect(earlyEquippedExit(session, 6000)).toBe(true);
+    expect(earlyEquippedExit({ ...session, exited: { code: 1, at: 2000 } }, 20000)).toBe(true);
+    expect(earlyEquippedExit({ ...session, exited: { code: 1, at: 6001 } }, 20000)).toBe(false);
+    expect(earlyEquippedExit({ ...session, weapon: undefined, accessory: "high", exited: { code: 0 } }, 2000)).toBe(true);
+  });
+  it("does not suggest removing equipment for a running, older, unequipped, or future session", () => {
+    expect(earlyEquippedExit({ ...session, exited: undefined }, 2000)).toBe(false);
+    expect(earlyEquippedExit(session, 6001)).toBe(false);
+    expect(earlyEquippedExit({ ...session, weapon: undefined }, 2000)).toBe(false);
+    expect(earlyEquippedExit(session, 999)).toBe(false);
+  });
+});
 
 describe("folder trust prompts", () => {
   it.each(["Do you trust the files in this folder?", "Yes, I trust this folder",

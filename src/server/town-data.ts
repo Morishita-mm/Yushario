@@ -1,16 +1,13 @@
 import { randomUUID } from "node:crypto";
-import { closeSync, mkdirSync, readFileSync, openSync, renameSync, rmSync, writeFileSync } from "node:fs";
-import { homedir } from "node:os";
+import { closeSync, readFileSync, openSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
 import { TOWN_THEMES, type TownRecord, type TownSettings, type TownTheme } from "../core/town-ledger";
 import { isClaudeSessionId, ROSTER_LIMIT, type RosterEntry } from "../core/roster";
 import { validHeroNames, type HeroNames } from "../core/names";
 import { AGENTS, PRESETS, type Preset } from "./agents";
 import { isEquipmentId, parseEquipmentMaster, resolveEquipmentMaster, type EquipmentMaster } from "../core/equipment";
+import { dataDirectory as directory } from "./startup";
 export type StoredRosterEntry = RosterEntry & { preset?: Preset };
-
-const directory = process.env.AGENT_CHARACTER_HOME || join(homedir(), ".config", "agent-character");
-mkdirSync(directory, { recursive: true, mode: 0o700 });
 
 export function validSettings(input: unknown): input is TownSettings {
   if (!input || typeof input !== "object" || Array.isArray(input)) return false;

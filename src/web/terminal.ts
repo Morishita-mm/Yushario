@@ -5,7 +5,7 @@ import { loadAgents } from "./rpg/agents";
 
 export type Session = {
   id: string; preset: string; cwd: string; project: string; createdAt: number;
-  exited?: { code: number }; weapon?: string; accessory?: string;
+  exited?: { code: number; at: number }; weapon?: string; accessory?: string;
 };
 const token = new URLSearchParams(location.search).get("token") ?? "";
 

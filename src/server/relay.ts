@@ -11,7 +11,7 @@ import { AGENTS } from "./agents";
 import { PermissionWaiter, permissionOutput, permissionSummary } from "./permissions";
 import { allowedHost } from "../core/local-request";
 import { EVENT_BODY_LIMIT, readJsonBody } from "./http-body";
-import { listenAvailable, openBrowser, startupOptions } from "./startup";
+import { listenAvailable, openBrowser, prepareDataDirectory, startupOptions } from "./startup";
 
 const permissions = new PermissionWaiter();
 function broadcast(message: object): void {
@@ -22,6 +22,8 @@ function broadcast(message: object): void {
 }
 
 const options = startupOptions(process.argv.slice(2));
+// The bin preflights this before loading PTY; direct development startup also needs it.
+prepareDataDirectory();
 let port = options.port;
 const development = process.env.NODE_ENV === "development";
 const token = development && process.env.AGENT_CHARACTER_TOKEN

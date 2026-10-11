@@ -16,6 +16,7 @@ Node.js **22.12+** / npm required. macOS and Linux supported; Windows **untested
 npx --yes --package=/absolute/path/agent-quest-0.1.0.tgz agent-quest
 ```
 `npx agent-quest --no-open --port 8801` ならブラウザを自動で開かず、8801 以降の空きポートを使います。
+`npx agent-quest --help`（ソースでは `npm start -- --help`）で起動オプションと環境変数を確認できます。
 
 AIエージェントの状態イベントをRPG風の町と勇者で表示し、埋め込みターミナルの勇者と会話するローカルアプリです。
 トップページは **エージェントの町**（RPG 風のドット表示）で、フック・拡張を設定した Claude Code / pi のセッションが勇者として町にやってきて、
@@ -33,6 +34,15 @@ npm install
 npm run build
 npm start
 ```
+
+### Troubleshooting / 困った時
+
+- Node.js: update to **22.12+** / **22.12 以上**に更新してください。
+- Data folder: start with `AGENT_CHARACTER_HOME=/writable/folder` / 書けるフォルダを指定してください。
+- node-pty: on macOS/Linux with Node.js 22.12+, run `npm cache clean --force`, then reinstall / キャッシュを消してから入れ直してください（ソースなら `npm install`、npx ならもう一度起動）。
+- No CLI: install Claude Code / pi / Codex on PATH, **stop agent-quest (Ctrl+C), then start again** / CLI を入れる → agent-quest を止める → 起動し直す。
+- Hero ends immediately: check its terminal output; if equipped, update the CLI or launch without equipment / ターミナルの出力を確認し、装備付きなら CLI を更新するか「そうびなし」でしゅつじんし直してください。
+- Unexpected startup error: retry with `AGENT_QUEST_DEBUG=1` for a stack trace / 想定外の起動エラーの詳細を表示します（例: `AGENT_QUEST_DEBUG=1 npx agent-quest`）。
 
 ### エージェントの町（トップページ）
 
@@ -133,7 +143,7 @@ Claude Code / pi の UserPromptSubmit の依頼本文と Stop の最終返答だ
 | 終了・削除 | `DELETE /api/sessions/:id` → 204。子プロセスとその子孫を終了し一覧から削除 |
 | 接続 | `WS /pty?session=<id>&cols=80&rows=24&token=...` → 保持出力を先に送信し、その後はライブ出力 |
 
-セッションは `{ id, preset, cwd, project, createdAt, weapon?, accessory?, exited?: { code } }`。`createdAt` はUnixミリ秒です。
+セッションは `{ id, preset, cwd, project, createdAt, weapon?, accessory?, exited?: { code, at } }`。`createdAt` と終了時刻 `exited.at` はUnixミリ秒です。
 WSへの入力は `{ "type": "input", "data": "echo hello\r" }`、サイズ変更は `{ "type": "resize", "cols": 80, "rows": 24 }`。
 不正な作成入力は400、トークン・Origin違反は403、17個目の作成は409、未知のセッションへのWSは1008で切断します。
 返事はセッションの最後のイベントで待機を判断します。SessionStart / Stop / StopFailure / PostCompact の後は待機中で、本文をPTYへ書き、300ms後に Enter（`\r`）を送り `delivered: true` を返します。UserPromptSubmit・ツール・PreCompact の後やまだイベントが無い時は作業中です。通知やサブエージェントは待機判定を変えません。作業中は預かって `delivered: false` を返し、次の Stop / SessionStart で複数の本文を改行でつないで送ります（StopFailure では預かりを送信しません）。終了済み・旅立ち中は409、未知は404、不正な本文・JSONは400です。
