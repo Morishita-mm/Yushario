@@ -3,7 +3,7 @@ import type { RoomAgent } from "../../core/room";
 import { renderTalk, talkParts } from "./talk-text";
 import { createReportCard } from "./report-card";
 import { markReportRead, reportRead } from "./read-reports";
-import { initArrival } from "./arrival";
+import { CLAUDE_SETUP_GUIDANCE, initArrival } from "./arrival";
 
 // The talk and terminal windows cover the map in the same place, so switching between them keeps the layout.
 export function coverMap(dialog: HTMLElement): void {
@@ -35,7 +35,7 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
   const pending = new Map<string, string[]>(), sending = new Set<string>(), interrupting = new Set<string>();
   const expanded = new Set<number>();
   let selected: { hero: string } | { terminal: string } | undefined;
-  let signature = "", texts: string[] = [];
+  let signature = "", texts: string[] = [], setupGuidance = false;
   let latestAt: number | undefined, latestText: string | undefined;
   let shown = 0, length = 0, lastChar = 0;
   let latest: ReturnType<typeof createReportCard> | undefined;
@@ -147,6 +147,9 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
     form.hidden = !agent.terminal; foreign.hidden = Boolean(agent.terminal); terminal.disabled = !agent.terminal;
     send.disabled = Boolean(agent.terminal && sending.has(agent.terminal));
     const talk = agent.talk;
+    const needsSetup = setupGuidance && !talk.length;
+    terminal.classList.toggle("terminal-attention", needsSetup);
+    terminal.textContent = needsSetup ? "▶ ターミナルで せっていを たしかめる" : "▶ ターミナル";
     const nextSignature = JSON.stringify([heroName, agent.terminal, talk.map(({ at, from, report }) => [at, from, report])]);
     if (nextSignature === signature && talk.every((entry, i) => entry.text === texts[i])) return;
     signature = nextSignature; texts = talk.map((entry) => entry.text);
@@ -160,7 +163,12 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
     const atBottom = history.scrollHeight - history.scrollTop - history.clientHeight < 24;
     const scroll = history.scrollTop;
     history.replaceChildren(); latest = undefined;
-    if (!talk.length) history.textContent = "まだ 会話は ありません。勇者に はなしかけてみよう。";
+    if (!talk.length) {
+      const message = document.createElement("p");
+      message.className = needsSetup ? "arrival-guidance" : "";
+      message.textContent = needsSetup ? CLAUDE_SETUP_GUIDANCE : "まだ 会話は ありません。勇者に はなしかけてみよう。";
+      history.append(message);
+    }
     for (const entry of talk) {
       if (entry.from === "you") {
         const row = document.createElement("div"); row.className = "talk-line you";
@@ -223,8 +231,9 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
   }
   form.addEventListener("submit", (event) => { event.preventDefault(); void sendText(input.value); });
 
-  function openConversation(target: { hero: string } | { terminal: string }, at?: number): void {
-    saveDraft(); arrival.watch("terminal" in target ? target.terminal : undefined);
+  function openConversation(target: { hero: string } | { terminal: string }, at?: number, claude = false): void {
+    setupGuidance = claude;
+    saveDraft(); arrival.watch("terminal" in target ? target.terminal : undefined, claude);
     selected = target; signature = ""; texts = []; latestAt = latestText = undefined; shown = 0; expanded.clear(); scrollTo = at;
     const key = draftKey()!, awaited = "hero" in target ? hero(target.hero)?.terminal : undefined;
     const waitingKey = awaited ? `terminal:${awaited}` : undefined;
@@ -233,13 +242,15 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
     status.textContent = ""; history.replaceChildren(); latest = undefined; next.hidden = true;
     position(); if (!dialog.open) dialog.showModal();
     update(); renderPending(terminalId());
-    if (terminalId() && at === undefined) input.focus(); else history.focus({ preventScroll: true });
+    if (claude || selected && "terminal" in selected) terminal.focus();
+    else if (terminalId() && at === undefined) input.focus(); else history.focus({ preventScroll: true });
   }
   return { open: (id: string, at?: number) => openConversation({ hero: id }, at),
-    openSession: (id: string, recall = false) => { if (recall) recalled.add(id); openConversation({ terminal: id }); },
+    openSession: (id: string, recall = false, preset?: string) => { if (recall) recalled.add(id); openConversation({ terminal: id }, undefined, !recall && preset === "claude"); },
     attention: (id: string) => { arrival.attention(id, true); update(); },
     clearAttention: (id: string) => arrival.attention(id, false),
     update, tick, setPending, resetPending, sendText, close,
+    pendingCount: (id: string) => pending.get(id)?.length ?? 0,
     notice: (text: string) => { status.textContent = text; },
     interrupting: (id: string, active: boolean) => { if (active) interrupting.add(id); else interrupting.delete(id); } };
 }

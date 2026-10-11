@@ -1,22 +1,14 @@
-import { accessSync, constants, writeFileSync } from "node:fs";
-import { delimiter, join } from "node:path";
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node-pty";
-import { AGENTS, type Preset } from "./agents";
+import { AGENTS, agentExecutables, type Preset } from "./agents";
 import { isClaudeSessionId } from "../core/roster";
 import { equipmentArgs, type AgentEquipment, type Equipment } from "../core/equipment";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
 // Keep user configuration, but not server secrets or inherited child-session markers.
 const serverOnlyEnvironment = ["AGENT_CHARACTER_TOKEN", "CLAUDE_CODE_CHILD_SESSION", "CLAUDECODE"];
-
-function executable(command: string): string | undefined {
-  const paths = command.includes("/") ? [command]
-    : (process.env.PATH ?? "").split(delimiter).map((directory) => join(directory, command));
-  return paths.find((path) => {
-    try { accessSync(path, constants.X_OK); return true; } catch { return false; }
-  });
-}
 
 // Both shells and Claude's hook runner interpret this command; quote absolute paths safely.
 function quote(value: string): string { return `'${value.replaceAll("'", "'\\''")}'`; }
@@ -38,11 +30,11 @@ export function writeClaudeSettings(port: number, temporary: string): string {
 }
 
 export function launchPty(preset: Preset, cwd: string, id: string, port: number, settings: string,
-  equipment: Equipment, master: AgentEquipment, resume?: string) {
+  equipment: Equipment, master: AgentEquipment, project: string, resume?: string) {
   const agent = AGENTS[preset];
   if (resume !== undefined && (!agent.resume || !isClaudeSessionId(resume))) throw new Error("再開する勇者の ID が正しくありません");
   const program = agent.command;
-  const path = executable(program);
+  const path = agentExecutables[preset];
   if (!path) throw new Error(`${program} が PATH に見つかりません。インストールして server を再起動してください`);
   const args = [...agent.args.map((arg) => arg === "$settings" ? settings : arg),
     ...(resume ? [...agent.resumeArgs, resume] : []), ...equipmentArgs(equipment, master, agent)];
@@ -50,6 +42,7 @@ export function launchPty(preset: Preset, cwd: string, id: string, port: number,
   for (const name of serverOnlyEnvironment) delete env[name];
   env.AGENT_CHARACTER_URL = `http://127.0.0.1:${port}/event`;
   env.AGENT_CHARACTER_SESSION = id;
+  env.AGENT_CHARACTER_PROJECT = project;
   try { return spawn(path, args, { name: "xterm-256color", cols: 80, rows: 24, cwd, env }); }
   catch { throw new Error(`${agent.label} を起動できませんでした。インストールとフォルダの権限を確認してください`); }
 }

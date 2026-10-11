@@ -160,7 +160,7 @@ export class Status {
 
 // Recent narration keeps the hero ID so renaming also updates already-visible lines.
 export class Messages {
-  private lines: { time: string; text: string; shown: number; event?: AgentEvent; hero?: { id: string; name: string } }[] = [];
+  private lines: { time: string; text: string; shown: number; event?: AgentEvent; previousContext?: number; hero?: { id: string; name: string } }[] = [];
   constructor(private readonly root: HTMLElement, private readonly name: (id: string) => string | undefined) {}
 
   say(text: string, at?: number, instant = false, hero?: { id: string; name: string }): void {
@@ -169,15 +169,17 @@ export class Messages {
     if (this.lines.length > 4) this.lines.shift();
   }
 
-  event(event: AgentEvent, at: number, instant = false): void {
-    const text = narrate({ ...event, name: this.name(event.agent ?? "default") ?? event.name });
+  event(event: AgentEvent, at: number, instant = false, previousContext?: number): void {
+    const text = narrate({ ...event, name: this.name(event.agent ?? "default") ?? event.name }, previousContext);
     if (!text) return;
-    this.say(text, at, instant); this.lines[this.lines.length - 1]!.event = event;
+    this.say(text, at, instant);
+    const line = this.lines[this.lines.length - 1]!;
+    line.event = event; line.previousContext = previousContext;
   }
 
   tick(): void {
     for (const line of this.lines) {
-      const text = line.event ? narrate({ ...line.event, name: this.name(line.event.agent ?? "default") ?? line.event.name })!
+      const text = line.event ? narrate({ ...line.event, name: this.name(line.event.agent ?? "default") ?? line.event.name }, line.previousContext)!
         : line.hero ? line.text.replace(line.hero.name, this.name(line.hero.id) ?? line.hero.name) : line.text;
       if (text !== line.text) {
         if (line.shown >= line.text.length) line.shown = text.length;

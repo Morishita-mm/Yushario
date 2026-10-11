@@ -107,7 +107,7 @@ export function showHeroCommands(layer: HTMLElement, name: string, at: [number, 
   const unavailable = on.terminal ? undefined : foreign;
   const hero = { name, fighting: on.working, at };
   const interrupt = option("にげる", choose(on.interrupt ?? (() => undefined)));
-  const compact = option("やすむ", () => showDraftConfirmation(layer, at,
+  const compact = option("やすむ", () => showRestConfirmation(layer, at, name,
     () => { dismiss(); on.compact?.(); }, dismiss));
   const hint = element("p", "hint");
   list.append(option("はなす", choose(on.talk)), option("ようすを みる", choose(on.status)),
@@ -143,7 +143,7 @@ export function showCommands(layer: HTMLElement, hero: HeroState, on: Handlers):
     option("めいれい", () => showOrder(layer, hero, done)),
     option("さくせん", () => showPlans(layer, hero, (plan) => done(`${hero.name} に さくせん「${plan}」を つたえた`))),
     option("にげる", () => done(`${hero.name} は たたかいを ちゅうだんした（Esc を おくった）`), hero.fighting ? undefined : "たたかっていない ときは つかえません"),
-    option("やすむ", () => done(`${hero.name} は ひとやすみ した（/compact）… MPが かいふくした！`), hero.fighting ? "たたかいの さいちゅうは つかえません" : undefined),
+    option("やすむ", () => done(`${hero.name} は きょうかいで 会話を まとめた（/compact）`), hero.fighting ? "たたかいの さいちゅうは つかえません" : undefined),
     option("ターミナル", () => undefined, "モックには ターミナルが ありません（本体で ひらく）"),
     option("きろく", () => { close(layer); on.report(); }, hero.hasReport ? undefined : "まだ ほうこくが ありません"),
     option("みおくる", () => showFarewell(layer, hero, () => { close(layer); on.farewell(); })),
@@ -180,7 +180,7 @@ function showOrder(layer: HTMLElement, hero: HeroState, done: (text: string) => 
 
 function showPlans(layer: HTMLElement, hero: Pick<HeroState, "at">, done: (text: string) => void, dismiss = () => close(layer)): void {
   const box = element("div", "command-window");
-  box.append(element("h4", undefined, "さくせん"));
+  box.append(element("h4", undefined, "さくせん"), element("p", "hint", "選ぶと この依頼を つたえます。"));
   const list = element("div", "commands");
   for (const plan of PLANS) list.append(option(plan, () => done(plan)));
   box.append(list);
@@ -208,8 +208,9 @@ function showConfirmation(layer: HTMLElement, at: [number, number], title: strin
   place(layer, box, at, no, 1);
 }
 
-export function showDraftConfirmation(layer: HTMLElement, at: [number, number], yes: () => void, no: () => void): void {
-  showConfirmation(layer, at, "ターミナルに 書きかけの 文字が あれば 消えます", "はい を えらぶと 実行します。",
+function showRestConfirmation(layer: HTMLElement, at: [number, number], name: string, yes: () => void, no: () => void): void {
+  showConfirmation(layer, at, `${name}の 会話を まとめて 軽くしますか？`,
+    "やすむ（/compact）：きょうかいで 会話を 整理します。ターミナルに 書きかけの 文字が あれば 消えます。",
     () => { close(layer); yes(); }, () => { close(layer); no(); });
 }
 

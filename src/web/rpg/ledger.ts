@@ -20,8 +20,8 @@ export async function loadTowns(): Promise<TownRecord[]> {
 export async function patchTown(name: string, change: TownChange): Promise<TownRecord> {
   return (await request(`/api/towns/${encodeURIComponent(name)}`, "PATCH", change)).json() as Promise<TownRecord>;
 }
-export async function loadSettings(): Promise<Settings> {
-  return (await request("/api/settings")).json() as Promise<Settings>;
+export async function loadSettings(): Promise<Settings & { startupCwd: string }> {
+  return (await request("/api/settings")).json() as Promise<Settings & { startupCwd: string }>;
 }
 export async function saveSettings(settings: Settings): Promise<void> {
   await request("/api/settings", "PUT", settings);

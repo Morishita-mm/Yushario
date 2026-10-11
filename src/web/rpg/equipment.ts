@@ -76,7 +76,7 @@ export function initEquipment(hero: (id: string) => RoomAgent | undefined, name:
         const mutable = Boolean(agent?.equipWeapon || agent?.equipAccessory);
         if (!mutable) {
           for (const text of labels) box.append(element("p", undefined, text));
-          hint.textContent = "途中では かえられない（しゅつじん・よびもどす時だけ）";
+          hint.textContent = "かえられるのは しゅつじんの時だけ。よびもどすと 前の そうびのまま。";
         } else {
           list.append(button(labels[0], () => choices("weapon")));
           if (items.accessories.length) list.append(button(labels[1], () => choices("accessory")));
@@ -102,7 +102,7 @@ export function initEquipment(hero: (id: string) => RoomAgent | undefined, name:
       box.append(element("h4", undefined, key === "weapon" ? "ぶき" : "アクセサリ"));
       const list = element("div", "commands");
       const none = button("そうびなし（きほん）", () => { next = { ...next, [key]: undefined }; render(); });
-      none.disabled = Boolean(session[key]); none.title = none.disabled ? "そうびなしは しゅつじん・よびもどす時だけ" : "";
+      none.disabled = Boolean(session[key]); none.title = none.disabled ? "そうびなしに できるのは 新しい しゅつじんの時だけ" : "";
       list.append(none);
       for (const item of key === "weapon" ? items.weapons : items.accessories) {
         const value = "model" in item ? item.model : item.value;

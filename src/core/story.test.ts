@@ -38,6 +38,16 @@ describe("story", () => {
     expect(stats(agent, 14 + 5 * 60_000).hp).toBe(1);
   });
 
+  it.each([
+    [0.16, 0.16, false], [0.161, 0.159, false], [0.16, 0.10, true],
+    [0.10, 0.16, false], [undefined, 0.10, false], [0.16, undefined, false],
+  ])("only narrates MP recovery when the displayed number rises (%s → %s)", (before, context, recovered) => {
+    const event = e({ hook: "PostCompact", state: "idle", ...(context === undefined ? {} : { context }) });
+    expect(narrate(event, before)).toBe(`t12-vitalsは 会話を まとめた！${recovered ? " MPが かいふくした！" : ""}`);
+    expect(narrate({ ...event, detail: "Compaction failed" }, before)).not.toContain("かいふく");
+    expect(narrate({ ...event, detail: "Compaction cancelled" }, before)).not.toContain("かいふく");
+  });
+
   it("keeps damage numbers stable for the same event", () => {
     const hit = e({ hook: "PostToolUse", tool: "Edit", ts: 1234 });
     expect(damage(hit)).toBe(damage({ ...hit }));
@@ -60,7 +70,7 @@ describe("story", () => {
     [e({ hook: "Notification", state: "success" }), undefined],
     [e({ hook: "PermissionRequest", state: "waiting_input", tool: "Bash" }), "t12-vitalsは Bashの きょかを もとめている！"],
     [e({ hook: "PreCompact" }), "t12-vitalsは きょうかいで いのりを ささげている"],
-    [e({ hook: "PostCompact", state: "thinking" }), "t12-vitalsの MPが かいふくした！"],
+    [e({ hook: "PostCompact", state: "thinking" }), "t12-vitalsは 会話を まとめた！"],
     [e({ hook: "PostCompact", state: "idle", detail: "Compaction failed" }), "t12-vitalsは 会話を せいりできなかった。町で ひとやすみ。"],
     [e({ hook: "PostCompact", state: "idle", detail: "Compaction cancelled" }), "t12-vitalsは 会話を せいりできなかった。町で ひとやすみ。"],
     [e({ hook: "PreToolUse", tool: "Read", target: "a.ts", subagent: { id: "h1" } }), undefined],

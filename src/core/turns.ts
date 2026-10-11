@@ -1,7 +1,6 @@
 import { toolActivity } from "./activity";
 import type { AgentEvent } from "./events";
 
-// One round of the conversation: your prompt → the agent's work → its final reply (docs/PLATFORM.md 段階3.5).
 export type TalkReport = {
   kind: "chest" | "scroll" | "talk";
   files: string[];
@@ -10,112 +9,130 @@ export type TalkReport = {
   tools: number;
   startedAt: number;
   endedAt: number;
-  waitedMs?: number; // Main-session permission waits; subtract from elapsed time for display.
+  waitedMs?: number;
   mp?: { start: number; end: number };
 };
 export type TalkEntry = { at: number; from: "you" | "hero"; text: string; report?: TalkReport };
 
-// Main-session marks, kept by event time. Hooks arrive out of order, so reports are always
-// recomputed from these instead of being built up in arrival order.
-type Tool = { at: number; tools: number; failures: number; passed: number; failed: number; file?: string };
+// Older contributions become totals, not an ever-growing list. Late hooks can
+// correct only this recent window; older completed cards are left unchanged.
+export const TURN_MARK_LIMIT = 256;
+export const TURN_FILE_LIMIT = 256;
+type Tool = { tools: number; failures: number; passed: number; failed: number; file?: string };
+type Mark = { at: number; hook?: string; context?: number; tool?: Tool };
+type Active = { report: TalkReport; mpStart?: number; waitingAt?: number };
+type Cursor = { context?: number; active?: Active };
 export type Turns = {
-  prompts: number[]; stops: number[]; sessions: number[]; tools: Tool[]; contexts: { at: number; value: number }[];
-  events: { at: number; permission: boolean }[];
+  marks: Mark[];
+  foldedThrough: number;
+  latestAt: number;
+  prefix: Cursor;
+  current: Cursor;
+  updates: Map<number, TalkReport | undefined>;
 };
 
 export function emptyTurns(): Turns {
-  return { prompts: [], stops: [], sessions: [], tools: [], contexts: [], events: [] };
+  return { marks: [], foldedThrough: -Infinity, latestAt: -Infinity, prefix: {}, current: {}, updates: new Map() };
 }
 
-export function recordTurn(turns: Turns, event: AgentEvent, at: number): void {
-  turns.events.push({ at, permission: event.hook === "PermissionRequest" });
-  if (event.context !== undefined) turns.contexts.push({ at, value: event.context });
-  if (event.hook === "UserPromptSubmit") turns.prompts.push(at);
-  else if (event.hook === "Stop" || event.hook === "StopFailure") turns.stops.push(at);
-  else if (event.hook === "SessionStart") turns.sessions.push(at);
-  else if (event.tool && ["PreToolUse", "PostToolUse", "PostToolUseFailure"].includes(event.hook ?? "")) {
-    turns.tools.push(toolMark(event, at));
-  }
+function copyReport(report: TalkReport): TalkReport {
+  return { ...report, files: [...report.files], tests: { ...report.tests } };
+}
+function copyCursor(cursor: Cursor): Cursor {
+  return { ...cursor, ...(cursor.active ? { active: { ...cursor.active, report: copyReport(cursor.active.report) } } : {}) };
 }
 
-function toolMark(event: AgentEvent, at: number): Tool {
-  // Count each tool once, at its start; outcomes come from the completion.
-  const mark: Tool = { at, tools: event.hook === "PreToolUse" ? 1 : 0, failures: 0, passed: 0, failed: 0 };
+function toolMark(event: AgentEvent): Tool {
+  const mark: Tool = { tools: event.hook === "PreToolUse" ? 1 : 0, failures: 0, passed: 0, failed: 0 };
   if (event.hook === "PreToolUse") return mark;
   const failed = event.state === "error";
   const activity = toolActivity(event.tool!, event.target);
   if (failed) mark.failures = 1;
   if (activity === "test" && failed) mark.failed = 1;
   else if (activity === "test" && event.hook === "PostToolUse") mark.passed = 1;
-  // Interrupted (PostToolUseFailure without error) and failed edits did not change the file.
   if (activity === "edit" && event.hook === "PostToolUse" && !failed && event.target) mark.file = event.target;
   return mark;
 }
 
-const latest = (times: number[], end: number) => times.reduce((best, at) => at <= end && at > best ? at : best, -Infinity);
-function contextAt(turns: Turns, at: number): { at: number; value: number } | undefined {
-  let found: { at: number; value: number } | undefined;
-  for (const context of turns.contexts) if (context.at <= at && (!found || context.at >= found.at)) found = context;
-  return found;
-}
-const mpAt = (turns: Turns, at: number) => {
-  const context = contextAt(turns, at);
-  return context && 1 - context.value;
-};
-
-// The round a reply at `end` closes, if its prompt was seen and nothing else ended or reset it.
-function reportFor(turns: Turns, end: number): TalkReport | undefined {
-  const start = latest(turns.prompts, end);
-  if (start === -Infinity) return;
-  if (turns.stops.some((at) => at >= start && at < end) || turns.sessions.some((at) => at > start && at <= end)) return;
-  const report: TalkReport = {
-    kind: "talk", files: [], tests: { passed: 0, failed: 0 }, failures: 0, tools: 0, startedAt: start, endedAt: end,
-  };
-  for (const tool of turns.tools) {
-    if (tool.at < start || tool.at > end) continue;
-    report.tools += tool.tools; report.failures += tool.failures;
-    report.tests.passed += tool.passed; report.tests.failed += tool.failed;
-    if (tool.file && !report.files.includes(tool.file)) report.files.push(tool.file);
+function applyMark(cursor: Cursor, mark: Mark): { stopped: boolean; report?: TalkReport } {
+  const { at, hook } = mark;
+  if (mark.context !== undefined) cursor.context = mark.context;
+  if (hook === "UserPromptSubmit") {
+    cursor.active = { report: {
+      kind: "talk", files: [], tests: { passed: 0, failed: 0 }, tools: 0, failures: 0, startedAt: at, endedAt: at,
+    }, mpStart: cursor.context === undefined ? undefined : 1 - cursor.context };
+  } else if (hook === "SessionStart") {
+    delete cursor.active;
+  } else if (cursor.active) {
+    const active = cursor.active, report = active.report;
+    if (active.waitingAt !== undefined) {
+      report.waitedMs = (report.waitedMs ?? 0) + at - active.waitingAt;
+      delete active.waitingAt;
+    }
+    if (hook === "PermissionRequest") {
+      active.waitingAt = at;
+      report.waitedMs ??= 0;
+    }
+    if (mark.tool) {
+      const tool = mark.tool;
+      report.tools += tool.tools; report.failures += tool.failures;
+      report.tests.passed += tool.passed; report.tests.failed += tool.failed;
+      if (tool.file && report.files.length < TURN_FILE_LIMIT && !report.files.includes(tool.file)) report.files.push(tool.file);
+    }
   }
-  // Permission waits end at the next main-session event, not at a helper's event.
-  // Recompute in event-time order so late hooks also correct an already shown card.
-  const events = turns.events.filter((event) => event.at >= start && event.at <= end).sort((a, b) => a.at - b.at);
-  let waitingAt: number | undefined, waitedMs = 0, hadPermission = false;
-  for (const event of events) {
-    if (waitingAt !== undefined) waitedMs += event.at - waitingAt;
-    waitingAt = event.permission ? event.at : undefined;
-    hadPermission ||= event.permission;
-  }
-  if (hadPermission) report.waitedMs = waitedMs;
+  const stopped = hook === "Stop" || hook === "StopFailure";
+  if (!stopped) return { stopped: false };
+  const active = cursor.active;
+  delete cursor.active;
+  if (!active) return { stopped: true };
+  const report = copyReport(active.report);
+  report.endedAt = at;
   report.kind = report.files.length ? "chest" : report.tools ? "scroll" : "talk";
-  const mpStart = mpAt(turns, start), mpEnd = mpAt(turns, end);
-  if (mpStart !== undefined && mpEnd !== undefined) report.mp = { start: mpStart, end: mpEnd };
-  return report;
+  if (active.mpStart !== undefined && cursor.context !== undefined) report.mp = { start: active.mpStart, end: 1 - cursor.context };
+  return { stopped: true, report };
 }
 
-// Refresh every reply's report in place (the screen keeps references to shown reports).
+export function recordTurn(turns: Turns, event: AgentEvent, at: number): void {
+  turns.updates.clear();
+  // We cannot safely put a hook before already folded totals.
+  if (at < turns.foldedThrough) return;
+  const mark: Mark = { at, hook: event.hook, context: event.context };
+  if (event.tool && ["PreToolUse", "PostToolUse", "PostToolUseFailure"].includes(event.hook ?? "")) mark.tool = toolMark(event);
+  const late = at < turns.latestAt;
+  turns.marks.push(mark);
+  if (late) turns.marks.sort((a, b) => a.at - b.at);
+  if (turns.marks.length > TURN_MARK_LIMIT) {
+    const oldest = turns.marks.shift()!;
+    applyMark(turns.prefix, oldest);
+    turns.foldedThrough = oldest.at;
+  }
+  if (!late) {
+    // Normal hooks update only the ongoing round, in constant space and time.
+    const result = applyMark(turns.current, mark);
+    if (result.stopped) turns.updates.set(at, result.report);
+  } else {
+    // Concurrent command hooks may arrive late. Rebuild the bounded window and
+    // refresh only replies at/after that hook, never every old completed card.
+    turns.current = copyCursor(turns.prefix);
+    for (const recent of turns.marks) {
+      const result = applyMark(turns.current, recent);
+      if (result.stopped && recent.at >= at) turns.updates.set(recent.at, result.report);
+    }
+  }
+  turns.latestAt = Math.max(turns.latestAt, at);
+}
+
+// Keep existing card references: the UI can already be showing one of them.
 export function attachReports(talk: TalkEntry[], turns: Turns): void {
+  if (!turns.updates.size) return;
   for (const entry of talk) {
-    if (entry.from !== "hero") continue;
-    const report = reportFor(turns, entry.at);
+    if (entry.from !== "hero" || !turns.updates.has(entry.at)) continue;
+    const report = turns.updates.get(entry.at);
     if (!report) delete entry.report;
     else if (entry.report) {
       delete entry.report.waitedMs;
+      delete entry.report.mp;
       Object.assign(entry.report, report);
-    }
-    else entry.report = report;
+    } else entry.report = report;
   }
-}
-
-// Forget marks older than the round of the oldest kept message.
-export function pruneTurns(turns: Turns, oldest: number): void {
-  const from = Math.min(oldest, latest(turns.prompts, oldest)), keep = (at: number) => at >= from;
-  if (from === -Infinity) return;
-  turns.prompts = turns.prompts.filter(keep);
-  turns.stops = turns.stops.filter(keep);
-  turns.sessions = turns.sessions.filter(keep);
-  turns.events = turns.events.filter((event) => keep(event.at));
-  turns.tools = turns.tools.filter((tool) => keep(tool.at));
-  const before = contextAt(turns, from - 1); // still the MP at the start of the oldest round
-  turns.contexts = [...(before ? [before] : []), ...turns.contexts.filter((context) => keep(context.at))];
 }

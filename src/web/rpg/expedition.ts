@@ -1,5 +1,5 @@
 import { connectSessionTerminal, sessionRequest, type Session } from "../terminal";
-import { loadTowns, type TownRecord } from "./ledger";
+import { loadSettings, loadTowns, type TownRecord } from "./ledger";
 import { coverMap } from "./talk";
 import { loadAgents, supportText, type AgentInfo } from "./agents";
 import type { EquipmentMaster } from "../../core/equipment";
@@ -128,18 +128,24 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
     status.textContent = "よみこみ中…";
     launch.showModal();
     const selectedTown = currentTown();
-    void Promise.allSettled([loadTowns(), loadAgents(), loadEquipment()]).then(([towns, kinds, gear]) => {
+    void Promise.allSettled([loadTowns(), loadAgents(), loadEquipment(), loadSettings()]).then(([towns, kinds, gear, settings]) => {
       if (launching !== request || !launch.open) return;
       const errors: string[] = [];
       equipment = gear.status === "fulfilled" ? gear.value : {};
       if (gear.status === "rejected") errors.push("そうびを よみこめませんでした。そうびなしで 起動できます。");
+      const startupCwd = settings.status === "fulfilled" ? settings.value.startupCwd : undefined;
+      if (startupCwd) {
+        destination.add(new Option(`いまの フォルダ — ${startupCwd}`, startupCwd), 0);
+        destination.value = startupCwd;
+      } else errors.push("起動した フォルダを よみこめませんでした。行き先を 指定してください。");
       if (towns.status === "fulfilled") {
         for (const town of towns.value.filter((item) => item.archivedAt === undefined)) {
+          if (town.path === startupCwd) continue;
           const option = new Option(`${town.name} — ${town.path}`, town.path);
           destination.add(option, destination.options.length - 1);
           if (town.name === selectedTown) destination.value = town.path;
         }
-        if (!selectedTown && destination.options.length > 1) destination.selectedIndex = 0;
+        if (!startupCwd && !selectedTown && destination.options.length > 1) destination.selectedIndex = 0;
       } else errors.push("町の台帳を よみこめませんでした。ほかの フォルダを 指定できます。");
       chooseDestination();
       destination.disabled = false;
@@ -148,6 +154,9 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
         for (const agent of agents) preset.add(new Option(`${agent.label} — ${agent.hero ? "町・会話に 対応" : "ターミナルのみ"}`, agent.id));
         if (agents.some((agent) => agent.id === "claude")) preset.value = "claude";
         preset.disabled = false; start.disabled = !agents.length; describe();
+        if (agents.every((agent) => agent.id === "shell")) errors.push(
+          "勇者の CLI が 見つかりません。Claude Code: https://code.claude.com/docs/en/setup ／ pi: npm install -g @earendil-works/pi-coding-agent ／ Codex: npm install -g @openai/codex。インストールして PATH に追加し、agent-quest を再起動してください。shell は 使えます。",
+        );
       } else {
         support.textContent = "対応範囲を よみこめないため 起動できません。";
         errors.push(kinds.reason instanceof Error ? kinds.reason.message : "勇者の 種類を よみこめませんでした。");

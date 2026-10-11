@@ -31,6 +31,12 @@ const TASK_STATUSES: readonly TaskStatus[] = ["pending", "in_progress", "complet
 export const MAX_EVENT_METADATA_LENGTH = 200;
 export const MAX_EVENT_TEXT_LENGTH = 8000;
 
+// Count UTF-16 units, as the UI does, without leaving a split surrogate pair.
+export function truncateEventString(value: string, limit: number): string {
+  const clipped = value.slice(0, limit);
+  return clipped.length < value.length && /[\uD800-\uDBFF]$/.test(clipped) ? clipped.slice(0, -1) : clipped;
+}
+
 const STATES: readonly AgentState[] = [
   "idle", "thinking", "working", "waiting_input", "success", "error",
 ];
@@ -57,8 +63,8 @@ export function parseAgentEvent(
     return { ok: false, error: "context must be a finite number between 0 and 1" };
   }
 
-  if (value.text !== undefined && (typeof value.text !== "string" || value.text.length > MAX_EVENT_TEXT_LENGTH)) {
-    return { ok: false, error: `text must be a string of at most ${MAX_EVENT_TEXT_LENGTH} characters` };
+  if (value.text !== undefined && typeof value.text !== "string") {
+    return { ok: false, error: "text must be a string" };
   }
 
   for (const field of ["source", "tool", "agent", "name", "hook", "target", "terminal", "project"] as const) {
@@ -66,9 +72,6 @@ export function parseAgentEvent(
     if (metadata !== undefined) {
       if (typeof metadata !== "string") {
         return { ok: false, error: `${field} must be a string` };
-      }
-      if (metadata.length > MAX_EVENT_METADATA_LENGTH) {
-        return { ok: false, error: `${field} must be at most ${MAX_EVENT_METADATA_LENGTH} characters` };
       }
     }
   }
@@ -79,7 +82,8 @@ export function parseAgentEvent(
     if (!raw || typeof raw !== "object" || !shortText(raw.id) || (raw.type !== undefined && !shortText(raw.type))) {
       return { ok: false, error: "subagent must be { id, type? } with short strings" };
     }
-    subagent = { id: raw.id as string, ...(raw.type !== undefined ? { type: raw.type as string } : {}) };
+    subagent = { id: truncateEventString(raw.id as string, MAX_EVENT_METADATA_LENGTH),
+      ...(raw.type !== undefined ? { type: truncateEventString(raw.type as string, MAX_EVENT_METADATA_LENGTH) } : {}) };
   }
   let task: AgentEvent["task"];
   if (value.task !== undefined) {
@@ -89,18 +93,16 @@ export function parseAgentEvent(
       || !TASK_STATUSES.includes(raw.status as TaskStatus)) {
       return { ok: false, error: "task must be { id, subject?, status } with short strings" };
     }
-    task = { id: raw.id as string, status: raw.status as TaskStatus,
-      ...(raw.subject !== undefined ? { subject: raw.subject as string } : {}) };
+    task = { id: truncateEventString(raw.id as string, MAX_EVENT_METADATA_LENGTH), status: raw.status as TaskStatus,
+      ...(raw.subject !== undefined ? { subject: truncateEventString(raw.subject as string, MAX_EVENT_METADATA_LENGTH) } : {}) };
   }
 
   const event: AgentEvent = { state: value.state as AgentState };
-  if (value.detail !== undefined) event.detail = value.detail as string;
   if (value.ts !== undefined) event.ts = value.ts as number;
-  if (value.source !== undefined) event.source = value.source as string;
-  if (value.tool !== undefined) event.tool = value.tool as string;
   if (value.context !== undefined) event.context = value.context as number;
-  for (const field of ["agent", "name", "hook", "target", "terminal", "project", "text"] as const) {
-    if (value[field] !== undefined) event[field] = value[field] as string;
+  for (const field of ["detail", "source", "tool", "agent", "name", "hook", "target", "terminal", "project", "text"] as const) {
+    if (value[field] !== undefined) event[field] = truncateEventString(value[field] as string,
+      field === "text" ? MAX_EVENT_TEXT_LENGTH : MAX_EVENT_METADATA_LENGTH);
   }
   if (subagent) event.subagent = subagent;
   if (task) event.task = task;
@@ -108,5 +110,5 @@ export function parseAgentEvent(
 }
 
 function shortText(value: unknown): boolean {
-  return typeof value === "string" && value.length > 0 && value.length <= MAX_EVENT_METADATA_LENGTH;
+  return typeof value === "string" && value.length > 0;
 }

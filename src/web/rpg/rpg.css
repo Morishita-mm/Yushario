@@ -16,6 +16,9 @@ a { color: #9fd3ff; font-size: 14px; }
 .stage { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 #world { display: block; width: 100%; image-rendering: pixelated; border: 3px solid #ffffff; border-radius: 6px; cursor: pointer; background: #000; }
 .map-stage { position: relative; }
+.first-step { font: inherit; font-size: 14px; text-align: left; color: #ffe7a3; background: #1d1726; border: 1px solid #ffe066; padding: 8px 12px; cursor: pointer; }
+.first-step[hidden] { display: none; }
+.first-step:focus-visible { outline: 2px solid #ffe066; outline-offset: 2px; }
 .following { display: flex; align-items: center; gap: 12px; padding: 6px 10px; border: 1px solid #ffe066; background: #1d1726; color: #ffe7a3; }
 .following[hidden] { display: none; }
 #following-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }

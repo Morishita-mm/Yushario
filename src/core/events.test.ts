@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MAX_EVENT_METADATA_LENGTH, MAX_EVENT_TEXT_LENGTH, parseAgentEvent, type AgentState } from "./events";
+import { MAX_EVENT_METADATA_LENGTH, MAX_EVENT_TEXT_LENGTH, parseAgentEvent, truncateEventString, type AgentState } from "./events";
 
 const states: AgentState[] = ["idle", "thinking", "working", "waiting_input", "success", "error"];
 
@@ -23,13 +23,16 @@ describe("parseAgentEvent", () => {
     });
   });
 
-  it.each(["source", "tool", "terminal", "project"] as const)("validates optional %s metadata", (field) => {
+  it.each(["detail", "source", "tool", "agent", "name", "hook", "target", "terminal", "project"] as const)("validates optional %s metadata", (field) => {
     for (const text of ["", "x".repeat(MAX_EVENT_METADATA_LENGTH)]) {
       expect(parseAgentEvent({ state: "working", [field]: text })).toEqual({
         ok: true, event: { state: "working", [field]: text },
       });
     }
-    for (const invalid of [null, 42, false, {}, [], "x".repeat(MAX_EVENT_METADATA_LENGTH + 1)]) {
+    expect(parseAgentEvent({ state: "working", [field]: "x".repeat(MAX_EVENT_METADATA_LENGTH + 1) })).toEqual({
+      ok: true, event: { state: "working", [field]: "x".repeat(MAX_EVENT_METADATA_LENGTH) },
+    });
+    for (const invalid of [null, 42, false, {}, []]) {
       const result = parseAgentEvent({ state: "working", [field]: invalid });
       expect(result.ok).toBe(false);
       if (!result.ok) expect(result.error).toContain(field);
@@ -45,7 +48,24 @@ describe("parseAgentEvent", () => {
     expect(parseAgentEvent({ state: "idle", text: undefined })).toEqual({ ok: true, event: { state: "idle" } });
   });
 
-  it.each([null, 1, false, {}, [], "x".repeat(MAX_EVENT_TEXT_LENGTH + 1)])("rejects invalid text", (text) => {
+  it("truncates conversation and nested metadata without preserving oversized input", () => {
+    const long = "あ".repeat(9000);
+    expect(parseAgentEvent({ state: "success", text: long, subagent: { id: long, type: long },
+      task: { id: long, subject: long, status: "pending" } })).toEqual({ ok: true, event: {
+      state: "success", text: long.slice(0, MAX_EVENT_TEXT_LENGTH),
+      subagent: { id: long.slice(0, 200), type: long.slice(0, 200) },
+      task: { id: long.slice(0, 200), subject: long.slice(0, 200), status: "pending" },
+    } });
+  });
+
+  it("does not split a surrogate pair at the truncation boundary", () => {
+    expect(truncateEventString("あ😀い", 2)).toBe("あ");
+    expect(truncateEventString("あ😀い", 3)).toBe("あ😀");
+    expect(truncateEventString("😀", 2)).toBe("😀");
+    expect(truncateEventString("", 200)).toBe("");
+  });
+
+  it.each([null, 1, false, {}, []])("rejects invalid text", (text) => {
     const result = parseAgentEvent({ state: "success", text });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error).toContain("text");
@@ -95,8 +115,7 @@ describe("parseAgentEvent", () => {
   it.each([
     { subagent: "h1" }, { subagent: { id: "" } }, { subagent: { id: "h1", type: 3 } },
     { task: { id: "1", status: "done" } }, { task: { status: "pending" } },
-    { task: { id: "1", subject: "x".repeat(MAX_EVENT_METADATA_LENGTH + 1), status: "pending" } },
-    { target: "x".repeat(MAX_EVENT_METADATA_LENGTH + 1) }, { agent: 1 },
+    { task: { id: "1", subject: 3, status: "pending" } }, { target: 1 }, { agent: 1 },
   ])("rejects malformed room field %j", (fields) => {
     expect(parseAgentEvent({ state: "working", ...fields }).ok).toBe(false);
   });

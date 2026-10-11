@@ -12,6 +12,8 @@ describe("activity classification", () => {
 
   it.each([
     ["npm test", "test"], ["npm run test", "test"], ["npm run typecheck", "test"], ["npx vitest", "test"],
+    ["node --test", "test"], ["node --test quest.test.mjs", "test"], ["node --test --watch", "test"],
+    ["node --test-other", "run"], ["node quest.test.mjs", "run"], ["node --test-reporter spec", "run"],
     ["pytest", "test"], ["python -m unittest", "test"], ["python3 -m unittest", "test"],
     ["python -m pytest", "test"], ["python3 -m pytest", "test"], ["uv run pytest", "test"],
     ["python3 -m unittest discover", "test"], ["python3 -m pytest tests", "test"], ["uv run pytest -q", "test"],
@@ -27,6 +29,7 @@ describe("activity classification", () => {
     expect(classifyActivity({ state: "idle", hook: "SessionStart" })).toBe("idle");
     expect(classifyActivity({ state: "thinking", hook: "UserPromptSubmit" })).toBe("think");
     expect(classifyActivity({ state: "working", hook: "PreToolUse", tool: "Bash", target: "npm test" })).toBe("test");
+    expect(classifyActivity({ state: "working", hook: "PreToolUse", tool: "Bash", target: "node --test quest.test.mjs" })).toBe("test");
     expect(classifyActivity({ state: "waiting_input", hook: "Notification" })).toBe("ask");
     expect(classifyActivity({ state: "idle", hook: "Notification" })).toBe("idle");
     expect(classifyActivity({ state: "thinking", hook: "Notification" })).toBe("think");

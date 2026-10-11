@@ -5,6 +5,7 @@ import { AGENTS } from "./agents";
 import { act, deliver, parseSessionAction, pending } from "./pty-actions";
 import { requestEquipment } from "./pty-equipment";
 import type { EquippedMessage, PendingMessage, Session } from "./pty-session";
+import { ACTION_BODY_LIMIT, readJsonBody } from "./http-body";
 
 function json(response: ServerResponse, status: number, value: unknown): void {
   response.writeHead(status, { "Content-Type": "application/json", "Cache-Control": "no-store" }).end(JSON.stringify(value));
@@ -13,14 +14,10 @@ function json(response: ServerResponse, status: number, value: unknown): void {
 export async function handlePtyAction(request: IncomingMessage, response: ServerResponse, path: string, session: Session,
   master: AgentEquipment, changed: (message: PendingMessage) => void, equipped: (message: EquippedMessage) => void,
   recordEvent: (event: AgentEvent) => void): Promise<boolean> {
-  let body = "";
-  request.setEncoding("utf8");
+  const body = await readJsonBody(request, response, ACTION_BODY_LIMIT);
+  if (!body.ok) return false;
   try {
-    for await (const chunk of request) {
-      body += chunk;
-      if (body.length > 64 * 1024) { json(response, 400, { error: "送る内容が長すぎます" }); return false; }
-    }
-    const value: unknown = JSON.parse(body);
+    const value = body.value;
     if (session.info.exited || session.ended || session.departing || session.interrupting) {
       json(response, 409, { error: "この勇者は終了済み・旅立ち中・中断中のいずれかです" }); return false;
     }

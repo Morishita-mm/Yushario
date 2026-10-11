@@ -3,6 +3,7 @@ import { activateTown, archiveTowns, registerTown, type TownRecord, type TownThe
 import { namedHero, normalizeHeroName, type HeroNames } from "../core/names";
 import { isClaudeSessionId } from "../core/roster";
 import { readNames, readSettings, readTowns, validSettings, validTheme, writeNames, writeSettings, writeTowns } from "./town-data";
+import { readJsonBody, SETTINGS_BODY_LIMIT } from "./http-body";
 
 function json(response: ServerResponse, status: number, value: unknown): void {
   response.writeHead(status, { "Content-Type": "application/json", "Cache-Control": "no-store" })
@@ -14,6 +15,7 @@ export class TownLedger {
   towns = readTowns();
   names = readNames();
   private settings = readSettings();
+  private activityDirty = false;
 
   constructor(private readonly changed: (towns: TownRecord[]) => void,
     private readonly namesChanged: (names: HeroNames) => void) {}
@@ -22,6 +24,7 @@ export class TownLedger {
     if (towns === this.towns) return;
     writeTowns(towns);
     this.towns = towns;
+    this.activityDirty = false;
     this.changed(towns);
   }
 
@@ -30,7 +33,21 @@ export class TownLedger {
   }
 
   observe(name: string, now: number): void {
-    this.save(activateTown(this.towns, name, now));
+    const town = this.towns.find((town) => town.name === name);
+    if (!town) return;
+    if (town.archivedAt !== undefined) {
+      this.save(activateTown(this.towns, name, now));
+    } else if (now > town.lastActiveAt) {
+      town.lastActiveAt = now;
+      this.activityDirty = true;
+    }
+  }
+
+  // Activity timestamps do not change the visible town list; save together without broadcasting.
+  flushActivity(): void {
+    if (!this.activityDirty) return;
+    writeTowns(this.towns);
+    this.activityDirty = false;
   }
 
   archive(activeNames: ReadonlySet<string>, now: number): void {
@@ -43,7 +60,7 @@ export class TownLedger {
       return;
     }
     if (url.pathname === "/api/settings" && request.method === "GET") {
-      json(response, 200, this.settings);
+      json(response, 200, { ...this.settings, startupCwd: process.cwd() });
       return;
     }
     if (url.pathname === "/api/names" && request.method === "GET") {
@@ -74,16 +91,9 @@ export class TownLedger {
         return;
       }
     }
-    let input: unknown;
-    try {
-      let body = "";
-      request.setEncoding("utf8");
-      for await (const chunk of request) {
-        body += chunk;
-        if (body.length > 4096) { json(response, 400, { error: "送る内容が長すぎます" }); return; }
-      }
-      input = JSON.parse(body);
-    } catch { json(response, 400, { error: "設定を JSON で指定してください" }); return; }
+    const body = await readJsonBody(request, response, SETTINGS_BODY_LIMIT);
+    if (!body.ok) return;
+    const input = body.value;
     try {
       if (rename) {
         const value = input && typeof input === "object" && !Array.isArray(input)

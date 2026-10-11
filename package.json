@@ -1,7 +1,8 @@
 {
-  "name": "agent-character",
-  "version": "0.0.0",
-  "private": true,
+  "name": "agent-quest",
+  "version": "0.1.0",
+  "bin": { "agent-quest": "scripts/agent-quest.mjs" },
+  "files": ["dist/", "lib/", "adapters/claude-code/hook.mjs", "scripts/agent-quest.mjs"],
   "type": "module",
   "engines": {
     "node": ">=22.12.0"
@@ -9,8 +10,9 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "build": "vite build",
-    "start": "tsx src/server/relay.ts",
+    "build": "vite build && node scripts/build-server.mjs",
+    "prepack": "npm run build",
+    "start": "node scripts/agent-quest.mjs",
     "dev:relay": "NODE_ENV=development tsx src/server/relay.ts",
     "dev:web": "vite",
     "dev": "node scripts/dev.mjs"

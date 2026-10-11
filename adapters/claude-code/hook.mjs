@@ -8,6 +8,7 @@ const execute = promisify(execFile);
 // Command hooks must stay silent on stdout/stderr and never interfere with Claude Code.
 const started = performance.now();
 const budgetMs = 500;
+const stdinLimit = 1024 * 1024;
 const deadline = setTimeout(() => process.exit(0), budgetMs);
 
 function contextUsage(hook) {
@@ -146,7 +147,8 @@ async function toEvent(hook) {
   if (terminal) event.terminal = terminal;
   const cwd = typeof hook.cwd === "string" ? hook.cwd : process.cwd();
   event.name = text(cwd.split(/[\\/]/).filter(Boolean).pop());
-  event.project = text(await projectName(cwd));
+  // Embedded sessions already know the repository, including its worktree's main name.
+  event.project = text(process.env.AGENT_CHARACTER_PROJECT) ?? text(await projectName(cwd));
   if (text(hook.agent_id)) event.subagent = { id: text(hook.agent_id), type: text(hook.agent_type) };
   const task = hookTask(hook);
   if (task) event.task = task;
@@ -160,7 +162,8 @@ async function toEvent(hook) {
   // Stop can arrive just before Claude flushes the final assistant to disk.
   // Briefly allow that flush within the same 500ms budget (no network retries).
   let context = contextUsage(hook);
-  for (let attempt = 0; hook.hook_event_name === "Stop" && context === undefined && attempt < 4; attempt++) {
+  for (let attempt = 0; name === "Stop" && typeof hook.transcript_path === "string" && hook.transcript_path
+    && context === undefined && attempt < 4; attempt++) {
     if (performance.now() - started >= 300) break;
     await new Promise((resolve) => setTimeout(resolve, 50));
     context = contextUsage(hook);
@@ -184,10 +187,14 @@ async function toEvent(hook) {
 }
 
 try {
-  let input = "";
-  process.stdin.setEncoding("utf8");
-  for await (const chunk of process.stdin) input += chunk;
-  const event = await toEvent(JSON.parse(input));
+  const chunks = [];
+  let bytes = 0;
+  for await (const chunk of process.stdin) {
+    bytes += chunk.length;
+    if (bytes > stdinLimit) process.exit(0);
+    chunks.push(chunk);
+  }
+  const event = await toEvent(JSON.parse(Buffer.concat(chunks).toString("utf8")));
   if (event) {
     await fetch(process.env.AGENT_CHARACTER_URL ?? "http://127.0.0.1:8790/event", {
       method: "POST",

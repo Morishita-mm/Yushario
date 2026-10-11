@@ -17,6 +17,7 @@ import { launchPty, writeClaudeSettings } from "./pty-launch";
 import { AGENTS, publicAgents } from "./agents";
 import { hasTrustPrompt, replacedSession } from "../core/session-actions";
 import { descendants } from "./pty-process";
+import { readJsonBody, SETTINGS_BODY_LIMIT } from "./http-body";
 
 function json(response: ServerResponse, status: number, value: unknown): void {
   response.writeHead(status, { "Content-Type": "application/json", "Cache-Control": "no-store" })
@@ -91,7 +92,7 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
     if (disposed) throw new Error("サーバーは停止中です");
     if (sessions.size >= SESSION_LIMIT) throw new Error("ターミナルの上限（16）に達しました。使わないものを終わらせて消してください");
     const id = randomBytes(6).toString("hex");
-    const terminal = launchPty(preset, cwd, id, port, settings, selectedEquipment, equipment[preset], resume);
+    const terminal = launchPty(preset, cwd, id, port, settings, selectedEquipment, equipment[preset], project, resume);
     groups.add(terminal.pid);
     let stopped = false;
     const stop = (): void => {
@@ -157,14 +158,10 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
     } else if (url.pathname === "/api/sessions" && request.method === "GET") {
       json(response, 200, [...sessions.values()].map((session) => session.info));
     } else if (url.pathname === "/api/sessions" && request.method === "POST") {
-      let body = "";
-      request.setEncoding("utf8");
+      const body = await readJsonBody(request, response, SETTINGS_BODY_LIMIT);
+      if (!body.ok) return;
       try {
-        for await (const chunk of request) {
-          body += chunk;
-          if (body.length > 4096) { json(response, 413, { error: "送る内容が長すぎます" }); return; }
-        }
-        const info = await create(JSON.parse(body));
+        const info = await create(body.value);
         json(response, 201, info);
       } catch (error) {
         const message = error instanceof SyntaxError ? "起動の設定を JSON で指定してください" : error instanceof Error ? error.message : "起動できませんでした";

@@ -1,4 +1,4 @@
-import { randomUUID, randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { createServer } from "node:http";
 import { WebSocket, WebSocketServer } from "ws";
 import { parseAgentEvent, type AgentEvent } from "../core/events";
@@ -9,6 +9,9 @@ import { serveStatic } from "./static";
 import { createPtyServer } from "./pty";
 import { AGENTS } from "./agents";
 import { PermissionWaiter, permissionOutput, permissionSummary } from "./permissions";
+import { allowedHost } from "../core/local-request";
+import { EVENT_BODY_LIMIT, readJsonBody } from "./http-body";
+import { listenAvailable, openBrowser, startupOptions } from "./startup";
 
 const permissions = new PermissionWaiter();
 function broadcast(message: object): void {
@@ -18,10 +21,8 @@ function broadcast(message: object): void {
   }
 }
 
-const port = Number(process.env.PORT ?? 8790);
-if (!Number.isInteger(port) || port < 1 || port > 65535) {
-  throw new Error("PORT must be an integer between 1 and 65535");
-}
+const options = startupOptions(process.argv.slice(2));
+let port = options.port;
 const development = process.env.NODE_ENV === "development";
 const token = development && process.env.AGENT_CHARACTER_TOKEN
   ? process.env.AGENT_CHARACTER_TOKEN : randomBytes(32).toString("hex");
@@ -62,6 +63,7 @@ function authorized(url: URL, origin: string | undefined, requireOrigin: boolean
 }
 
 const server = createServer(async (request, response) => {
+  if (!allowedHost(request.headers.host, port)) { response.writeHead(403).end(); return; }
   let url: URL;
   try { url = new URL(request.url ?? "/", `http://127.0.0.1:${port}`); }
   catch { response.writeHead(400).end(); return; }
@@ -99,19 +101,9 @@ const server = createServer(async (request, response) => {
     return;
   }
 
-  let input: unknown;
-  try {
-    request.setEncoding("utf8");
-    let body = "";
-    for await (const chunk of request) {
-      body += chunk;
-      if (body.length > 1_048_576) { response.writeHead(413).end(); return; }
-    }
-    input = JSON.parse(body);
-  } catch {
-    response.writeHead(400, { "Content-Type": "application/json" }).end(JSON.stringify({ error: "Invalid JSON body" }));
-    return;
-  }
+  const body = await readJsonBody(request, response, EVENT_BODY_LIMIT);
+  if (!body.ok) return;
+  const input = body.value;
   if (request.url === "/hooks/permission") {
     const summary = permissionSummary(input);
     if (!summary) { response.writeHead(400).end(); return; }
@@ -146,6 +138,7 @@ const server = createServer(async (request, response) => {
   }
 });
 
+port = await listenAvailable(server, options.port);
 const sockets = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 });
 const pty = createPtyServer(port, (session) => ledger.register(session.project, session.cwd, session.createdAt), broadcast,
   record, (terminal) => { endedTerminals.add(terminal); }, (id) => namedHero(ledger.names, id), broadcast, broadcast);
@@ -155,7 +148,15 @@ function archive(): void {
 }
 archive();
 const archiveTimer = setInterval(archive, DAY_MS).unref();
+const activityTimer = setInterval(() => {
+  try { ledger.flushActivity(); }
+  catch (error) { console.error("Town activity save failed:", error); }
+}, 5000).unref();
 server.on("upgrade", (request, socket, head) => {
+  if (!allowedHost(request.headers.host, port)) {
+    socket.end("HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n");
+    return;
+  }
   let url: URL;
   try {
     url = new URL(request.url ?? "/", `http://127.0.0.1:${port}`);
@@ -200,6 +201,9 @@ server.on("error", (error) => {
 });
 function shutdown(): void {
   clearInterval(archiveTimer);
+  clearInterval(activityTimer);
+  try { ledger.flushActivity(); }
+  catch (error) { console.error("Town activity save failed:", error); }
   permissions.cancel();
   pty.dispose();
   for (const client of sockets.clients) client.terminate();
@@ -210,7 +214,8 @@ process.once("SIGINT", shutdown);
 process.once("SIGTERM", shutdown);
 process.once("exit", () => pty.dispose());
 
-server.listen(port, "127.0.0.1", () => {
-  console.log(`Open http://127.0.0.1:${port}/?token=${token}`);
-  console.log(`Terminal: http://127.0.0.1:${port}/terminal.html?token=${token}`);
-});
+const url = `http://127.0.0.1:${port}/?token=${token}`;
+if (port !== options.port) console.log(`Port ${options.port} is in use; using ${port}.`);
+console.log(`Open ${url}`);
+console.log(`Terminal: http://127.0.0.1:${port}/terminal.html?token=${token}`);
+if (options.open) openBrowser(url);

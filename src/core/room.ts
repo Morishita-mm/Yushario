@@ -1,6 +1,6 @@
 import { classifyActivity, toolActivity, type Activity } from "./activity";
 import type { AgentEvent, TaskStatus } from "./events";
-import { attachReports, emptyTurns, pruneTurns, recordTurn, type TalkEntry, type Turns } from "./turns";
+import { attachReports, emptyTurns, recordTurn, type TalkEntry, type Turns } from "./turns";
 
 // How an agent is doing, derived from its recent history (docs/OBSERVATION.md).
 export type Mood =
@@ -101,10 +101,7 @@ export class Room {
     if (event.text !== undefined && (event.hook === "UserPromptSubmit" || reply)) {
       agent.talk.push({ at, from: reply ? "hero" : "you", text: event.text });
       agent.talk.sort((left, right) => left.at - right.at);
-      if (agent.talk.length > TALK_LIMIT) {
-        agent.talk.shift();
-        pruneTurns(turns, agent.talk[0].at);
-      }
+      if (agent.talk.length > TALK_LIMIT) agent.talk.shift();
     }
     attachReports(agent.talk, turns);
   }
@@ -141,9 +138,11 @@ function updateHelper(agent: RoomAgent, event: AgentEvent): void {
 }
 
 function updateActivity(agent: RoomAgent, event: AgentEvent, at: number): void {
-  const activity = classifyActivity(event);
+  // An answered permission resumes the tool that asked: show its result instead of the call.
+  const resumed = agent.activity === "ask" && event.hook === "PostToolUse" && event.tool;
+  const activity = classifyActivity(event) ?? (resumed ? toolActivity(event.tool!, event.target) : undefined);
   if (!activity || at < agent.activityAt) return;
-  const target = event.hook === "PreToolUse" ? event.target : undefined;
+  const target = event.hook === "PreToolUse" || resumed ? event.target : undefined;
   if (activity !== agent.activity || target !== agent.target) agent.since = at;
   if (activity !== agent.activity || event.hook === "PreToolUse") {
     agent.log.push({ at, activity, ...(target ? { target } : {}) });

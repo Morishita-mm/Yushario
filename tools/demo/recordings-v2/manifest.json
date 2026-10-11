@@ -1,0 +1,43 @@
+{
+  "claudeVersion": "2.1.296",
+  "sessions": [
+    {
+      "recording": "main.jsonl",
+      "pty": "main-pty.jsonl",
+      "id": "8ea2527aaad3",
+      "preset": "claude",
+      "cwd": "/demo/tiny-quest",
+      "project": "tiny-quest",
+      "createdAt": 1791691173358,
+      "weapon": "legend"
+    },
+    {
+      "recording": "town-1.jsonl",
+      "pty": "town-1-pty.jsonl",
+      "id": "f1acab4eaed8",
+      "preset": "claude",
+      "cwd": "/demo/hero-town",
+      "project": "hero-town",
+      "createdAt": 1791691271431
+    },
+    {
+      "recording": "town-2.jsonl",
+      "pty": "town-2-pty.jsonl",
+      "id": "7bcfd1006217",
+      "preset": "claude",
+      "cwd": "/demo/hero-town",
+      "project": "hero-town",
+      "createdAt": 1791691271453
+    },
+    {
+      "recording": "town-3.jsonl",
+      "pty": "town-3-pty.jsonl",
+      "id": "e994f558d7d6",
+      "preset": "claude",
+      "cwd": "/demo/hero-town",
+      "project": "hero-town",
+      "createdAt": 1791691271480
+    }
+  ],
+  "note": "Captured through relay WS and newly launched demo PTYs only. Permission decisions were manual. Claude and Explore ran only in these /tmp demo repositories; paths redacted. No filming yet."
+}

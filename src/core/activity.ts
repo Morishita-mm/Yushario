@@ -15,7 +15,7 @@ const TOOLS: Record<string, Activity> = {
   AskUserQuestion: "ask",
 };
 
-const TEST_COMMAND = /^(?:(?:npm|pnpm|yarn|bun) (?:test|t|run (?:test|typecheck|lint|check)\S*)|npx (?:vitest|jest|tsc|eslint)|python3? -m (?:unittest|pytest)|uv run pytest|vitest|jest|pytest|tsc|eslint|go test|cargo test|rspec|mocha|phpunit)(?: |$)/;
+const TEST_COMMAND = /^(?:(?:npm|pnpm|yarn|bun) (?:test|t|run (?:test|typecheck|lint|check)\S*)|npx (?:vitest|jest|tsc|eslint)|node --test|python3? -m (?:unittest|pytest)|uv run pytest|vitest|jest|pytest|tsc|eslint|go test|cargo test|rspec|mocha|phpunit)(?: |$)/;
 
 // `target` holds the command head for Bash (see the Claude Code adapter).
 export function commandActivity(head: string | undefined): Activity {

@@ -3,7 +3,7 @@
 CLI エージェントの仕事を **RPG 風の町と勇者** として見せ、埋め込みターミナルの勇者に依頼し、会話と報告を受け取るローカル Web アプリ。
 ハーネスは作らない。Claude Code / pi / Codex / shell をそのまま PTY で動かし、対応するフック・拡張から届く状態イベントを町の表示に使う。
 
-Node の1プロセスが `127.0.0.1` で build 済みの web と API・WebSocket を配信する。開発時だけ Vite を使う。
+Node の1プロセスが `127.0.0.1` で build 済みの web と API・WebSocket を配信する。`agent-quest` の bin はビルド済み `lib/server/relay.js` を起動し、実行時に tsx・Vite は使わない。既存 Vite の SSR ビルドで server と pi 拡張の Node ESM を `lib/` に出し、web・絵は `dist/` に入れる。Vite のサーバーと tsx は開発時だけ使う。
 状態の読み取りは `docs/OBSERVATION.md`（段階5対応）、勇者の操作と現在の対応範囲は `docs/PLATFORM.md` の最新段階、絵は `docs/ART.md` が正。過去段階の制限を現在の仕様として扱わない。
 
 ## データフロー
@@ -34,20 +34,23 @@ Node の1プロセスが `127.0.0.1` で build 済みの web と API・WebSocket
 | `src/core/events.ts` | `AgentEvent` 型と入力の検証 | なし |
 | `src/core/activity.ts` | フック・ツール名・対象から活動を分類 | events |
 | `src/core/room.ts` | 勇者・仲間・クエスト・行動ログ・会話の状態と、直近の流れから様子を計算 | events, activity, turns |
-| `src/core/turns.ts` | 依頼から最終返答までの集計、許可待ちを除いた所要時間、会話への報告の付与 | events, activity |
+| `src/core/turns.ts` | 進行中の往復の累計、直近256イベント内の遅着補正、許可待ちを除いた所要時間、報告の付与 | events, activity |
+| `src/core/local-request.ts` | 実際の待受ポートに対する Host の判定 | なし |
 | `src/core/story.ts` | 語り、Lv・HP・MP、仲間の職業、活動ごとのモンスター | events, activity, room |
 | `src/core/town.ts` | Room をプロジェクト別の町・安定した表示名・勇者の居場所へ変換 | room, story |
 | `src/core/town-ledger.ts` | 町・設定の型、町の登録・活動更新・自動でしまう判定 | なし |
 | `src/core/names.ts`, `roster.ts` | 名前・めいぼの型と入力の判定、件数制限 | core の型・関数のみ |
 | `src/core/session-actions.ts` | イベントによる待機判定、フォルダ信頼確認の検出 | events |
 | `src/server/relay.ts` | HTTP/WS の入口、認可、イベント履歴と配信、許可・PTY・台帳の接続 | core, server, Node http, ws |
-| `src/server/agents.ts` | 起動・再開・整理・終了の送り方と対応範囲を1つの表に定義 | Node path/url |
+| `src/server/agents.ts` | 起動・再開・整理・終了の送り方と対応範囲を1つの表に定義、PATH の CLI 検出 | Node fs/path/url |
+| `src/server/startup.ts` | 起動引数、空きポートへの bind、ブラウザを開く | Node http/child_process |
 | `src/server/pty.ts`, `pty-session.ts` | 複数の端末セッション、セッション API、WS /pty と保持出力 | core, server, Node, node-pty, ws |
 | `src/server/pty-launch.ts`, `pty-process.ts` | CLI の起動、フック設定、環境変数、子プロセスの終了 | agents, core, Node, node-pty |
 | `src/server/pty-actions.ts` | 依頼の送信・預かり、にげる・やすむ・みおくる | core, agents, pty-session |
 | `src/server/permissions.ts` | 許可要求の短い要約、利用者の回答・時間切れをフックへ返す | events |
 | `src/server/project.ts`, `town-api.ts`, `town-data.ts` | プロジェクト名の取得、町・設定・名前・めいぼの API と JSON 保存 | core, agents, Node |
 | `src/server/static.ts` | `dist/` と `public/` の静的配信、パスの検査 | Node |
+| `src/server/http-body.ts` | HTTP JSON 本文のバイト上限と400／413の応答 | Node http |
 | `src/web/rpg/*` | メインの町。Room と WS、移動・つよさ・許可・会話と報告・しゅつじん・コマンド・めいぼ・ヘルプ | core, web/town, terminal |
 | `src/web/town/*` | データを引数で受け取る共有描画。ワールド・5種の町・宿屋・フィールド・戦闘、絵の読み込みと歩行 | core の型, DOM/Canvas, public/art |
 | `src/web/art/*` | `/art.html` のギャラリー、`/mock.html` の入口・偽データ | web/town, DOM/Canvas |
@@ -65,7 +68,7 @@ Room のようなイベントから状態を更新する処理もここに置く
 `src/core/events.ts` の `AgentEvent` と `parseAgentEvent(input)` が契約。
 
 - `state`: `idle | thinking | working | waiting_input | success | error`
-- 状態のメタデータ: `detail?`, `ts?`, `source?`, `tool?`, `context?`（使用率 0〜1）
+- 状態のメタデータ: `detail?`, `ts?`, `source?`, `tool?`, `context?`（使用率 0〜1）。文字列は `text` 以外、入れ子のID・説明も含め最大200文字で切る
 - 勇者と仕事: `agent?`, `name?`, `terminal?`, `project?`, `hook?`, `target?`, `subagent?`, `task?`
 - 会話: `text?`（依頼・最終返答、最大8000文字）
 
@@ -93,7 +96,7 @@ Notification は実際の入力要求だけ waiting_input。pi の整理失敗�
 |---|---|
 | `POST /event` | AgentEvent を検証して受付。正常時204、不正入力400 |
 | `WS /ws` | `event` / `replay`、`towns`、`names`、`pending`、`equipped`、`attention`、`permission` / `permission-resolved`。web からは `permission-decision` |
-| `/api/agents` | 起動できる種類と町・再開・整理・途中のそうび変更の対応範囲の公開部分 |
+| `/api/agents` | 起動時に PATH で検出した種類（shell は常に含む）と町・再開・整理・途中のそうび変更の対応範囲の公開部分 |
 | `/api/equipment` | エージェントごとの武器（モデル）・アクセサリ（考える量）の読み込み済みマスタ |
 | `/api/sessions` | 装備つき端末の一覧・作成・削除、`/:id/say` で依頼、`/:id/action` で中断・整理・終了、`/:id/equip` で装備の持ちかえ（作業中は預かる） |
 | `WS /pty?session=<id>` | 同じ端末の保持出力とライブ出力。web からは `input` / `resize` |
@@ -109,13 +112,14 @@ Notification は実際の入力要求だけ waiting_input。pi の整理失敗�
 
 ## 寿命・保存・セキュリティ
 
-- server は `127.0.0.1` のみ。起動時にランダムなトークンを生成して URL に表示する。
-- WS `/ws`・`/pty` と `/api/*` はトークンと自分自身の Origin を検査する。WS は Origin 必須、HTTP API の Origin 無しリクエストはトークンで許可する。開発時だけローカルの別ポートも許可する。
-- フックの `POST /event`・`/hooks/permission` はトークン不要。ブラウザ由来の外部 Origin は拒否する。
+- server は `127.0.0.1` のみ。起動ごとにランダムなトークンを作り、URL に表示する。token ファイルは読まず・書かず、残っていても使わない。開発時だけ明示的な `AGENT_CHARACTER_TOKEN` 指定を許す。ブラウザを自動で開く（`--no-open` で無効）。既定8790／`--port`／`PORT` から、使用中なら次の空きポートを実際に bind して使う。
+- npm パッケージの allowlist は `dist/`・`lib/`・Claudeフック・bin。アダプタはパッケージの絶対パスから読み込み、ソース・テスト・作業用ファイル・利用者データを同梱しない。
+- HTTP・WS Upgrade の入口で Host を `127.0.0.1:<実ポート>`／`localhost:<実ポート>` に限定する。Vite proxy は Host を転送先へ変更する。WS `/ws`・`/pty` と `/api/*` はトークンと自分自身の Origin を検査する。WS は Origin 必須、HTTP API の Origin 無しリクエストはトークンで許可する。開発時だけローカルの別ポートも許可する。
+- フックの `POST /event`・`/hooks/permission` はトークン不要。ブラウザ由来の外部 Origin は拒否する。本文の上限は1MiB、端末作成・町の設定は4KiB、端末操作は64KiB（UTF-8バイト、超過は413）。Claude の command フック stdin も1MiBで、超過時は無言で正常終了する。
 - PTY はブラウザ切断では止めない。明示的な終了・CLI の終了・server の停止で終わる。最大16セッション、各出力の直近256KBを保持する。
-- 子プロセスに `AGENT_CHARACTER_URL` と `AGENT_CHARACTER_SESSION` を渡す。server のトークンや親の入れ子セッション判定用変数は渡さない。
-- イベント直近2000件・会話・報告・預かり・端末出力はメモリのみ。サーバーを再起動すると消える。
-- 町・設定・名前・再開用のめいぼは `AGENT_CHARACTER_HOME`（既定 `~/.config/agent-character`）の JSON に保存する。本文は保存せず、一時ファイルから置き換える。壊れたファイルは `.broken` に退避する。
+- 起動時に検査した CLI の絶対パスを保持し、別の作業ディレクトリでも同じパスを起動する。子プロセスに `AGENT_CHARACTER_URL`・`AGENT_CHARACTER_SESSION`・`AGENT_CHARACTER_PROJECT` を渡す。Claude フックは渡された project を使い、外部起動でその値が無い時だけ git から調べる。transcript_path が無い Stop は再試行しない。server のトークンや親の入れ子セッション判定用変数は渡さない。
+- イベント直近2000件・会話・報告・預かり・端末出力はメモリのみ。サーバーを再起動すると消える。往復は進行中だけ累積し、遅着補正用のイベントは直近256件まで（それ以前への遅着は集計しない）。ファイル名は往復ごと最大256件、ツール・テスト・失敗の累計は切り捨てない。完了した札は通常の新イベントで数え直さず、直近範囲への遅着時だけ補正する。
+- 町・設定・名前・再開用のめいぼは `AGENT_CHARACTER_HOME`（既定 `~/.config/agent-character`）の JSON に保存する。町の最終活動時刻はメモリで更新し5秒おきと終了時にまとめて保存、時刻だけの変更では台帳を配信しない。登録・すがた・ピン・しまう／戻すはすぐ保存・配信する。本文は保存せず、一時ファイルから置き換える。壊れたファイルは `.broken` に退避する。
 - 既読は勇者IDと時刻だけをブラウザに保存する。会話の下書きはページ内だけ。各 CLI 自身の履歴保存は別。
 
 ## PoC でやらないこと

@@ -52,7 +52,7 @@ function quoted(text: string | undefined, fallback: string): string {
 }
 
 // One line of narration for an event, in the style of an old console RPG. Undefined = say nothing.
-export function narrate(event: AgentEvent): string | undefined {
+export function narrate(event: AgentEvent, previousContext?: number): string | undefined {
   const name = event.name ?? "ゆうしゃ";
   const target = event.target;
   if (event.subagent) {
@@ -71,8 +71,14 @@ export function narrate(event: AgentEvent): string | undefined {
       : event.state === "idle" ? `${name}は つぎの いらいを まっている。` : undefined;
     case "PermissionRequest": return `${name}は ${event.tool ?? "じゅもん"}の きょかを もとめている！`;
     case "PreCompact": return `${name}は きょうかいで いのりを ささげている`;
-    case "PostCompact": return event.detail === "Compaction failed" || event.detail === "Compaction cancelled"
-      ? `${name}は 会話を せいりできなかった。町で ひとやすみ。` : `${name}の MPが かいふくした！`;
+    case "PostCompact": {
+      if (event.detail === "Compaction failed" || event.detail === "Compaction cancelled") {
+        return `${name}は 会話を せいりできなかった。町で ひとやすみ。`;
+      }
+      const recovered = previousContext !== undefined && event.context !== undefined
+        && Math.round((1 - event.context) * 100) > Math.round((1 - previousContext) * 100);
+      return `${name}は 会話を まとめた！${recovered ? " MPが かいふくした！" : ""}`;
+    }
     case "Stop": return `${name}は 町で ひとやすみ することにした。`;
     case "StopFailure": return `${name}は ちからつきた…`;
     case "TaskCreated": return `クエスト${quoted(event.task?.subject, "")}を うけた！`;

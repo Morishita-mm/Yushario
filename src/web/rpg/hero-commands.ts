@@ -45,6 +45,7 @@ export function initHeroActions(hero: (id: string) => RoomAgent | undefined, tal
     if (!terminal || busy.has(terminal)) return;
     busy.add(terminal);
     const heroName = name(id) ?? agent.name;
+    const held = talk.pendingCount(terminal);
     const depart = action === "farewell" ? prepareDeparture(id) : undefined;
     if (action === "interrupt") talk.interrupting(terminal, true);
     try {
@@ -63,7 +64,9 @@ export function initHeroActions(hero: (id: string) => RoomAgent | undefined, tal
           interrupted.add(terminal); eventAt.set(terminal, Date.now()); waiting.set(terminal, true); talk.setPending(terminal, []);
         } else waiting.set(terminal, false);
         talk.open(id);
-        talk.notice(action === "interrupt" ? "にげた ので あずかった ことばを すてた" : "やすんで 会話を せいりしている…");
+        talk.notice(action === "interrupt" ? held
+          ? `作業を 中断した。あずかった ことば ${held}件を すてた。` : "作業を 中断した。"
+          : "きょうかいで 会話を まとめて 軽くしている…");
       }
     } catch (error) {
       talk.open(id); talk.notice(error instanceof Error ? error.message : String(error));

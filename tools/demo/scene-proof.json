@@ -1,0 +1,170 @@
+[
+  {
+    "ms": 1000,
+    "name": "01-world",
+    "place": "ワールドマップ",
+    "canvas": [
+      557,
+      313
+    ],
+    "css": [
+      1114,
+      626
+    ],
+    "text": "AGENT QUEST\nせつぞく ずみ\nしゅつじん\nターミナル\nめいぼ\nヘルプ\nせってい\nワールドマップ\nここは エージェントたちの まち。 ゆうしゃの とうちゃくを まっている…\n10:35 tiny-questが 町に やってきた！\nでんれい（0）\n\nいまは おしらせ なし\n\nちいさく\n/\nくわしく\ntiny-quest\nLv 1\nHP\nMP\nまちで ひとやすみしている\ntiny-quest\nLv 1\nHP\n100\nMP\n100\n\n▶ まちで ひとやすみしている\n\nそうび\n\nぶき：でんせつの つるぎ（opus）\n\nアクセサリ：―（きほん）\n\n▶ ターミナル\n\nぼうけんの きろく\n\n仕事が、冒険になる。\n\nYour agent’s work becomes an adventure.\n\n実イベントの編集・短縮再生 / Edited real event replay"
+  },
+  {
+    "ms": 3000,
+    "name": "02-town",
+    "place": "tiny-quest / まち",
+    "canvas": [
+      960,
+      540
+    ],
+    "css": [
+      960,
+      540
+    ],
+    "text": "AGENT QUEST\nせつぞく ずみ\nしゅつじん\nターミナル\nめいぼ\nヘルプ\nせってい\n◀ ワールドマップ\ntiny-quest / まち\n町のすがたを かえる\n◇ ピンどめ\nここは エージェントたちの まち。 ゆうしゃの とうちゃくを まっている…\n10:35 tiny-questが 町に やってきた！\nでんれい（0）\n\nいまは おしらせ なし\n\nちいさく\n/\nくわしく\ntiny-quest\nLv 1\nHP\nMP\nまちで ひとやすみしている\ntiny-quest\nLv 1\nHP\n100\nMP\n100\n\n▶ まちで ひとやすみしている\n\nそうび\n\nぶき：でんせつの つるぎ（opus）\n\nアクセサリ：―（きほん）\n\n▶ ターミナル\n\nぼうけんの きろく\n\nプロジェクトは、勇者の町。\n\nEvery project is a town.\n\n実イベントの編集・短縮再生 / Edited real event replay"
+  },
+  {
+    "ms": 6000,
+    "name": "03-launch",
+    "place": "tiny-quest / まち",
+    "canvas": [
+      960,
+      540
+    ],
+    "css": [
+      960,
+      540
+    ],
+    "text": "AGENT QUEST\nせつぞく ずみ\nしゅつじん\nターミナル\nめいぼ\nヘルプ\nせってい\n◀ ワールドマップ\ntiny-quest / まち\n町のすがたを かえる\n◇ ピンどめ\nここは エージェントたちの まち。 ゆうしゃの とうちゃくを まっている…\n10:35 tiny-questが 町に やってきた！\nでんれい（0）\n\nいまは おしらせ なし\n\nちいさく\n/\nくわしく\ntiny-quest\nLv 1\nHP\nMP\nまちで ひとやすみしている\ntiny-quest\nLv 1\nHP\n100\nMP\n100\n\n▶ まちで ひとやすみしている\n\nそうび\n\nぶき：でんせつの つるぎ（opus）\n\nアクセサリ：―（きほん）\n\n▶ ターミナル\n\nぼうけんの きろく\n\nしゅつじん\n勇者の種類（エージェント／ターミナル）\nClaude Code — 町・会話に 対応\nCodex — ターミナルのみ\npi — 町・会話に 対応\nshell — ターミナルのみ\n\n町・会話に 対応。やすむ（会話の 整理）：対応。よびもどす（再開）：対応。\n\nぶき（モデル）\nそうびなし（きほん）\nたんけん（haiku）\nはがねの つるぎ（sonnet）\nでんせつの つるぎ（opus）\nアクセサリ（考える量）\nそうびなし（きほん）\nきあいの はちまき（かるく）（low）\nきあいの はちまき（ふつう）（medium）\nきあいの はちまき（ためる）（high）\nきあいの はちまき（ためにためる）（xhigh）\nきあいの はちまき（げんかい）（max）\n行き先（作業ディレクトリ）\ntiny-quest — /demo/tiny-quest\nほかの フォルダ\n▶ しゅつじん！\n\n▶ とじる\nでんせつの つるぎで、しゅつじん。\n\nEquip Claude Code with the legendary sword (Opus).\n\n実イベントの編集・短縮再生 / Edited real event replay"
+  },
+  {
+    "ms": 8500,
+    "name": "04-talk",
+    "place": "tiny-quest / まち",
+    "canvas": [
+      960,
+      540
+    ],
+    "css": [
+      960,
+      540
+    ],
+    "text": "AGENT QUEST\nせつぞく ずみ\nしゅつじん\nターミナル\nめいぼ\nヘルプ\nせってい\n◀ ワールドマップ\ntiny-quest / まち\n町のすがたを かえる\n◇ ピンどめ\n10:35 tiny-questが 町に やってきた！\n10:36 tiny-questは あたらしい いらいを うけた！\n10:36 tiny-questは 図書館で 「quest.mjs」を ひもといた。\n10:36 tiny-questは 図書館で 「quest.te\nでんれい（0）\n\nいまは おしらせ なし\n\nちいさく\n/\nくわしく\ntiny-quest\nLv 1\nHP\nMP\nとしょかんで quest.mjsを よんでいる\ntiny-quest\nLv 1\nHP\n100\nMP\n84\n\n▶ としょかんで quest.mjsを よんでいる\n\nそうび\n\nぶき：でんせつの つるぎ（opus）\n\nアクセサリ：―（きほん）\n\n▶ ターミナル\n\nぼうけんの きろく\n\n10:36:03 としょかんで quest.mjsを よんでいる ○\n10:36:02 たきびの まえで かんがえている\ntiny-quest · 会話と報告\n▶ ターミナル\n▶ とじる\nあなた「このフォルダの2ファイルだけでテストを通して。Explore サブエージェント1人で quest.mjs と quest.test.mjs を調べ、reward の引き算を足し算に直し、テストを1件追加して node --test quest.test.mjs を実行。ネットワーク、コミット、他のフォルダは禁止。最後は短く日本語で報告して。」\n勇者に つたえる\n▶ つたえる\n\n「テストを通して」\n\n“Make the tests pass.”\n\n実イベントの編集・短縮再生 / Edited real event replay"
+  },
+  {
+    "ms": 11300,
+    "name": "05-critical",
+    "place": "tiny-quest / そうげん",
+    "canvas": [
+      557,
+      313
+    ],
+    "css": [
+      1114,
+      626
+    ],
+    "text": "AGENT QUEST\nせつぞく ずみ\nしゅつじん\nターミナル\nめいぼ\nヘルプ\nせってい\n◀ ワールドマップ\ntiny-quest / そうげん\n町のすがたを かえる\n◇ ピンどめ\n▶ tiny-questに ついていく\nやめる\n10:36 tiny-questは 図書館で 「quest.mjs」を ひもといた。\n10:36 tiny-questは 図書館で 「quest.test.mjs」を ひもといた。\n10:36 tiny-questの こうげき！ 「quest.mjs」に きりかかった！\n10:36 「quest.mjs」に 3の ダメージ！\nでんれい（0）\n\nいまは おしらせ なし\n\nちいさく\n/\nくわしく\ntiny-quest\nLv 1\nHP\nMP\nquest.mjsと たたかっている\ntiny-quest\nLv 1\nHP\n100\nMP\n83\n\n▶ quest.mjsと たたかっている\n\nそうび\n\nぶき：でんせつの つるぎ（opus）\n\nアクセサリ：―（きほん）\n\n▶ ターミナル\n\nぼうけんの きろく\n\n10:36:05 quest.mjsと たたかっている\n10:36:03 としょかんで quest.test.mjsを よんでいる ○\n10:36:03 としょかんで quest.mjsを よんでいる ○\n10:36:02 たきびの まえで かんがえている\nコードを直す。スライムと戦う。\n\nReal edits become battles.\n\n実イベントの編集・短縮再生 / Edited real event replay"
+  },
+  {
+    "ms": 15000,
+    "name": "06-slime",
+    "place": "tiny-quest / そうげん",
+    "canvas": [
+      557,
+      313
+    ],
+    "css": [
+      1114,
+      626
+    ],
+    "text": "AGENT QUEST\nせつぞく ずみ\nしゅつじん\nターミナル\nめいぼ\nヘルプ\nせってい\n◀ ワールドマップ\ntiny-quest / そうげん\n町のすがたを かえる\n◇ ピンどめ\n▶ tiny-questに ついていく\nやめる\n10:36 tiny-questの こうげき！ 「quest.mjs」に きりかかった！\n10:36 「quest.mjs」に 3の ダメージ！\n10:36 tiny-questの こうげき！ 「quest.test.mjs」に きりかかった！\n10:36 「quest.test.mjs」に 25の ダメージ！\nでんれい（0）\n\nいまは おしらせ なし\n\nちいさく\n/\nくわしく\ntiny-quest\nLv 1\nHP\nMP\nquest.test.mjsと たたかっている\ntiny-quest\nLv 1\nHP\n100\nMP\n83\n\n▶ quest.test.mjsと たたかっている\n\nそうび\n\nぶき：でんせつの つるぎ（opus）\n\nアクセサリ：―（きほん）\n\n▶ ターミナル\n\nぼうけんの きろく\n\n10:36:08 quest.test.mjsと たたかっている ○\n10:36:05 quest.mjsと たたかっている ○\n10:36:03 としょかんで quest.test.mjsを よんでいる ○\n10:36:03 としょかんで quest.mjsを よんでいる ○\n10:36:02 たきびの まえで かんがえている\nコードを直す。スライムと戦う。\n\nReal edits become battles.\n\n実イベントの編集・短縮再生 / Edited real event replay\n\n記録時の本物のターミナル / Original terminal capture"
+  },
+  {
+    "ms": 17900,
+    "name": "07-golem",
+    "place": "tiny-quest / どうくつ",
+    "canvas": [
+      557,
+      313
+    ],
+    "css": [
+      1114,
+      626
+    ],
+    "text": "AGENT QUEST\nせつぞく ずみ\nしゅつじん\nターミナル\nめいぼ\nヘルプ\nせってい\n◀ ワールドマップ\ntiny-quest / どうくつ\n町のすがたを かえる\n◇ ピンどめ\n▶ tiny-questに ついていく\nやめる\n10:36 tiny-questの こうげき！ 「quest.test.mjs」に きりかかった！\n10:36 「quest.test.mjs」に 25の ダメージ！\n10:36 tiny-questは しれんの ゴーレムに いどんだ！ 「npm test」\n10:36 しれんを のりこえた！ ゴーレムを たおした！\nでんれい（0）\n\nいまは おしらせ なし\n\nちいさく\n/\nくわしく\ntiny-quest\nLv 1\nHP\nMP\nしれんの ゴーレムと たたかっている npm test\ntiny-quest\nLv 1\nHP\n100\nMP\n81\n\n▶ しれんの ゴーレムと たたかっている npm test\n\nそうび\n\nぶき：でんせつの つるぎ（opus）\n\nアクセサリ：―（きほん）\n\n▶ ターミナル\n\nぼうけんの きろく\n\n10:36:11 しれんの ゴーレムと たたかっている npm test ○\n10:36:08 quest.test.mjsと たたかっている ○\n10:36:05 quest.mjsと たたかっている ○\n10:36:03 としょかんで quest.test.mjsを よんでいる ○\n10:36:03 としょかんで quest.mjsを よんでいる ○\n10:36:02 たきびの まえで かんがえている\nテストを通す。ゴーレムを倒す。\n\nPassing tests defeat the golem.\n\n実イベントの編集・短縮再生 / Edited real event replay\n\n記録時の本物のターミナル / Original terminal capture"
+  },
+  {
+    "ms": 21200,
+    "name": "08-dragon",
+    "place": "tiny-quest / そうげん",
+    "canvas": [
+      557,
+      313
+    ],
+    "css": [
+      1114,
+      626
+    ],
+    "text": "AGENT QUEST\nせつぞく ずみ\nしゅつじん\nターミナル\nめいぼ\nヘルプ\nせってい\n◀ ワールドマップ\ntiny-quest / そうげん\n町のすがたを かえる\n◇ ピンどめ\n▶ tiny-questに ついていく\nやめる\n10:36 tiny-questは しれんの ゴーレムに いどんだ！ 「npm test」\n10:36 しれんを のりこえた！ ゴーレムを たおした！\n10:36 tiny-questは なかまを よびあつめた！\n10:36 とうぞく（Explore）が なかまに くわわった！\nでんれい（0）\n\nいまは おしらせ なし\n\nちいさく\n/\nくわしく\ntiny-quest\nLv 1\nHP\nMP\nなかまと ドラゴンに いどんでいる\ntiny-quest\nLv 1\nHP\n100\nMP\n81\n\n▶ なかまと ドラゴンに いどんでいる\n\nそうび\n\nぶき：でんせつの つるぎ（opus）\n\nアクセサリ：―（きほん）\n\n▶ ターミナル\n\nなかま\n\nとうぞく（Explore）: としょかんで quest.test.mjsを よんでいる\n\nぼうけんの きろく\n\n10:36:14 なかまと ドラゴンに いどんでいる\n10:36:11 しれんの ゴーレムと たたかっている npm test ○\n10:36:08 quest.test.mjsと たたかっている ○\n10:36:05 quest.mjsと たたかっている ○\n10:36:03 としょかんで quest.test.mjsを よんでいる ○\n10:36:03 としょかんで quest.mjsを よんでいる ○\n10:36:02 たきびの まえで かんがえている\n仲間と、ドラゴンに挑む。\n\nAn Explore subagent joins the party.\n\n実イベントの編集・短縮再生 / Edited real event replay\n\n記録時の本物のターミナル / Original terminal capture"
+  },
+  {
+    "ms": 27000,
+    "name": "09-permission",
+    "place": "tiny-quest / まち",
+    "canvas": [
+      960,
+      540
+    ],
+    "css": [
+      960,
+      540
+    ],
+    "text": "AGENT QUEST\nせつぞく ずみ\nしゅつじん\nターミナル\nめいぼ\nヘルプ\nせってい\n◀ ワールドマップ\ntiny-quest / まち\n町のすがたを かえる\n◇ ピンどめ\n▶ tiny-questに ついていく\nやめる\n10:36 とうぞく（Explore）が なかまに くわわった！\n10:36 なかまの ちからで ドラゴンを たおした！\n10:36 とうぞくは tiny-questの パーティーを はなれた。\n10:36 tiny-questは Bashの きょかを もとめている！\nでんれい（1）\n🔑\ntiny-quest が「Bash: node --test quest.test.mjs」の きょかを まっている\nきょかまち\nちいさく\n/\nくわしく\n！ tiny-quest\nLv 1\nHP\nMP\nあなたを よんでいる！\ntiny-quest\nLv 1\nHP\n100\nMP\n81\n\n▶ あなたを よんでいる！\n\nそうび\n\nぶき：でんせつの つるぎ（opus）\n\nアクセサリ：―（きほん）\n\n▶ ターミナル\n\n「Bash: node --test quest.test.mjs」\nを おこなっても よいですか？\n\n▶ はい\n▶ いいえ\n▶ ターミナルで こたえる\n\nぼうけんの きろく\n\n10:36:20 あなたを よんでいる！\n10:36:14 なかまと ドラゴンに いどんでいる ○\n10:36:11 しれんの ゴーレムと たたかっている npm test ○\n10:36:08 quest.test.mjsと たたかっている ○\n10:36:05 quest.mjsと たたかっている ○\n10:36:03 としょかんで quest.test.mjsを よんでいる ○\n10:36:03 としょかんで quest.mjsを よんでいる ○\n10:36:02 たきびの まえで かんがえている\n許可するかは、あなたが決める。\n\nYou decide which actions to allow.\n\n実イベントの編集・短縮再生 / Edited real event replay"
+  },
+  {
+    "ms": 32000,
+    "name": "10-report",
+    "place": "tiny-quest / まち",
+    "canvas": [
+      960,
+      540
+    ],
+    "css": [
+      960,
+      540
+    ],
+    "text": "AGENT QUEST\nせつぞく ずみ\nしゅつじん\nターミナル\nめいぼ\nヘルプ\nせってい\n◀ ワールドマップ\ntiny-quest / まち\n町のすがたを かえる\n◇ ピンどめ\n10:36 とうぞくは tiny-questの パーティーを はなれた。\n10:36 tiny-questは Bashの きょかを もとめている！\n10:36 tiny-questは あなたを よんでいる！\n10:36 tiny-questは 町で ひとやすみ することにした。\nでんれい（0）\n\nいまは おしらせ なし\n\nちいさく\n/\nくわしく\ntiny-quest\nLv 1\nHP\nMP\nまちで ひとやすみしている\ntiny-quest\nLv 1\nHP\n100\nMP\n81\n\n▶ まちで ひとやすみしている\n\nそうび\n\nぶき：でんせつの つるぎ（opus）\n\nアクセサリ：―（きほん）\n\n▶ ターミナル\n\nぼうけんの きろく\n\n10:36:24 まちで ひとやすみしている\n10:36:20 あなたを よんでいる！\n10:36:14 なかまと ドラゴンに いどんでいる ○\n10:36:11 しれんの ゴーレムと たたかっている npm test ○\n10:36:08 quest.test.mjsと たたかっている ○\n10:36:05 quest.mjsと たたかっている ○\n10:36:03 としょかんで quest.test.mjsを よんでいる ○\n10:36:03 としょかんで quest.mjsを よんでいる ○\n10:36:02 たきびの まえで かんがえている\ntiny-quest · 会話と報告\n▶ ターミナル\n▶ とじる\nあなた「このフォルダの2ファイルだけでテストを通して。Explore サブエージェント1人で quest.mjs と quest.test.mjs を調べ、reward の引き算を足し算に直し、テストを1件追加して node --test quest.test.mjs を実行。ネットワーク、コミット、他のフォルダは禁止。最後は短く日本語で報告して。」\nしょうり！ ファイル 2つを なおした\n\ntiny-quest · 10:36:24 · 19秒（きょか まち 3秒 を のぞく）\n\nquest.mjs\nquest.test.mjs\n\nテスト ○1 ×0 · ツール 6\n\n`npm test` を1回実行し、成功しました（2件とも pass、fail 0）。\n勇者に つたえる\n▶ つたえる\n\n宝箱には、本物の作業報告。\n\nA treasure chest holds the real report.\n\n実イベントの編集・短縮再生 / Edited real event replay"
+  },
+  {
+    "ms": 36100,
+    "name": "11-inn",
+    "place": "tiny-quest / やどや",
+    "canvas": [
+      960,
+      540
+    ],
+    "css": [
+      960,
+      540
+    ],
+    "text": "AGENT QUEST\nせつぞく ずみ\nしゅつじん\nターミナル\nめいぼ\nヘルプ\nせってい\n◀ ワールドマップ\ntiny-quest / やどや\n町のすがたを かえる\n◇ ピンどめ\n10:36 とうぞくは tiny-questの パーティーを はなれた。\n10:36 tiny-questは Bashの きょかを もとめている！\n10:36 tiny-questは あなたを よんでいる！\n10:36 tiny-questは 町で ひとやすみ することにした。\nでんれい（0）\n\nいまは おしらせ なし\n\nちいさく\n/\nくわしく\ntiny-quest\nLv 1\nHP\nMP\nまちで ひとやすみしている\ntiny-quest\nLv 1\nHP\n100\nMP\n81\n\n▶ まちで ひとやすみしている\n\nそうび\n\nぶき：でんせつの つるぎ（opus）\n\nアクセサリ：―（きほん）\n\n▶ ターミナル\n\n💤 いねむり\n\nぼうけんの きろく\n\n10:36:24 まちで ひとやすみしている\n10:36:20 あなたを よんでいる！\n10:36:14 なかまと ドラゴンに いどんでいる ○\n10:36:11 しれんの ゴーレムと たたかっている npm test ○\n10:36:08 quest.test.mjsと たたかっている ○\n10:36:05 quest.mjsと たたかっている ○\n10:36:03 としょかんで quest.test.mjsを よんでいる ○\n10:36:03 としょかんで quest.mjsを よんでいる ○\n10:36:02 たきびの まえで かんがえている\n冒険のあとは、宿屋でひとやすみ。\n\nAfter the adventure, rest at the inn.\n\n10分の待機を短縮 / 10 minutes of idle time compressed"
+  },
+  {
+    "ms": 40300,
+    "name": "12-npx",
+    "place": "tiny-quest / やどや",
+    "canvas": [
+      960,
+      540
+    ],
+    "css": [
+      960,
+      540
+    ],
+    "text": "AGENT QUEST\nせつぞく ずみ\nしゅつじん\nターミナル\nめいぼ\nヘルプ\nせってい\n◀ ワールドマップ\ntiny-quest / やどや\n町のすがたを かえる\n◇ ピンどめ\n10:36 とうぞくは tiny-questの パーティーを はなれた。\n10:36 tiny-questは Bashの きょかを もとめている！\n10:36 tiny-questは あなたを よんでいる！\n10:36 tiny-questは 町で ひとやすみ することにした。\nでんれい（0）\n\nいまは おしらせ なし\n\nちいさく\n/\nくわしく\ntiny-quest\nLv 1\nHP\nMP\nまちで ひとやすみしている\ntiny-quest\nLv 1\nHP\n100\nMP\n81\n\n▶ まちで ひとやすみしている\n\nそうび\n\nぶき：でんせつの つるぎ（opus）\n\nアクセサリ：―（きほん）\n\n▶ ターミナル\n\n💤 いねむり\n\nぼうけんの きろく\n\n10:36:24 まちで ひとやすみしている\n10:36:20 あなたを よんでいる！\n10:36:14 なかまと ドラゴンに いどんでいる ○\n10:36:11 しれんの ゴーレムと たたかっている npm test ○\n10:36:08 quest.test.mjsと たたかっている ○\n10:36:05 quest.mjsと たたかっている ○\n10:36:03 としょかんで quest.test.mjsを よんでいる ○\n10:36:03 としょかんで quest.mjsを よんでいる ○\n10:36:02 たきびの まえで かんがえている\nエージェントの仕事を、冒険に。\n\nTurn your agent’s work into an adventure.\n\n実イベントの編集・短縮再生 / Edited real event replay\nAGENT QUEST\nnpx agent-quest"
+  }
+]

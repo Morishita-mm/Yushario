@@ -196,6 +196,15 @@ describe("moods", () => {
     expect(moods(agent, 1)).not.toContain("tired");
   });
 
+  it("returns from an answered permission to the tool and its result", () => {
+    const room = new Room();
+    room.apply(a({ hook: "PreToolUse", tool: "Edit", target: "quest.mjs" }), 0);
+    room.apply(a({ hook: "PermissionRequest", tool: "Edit" }), 1);
+    const agent = room.apply(a({ hook: "PostToolUse", tool: "Edit", target: "quest.mjs" }), 2)!;
+    expect(agent).toMatchObject({ activity: "edit", target: "quest.mjs", running: false });
+    expect(agent.log.at(-1)).toMatchObject({ activity: "edit", target: "quest.mjs", outcome: "ok" });
+  });
+
   it("keeps an idle notification waiting peacefully without calling or running", () => {
     const room = new Room();
     room.apply(a({ hook: "Stop", state: "success" }), 0);

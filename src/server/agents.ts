@@ -1,4 +1,5 @@
-import { join } from "node:path";
+import { accessSync, constants, statSync } from "node:fs";
+import { delimiter, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
@@ -19,7 +20,7 @@ export const AGENTS = {
     modelArg: "-m", thinkingArg: "", modelCommand: "", thinkingCommand: "",
   },
   pi: {
-    label: "pi", command: "pi", args: ["-e", join(root, "adapters/pi/agent-character.ts")], source: "pi",
+    label: "pi", command: "pi", args: ["-e", join(root, import.meta.url.endsWith(".ts") ? "adapters/pi/agent-character.ts" : "lib/adapters/pi/agent-character.js")], source: "pi",
     hero: true, resume: true, resumeArgs: ["--session"], compact: true, compactCommand: "/compact",
     interrupt: "\x1b", clearDraft: "\x03", restoresDraft: false, farewell: "/quit",
     modelArg: "--model", thinkingArg: "--thinking", modelCommand: "/model", thinkingCommand: "/thinking",
@@ -33,7 +34,19 @@ export const AGENTS = {
 };
 export type Preset = keyof typeof AGENTS;
 export const PRESETS = Object.keys(AGENTS) as Preset[];
-export const publicAgents = () => PRESETS.map((id) => {
+export function executable(command: string): string | undefined {
+  const paths = command.includes("/") ? [resolve(command)]
+    // Relative PATH entries would depend on the launch folder; skip them.
+    : (process.env.PATH ?? "").split(delimiter).filter(isAbsolute).map((directory) => join(directory, command));
+  return paths.find((path) => {
+    try { accessSync(path, constants.X_OK); return statSync(path).isFile(); } catch { return false; }
+  });
+}
+
+// Detect once at startup; shell is always offered, even with no agent CLI installed.
+export const agentExecutables = Object.fromEntries(PRESETS.map((id) => [id, executable(AGENTS[id].command)])) as Record<Preset, string | undefined>;
+const available = PRESETS.filter((id) => id === "shell" || agentExecutables[id]);
+export const publicAgents = () => available.map((id) => {
   const { label, hero, resume, compact, modelCommand, thinkingCommand } = AGENTS[id];
   return { id, label, hero, resume, compact, equipWeapon: Boolean(modelCommand), equipAccessory: Boolean(thinkingCommand) };
 });

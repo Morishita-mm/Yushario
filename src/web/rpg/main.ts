@@ -21,6 +21,11 @@ import "./talk.css";
 const token = new URLSearchParams(location.search).get("token") ?? "";
 const canvas = document.querySelector<HTMLCanvasElement>("#world")!;
 const connectionLabel = document.querySelector<HTMLElement>("#connection")!;
+const firstStep = document.createElement("button");
+firstStep.type = "button"; firstStep.className = "first-step";
+firstStep.textContent = "▶ しゅつじんで 勇者を よぼう。Claude Code / pi を 起動できます。";
+firstStep.addEventListener("click", () => document.querySelector<HTMLButtonElement>("#expedition")!.click());
+document.querySelector(".map-stage")!.before(firstStep);
 const scene = new Scene(canvas, document.querySelector<HTMLElement>("#town-layer")!,
   (id, at) => talk.open(id, at), (terminal) => void expedition.openTerminal(terminal),
   (id) => status.openDetails(room, Date.now(), id, scene.names),
@@ -37,7 +42,7 @@ function arrived(session: Session, towns: TownRecord[], recalled = false): void 
   equipment.remember(session);
   // Launch and recall both register the town before the hero reaches its gate.
   scene.setTowns(towns); scene.expectArrival(session.id);
-  scene.enterTown(session.project, () => talk.openSession(session.id, recalled));
+  scene.enterTown(session.project, () => talk.openSession(session.id, recalled, session.preset));
 }
 initRoster((session, towns) => arrived(session, towns, true));
 initHelp();
@@ -98,6 +103,7 @@ function live(event: AgentEvent, at: number): void {
   if (!currentTerminal(event)) return;
   const before = room.agents.get(event.agent ?? "default");
   const level = before ? stats(before, at).level : 1;
+  const previousContext = before?.context;
   actions.observe(event, at);
   const agent = room.apply(event, at);
   if (event.hook === "SessionStart") void equipment.refresh().catch((error: Error) => messages.say(error.message));
@@ -106,7 +112,7 @@ function live(event: AgentEvent, at: number): void {
   scene.sync(room, at);
   talk.update();
   // A second SessionEnd (the hook arriving after the server's own) has no hero left to see off.
-  if (event.hook !== "SessionEnd" || before) messages.event(event, at);
+  if (event.hook !== "SessionEnd" || before) messages.event(event, at, false, previousContext);
   if (levelUp) {
     const name = scene.names.get(agent!.id) ?? agent!.name;
     messages.say(`${name}は レベル${stats(agent!, at).level}に あがった！`, at, false, { id: agent!.id, name });
@@ -186,6 +192,7 @@ let lastStatus = 0;
 function frame(time: number): void {
   const now = Date.now();
   if (now - lastStatus > 250) {
+    firstStep.hidden = room.agents.size > 0;
     talk.update();
     scene.sync(room, now);
     notices(room, scene.projects, status.permissions, scene.names, now);
