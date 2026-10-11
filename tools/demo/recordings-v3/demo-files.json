@@ -1,0 +1,10 @@
+{
+  "README.md": "# Tiny Quest\nA tiny offline JavaScript project for demonstrating real coding tasks.\nreward adds a bonus to a coin reward. slots adds bag capacity. heal caps health at 100.\nUse npm test. No dependencies, network or commits.\n",
+  "health.mjs": "export function heal(hp, potion) { return Math.min(100, hp + potion); }\n",
+  "health.test.mjs": "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { heal } from './health.mjs';\ntest('heal',()=>{assert.equal(heal(90,20),100);});\ntest('heal caps at 100 when full',()=>{assert.equal(heal(100,10),100);});\n",
+  "pack.mjs": "export function slots(items, extra) { return items + extra; }\n",
+  "pack.test.mjs": "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { slots } from './pack.mjs';\ntest('slots',()=>{assert.equal(slots(3,2),5);});\ntest('slots zero extra',()=>{assert.equal(slots(3,0),3);});\n",
+  "package.json": "{\"private\":true,\"scripts\":{\"test\":\"node --test *.test.mjs\"}}",
+  "quest.mjs": "export function reward(coins, bonus) { return coins + bonus; }\n",
+  "quest.test.mjs": "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { reward } from './quest.mjs';\ntest('reward',()=>{assert.equal(reward(4,2),6);});\ntest('reward zero bonus',()=>{assert.equal(reward(4,0),4);});\n"
+}

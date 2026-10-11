@@ -1,0 +1,2 @@
+Open http://127.0.0.1:8845/?token=REDACTED_TOKEN
+Terminal: http://127.0.0.1:8845/terminal.html?token=REDACTED_TOKEN

@@ -1,6 +1,100 @@
-# デモ素材の記録・再生・撮影（S8.1 / v2）
+# デモ素材の記録・再生・撮影（S8.7 PV v3 / S8.6 PV v2 / S8.5 PV / S8.1 v2）
 
 開発用だけの道具。追加依存なし。npmパッケージには含めない。
+
+## S8.7：あなたのエージェント・町の作り込み・魔王魂の音
+
+完成物：`.art-work/s87/`。39秒、日英×16:9/1:1の音付き4本。
+大きな「あなたのエージェントが」、5つの実すがた変更、実compactの祈り、実10分待機の居眠りを追加。
+BGMは魔王魂ファンタジー11、剣・Lv・閃光・題字も魔王魂。動画の最後にクレジット。
+**音源は無視対象`.art-work/s87/audio/maoudamashii-*`だけに置き、Git/npmに入れない。**
+
+```sh
+npm run build
+node_modules/.bin/tsx tools/demo/pv3-verify.mjs .art-work/s87
+node tools/demo/pv3-audio-study.mjs .art-work/s87
+node tools/demo/pv3-film.mjs .art-work/s87
+node tools/demo/pv3-mix.mjs .art-work/s87
+node tools/demo/pv3-qa.mjs .art-work/s87
+node tools/demo/pv3-sync.mjs .art-work/s87
+swift tools/demo/pv3-boards.swift .art-work/s87
+swift tools/demo/pv3-audio-board.swift .art-work/s87
+```
+
+- `pv3-film/stage/shots`：8868、一時home、専用Orcaページ。実描画30fps/1170フレーム。PTY・API書込みなしの記録再生。元順/prefix/結果はv2と同じ。終わったら自分のページ・relay・homeを削除。
+- `pv3-mix`：180 BPM/四分=10フレーム、八分=5フレーム。付点四分の0.5秒が編集パルス。BGMの速度・音程は変更なし。音量編集・効果音の頭出し・2-pass loudnorm、完成AACを-14〜-16 LUFS/true peak≤-1dBTPで再検証。
+- `pv3-audio-study`：音源3曲をPCMで波形/テンポ候補/音圧区間比較（学習・生成なし）。`maoudamashii-audition{06,11,13}.wav`は40秒の利用者向け聴き比べ。聴覚入力のない制作環境のため、最終聴感レビューは利用者にお願いする。
+- `pv3-verify`：元パケット/実PreCompact〜PostCompact/633秒の実無操作/5すがた変更/実Lv3/仲間3人/本体Stop前の範囲/接触を純粋coreで検証。
+- `pv3-sync/audio-board`：完成AACの4版同一ハッシュ・冒頭接触0.5秒・八分音符グリッドを検証し、完成MP4の全体/28–34秒の波形＋同期図を作る。
+- `pv3-qa/boards`：完成音付きmp4から244枚を再抽出。全カット・接触前後・紹介中の全員・祈り/居眠り・引き・閃光・最後を目視。録画中の静止画だけでQAとはしない。
+- 新規記録は`pv3-record/live/biomes/doze`。8867、`/tmp/agent-quest-s87-*`、一時認証（Claudeの`.credentials.json`のみ）、無害な会話1回とcompact。manual mode。入力は確認した自分のアプリPTYかDOM evalのみ。記録終了で全CLI/relay/home/認証/デモrepoを片付ける。通常は完成記録を使い、新しいCLIを起動しない。
+- ライブ宿屋写真はcompact-list更新待ちの競合で得られなかったため、イベントが途切れず記録された633秒の無操作と純粋coreのdozingを証拠にし、実アプリの再生撮影で寝姿を確認。詳細は`report.md`。通常待機やcompactを宿屋に偽装しない。
+
+
+## S8.6：30秒・120 BPMのゲームトレーラー型PV v2
+
+確定脚本・絵コンテ・完成物・報告：`.art-work/s86/`。日英 × 16:9/1:1、4本、無音。
+22カット、1拍15フレーム、全900フレーム。1920×1080 / 1080×1080、実描画も30fps。
+
+```sh
+npm run build
+node_modules/.bin/tsx tools/demo/pv2-verify.mjs .art-work/s86
+node tools/demo/pv2-film.mjs .art-work/s86
+# 1版だけ、または動画なしの構図確認
+node tools/demo/pv2-film.mjs .art-work/s86 pv2-ja-1x1 --stills-only
+# 完成mp4から再抽出し、一覧・原寸の両方を目視する
+node tools/demo/pv2-qa.mjs .art-work/s86
+swift tools/demo/pv2-boards.swift .art-work/s86
+```
+
+- `pv2-film.mjs`：**8856**、ランダムトークン、`/tmp/agent-quest-pv2-*`の一時home、現在のworktreeのOrca内蔵ブラウザ専用ページ。既存`pv-stage.mjs`の読取専用bootを再利用。外部ブラウザ・CLIエージェント・PTY・API書込みは使わず、終了/例外時に自分のページ・relay・homeを片付ける。
+- `pv2-shots.mjs`：確定22カット・拍境界・出典・元記録のprefixと保持/スローの時計。M#39の同じ一撃、P1#6→7の実結果、M#69の本当のLv3、C#27–32の本体＋仲間3人。
+- `pv2-stage.mjs`：**1枚の実アプリcanvasを背景ごと切り抜く**カメラ。地図も実アプリの3勇者・1町。別比率の寄り、町のパン、背中→全景の引き、文字カード、題字の単発3フレーム閃光のみ。Lv通知は実DOMを撮った画素（翻訳/再入力なし）。名前・コピーは太く大きく一括表示する。
+- 本体の接触は0.5 / 20.5 / 22.5秒、仲間の既存攻撃は21.5秒。C#26の同じ本体成功窓であり、成功3回/3連撃とは扱わない。C#33のStop直前1182msで実状態の範囲を終え、撃破・宝箱・勝利を出さず題字へ。
+- `pv2-verify.mjs`：元パケット一致・純粋coreの3仲間/ドラゴン/Lv/実結果・実Stop境界・装備由来windupと接触拍を検証。`capture-source-check.json`に証拠を書く。
+- `pv2-qa.mjs`：完成4本の30秒/900フレーム/30fps/音声なしをffprobe検査。全22カット＋接触の前/当たり/後＋引き/実pi結果/閃光/CTAを**176枚再抽出**。`pv2-boards.swift`は完成動画からの一覧12枚を作る。
+- 納品は`pv2-*.mp4`、`stills/pv2-*/s01..s22.png`、`qa/pv2-*/`、`qa-boards-*`、`qa-action-*`、`pv2-*.proof.json`、`video-info.json`。従来の`frames/`・`boards-*`は撮影前のラフとして残す。
+- 元イベントのID・source・project・ts・本文・成功/失敗・prefix内受信間隔は変えない。状態時計の原点と見せ尺、アニメーション時計だけ編集。実UI・Lv通知は英語版でも日本語。新しい成功・キャラ・武器・数値・端末・音は足さない。
+
+
+## S8.5：パーティー入りPV（端末枠なし・Orca内蔵ブラウザ）
+
+脚本・絵コンテ・完成物・報告：`.art-work/s85/`。24秒、日英 × 16:9/1:1、4本、無音。
+前回v2の外部Chrome用の撮影道具はこのPVには使わない。**Orca内では`orca-cli`の現行ガイドを読み、内蔵ブラウザだけを使う。**
+
+```sh
+npm run build
+node_modules/.bin/tsx tools/demo/pv-verify.mjs
+node tools/demo/pv-film.mjs .art-work/s85
+# 1版だけ、または動画なしの静止画確認
+node tools/demo/pv-film.mjs .art-work/s85 pv-ja-1x1 --stills-only
+# 必ず完成mp4から再抽出して目視する
+node tools/demo/pv-qa.mjs .art-work/s85
+swift .art-work/s85/render-boards.swift
+```
+
+- `pv-film.mjs`：**8846**、ランダムトークン、`/tmp/agent-quest-pv-*`の一時homeを自分で用意。ポート使用中なら中止。終了・例外時に自分のページ・サーバー・homeを片付ける。CLIエージェントは起動しない。外部ブラウザへフォールバックしない。
+- `pv-shots.mjs`：承認済み24秒の8カットと出典。S1–S3はv3、S4/S6/S7は許可された旧M、S5は本物のpi。別テイクの編集は末尾に開示。
+- `pv-stage.mjs`：Orcaで作った専用ページに実アプリのiframeを読み込み、記録済みパケットだけを渡す。PTY・API書込みを禁止。元イベントのID・source・project・ts・本文・成功/失敗を変更しない。prefix内の元受信間隔は保持し、報告の所要時間も本物のまま。
+- 描画は実アプリのcanvas＋編集字幕。既存のアニメーション時計と結果の提示間隔だけを選ぶ。新しいキャラクター・ダメージ・Lvを作らない。S7は実DOMのOrcaスクリーンショット。**`#movie-terminal`も端末の差し込みも使わない。**
+- ドットは元の1ピクセルの整数倍。1:1の町は別の寄り、戦闘は4人と敵を残す。`title.png`は既存の4倍PNGを4倍/6倍の元ドットとして表示。
+- 10fpsで実キャンバスを取得し、H.264/yuv420p・30fpsへ格納。音声なし。`stills/pv-*/`は撮影写真、`qa/pv-*/`は**完成mp4の再抽出**。`pv-*.proof.json`、`recording-proof.json`、`video-info.json`が根拠。
+- `pv-verify.mjs`：元順を純粋coreへ渡し、同時仲間3人、旧M#69のLv3、6ファイルの宝箱、piの実テスト、7回の手動許可、結合後PTYの匿名化を確認。
+
+### v3の本物の記録
+
+`recordings-v3/main.jsonl`はClaude Code 2.1.296、legend/Opus 5.5、Explore3人の並列調査→6編集→npm test1回・6ケース成功。仲間は読み取り専用。maxHelpers=3、最終wins=37/Lv4（仲間の読取成功もcoreが数える）。`pi-1.jsonl`はREADME読取と別のnpm test1回・6ケース成功、`pi-2.jsonl`はREADME読取だけ。全員同じ実`tiny-quest`で、piは既定のまま装備を変えていない。
+
+取得した時の手順：
+
+1. 明示的な記録許可の範囲で**8845**と`/tmp/agent-quest-demo.*`を使う。小さなgitデモフォルダ、Node標準テスト、一時`AGENT_CHARACTER_HOME`と一時`CLAUDE_CONFIG_DIR`を作る。Claudeからコピーするのは認証`.credentials.json`だけ。利用者のsettings・履歴をコピー／変更しない。
+2. 下のv2の3関数のデモを用意し、アプリAPIでClaudeをlegend、piを無装備で起動。Claudeの初期テーマ・対象フォルダの信頼を手で確認し、**manual mode**へ切り替える。auto modeにしない。
+3. `record.mjs`で状態WS、`record-pty.mjs`で新しいデモPTYの出力だけを記録。Claudeには読むだけのExplore3人を並列に使って各関数を調査し、本体が3バグと境界テスト3件を直し、npm testを1回実行する依頼。piにはREADME読取、修正完了後に無害なnpm test1回と短い報告。デモの外・ネットワーク・依存追加・コミット禁止。
+4. 許可は**対象ごとに出力を読み、手で回答**する。Orcaのnative type/keypress/inserttextと`orca terminal send`は使わない。必要な入力は`orca eval`内のDOM/KeyboardEventまたは、対象IDを確認したアプリのデモPTY WSのみ。
+5. 保存前にPTYを全結合し、`redact.mjs`をもう一度適用する（チャンク境界をまたぐパス・メール対策）。v3のPTYは匿名化後の1チャンクであり、映像には使わない。`manifest.json`は実API応答、`demo-files.json`は機密なしのデモコード、`startup.txt`はトークンを伏せた起動記録。
+6. 全CLIをfarewellで終了し、セッション一覧が空になったことを確認。記録プロセス・自分のサーバーを止め、認証コピー・一時home・デモフォルダを削除。8790・`~/.config/agent-character`・pi/Codexの設定は使わない。
+
+以下は旧S8.1/v2の資料。外部Chrome使用の許可は旧タスクだけのもので、通常のOrca内操作に適用しない。
 
 ## 完成動画と撮り直し
 
@@ -88,3 +182,23 @@ node tools/demo/record-pty.mjs 'http://127.0.0.1:8805/?token=TEMP_TOKEN' DEMO_SE
 `record-pty.mjs` は出力だけを受け取り、入力・許可回答・CLIの過去履歴には触れない。`redact.mjs` でデモroot・利用者パス・メールを匿名化する。PTYチャンクを**全結合しても**元パス／メールが残らないことを確認し、保存前に本文も目視する。
 
 許可は対象ごとに手で確認して回答する。Orcaネイティブtype / keypress / inserttextと `orca terminal send` は使わない。終了後はClaude・記録プロセス・自分のサーバーを止め、一時認証・データ・リポジトリを削除する。利用者データをコミットしない。
+
+## S8.8 — PV v4（無音・連続歩行・実宝箱）
+
+49.5秒 / 30fps / 1485frame、日英 × 16:9・1:1。音を付ける前の映像だけを作る。既存の `recordings-v2/`・`recordings-v3/` と `.art-work/s87/recordings/` が必要。新しいエージェントやPTYは起動しない。
+
+```sh
+npm run build
+node tools/demo/pv4-film.mjs .art-work/s88/video
+node_modules/.bin/tsx tools/demo/pv4-verify.mjs .art-work/s88/video
+node tools/demo/pv4-qa.mjs .art-work/s88/video
+swift tools/demo/pv4-boards.swift .art-work/s88/video
+```
+
+- 現在worktreeのOrca内蔵ブラウザだけ。専用 **8878**、`/tmp/agent-quest-pv4-*` の一時homeを使い、終了/失敗時に専用ページ・relay・homeを閉じる。外部ブラウザ、ネイティブ入力、`orca terminal send`、他ワーカーは使わない。
+- `pv4-shots.mjs`：編集点と `cues.json`。秒はMP4の0起点PTS、終了はexclusive、30fpsの整数frame。BGM/SEは入れず、音声streamも作らない。
+- `pv4-stage.mjs`：v3カメラを拡張。5バイオームは**1つの連続した自然歩行**、実「町のすがたを かえる」→テーマ選択→一時homeへのPATCH。共有の道/Walkerを変えず、切替前後の勇者座標を比較して飛んだら停止。6frameのクロスフェードは同時刻/同じ勇者座標の旧/新背景を使う。撮影だけの固定乱数で自然な巡回先を再現し、勇者の位置/道を手で上書きしない。
+- 宝箱はv2/main#76の実Stop報告。23.5–25.5秒は未読の宝箱badge、**25.5秒に実map badgeをDOM MouseEventで押して**会話と報告を開く。実「まとめて表示」を押し、実DOMをCSSで拡大してnative screenshotの実画素を25.5–31.5秒保持（native撮影で左上1/4に縮む場合は、実描画範囲を測って余白だけを除去）。ファイル6つ・テスト○1×0（成功実行1回）・返事先頭（6ケースpass）を改変しない。架空の閉じた宝箱/開閉アニメは作らない。
+- アプリ本体は変更不要。町の道は全themeで共通、theme chooserはWalkerを再生成しない。v3撮影では各biomeでreplay/navigationをやり直し、motion時計を前カット末尾から約1467ms巻き戻していた。実アプリの `performance.now()` は単調増加なので、v4は撮影の時計とカットを直す。
+- `pv4-qa.mjs`：完成MP4を整数frameでselectして静止画を抜き、無音・尺・解像度・frame数と実報告窓の右端白枠を検証（native screenshotの縮み/余白も検出）。`pv4-boards.swift` はその完成静止画から4版の全カット・切替前後・報告・接触の一覧を作る。
+- 成果物は `.art-work/s88/video/` のみ。S8.8-Aの音設計や利用者の8790/既定homeには触れない。静止画専用の `--stills-only` は構図の試写用で、連続性の受け入れ検証には必ず完成4本を使う。
