@@ -136,7 +136,7 @@ export async function renderStage(cdp, ms, caption, language, kind, ratio, termi
           hud.getContext('2d').drawImage(canvas,0,0,368,88,0,0,368,88);
           dialogue.querySelector('canvas').getContext('2d').drawImage(canvas,0,canvas.height-92,1114,92,0,0,1114,92);
         }
-        const line=document.querySelector('#messages').textContent.split('\\n').at(-1)||'';
+        const line=document.querySelector('#messages').textContent.split('\\n').findLast(text=>text.includes('レベル'))||'';
         level.hidden=!promo||${ms}<8800||${ms}>=10000||!line.includes('レベル');level.textContent=line;
         resolve();
       }));

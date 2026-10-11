@@ -45,11 +45,11 @@ export function demoTerminal(snapshots, ms) {
   if (ms < 30000) return excerpt(snapshots['2'], 'Explore', 23);
   if (ms < 35000) return excerpt(snapshots['25'], 'Read', 23);
   if (ms < 44000) return excerpt(snapshots['36'], 'Edit file', 24);
-  if (ms < 48000) return excerpt(snapshots['39'], 'return coins', 22);
-  if (ms < 50000) return excerpt(snapshots['45'], 'return items', 22);
-  if (ms < 52000) return excerpt(snapshots['51'], 'hp', 22);
-  if (ms < 54000) return excerpt(snapshots['57'], 'zero bonus', 22);
-  if (ms < 56000) return excerpt(snapshots['63'], 'zero extra', 22);
+  if (ms < 46000) return excerpt(snapshots['39'], 'return coins', 22);
+  if (ms < 48200) return excerpt(snapshots['45'], 'return items', 22);
+  if (ms < 50400) return excerpt(snapshots['51'], 'hp', 22);
+  if (ms < 52600) return excerpt(snapshots['57'], 'zero bonus', 22);
+  if (ms < 54800) return excerpt(snapshots['63'], 'zero extra', 22);
   if (ms < 58000) return excerpt(snapshots['69'], 'caps at 100', 22);
   if (ms < 62000) return excerpt(snapshots['72'], 'Bash command', 22);
   if (ms < 65000) return excerpt(snapshots.final, 'Bash(npm test', 19);

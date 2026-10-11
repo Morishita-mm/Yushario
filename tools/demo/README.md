@@ -9,7 +9,7 @@
 - デモ：`demo-{ja,en}-16x9.mp4`、80秒、1920×1080。
 - プロモ：`promo-{ja,en}-{16x9,1x1}.mp4`、18秒、1920×1080 / 1080×1080。
 - 日本語と英語は別ファイル。1:1は別構図。無音、H.264 / yuv420p、10fpsで撮影して30fpsで格納。
-- `stills/<variant>/` はシーン写真。`qa/<variant>/` は**完成mp4から再抽出**した目視確認用フレーム。
+- `stills/<variant>/` はシーン写真。`qa/<variant>/` は**完成mp4から再抽出**した目視確認用フレーム。許可・「はい」フォーカス・同じEditの一撃はデモ40.5 / 43.6 / 44.5秒、プロモ11.5 / 12.8 / 13.4秒（全言語・比率）。
 - `<variant>.proof.json` は画面のLv・許可要約・報告、元JSONL行、端末抜粋の元PTY行／テキスト行を記録。
 
 ```sh
@@ -19,11 +19,11 @@ node tools/demo/film.mjs .art-work/s8/demo2
 # 1本だけ、または動画を作らずシーン写真のレイアウト確認。
 node tools/demo/film.mjs .art-work/s8/demo2 promo-en-1x1
 node tools/demo/film.mjs .art-work/s8/demo2 demo-ja-16x9 --stills-only
-# 完成6本をffprobe検査し、各7枚をmp4から再抽出して目視する。
+# 完成6本をffprobe検査し、許可→はい→一撃を含む各16枚 / 10枚をmp4から再抽出して目視する。
 node tools/demo/extract-qa.mjs .art-work/s8/demo2
 ```
 
-**外部Chromeの使用を明示的に指示されたS8.1-F用。** 通常のOrca内のページ確認はorca-cliスキルに従う。この道具はブラウザを起動せず、既存の `127.0.0.1:9333` に自分専用Targetだけを作り、正常終了／例外時に閉じる。CDPがなければ失敗し、他のブラウザへ切り替えない。
+**外部Chromeの使用を明示的に指示されたS8.1-F / S8.1-R用。** 通常のOrca内のページ確認はorca-cliスキルに従う。この道具はブラウザを起動せず、既存の `127.0.0.1:9333` に自分専用Targetだけを作り、正常終了／例外時に閉じる。CDPがなければ失敗し、他のブラウザへ切り替えない。
 
 `film.mjs` は8805のサーバー、ランダムな一時トークン、`/tmp/agent-quest-film-*` の `AGENT_CHARACTER_HOME` を用意する。8805が使用中なら中止する。終了時に自分のサーバーを止め、一時homeを消す。8790・利用者データ・設定・認証には触れない。
 
@@ -35,7 +35,8 @@ node tools/demo/extract-qa.mjs .art-work/s8/demo2
 - `terminal-excerpts.mjs`：既存xtermで**本物のmain-pty.jsonl**をANSI解釈し、該当行を抜粋する。最終テスト・報告は実端末を展開して保存した `main-terminal.txt`。ANSI色は除き、折り返し・長い区切り線の横方向クロップだけ行う。コード・結果・本文を作り直さない。
 - 端末は読みやすい別枠に常時表示するデモと、短い挿入のプロモ。リアルタイムのPTYではなく、タイトルに「記録時の出力」と明記した元記録の抜粋。端末バッファ内の先行表示／一括ツール待機は元のまま。
 - 時計と間隔を編集するだけで、ID・装備・結果・Lv式は変えない。デモは町1倍／戦闘2倍。プロモは町2倍（16:9）／3倍の寄り（1:1）、戦闘4倍でゲームが画面を埋める。下の開発用の勇者／Lv札は除く。切れる戦闘HUDと台詞は**同じ実キャンバスの画素**を3倍／2倍で安全な位置へ転写する（台詞の1:1外縁17pxだけクロップ）。数字・本文を描き直さない。レベルアップは実UIが生成した最後の通知行を表示する。
-- **PermissionRequest後のPostToolUseはactivityを復元しない**ため、本物のEdit/Test成功後は町に残る。架空のPreToolUseを足さず、Slime/Golemは許可前の実PreToolUse、かいしんは実M#4 Agent成功のDragonで撮る。この絵コンテとの差分はreportに明記する。
+- S8.1-Rは修正済みcoreで、**許可後の実PostToolUseがEdit / Testのactivityと結果へ戻る**。デモ44秒のM#39とプロモ2秒 / 12.9秒のM#39は同じquest.mjs成功→Slimeのかいしん。デモの残り5編集とM#75のnpm test成功→Golemも戦闘に戻る。架空のイベントや結果は足さない。
+- `shotMotion()` は編集時計とは別に既存の攻撃拍を選ぶ。実成功後2秒以内の結果表示に合わせ、カットの白い遷移が終わってから剣が当たる。かいしん判定・ダメージ・Lv・モンスターは既存アプリの計算だけ。許可への回答は本物のpermission-resolvedに合わせた「はい」のDOMクリックで、直前にそのボタンへフォーカスする。プロモの端末挿入は3.0–3.5秒（同じEdit差分）、5.6–6.1秒（Explore）、12.0–12.5秒（同じEdit確認）。
 - 冒頭の `npx agent-quest` は入口を示す編集タイトル。隣の起動ログは本物の開発起動ログであり、npxを実行した端末の捏造ではない。初回信頼確認も元の実CLI画面を使う。
 
 v1の撮影コードはv2へ置き換えた。旧素材／検証記録は `.art-work/s8/demo/` と `recorded.jsonl`、`timeline.json` に残るが、旧 `film.mjs TIMELINE OUTPUT` の呼び方は使えない。

@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { connect, pause } from './cdp.mjs';
-import { main, towns, sessions, prefix, demoTimeline, demoCaptions, promoCaptions, demoStills, promoStills } from './shots.mjs';
+import { main, towns, sessions, prefix, demoTimeline, demoCaptions, promoCaptions, demoStills, promoStills, shotMotion } from './shots.mjs';
 import { terminalExcerpts, demoTerminal, excerpt } from './terminal-excerpts.mjs';
 import { stage, renderStage } from './stage.mjs';
 const [url, output, kind, language, ratio, flag] = process.argv.slice(2);
@@ -32,7 +32,7 @@ async function deliver(row, originIndex, atMs) {
   const packet = row.event ? { type: 'event', event: { ...row.event, ts: 1800000000000 + atMs + clockOffset }, at: 1800000000000 + atMs + clockOffset } : row;
   await cdp.evaluate(`__deliver(${JSON.stringify(packet)})`);
   if (kind === 'demo' && originIndex === 1) await cdp.evaluate(`document.querySelector('#talk-input').value=''`);
-  if (kind === 'demo' && row.event?.hook === 'PostToolUse' && !row.event.subagent && ['Edit', 'Bash'].includes(row.event.tool)) {
+  if (row.event?.hook === 'PostToolUse' && !row.event.subagent && ['Edit', 'Bash'].includes(row.event.tool)) {
     await settle();await pick();
   }
 }
@@ -65,7 +65,7 @@ async function demoAction(ms) {
 }
 async function promoAction(ms) {
   if (ms === 0) { await cdp.evaluate('__motion=43400'); await reset(towns, 6, ms); await pick(towns[0][0].event.agent, false); }
-  if (ms === 2000) { await reset([main], 3, ms); await deliver(main[4], 4, ms); await settle(); await pick(); }
+  if (ms === 2000) { await reset([main], 38, ms); await deliver(main[39], 39, ms); }
   if (ms === 5000) { await reset([main], 3, ms); await pick(); }
   if (ms === 5600) await deliver(main[4], 4, ms);
   if (ms === 8000) { await reset([main], 68, ms); await pick(mainId, false); }
@@ -85,7 +85,7 @@ try {
   }
   for (let frame = 0; frame < duration / 100; frame++) {
     const ms = frame * 100;
-    const motion = kind === 'demo' ? 18500 + ms : (ms < 5000 ? 44000 : ms < 8000 ? 50500 : 55000) + ms;
+    const motion = shotMotion(kind, ms);
     await cdp.evaluate(`__movieMs=${ms};__motion=${motion};`);
     if (kind === 'demo') {
       while (cursor < demoTimeline.length && demoTimeline[cursor].atMs <= ms) {
@@ -96,10 +96,14 @@ try {
     } else await promoAction(ms);
     const permission = kind === 'demo' ? (ms >= 36000 && ms < 44000) || (ms >= 59500 && ms < 62000) : ms >= 10000 && ms < 12900;
     const ending = kind === 'demo' ? ms >= 74000 || ms < 6000 : ms >= 14000;
-    const insert = kind === 'promo' && ((ms >= 2400 && ms < 2900) || (ms >= 5600 && ms < 6100));
+    const insert = kind === 'promo' && ((ms >= 3000 && ms < 3500) || (ms >= 5600 && ms < 6100)
+      || (ms >= 12000 && ms < 12500));
     let terminal = demoTerminal(snapshots, ms);
-    if (kind === 'promo') terminal = ms < 5000 ? excerpt(snapshots['2'], 'Explore', 12)
-      : ms < 8000 ? excerpt(snapshots['2'], 'Explore', 12) : excerpt(snapshots.final, 'Bash(npm test', 18);
+    if (kind === 'promo') terminal = ms < 5000 ? excerpt(snapshots['39'], 'return coins', 12)
+      : ms < 8000 ? excerpt(snapshots['2'], 'Explore', 12)
+      : ms < 12900 ? excerpt(snapshots['36'], 'Edit file', 18)
+      : ms < 14000 ? excerpt(snapshots['39'], 'return coins', 12) : excerpt(snapshots.final, 'Bash(npm test', 18);
+    if (permission) await cdp.evaluate(`(()=>{const yes=[...document.querySelectorAll('.permission button')].find(b=>b.textContent.includes('はい'));if(yes&&__movieMs>=${kind === 'demo' ? 43000 : 12500})yes.focus();})()`);
     if (stillsOnly && !stills.has(ms)) continue;
     await renderStage(cdp, ms, captions.findLast((item) => item[0] <= ms), language, kind, ratio, terminal, permission, ending, insert);
     // Give the live HUD its 250ms update tick without aging a genuine success beyond the hit window.
@@ -109,7 +113,7 @@ try {
     if (encoder && !encoder.stdin.write(png)) await once(encoder.stdin, 'drain');
     if (stills.has(ms)) {
       writeFileSync(join(path, `${stills.get(ms)}.png`), png);
-      const visible = await cdp.evaluate(`({place:document.querySelector('#place-name').textContent,canvas:[world.width/2,world.height/2],css:[world.clientWidth,world.clientHeight],levels:[...document.querySelectorAll('.compact-hero')].map(x=>x.innerText),permission:document.querySelector('.permission')?.innerText,report:document.querySelector('.report-card.chest')?.innerText,levelNotice:document.querySelector('#movie-level').hidden?'':document.querySelector('#movie-level').textContent,caption:document.querySelector('#movie-caption').innerText,terminal:document.querySelector('#movie-terminal pre').innerText})`);
+      const visible = await cdp.evaluate(`({place:document.querySelector('#place-name').textContent,canvas:[world.width/2,world.height/2],css:[world.clientWidth,world.clientHeight],levels:[...document.querySelectorAll('.compact-hero')].map(x=>x.innerText),permission:document.querySelector('.permission')?.innerText,report:document.querySelector('.report-card.chest')?.innerText,levelNotice:document.querySelector('#movie-level').hidden?'':document.querySelector('#movie-level').textContent,caption:document.querySelector('#movie-caption').innerText,terminal:document.querySelector('#movie-terminal pre').innerText,canvasLabel:world.getAttribute('aria-label'),animationMs:__motion})`);
       proof.push({ ms, scene: stills.get(ms), terminalSource: terminal, ...visible });
       console.log(`${name} ${(ms / 1000).toFixed(1)}s ${stills.get(ms)} ${visible.place}`);
     }

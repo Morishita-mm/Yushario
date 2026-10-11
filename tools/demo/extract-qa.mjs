@@ -15,8 +15,11 @@ for (const name of variants) {
     || Math.abs(Number(probe.format.duration) - duration) > 0.05 || probe.streams.some((item) => item.codec_type === 'audio'))
     throw new Error(`Unexpected video format: ${name}`);
   const folder = join(output, 'qa', name);mkdirSync(folder, { recursive: true });
-  const frames = demo ? [['startup', 2], ['setup', 14.5], ['critical', 28], ['permission', 40.5], ['tests', 63.3], ['report', 68.5], ['ending', 77]]
-    : [['town', 1], ['critical', 2.3], ['terminal', 2.6], ['party', 6.3], ['level', 9.3], ['permission', 11.5], ['ending', 16]];
+  const frames = demo ? [['startup', 2], ['setup', 14.5], ['party', 28], ['lv2', 32.5], ['permission', 40.5],
+    ['answer', 43.6], ['critical', 44.5], ['pack-hit', 47.4], ['health-hit', 49.6], ['quest-test-hit', 51.8],
+    ['pack-test-hit', 54], ['lv3', 56.2], ['test-hit', 62.5], ['tests', 63.3], ['report', 68.5], ['ending', 77]]
+    : [['town', 1], ['critical', 2.5], ['terminal', 3.2], ['party', 6.3], ['level', 9.3], ['permission', 11.5],
+      ['confirmation', 12.2], ['answer', 12.8], ['edit-critical', 13.4], ['ending', 16]];
   for (const [scene, seconds] of frames) execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-ss', String(seconds),
     '-i', video, '-frames:v', '1', '-update', '1', join(folder, `${scene}.png`)], { stdio: 'inherit' });
   metadata.push({ name, durationSeconds: Number(probe.format.duration), width: stream.width, height: stream.height,

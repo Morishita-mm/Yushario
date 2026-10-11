@@ -27,13 +27,28 @@ const cues = new Map([[0, 12000], [1, 19000], [2, 25000], [3, 25100], [4, 27700]
 for (let i = 6; i <= 19; i++) cues.set(i, 29600 + (i - 6) * 50);
 for (let i = 22; i <= 33; i++) cues.set(i, 30500 + (i - 22) * 350);
 for (let group = 0; group < 5; group++) for (let n = 0; n < 6; n++)
-  cues.set(40 + group * 6 + n, 46000 + group * 2000 + [0, 1000, 1000, 1300, 1600, 1700][n]);
+  cues.set(40 + group * 6 + n, 46000 + group * 2200 + [0, 300, 300, 600, 800, 900][n]);
 export const demoTimeline = [...cues].sort((a, b) => a[1] - b[1]).map(([index, atMs]) => ({ index, atMs, row: main[index] }));
 export const demoStills = new Map([[2000, '01-startup'], [8500, '02-launch'], [14500, '03-setup'], [20500, '04-request'],
-  [26300, '05-dragon'], [28000, '05b-critical'], [32500, '06-lv2'], [40500, '07-permission'], [44300, '08-answer'],
-  [46500, '08b-slime'], [56300, '09-lv3'], [58800, '09b-golem'], [63300, '10-tests'], [68500, '11-report'], [77000, '12-ending']]);
-export const promoStills = new Map([[1000, '01-town'], [2300, '02-critical'], [6300, '03-dragon'],
-  [9300, '04-level'], [11500, '05-permission'], [16000, '06-ending']]);
+  [26300, '05-dragon'], [28000, '05b-critical'], [32500, '06-lv2'], [40500, '07-permission'], [43600, '08-answer'],
+  [44500, '08a-edit-critical'], [47400, '08b-slime'], [49600, '08c-health-hit'], [51800, '08d-quest-test-hit'],
+  [54000, '08e-pack-test-hit'], [56200, '09-lv3'], [58800, '09b-golem'], [62500, '10a-test-hit'],
+  [63300, '10-tests'], [68500, '11-report'], [77000, '12-ending']]);
+export const promoStills = new Map([[1000, '01-town'], [2500, '02-critical'], [6300, '03-dragon'],
+  [9300, '04-level'], [11500, '05-permission'], [12800, '05a-answer'], [13400, '05b-edit-critical'], [16000, '06-ending']]);
+// Select existing attack beats within the real result's two-second presentation window.
+// This edits the camera's animation clock only; Room timestamps/results are untouched.
+export function shotMotion(kind, ms) {
+  if (kind === 'demo') {
+    const post = demoTimeline.findLast(({ atMs, row }) => atMs <= ms && row.event?.hook === 'PostToolUse'
+      && !row.event.subagent && ['Edit', 'Bash'].includes(row.event.tool));
+    if (post && ms < 65000) return (post.index === 39 ? 45800 : 54800) + ms - post.atMs;
+    return 18500 + ms;
+  }
+  if (ms >= 2000 && ms < 5000) return 45800 + ms - 2000;
+  if (ms >= 12900 && ms < 14000) return 45800 + ms - 12900;
+  return (ms < 5000 ? 44000 : ms < 8000 ? 50500 : 55000) + ms;
+}
 export function prefix(source, end, now) {
   return source.slice(0, end + 1).filter((row) => row.event && row.event.hook !== 'SessionEnd')
     .map((row, i, list) => ({ event: row.event, at: now - (list.length - i) * 10 }));
