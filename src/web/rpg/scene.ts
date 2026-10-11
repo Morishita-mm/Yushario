@@ -240,7 +240,7 @@ export class Scene {
     if (this.focused) return this.art.size(`bg-battle-${this.place}`);
     return this.place === "world" ? this.art.size("world-map") : [TOWN_W, TOWN_H];
   }
-  private signs() { return reportSigns(this.art, this.localHeroes(), this.travel.walkers, this.place, this.size(), this.focused); }
+  private signs() { return reportSigns(this.art, this.localHeroes(), this.travel.walkers, this.place); }
   private hotspots(): Hot[] {
     if (!this.layer.hidden) return [];
     const reports = this.signs().map((sign) => ({ x: sign.x - 18, y: sign.y - 42, w: 50, h: 46,

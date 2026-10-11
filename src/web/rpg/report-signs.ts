@@ -5,21 +5,19 @@ import { innSlots } from "../town/inn";
 import type { Walker } from "../town/walkers";
 import { latestReport, unreadReports } from "./read-reports";
 import { REPORT_FRAME } from "./report-card";
-import { battleSlots } from "./battles";
 
-export function reportSigns(art: Sheets, heroes: TownHero[], walkers: Walker[], place: "world" | HeroPlace, [w, h]: [number, number], focused?: string) {
-  if (place === "world") return [];
+export function reportSigns(art: Sheets, heroes: TownHero[], walkers: Walker[], place: "world" | HeroPlace) {
+  // Fields are battles: a floating report would sit over the fight until the next request.
+  if (place !== "town" && place !== "inn" && place !== "church") return [];
   const local = heroes.filter((hero) => hero.place === place);
   const beds = innSlots(art), prayers = churchSlots(art), inn = art.entry("inn-wall").inn!;
-  const slots = battleSlots(art, place === "cave" || place === "forest" ? place : "meadow");
   return local.flatMap((hero, index) => {
     const unread = unreadReports(hero.agent), reply = latestReport(hero.agent) ?? unread[unread.length - 1];
-    if (!reply || (focused && hero.id !== focused)) return [];
+    if (!reply) return [];
     const walker = walkers.find((item) => item.id === hero.id);
-    const at = focused ? [w / 2 - Math.min(hero.party.length, 4) * art.size("hero-model")[0], h - 44 - 60] : place === "town" ? walker && [walker.x, walker.y - 60]
+    const at = place === "town" ? walker && [walker.x, walker.y - 60]
       : place === "inn" ? index < beds.length && [beds[index][0] + inn.report[0], beds[index][1] + inn.report[1]]
-        : place === "church" ? index < prayers.length && [prayers[index][0], prayers[index][1] - 60]
-          : index < slots.length && [slots[index][0], slots[index][1] - 62];
+        : index < prayers.length && [prayers[index][0], prayers[index][1] - 60];
     if (!at) return [];
     return [{ id: hero.id, at: unread[unread.length - 1]?.at ?? reply.at,
       x: at[0], y: at[1], unread: Boolean(unread.length), frame: REPORT_FRAME[reply.report?.kind ?? "talk"] }];
