@@ -47,7 +47,6 @@ dialog.talk-window::backdrop { background: rgba(0, 0, 0, 0.12); }
   .talk-heading h3 { flex-basis: 100%; }
   .talk-heading button { margin-left: auto; }
   .talk-heading .switch-view { min-width: 0; text-align: left; margin-left: 0; }
-  #talk-recall { font-size: 12px; margin: 2px 0; }
   #talk-form { grid-template-columns: minmax(0, 1fr); }
   #talk-send { justify-self: end; }
   .report-card { padding: 8px; }

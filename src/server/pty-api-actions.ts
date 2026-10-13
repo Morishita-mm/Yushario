@@ -39,12 +39,17 @@ export async function handlePtyAction(request: IncomingMessage, response: Server
       json(response, 200, { ok: true }); return action === "farewell";
     }
     if (!AGENTS[session.info.preset].hero) { json(response, 409, { error: "このターミナルは町での会話に対応していません" }); return false; }
-    const text = value && typeof value === "object" && !Array.isArray(value)
-      ? (value as Record<string, unknown>).text : undefined;
+    const fields = value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+    const text = fields.text;
     if (typeof text !== "string" || text.length < 1 || text.length > MAX_EVENT_TEXT_LENGTH) {
       json(response, 400, { error: "ことばは 1〜8000 文字で入力してください" }); return false;
     }
-    const delivered = session.waiting;
+    // steer: tell a working hero now; the CLI reads it after the current tool (Claude Code and pi queue typed input).
+    const steer = fields.steer === true && !session.waiting;
+    if (steer && session.asking) {
+      json(response, 409, { error: "勇者が あなたの へんじを まっています。さきに こたえてください" }); return false;
+    }
+    const delivered = session.waiting || steer;
     if (delivered) deliver(session, text);
     else { session.texts.push(text); changed(pending(session)); }
     json(response, 200, { delivered });

@@ -10,7 +10,7 @@ const DOING: Record<Activity, (target: string) => string> = {
   run: (t) => `じゅもん「${t || "？"}」を となえている`, git: (t) => `ぼうけんのしょに きろくしている ${t}`,
   web: (t) => `ものみのとうで ${t || "とおく"}を みている`, plan: () => "クエストを ねっている",
   delegate: () => "なかまと ドラゴンに いどんでいる", ask: () => "あなたを よんでいる！",
-  tool: (t) => `どうぐを つかっている ${t}`, rest: () => "きょうかいで いのりを ささげている（会話の せいり）",
+  tool: (t) => `どうぐを つかっている ${t}`, rest: () => "きょうかいで いのりを ささげている",
 };
 const MOODS: Record<Mood, string> = {
   waiting_long: "⏳ まちくたびれている", struggling: "💦 くるしい たたかい", recovered: "✨ たちなおった",
@@ -26,7 +26,6 @@ export function element<K extends keyof HTMLElementTagNameMap>(tag: K, className
 
 function bar(label: string, value: number, color: string): HTMLElement {
   const row = element("div", "bar");
-  row.title = label === "HP" ? "HP＝最近の 失敗の 少なさ。時間が たつと 回復します。" : "MP＝会話の 残り（コンテキストの 空き）。不明な時は 目安です。";
   const track = element("span", "track");
   const fill = element("span", "fill");
   fill.style.width = `${Math.round(Math.max(0, Math.min(1, value)) * 100)}%`;
@@ -37,7 +36,6 @@ function bar(label: string, value: number, color: string): HTMLElement {
 }
 function levelLabel(level: number): HTMLElement {
   const label = element("span", "level", `Lv ${level}`);
-  label.title = "Lv＝成功した ツールや クエストによる 活躍の 目安。能力の 評価では ありません。";
   return label;
 }
 function hpColor(hp: number): string { return hp > 0.5 ? "#7ee08a" : hp > 0.25 ? "#ffd35a" : "#ff6b5b"; }
@@ -81,7 +79,7 @@ export function statusCard(agent: RoomAgent, agentMoods: Mood[], permission: HTM
     const terminal = element("button", undefined, "▶ ターミナル"); terminal.type = "button";
     terminal.addEventListener("click", (event) => { event.stopPropagation(); openTerminal(agent.terminal!); });
     actions.append(terminal); card.append(actions);
-  } else if (!detailed) card.append(element("p", "hint", "外から来た勇者（このアプリの ターミナルでは ない）"));
+  } else if (!detailed) card.append(element("p", "hint", "外から来た 勇者"));
   if (detailed || agentMoods.length) {
     const chips = element("p", "moods");
     for (const mood of agentMoods) chips.append(element("span", "chip", MOODS[mood]));
@@ -89,7 +87,7 @@ export function statusCard(agent: RoomAgent, agentMoods: Mood[], permission: HTM
     if (detailed) card.append(element("p", "section", "きぶん"));
     card.append(chips);
   }
-  if (mp <= 0.1) card.append(element("p", "hint", "MPが のこりわずか！ 待機中に コマンドの「やすむ」で 会話を せいりしよう。"));
+  if (mp <= 0.1) card.append(element("p", "hint", "MPが のこりわずか！"));
   if (detailed || agent.helpers.length) {
     const party = element("ul", "party");
     for (const helper of agent.helpers) {

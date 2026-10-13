@@ -1,0 +1,62 @@
+{
+  "sessions": [
+    {
+      "id": "demo-party-2",
+      "preset": "claude",
+      "cwd": "/demo/tiny-quest",
+      "project": "tiny-quest",
+      "createdAt": 1791863394606,
+      "weapon": "legend"
+    },
+    {
+      "id": "demo-party-pi-1-terminal",
+      "preset": "pi",
+      "cwd": "/demo/tiny-quest",
+      "project": "tiny-quest",
+      "createdAt": 1791720693463
+    },
+    {
+      "id": "demo-party-pi-2-terminal",
+      "preset": "pi",
+      "cwd": "/demo/tiny-quest",
+      "project": "tiny-quest",
+      "createdAt": 1791720693484
+    }
+  ],
+  "claudeVersion": "2.1.296 (Claude Code)",
+  "prompt": "このデモ用フォルダ内だけで3つの小さなバグを修正してテストを通して。最初の応答でAgentツールをちょうど4回、同じ応答内の並列呼び出しとして同時に起動してください。subagent_typeはExplore・Plan・general-purpose・quest-mageを各1人です。Exploreはquest.mjsとテスト、Planはpack.mjsとテスト、general-purposeはhealth.mjsとテスト、quest-mageは3関数のゼロ追加と100上限の境界条件を担当します。4人ともREADME.mdと6つのmjsファイルをReadで読んでから短く日本語で報告してください。仲間は読み取り専用で、編集・コマンド実行・ネットワーク・他フォルダへのアクセス・追加のAgentは禁止です。4人の結果を受け取ってから本体だけが各関数の引き算を足し算へ直し、各テストファイルにゼロ追加か100上限のテストを1件追加してください。最後に本体だけでnpm testを1回実行し、短く日本語で報告してください。依存追加・コミット・他フォルダへのアクセス・5人目の仲間は禁止です。",
+  "customAgent": "---\nname: quest-mage\ndescription: Read-only reviewer of Tiny Quest boundary cases\ntools: Read, Glob, Grep\nmodel: inherit\n---\nRead only the Tiny Quest README and six JavaScript source/test files in the current folder. Check boundary cases and return a short Japanese summary. Never edit files, execute commands, use a network, inspect other folders, or create another agent.\n",
+  "parallelResponse": true,
+  "testEvidence": {
+    "command": "npm test 2>&1 | tail -n 12",
+    "output": "✔ slots (0.600666ms)\n✔ slots zero (0.089083ms)\n✔ reward (0.879916ms)\n✔ reward zero (0.062959ms)\nℹ tests 6\nℹ suites 0\nℹ pass 6\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 78.013833",
+    "isError": false
+  },
+  "helpers": [
+    {
+      "type": "Explore",
+      "prompt": "/demo/tiny-quest フォルダ内だけを対象に、読み取り専用で調査してください。まずReadツールでREADME.md、quest.mjs、quest.test.mjs、pack.mjs、pack.test.mjs、health.mjs、health.test.mjsの7ファイルを読んでください。担当はquest.mjsとquest.test.mjsです。quest.mjs内のバグ（足し算すべき所が引き算になっている箇所など）を特定し、該当行と修正案、追加すべきテスト案（ゼロ追加や100上限）を短く日本語で報告してください。禁止事項：ファイル編集、コマンド実行(Bash)、ネットワークアクセス、このフォルダ外へのアクセス、Agentツールの使用。"
+    },
+    {
+      "type": "Plan",
+      "prompt": "/demo/tiny-quest フォルダ内だけを対象に、読み取り専用で調査してください。まずReadツールでREADME.md、quest.mjs、quest.test.mjs、pack.mjs、pack.test.mjs、health.mjs、health.test.mjsの7ファイルを読んでください。担当はpack.mjsとpack.test.mjsです。pack.mjs内のバグ（足し算すべき所が引き算になっている箇所など）を特定し、該当行と修正案、追加すべきテスト案（ゼロ追加や100上限）を短く日本語で報告してください。禁止事項：ファイル編集、コマンド実行(Bash)、ネットワークアクセス、このフォルダ外へのアクセス、Agentツールの使用。"
+    },
+    {
+      "type": "general-purpose",
+      "prompt": "/demo/tiny-quest フォルダ内だけを対象に、読み取り専用で調査してください。まずReadツールでREADME.md、quest.mjs、quest.test.mjs、pack.mjs、pack.test.mjs、health.mjs、health.test.mjsの7ファイルを読んでください。担当はhealth.mjsとhealth.test.mjsです。health.mjs内のバグ（足し算すべき所が引き算になっている箇所など）を特定し、該当行と修正案、追加すべきテスト案（ゼロ追加や100上限）を短く日本語で報告してください。禁止事項：ファイル編集・作成、コマンド実行(Bash)、ネットワークアクセス、このフォルダ外へのアクセス、Agentツールの使用。"
+    },
+    {
+      "type": "quest-mage",
+      "prompt": "/demo/tiny-quest フォルダ内だけを対象に、読み取り専用でレビューしてください。まずReadツールでREADME.md、quest.mjs、quest.test.mjs、pack.mjs、pack.test.mjs、health.mjs、health.test.mjsの7ファイルを読んでください。担当は3関数（quest/pack/healthの各関数）の境界条件です：0を追加した場合に値が変わらないこと、100上限を正しく扱うこと（ちょうど100、100超え）。引き算バグを足し算に直した後の各関数で、どの境界テストを各テストファイルに1件ずつ追加すべきか具体的な期待値付きで短く日本語で報告してください。禁止事項：ファイル編集、コマンド実行、ネットワークアクセス、このフォルダ外へのアクセス、Agentツールの使用。"
+    }
+  ],
+  "allowedScope": "Temporary Tiny Quest only; helper reads; main fixes three arithmetic bugs, adds three tests and runs npm test once",
+  "anonymization": "Temporary paths and original session/subagent/terminal IDs replaced consistently; event text/results and receipt intervals otherwise preserved",
+  "retained": {
+    "firstEvent": 0,
+    "lastPrefixEvent": 11,
+    "finalStop": true,
+    "omitted": "Unused middle events, CLI transcripts and internal notifications",
+    "pi": "Existing recordings, only IDs consistently anonymized; not new sessions"
+  }
+}

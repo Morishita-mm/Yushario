@@ -8,7 +8,7 @@ import type { Fight } from "../town/field";
 
 import type { Sheets } from "../town/sheets";
 
-export const battleSlots = (art: Sheets, theme: Theme) => art.entry(`bg-battle-${theme}`).field!.fights;
+export const battleSlots = (art: Sheets, theme: Theme) => art.entry(`bg-field-${theme}`).field!.fights;
 const MONSTER_NAMES = { slime: "スライム", golem: "ゴーレム", ghost: "おばけ", dragon: "ドラゴン" };
 const FX = { slime: "claw", golem: "rocks", ghost: "curse", dragon: "fire" };
 

@@ -15,3 +15,5 @@ await build({
   },
 });
 copyFileSync("src/server/equipment.json", "lib/server/equipment.json");
+// Keep notices with the bundled fonts and browser code, even when dist/ is copied alone.
+for (const file of ["LICENSE", "NOTICE"]) copyFileSync(file, `dist/${file}`);

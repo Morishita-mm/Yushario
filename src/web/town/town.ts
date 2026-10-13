@@ -2,71 +2,87 @@ import { label } from "./field";
 import { drawWeather, THEME_NAMES, type TownTheme } from "./themes";
 import { drawWalker, type Walker, type TownSign } from "./walkers";
 import type { Sheets } from "./sheets";
-import type { Part } from "./art-data";
+import { townLayout, type Look, type Part, type Point } from "./art-data";
 
 export const TOWN_W = 960;
 export const TOWN_H = 540;
-export const townSpots = (art: Sheets) => art.entry("bld-inn").town!.spots;
-let streets: HTMLCanvasElement | undefined;
-let streetsTheme: TownTheme | undefined;
+export const townSpots = (art: Sheets, theme?: TownTheme) => townLayout(art.entry("bld-inn").town!, theme).spots;
+let ground: HTMLCanvasElement | undefined;
+let groundTheme: TownTheme | undefined;
 
-// Streets are shared by every town: crisp discs along the graph, filled with cobbles.
-function paintStreets(art: Sheets, street: Part): HTMLCanvasElement {
-  const { nodes, edges } = art.entry("bld-inn").town!;
-  const mask = document.createElement("canvas");
-  mask.width = TOWN_W; mask.height = TOWN_H;
-  const m = mask.getContext("2d")!;
-  m.fillStyle = "#000";
-  const disc = (cx: number, cy: number, r: number) => {
-    for (let dy = -r; dy <= r; dy++) {
-      const half = Math.round(Math.sqrt(r * r - dy * dy));
-      m.fillRect(Math.round(cx - half), Math.round(cy + dy), half * 2 + 1, 1);
-    }
-  };
-  for (const [a, b] of edges) {
-    const [x0, y0] = nodes[a], [x1, y1] = nodes[b];
-    const length = Math.hypot(x1 - x0, y1 - y0) || 1;
-    const bend = ((x0 + y1) % 3) - 1;
-    for (let i = 0, steps = Math.ceil(length / 2); i <= steps; i++) {
-      const t = i / steps, curve = Math.sin(t * Math.PI) * bend * 10;
-      disc(x0 + (x1 - x0) * t + curve * (y1 - y0) / length, y0 + (y1 - y0) * t - curve * (x1 - x0) / length, 12);
-    }
-  }
-  const [cx, cy] = nodes.plazaW;
-  disc((cx + nodes.plazaE[0]) / 2, cy + 2, 62);
+// Ground and walking use the same 16px cells. No freehand masks or scattered texture patches.
+const CELL = 16;
+const COLS = TOWN_W / CELL, ROWS = Math.ceil(TOWN_H / CELL);
+function paintGround(art: Sheets, look: Look): HTMLCanvasElement {
+  const town = art.entry("bld-inn").town!, { nodes, edges, paved, plaza, river } = town;
   const canvas = document.createElement("canvas");
   canvas.width = TOWN_W; canvas.height = TOWN_H;
   const c = canvas.getContext("2d")!;
-  art.texture(c, street[0], street[1], 0, 0, TOWN_W, TOWN_H);
-  c.globalCompositeOperation = "destination-in";
-  c.drawImage(mask, 0, 0);
-  return canvas;
-}
-
-// Keep the bridge's deck/wing walls, removing the water colours sampled from the named canal frame.
-const decks = new Map<boolean, HTMLCanvasElement>();
-function bridgeDeck(art: Sheets, walled: boolean): HTMLCanvasElement | undefined {
-  const image = art.image("obj-canal");
-  if (decks.has(walled) || !image) return decks.get(walled);
-  const entry = art.entry("obj-canal"), [w, h] = entry.frame, bridge = entry.bridge!;
-  const [left, width] = walled ? bridge.cuts.walled : bridge.cuts.open;
-  const canvas = document.createElement("canvas");
-  canvas.width = image.width; canvas.height = h;
-  const c = canvas.getContext("2d", { willReadFrequently: true })!;
-  c.drawImage(image, 0, 0);
-  const sheet = c.getImageData(0, 0, image.width, h).data;
-  const water = new Set<number>(), waterX = art.index("obj-canal", bridge.waterFrame) * w;
-  for (let y = bridge.waterRows[0]; y <= bridge.waterRows[1]; y++) for (let x = 0; x < w; x++) {
-    const i = (y * image.width + waterX + x) * 4;
-    water.add((sheet[i] << 16) | (sheet[i + 1] << 8) | sheet[i + 2]);
+  c.imageSmoothingEnabled = false;
+  if (look.backdrop) {
+    c.drawImage(art.image(look.backdrop[0])!, 0, 0, TOWN_W, TOWN_H);
+    return canvas;
   }
-  const cut = c.getImageData(art.index("obj-canal", bridge.deckFrame) * w + left, 0, width, h);
-  for (let i = 0; i < cut.data.length; i += 4) {
-    if (water.has((cut.data[i] << 16) | (cut.data[i + 1] << 8) | cut.data[i + 2])) cut.data[i + 3] = 0;
+  // 0 ground, 1 earth path, 2 paved street, 3 water, 4 doorstep.
+  const cells = new Uint8Array(COLS * ROWS);
+  const get = (x: number, y: number) => x < 0 || y < 0 || x >= COLS || y >= ROWS ? -1 : cells[y * COLS + x];
+  const put = (x: number, y: number, kind: number) => {
+    if (x >= 0 && y >= 0 && x < COLS && y < ROWS) cells[y * COLS + x] = kind;
+  };
+  const line = (a: Point, b: Point, kind: number, radius = 1) => {
+    const ax = Math.floor(a[0] / CELL), ay = Math.floor(a[1] / CELL);
+    const bx = Math.floor(b[0] / CELL), by = Math.floor(b[1] / CELL);
+    for (let y = Math.min(ay, by) - radius; y <= Math.max(ay, by) + radius; y++) {
+      for (let x = Math.min(ax, bx) - radius; x <= Math.max(ax, bx) + radius; x++) put(x, y, kind);
+    }
+  };
+  const isPaved = (a: string, b: string) => paved.some(([p, q]) => (p === a && q === b) || (p === b && q === a));
+  for (const [a, b] of edges) if (!isPaved(a, b)) line(nodes[a], nodes[b], 1);
+  for (const [key, door] of Object.entries(town.entrances)) line(door, nodes[key], 4);
+  for (let y = plaza.y / CELL; y < (plaza.y + plaza.h) / CELL; y++) {
+    for (let x = plaza.x / CELL; x < (plaza.x + plaza.w) / CELL; x++) put(x, y, 2);
   }
-  canvas.width = width;
-  c.putImageData(cut, 0, 0);
-  decks.set(walled, canvas);
+  for (const [a, b] of paved) line(nodes[a], nodes[b], 2);
+  line(nodes.gate, [nodes.gate[0], TOWN_H], 2);
+  // The fountain's planted island leaves all four circulation lanes clear.
+  for (let y = 16; y < 19; y++) for (let x = 28; x < 32; x++) put(x, y, 0);
+  for (let i = 1; i < river.points.length; i++) line(river.points[i - 1], river.points[i], 3, 1);
+  const materials = [look.ground, look.path, look.street, look.river, look.path];
+  const blit = (part: Part, sx: number, sy: number, sw: number, sh: number, x: number, y: number, w = sw, h = sh) => {
+    const image = art.image(part[0])!;
+    const [fw] = art.size(part[0]);
+    c.drawImage(image, art.index(part[0], part[1]) * fw + sx, sy, sw, sh, x, y, w, h);
+  };
+  for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
+    const kind = get(x, y), px = x * CELL, py = y * CELL;
+    // Whole 48px ground motifs keep coherent clumps; every motif shares its repeat edge.
+    const clump = ((Math.floor(x / 3) * 7 + Math.floor(y / 3) * 11) % 9) < 2;
+    blit([look.ground[0], clump ? "clumps" : "ground"], x % 3 * CELL, y % 3 * CELL, CELL, CELL, px, py);
+    if (!kind) continue;
+    const part = materials[kind];
+    // Paths meet paving without a curb across the walking line; water always has its bank.
+    const connected = (dx: number, dy: number) => {
+      const next = get(x + dx, y + dy);
+      return next === kind || (kind !== 3 && next > 0 && next !== 3) || next === -1;
+    };
+    const inset = kind === 1 ? 6 : kind === 4 ? 12 : 0;
+    const left = connected(-1, 0) ? 0 : inset, right = connected(1, 0) ? 16 : 16 - inset;
+    const topEdge = connected(0, -1) ? 0 : inset, bottom = connected(0, 1) ? 16 : 16 - inset;
+    const xs = [left, Math.floor((left + right) / 2), right];
+    const ys = [topEdge, Math.floor((topEdge + bottom) / 2), bottom];
+    for (const qy of [0, 1]) for (const qx of [0, 1]) {
+      const dx = qx ? 1 : -1, dy = qy ? 1 : -1;
+      const side = !connected(dx, 0), top = !connected(0, dy);
+      const sx = side ? (qx ? 40 : 0) : 16 + qx * 8;
+      const sy = top ? (qy ? 40 : 0) : 16 + qy * 8;
+      blit(part, sx, sy, 8, 8, px + xs[qx], py + ys[qy], xs[qx + 1] - xs[qx], ys[qy + 1] - ys[qy]);
+      // A missing diagonal contributes only the inward corner, never a line across a junction.
+      if (!side && !top && !connected(dx, dy)) {
+        blit(part, qx ? 45 : 0, qy ? 45 : 0, 3, 3, px + qx * 13, py + qy * 13);
+      }
+    }
+  }
+  art.draw(c, "obj-river", "wooden bridge", ...river.bridge);
   return canvas;
 }
 
@@ -91,43 +107,47 @@ type TownData = {
 
 export function drawTown(ctx: CanvasRenderingContext2D, art: Sheets, t: number, data: TownData): void {
   const { theme, name, sleepers, walkers, reports = [], caller, read } = data;
-  const town = art.entry("bld-inn").town!, look = town.looks[theme], building = town.buildings;
-  const bridge = art.entry("obj-canal").bridge!;
-  if (!streets || streetsTheme !== theme) { streets = paintStreets(art, look.street); streetsTheme = theme; }
-  art.texture(ctx, look.ground[0], look.ground[1], 0, 0, TOWN_W, TOWN_H);
-  ctx.drawImage(streets, 0, 0);
-  if (look.canal?.[0] === "obj-canal") {
-    const canal = art.size("obj-canal")[0];
-    for (let x = canal / 2 + bridge.canal.start; x < TOWN_W + canal; x += canal - bridge.canal.overlap) art.draw(ctx, "obj-canal", bridge.waterFrame, x, bridge.canal.bottom);
-  } else if (look.canal) art.texture(ctx, look.canal[0], look.canal[1], 0, bridge.band.top, TOWN_W, bridge.band.height);
-  const walled = look.canal?.[0] === "obj-canal";
-  const deck = look.canal && bridgeDeck(art, walled);
-  if (deck) ctx.drawImage(deck, town.nodes.bridge[0] - deck.width / 2, walled ? bridge.top.walled : bridge.top.open);
+  const base = art.entry("bld-inn").town!, look = base.looks[theme];
+  const town = { ...base, ...townLayout(base, theme) }, building = town.buildings;
+  if (!ground || groundTheme !== theme) { ground = paintGround(art, look); groundTheme = theme; }
+  ctx.drawImage(ground, 0, 0);
   const items: { y: number; draw: () => void }[] = [];
   const put = (id: string, frame: string, x: number, y: number) => items.push({ y, draw: () => art.draw(ctx, id, frame, x, y) });
+  if (look.backdrop) {
+    // Hard contact shadows follow the foundations, without a blurred halo.
+    ctx.fillStyle = "#3e3546";
+    for (const key of ["church", "library", "inn", "shop"] as const) {
+      const [x, y] = building[key], width = art.size(look[key][0])[0] - 16;
+      ctx.fillRect(Math.round(x - width / 2 + 2), y - 2, width, 3);
+    }
+  }
   items.push({ y: building.church[1], draw: () => {
     art.draw(ctx, look.church[0], look.church[1], ...building.church);
     if (data.prayers) churchLight(ctx, art, look.church, ...building.church, t);
   } });
   put(look.library[0], look.library[1], ...building.library);
-  town.trees.forEach((point, i) => put(...look.trees[i % 2], ...point));
-  town.lamps.slice(0, 2).forEach((point) => put(...look.lamp, ...point));
-  const [centre, frames] = look.centre;
-  put(centre, frames[Math.floor(t / 160) % frames.length], ...town.centre);
-  town.benches.forEach((point) => put("obj-town", "bench", ...point));
-  town.lamps.slice(2).forEach((point) => put(...look.lamp, ...point));
+  if (!look.backdrop) {
+    town.trees.forEach((point, i) => put(...look.trees[i % 2], ...point));
+    town.lamps.forEach((point) => put(...look.lamp, ...point));
+    const [centre, frames] = look.centre;
+    put(centre, frames[Math.floor(t / 160) % frames.length], ...town.centre);
+    town.benches.forEach((point) => put("obj-town", "bench", ...point));
+    const cliff = art.size(look.cliff[0])[0] - 2;
+    for (const [left, right, y] of town.cliffs) for (let x = left + cliff / 2; x < right + cliff / 2; x += cliff) put(...look.cliff, x, y);
+    put(look.cliff[0], "stone stairs", ...town.stairs);
+    if (look.waterfall) put("obj-river", `waterfall ${1 + Math.floor(t / 200) % 2}`, ...town.river.waterfall);
+  }
   put(...look.inn, ...building.inn);
   put("bld-questboard", "board", ...building.board); put(...look.shop, ...building.shop);
   put("obj-crystal", art.pose("obj-crystal", "glow", Math.floor(t / 220) % 4), ...town.crystal);
   put("obj-campfire", art.pose("obj-campfire", "fire", Math.floor(t / 140) % 4), ...town.fire);
-  building.houses.forEach((point, i) => put(...look.houses[i], ...point));
-  for (const [id, frame, x, y] of look.extras) put(id, frame, x, y);
-  const fence = art.size("obj-fence-sign")[0] - town.fences.overlap;
-  for (const [start, end] of town.fences.ranges) for (let x = start; x < end; x += fence) put("obj-fence-sign", "fence", x, town.fences.y);
-  const wall = art.size("town-wall")[0] - town.walls.overlap;
-  for (let x = 0; x < TOWN_W + wall; x += wall) if (Math.abs(x - town.walls.gate) > town.walls.gap) put("town-wall", "wall segment", x, town.walls.y);
-  for (const x of town.walls.towers) put("town-wall", "corner tower", x, town.walls.y);
-  put("town-wall", "town gate", town.walls.gate, town.walls.y);
+  if (!look.backdrop) {
+    building.houses.forEach((point, i) => put(...look.houses[i % look.houses.length], ...point));
+    for (const [id, frame, x, y] of look.extras) put(id, frame, x, y);
+    const fence = art.size("obj-fence-sign")[0] - town.fences.overlap;
+    for (const [start, end] of town.fences.ranges) for (let x = start; x < end; x += fence) put("obj-fence-sign", "fence", x, town.fences.y);
+    for (const point of town.gatePosts) put("obj-fence-sign", "gate post", ...point);
+  }
   if (caller) items.push({ y: caller.y, draw: () => {
     art.draw(ctx, art.variant("hero-town", 3), "call", caller.x, caller.y - (Math.floor(t / 300) % 2));
     art.draw(ctx, "ui-balloons", "exclamation", caller.x, caller.y - 59);
@@ -149,6 +169,13 @@ export function drawTown(ctx: CanvasRenderingContext2D, art: Sheets, t: number, 
     art.draw(ctx, "ui-balloons", "sleep Zz", x + balloon[0], y + balloon[1] + (Math.floor(t / 500) % 2));
     label(ctx, `×${sleepers}`, x + count[0], y + count[1], "#ffffff", 11);
   }
-  for (const [text, [x, y]] of [["やどや", building.inn], ["きょうかい", building.church], ["としょかん", building.library], ["どうぐや", building.shop]] as const) label(ctx, text, x, y + 16, "#fff7d6");
+  for (const [text, [x, y]] of [["やどや", building.inn], ["きょうかい", building.church], ["としょかん", building.library], ["どうぐや", building.shop]] as const) {
+    // Mount above the doorway, clear of the walking lane and the inn's sleep balloon.
+    const width = text.length * 12 + 12, left = x - width / 2, top = y - 66;
+    ctx.fillStyle = "#0a0a1a"; ctx.fillRect(left - 1, top - 1, width + 2, 24);
+    ctx.fillStyle = "#ffffff"; ctx.fillRect(left, top, width, 22);
+    ctx.fillStyle = "#0a0a1a"; ctx.fillRect(left + 1, top + 1, width - 2, 20);
+    label(ctx, text, x, top + 15, "#ffffff", 12);
+  }
   label(ctx, `${name}の まち（${THEME_NAMES[theme]}）${data.unread ? ` 📜${data.unread}` : ""}`, TOWN_W / 2, 26, "#fff7d6", 14);
 }

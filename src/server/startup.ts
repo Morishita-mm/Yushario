@@ -21,7 +21,7 @@ export function prepareDataDirectory(): void {
 export function startupOptions(args: string[]): StartupOptions {
   const result = parseStartupOptions(args, process.env.PORT, process.env.NODE_ENV !== "development");
   if ("options" in result) return result.options;
-  throw new Error("error" in result ? `${result.error} Use --help. / ${result.japanese} --help を見てください。` : "Use agent-quest --help.");
+  throw new Error("error" in result ? `${result.error} Use --help. / ${result.japanese} --help を見てください。` : "Use yushario --help.");
 }
 
 // Bind the real server rather than probe-and-close: no gap for another process to take the port.

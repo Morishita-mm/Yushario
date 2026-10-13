@@ -3,3 +3,6 @@ dist/
 lib/
 *.tgz
 .art-work/
+.pi/settings.json
+__pycache__/
+*.pyc

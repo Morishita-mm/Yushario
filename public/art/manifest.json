@@ -12,7 +12,11 @@
    "back",
    "right side"
   ],
-  "colors": 19,
+  "colors": 27,
+  "foot": [
+   16.0,
+   54
+  ],
   "sub": "勇者（マップ用）",
   "use": "デザインの基準。町で立ち止まった時（正面・背中・横）",
   "recolor": {
@@ -23,20 +27,24 @@
     "#4d9be6"
    ],
    "cape": [
-    "#ae2334",
-    "#e83b3b"
+    "#0b5e65",
+    "#0b8a8f",
+    "#0eaf9b",
+    "#30e1b9"
    ],
    "variants": [
     [
      [
-      "#165a4c",
-      "#239063",
-      "#1ebc73",
-      "#91db69"
-     ],
-     [
+      "#323353",
+      "#484a77",
       "#4d65b4",
       "#4d9be6"
+     ],
+     [
+      "#45293f",
+      "#6b3e75",
+      "#905ea9",
+      "#a884f3"
      ]
     ],
     [
@@ -47,8 +55,10 @@
       "#a884f3"
      ],
      [
-      "#f79617",
-      "#f9c22b"
+      "#0b5e65",
+      "#0b8a8f",
+      "#0eaf9b",
+      "#30e1b9"
      ]
     ],
     [
@@ -59,8 +69,10 @@
       "#30e1b9"
      ],
      [
-      "#6b3e75",
-      "#905ea9"
+      "#6e2727",
+      "#b33831",
+      "#ea4f36",
+      "#f57d4a"
      ]
     ],
     [
@@ -71,16 +83,14 @@
       "#f57d4a"
      ],
      [
-      "#239063",
-      "#1ebc73"
+      "#323353",
+      "#484a77",
+      "#4d65b4",
+      "#4d9be6"
      ]
     ]
    ]
-  },
-  "foot": [
-   16.0,
-   54
-  ]
+  }
  },
  {
   "id": "hero-walk",
@@ -100,7 +110,11 @@
    "right contact R",
    "right pass"
   ],
-  "colors": 18,
+  "colors": 33,
+  "foot": [
+   16.0,
+   52
+  ],
   "sub": "勇者（マップ用）",
   "use": "町やフィールドを歩く時（下・左右）",
   "frameNames": [
@@ -126,11 +140,7 @@
     "right contact R",
     "right pass R"
    ]
-  },
-  "foot": [
-   16.0,
-   52
-  ]
+  }
  },
  {
   "id": "hero-battle",
@@ -148,14 +158,13 @@
    "hurt",
    "victory"
   ],
-  "colors": 17,
-  "warning": "コマが横に重なっていたため、絵の塊ごとに振り分けて切り出した",
-  "sub": "勇者（マップ用）",
-  "use": "フィールドでの戦闘（横向き）。被弾はエラー時、勝利はテスト成功・レベルアップ",
+  "colors": 30,
   "foot": [
    45.0,
    73
-  ]
+  ],
+  "sub": "勇者（マップ用）",
+  "use": "フィールドでの戦闘（横向き）。被弾はエラー時、勝利はテスト成功・レベルアップ"
  },
  {
   "id": "hero-town",
@@ -172,13 +181,13 @@
    "write",
    "look far"
   ],
-  "colors": 19,
-  "sub": "勇者（マップ用）",
-  "use": "町での作業：読む・祈る（git）・呼ぶ・書く（計画）・遠見（Web）",
+  "colors": 27,
   "foot": [
    19.0,
    53
-  ]
+  ],
+  "sub": "勇者（マップ用）",
+  "use": "町での作業：読む・祈る（git）・呼ぶ・書く（計画）・遠見（Web）"
  },
  {
   "id": "hero-pray",
@@ -192,7 +201,11 @@
    "kneel facing up (back)",
    "breathe facing up (back)"
   ],
-  "colors": 16,
+  "colors": 23,
+  "foot": [
+   15.0,
+   52
+  ],
   "sub": "勇者（マップ用）",
   "use": "やすむ（PreCompact〜PostCompact）で、きょうかいの祭壇の前にひざまずいて祈る",
   "sequences": {
@@ -200,11 +213,7 @@
     "kneel facing up (back)",
     "breathe facing up (back)"
    ]
-  },
-  "foot": [
-   15.0,
-   52
-  ]
+  }
  },
  {
   "id": "hero-sleep",
@@ -217,13 +226,13 @@
   "frames": [
    "sleeping"
   ],
-  "colors": 17,
-  "sub": "勇者（マップ用）",
-  "use": "居眠り（10分動きなし）で宿屋のベッドに入った時",
+  "colors": 24,
   "foot": [
    28.0,
    78
-  ]
+  ],
+  "sub": "勇者（マップ用）",
+  "use": "居眠り（10分動きなし）で宿屋のベッドに入った時"
  },
  {
   "id": "party-warrior",
@@ -373,6 +382,10 @@
    "hurt"
   ],
   "colors": 10,
+  "foot": [
+   17.0,
+   30
+  ],
   "sub": "正面（戦闘フォーカス用）",
   "use": "戦闘画面：待機・被弾",
   "sequences": {
@@ -380,11 +393,7 @@
     "idle",
     "squash"
    ]
-  },
-  "foot": [
-   17.0,
-   30
-  ]
+  }
  },
  {
   "id": "monster-ghost",
@@ -453,7 +462,11 @@
    "wings up",
    "hurt"
   ],
-  "colors": 17,
+  "colors": 9,
+  "foot": [
+   55.0,
+   75
+  ],
   "sub": "正面（戦闘フォーカス用）",
   "use": "戦闘画面：待機・被弾",
   "sequences": {
@@ -461,28 +474,24 @@
     "idle",
     "wings up"
    ]
-  },
-  "foot": [
-   55.0,
-   75
-  ]
+  }
  },
  {
   "id": "bld-library",
   "group": "まち",
   "name": "としょかん",
   "frame": [
-   124,
+   112,
    104
   ],
   "frames": [
    "building"
   ],
-  "colors": 16,
+  "colors": 17,
   "sub": "建物",
   "use": "ファイルを読む・探す時に向かう",
   "foot": [
-   62.0,
+   56.0,
    104
   ]
  },
@@ -491,28 +500,40 @@
   "group": "まち",
   "name": "きょうかい",
   "frame": [
-   90,
-   128
+   126,
+   123
   ],
   "frames": [
    "building"
   ],
-  "colors": 19,
+  "colors": 16,
   "sub": "建物",
   "use": "/compact（MP 回復）の時に祈る",
   "windows": {
    "building": [
     [
      0,
-     -43,
+     -52,
      12,
-     12
+     15
+    ],
+    [
+     -37,
+     -32,
+     8,
+     22
+    ],
+    [
+     38,
+     -32,
+     8,
+     22
     ]
    ]
   },
   "foot": [
-   45.0,
-   128
+   63.0,
+   123
   ]
  },
  {
@@ -556,20 +577,20 @@
  {
   "id": "bld-shop",
   "group": "まち",
-  "name": "どうぐや（屋台）",
+  "name": "どうぐや",
   "frame": [
-   128,
-   90
+   110,
+   100
   ],
   "frames": [
-   "stall"
+   "shop"
   ],
   "colors": 18,
   "sub": "建物",
   "use": "その他のツール（MCP など）を使う時",
   "foot": [
-   64.0,
-   90
+   55.0,
+   100
   ]
  },
  {
@@ -1129,7 +1150,11 @@
    "back contact R",
    "back pass"
   ],
-  "colors": 17,
+  "colors": 25,
+  "foot": [
+   17.0,
+   51
+  ],
   "sub": "勇者（マップ用）",
   "use": "上（奥）へ歩く時",
   "frameNames": [
@@ -1145,19 +1170,15 @@
     "back contact R",
     "back pass R"
    ]
-  },
-  "foot": [
-   17.0,
-   51
-  ]
+  }
  },
  {
   "id": "hero-back-battle",
   "group": "キャラクター",
   "name": "勇者 戦闘（背中・フォーカス戦闘用）",
   "frame": [
-   68,
-   74
+   92,
+   78
   ],
   "frames": [
    "ready",
@@ -1167,14 +1188,13 @@
    "hurt",
    "victory"
   ],
-  "colors": 16,
-  "warning": "コマが横に重なっていたため、絵の塊ごとに振り分けて切り出した",
-  "sub": "勇者（戦闘フォーカス用）",
-  "use": "勇者をクリックして開く戦闘画面（背中から見る）",
+  "colors": 23,
   "foot": [
-   34.0,
-   74
-  ]
+   46,
+   76
+  ],
+  "sub": "勇者（戦闘フォーカス用）",
+  "use": "勇者をクリックして開く戦闘画面（背中から見る）"
  },
  {
   "id": "party-warrior-back",
@@ -1302,7 +1322,11 @@
    "pounce",
    "land"
   ],
-  "colors": 12,
+  "colors": 9,
+  "foot": [
+   21.0,
+   30
+  ],
   "sub": "正面の攻撃（戦闘フォーカス用）",
   "use": "戦闘画面：エラー時の反撃",
   "sequences": {
@@ -1311,11 +1335,7 @@
     "pounce",
     "land"
    ]
-  },
-  "foot": [
-   21.0,
-   30
-  ]
+  }
  },
  {
   "id": "monster-ghost-attack",
@@ -1386,7 +1406,12 @@
    "fire breath",
    "roar"
   ],
-  "colors": 18,
+  "colors": 16,
+  "warning": "コマが横に重なっていたため、絵の塊ごとに振り分けて切り出した",
+  "foot": [
+   49.0,
+   68
+  ],
   "sub": "正面の攻撃（戦闘フォーカス用）",
   "use": "戦闘画面：エラー時の反撃（炎）",
   "sequences": {
@@ -1395,11 +1420,7 @@
     "fire breath",
     "roar"
    ]
-  },
-  "foot": [
-   49.0,
-   68
-  ]
+  }
  },
  {
   "id": "fx-enemy",
@@ -1488,131 +1509,7 @@
   "foot": [
    278.5,
    313
-  ],
-  "field": {
-   "textures": [
-    [
-     "tile-ground",
-     "wild grass",
-     0,
-     0,
-     960,
-     540
-    ],
-    [
-     "tile-ground",
-     "town grass",
-     0,
-     270,
-     120,
-     40
-    ]
-   ],
-   "props": [
-    [
-     "obj-lake",
-     "lake",
-     800,
-     330
-    ],
-    [
-     "obj-water",
-     "reeds",
-     700,
-     300
-    ],
-    [
-     "obj-water",
-     "puddle",
-     900,
-     470
-    ],
-    [
-     "obj-nature",
-     "round tree",
-     40,
-     90
-    ],
-    [
-     "obj-nature",
-     "pine tree",
-     120,
-     60
-    ],
-    [
-     "obj-nature",
-     "round tree",
-     760,
-     80
-    ],
-    [
-     "obj-nature",
-     "round tree",
-     880,
-     110
-    ],
-    [
-     "obj-nature",
-     "pine tree",
-     940,
-     200
-    ],
-    [
-     "obj-nature",
-     "round tree",
-     60,
-     520
-    ],
-    [
-     "obj-nature",
-     "bush",
-     180,
-     520
-    ],
-    [
-     "obj-nature",
-     "flowers",
-     450,
-     300
-    ],
-    [
-     "obj-nature",
-     "flowers",
-     700,
-     520
-    ],
-    [
-     "obj-nature",
-     "rock",
-     860,
-     520
-    ],
-    [
-     "obj-nature",
-     "bush",
-     640,
-     300
-    ]
-   ],
-   "fights": [
-    [
-     250,
-     210
-    ],
-    [
-     560,
-     190
-    ],
-    [
-     360,
-     430
-    ],
-    [
-     640,
-     440
-    ]
-   ]
-  }
+  ]
  },
  {
   "id": "bg-battle-cave",
@@ -1655,139 +1552,7 @@
   "foot": [
    278.5,
    313
-  ],
-  "field": {
-   "textures": [
-    [
-     "tile-field",
-     "cave floor",
-     0,
-     0,
-     960,
-     540
-    ],
-    [
-     "tile-field",
-     "cave rock wall",
-     0,
-     0,
-     960,
-     96
-    ],
-    [
-     "tile-field",
-     "cave dark pit",
-     760,
-     420,
-     200,
-     120
-    ]
-   ],
-   "props": [
-    [
-     "obj-cave",
-     "cave entrance",
-     60,
-     150
-    ],
-    [
-     "obj-cave",
-     "wall torch",
-     200,
-     92
-    ],
-    [
-     "obj-cave",
-     "wall torch",
-     600,
-     92
-    ],
-    [
-     "obj-cave",
-     "wall torch",
-     880,
-     92
-    ],
-    [
-     "obj-cave",
-     "stalagmite",
-     140,
-     330
-    ],
-    [
-     "obj-cave",
-     "stalagmite",
-     760,
-     250
-    ],
-    [
-     "obj-cave",
-     "stalagmite",
-     880,
-     300
-    ],
-    [
-     "obj-cave",
-     "boulder",
-     60,
-     470
-    ],
-    [
-     "obj-cave",
-     "glowing crystal ore",
-     700,
-     420
-    ],
-    [
-     "obj-cave",
-     "glowing crystal ore",
-     420,
-     520
-    ],
-    [
-     "obj-cave",
-     "boulder",
-     900,
-     200
-    ],
-    [
-     "obj-water",
-     "puddle",
-     420,
-     300
-    ],
-    [
-     "obj-water",
-     "puddle",
-     680,
-     520
-    ],
-    [
-     "obj-water",
-     "puddle",
-     160,
-     520
-    ]
-   ],
-   "fights": [
-    [
-     250,
-     210
-    ],
-    [
-     560,
-     190
-    ],
-    [
-     360,
-     430
-    ],
-    [
-     640,
-     440
-    ]
-   ]
-  }
+  ]
  },
  {
   "id": "bg-battle-forest",
@@ -1830,137 +1595,7 @@
   "foot": [
    278.5,
    313
-  ],
-  "field": {
-   "textures": [
-    [
-     "tile-field",
-     "night grass",
-     0,
-     0,
-     960,
-     540
-    ],
-    [
-     "tile-field",
-     "night dirt path",
-     0,
-     300,
-     960,
-     40
-    ]
-   ],
-   "props": [
-    [
-     "obj-water",
-     "small pond",
-     800,
-     220
-    ],
-    [
-     "obj-water",
-     "lily pad",
-     812,
-     210
-    ],
-    [
-     "obj-forest-night",
-     "dark tree",
-     40,
-     90
-    ],
-    [
-     "obj-forest-night",
-     "dark pine",
-     120,
-     70
-    ],
-    [
-     "obj-forest-night",
-     "dark tree",
-     200,
-     100
-    ],
-    [
-     "obj-forest-night",
-     "dark pine",
-     700,
-     80
-    ],
-    [
-     "obj-forest-night",
-     "dark tree",
-     900,
-     100
-    ],
-    [
-     "obj-forest-night",
-     "dark pine",
-     940,
-     320
-    ],
-    [
-     "obj-forest-night",
-     "dark tree",
-     40,
-     540
-    ],
-    [
-     "obj-forest-night",
-     "dark pine",
-     900,
-     540
-    ],
-    [
-     "obj-forest-night",
-     "tree stump",
-     760,
-     520
-    ],
-    [
-     "obj-forest-night",
-     "glowing mushrooms",
-     150,
-     380
-    ],
-    [
-     "obj-forest-night",
-     "glowing mushrooms",
-     460,
-     160
-    ],
-    [
-     "obj-forest-night",
-     "glowing mushrooms",
-     720,
-     400
-    ],
-    [
-     "obj-forest-night",
-     "lantern post",
-     430,
-     330
-    ]
-   ],
-   "fights": [
-    [
-     250,
-     210
-    ],
-    [
-     560,
-     190
-    ],
-    [
-     360,
-     430
-    ],
-    [
-     640,
-     440
-    ]
-   ]
-  }
+  ]
  },
  {
   "id": "tile-field",
@@ -2241,7 +1876,11 @@
    "wind-up",
    "pounce"
   ],
-  "colors": 12,
+  "colors": 9,
+  "foot": [
+   22.0,
+   30
+  ],
   "sub": "横向き（マップ用）",
   "use": "フィールドの戦闘：ファイル編集の相手。待機・被弾・溜め・攻撃（エラー時）",
   "sequences": {
@@ -2254,11 +1893,7 @@
     "pounce"
    ]
   },
-  "reach": 50,
-  "foot": [
-   22.0,
-   30
-  ]
+  "reach": 50
  },
  {
   "id": "monster-ghost-side",
@@ -2343,7 +1978,12 @@
    "inhale",
    "fire breath"
   ],
-  "colors": 17,
+  "colors": 15,
+  "warning": "コマが横に重なっていたため、絵の塊ごとに振り分けて切り出した",
+  "foot": [
+   66.0,
+   72
+  ],
   "sub": "横向き（マップ用）",
   "use": "フィールドの戦闘：サブエージェントに任せた仕事（ボス）",
   "sequences": {
@@ -2356,19 +1996,15 @@
     "fire breath"
    ]
   },
-  "reach": 92,
-  "foot": [
-   66.0,
-   72
-  ]
+  "reach": 92
  },
  {
   "id": "bld-inn",
   "group": "まち",
   "name": "やどや（外観、ベッドの看板）",
   "frame": [
-   116,
-   124
+   128,
+   112
   ],
   "frames": [
    "inn"
@@ -2379,303 +2015,992 @@
   "town": {
    "buildings": {
     "church": [
-     300,
-     140
+     357,
+     174
     ],
     "library": [
-     690,
-     140
+     605,
+     174
     ],
     "inn": [
-     255,
-     332
+     357,
+     378
     ],
     "shop": [
-     718,
-     332
+     605,
+     378
     ],
     "board": [
-     620,
-     258
+     850,
+     218
     ],
-    "houses": [
-     [
-      150,
-      432
-     ],
-     [
-      805,
-      442
-     ]
-    ]
+    "houses": []
    },
    "innSleep": {
     "balloon": [
-     41,
-     -106
+     40,
+     -104
     ],
     "count": [
-     65,
-     -116
+     62,
+     -112
     ]
+   },
+   "plaza": {
+    "x": 400,
+    "y": 208,
+    "w": 160,
+    "h": 144
    },
    "trees": [
     [
-     120,
-     120
+     122,
+     34
+    ],
+    [
+     147,
+     41
+    ],
+    [
+     172,
+     48
+    ],
+    [
+     197,
+     34
+    ],
+    [
+     222,
+     41
+    ],
+    [
+     247,
+     48
+    ],
+    [
+     272,
+     34
+    ],
+    [
+     297,
+     41
+    ],
+    [
+     322,
+     48
+    ],
+    [
+     347,
+     34
+    ],
+    [
+     372,
+     41
+    ],
+    [
+     397,
+     48
+    ],
+    [
+     145,
+     60
+    ],
+    [
+     170,
+     67
+    ],
+    [
+     195,
+     74
+    ],
+    [
+     220,
+     60
+    ],
+    [
+     245,
+     67
+    ],
+    [
+     270,
+     74
+    ],
+    [
+     295,
+     60
+    ],
+    [
+     320,
+     67
+    ],
+    [
+     345,
+     74
+    ],
+    [
+     370,
+     60
+    ],
+    [
+     395,
+     67
+    ],
+    [
+     559,
+     34
+    ],
+    [
+     584,
+     41
+    ],
+    [
+     609,
+     48
+    ],
+    [
+     634,
+     34
+    ],
+    [
+     659,
+     41
+    ],
+    [
+     684,
+     48
+    ],
+    [
+     709,
+     34
+    ],
+    [
+     734,
+     41
+    ],
+    [
+     759,
+     48
+    ],
+    [
+     784,
+     34
+    ],
+    [
+     809,
+     41
+    ],
+    [
+     834,
+     48
+    ],
+    [
+     592,
+     62
+    ],
+    [
+     617,
+     69
+    ],
+    [
+     642,
+     76
+    ],
+    [
+     667,
+     62
+    ],
+    [
+     692,
+     69
+    ],
+    [
+     717,
+     76
+    ],
+    [
+     742,
+     62
+    ],
+    [
+     767,
+     69
+    ],
+    [
+     792,
+     76
+    ],
+    [
+     817,
+     62
+    ],
+    [
+     920,
+     46
+    ],
+    [
+     945,
+     53
+    ],
+    [
+     16,
+     126
+    ],
+    [
+     26,
+     153
+    ],
+    [
+     16,
+     180
+    ],
+    [
+     26,
+     207
+    ],
+    [
+     16,
+     234
+    ],
+    [
+     26,
+     261
+    ],
+    [
+     16,
+     288
+    ],
+    [
+     26,
+     420
+    ],
+    [
+     16,
+     447
+    ],
+    [
+     26,
+     474
+    ],
+    [
+     16,
+     501
+    ],
+    [
+     936,
+     146
+    ],
+    [
+     946,
+     173
+    ],
+    [
+     936,
+     200
+    ],
+    [
+     946,
+     227
+    ],
+    [
+     936,
+     254
+    ],
+    [
+     946,
+     281
+    ],
+    [
+     936,
+     308
+    ],
+    [
+     946,
+     335
+    ],
+    [
+     936,
+     362
+    ],
+    [
+     946,
+     389
+    ],
+    [
+     936,
+     416
+    ],
+    [
+     946,
+     443
+    ],
+    [
+     936,
+     470
+    ],
+    [
+     946,
+     497
+    ],
+    [
+     921,
+     258
+    ],
+    [
+     911,
+     285
+    ],
+    [
+     921,
+     312
+    ],
+    [
+     911,
+     339
+    ],
+    [
+     921,
+     366
+    ],
+    [
+     911,
+     393
+    ],
+    [
+     921,
+     420
+    ],
+    [
+     911,
+     447
+    ],
+    [
+     921,
+     474
+    ],
+    [
+     911,
+     501
     ],
     [
      870,
-     110
+     290
     ],
     [
-     930,
-     170
+     880,
+     291
     ],
     [
-     40,
-     190
+     870,
+     318
+    ],
+    [
+     880,
+     345
+    ],
+    [
+     870,
+     372
+    ],
+    [
+     161,
+     290
+    ],
+    [
+     186,
+     290
+    ],
+    [
+     167,
+     290
+    ],
+    [
+     192,
+     290
+    ],
+    [
+     345,
+     290
+    ],
+    [
+     343,
+     290
+    ],
+    [
+     365,
+     290
+    ],
+    [
+     659,
+     290
+    ],
+    [
+     678,
+     290
+    ],
+    [
+     658,
+     290
+    ],
+    [
+     826,
+     290
+    ],
+    [
+     844,
+     290
+    ],
+    [
+     818,
+     290
+    ],
+    [
+     270,
+     418
+    ],
+    [
+     697,
+     425
+    ],
+    [
+     809,
+     418
+    ],
+    [
+     831,
+     410
+    ],
+    [
+     110,
+     600
+    ],
+    [
+     135,
+     606
+    ],
+    [
+     160,
+     612
+    ],
+    [
+     185,
+     600
+    ],
+    [
+     210,
+     606
+    ],
+    [
+     235,
+     612
+    ],
+    [
+     260,
+     600
+    ],
+    [
+     285,
+     606
+    ],
+    [
+     310,
+     612
+    ],
+    [
+     335,
+     600
+    ],
+    [
+     360,
+     606
+    ],
+    [
+     385,
+     612
+    ],
+    [
+     410,
+     600
+    ],
+    [
+     553,
+     600
+    ],
+    [
+     578,
+     606
+    ],
+    [
+     603,
+     612
+    ],
+    [
+     628,
+     600
+    ],
+    [
+     653,
+     606
+    ],
+    [
+     678,
+     612
+    ],
+    [
+     703,
+     600
+    ],
+    [
+     728,
+     606
+    ],
+    [
+     753,
+     612
+    ],
+    [
+     778,
+     600
+    ],
+    [
+     803,
+     606
+    ],
+    [
+     828,
+     612
+    ],
+    [
+     853,
+     600
+    ],
+    [
+     878,
+     606
+    ],
+    [
+     903,
+     612
+    ],
+    [
+     928,
+     600
+    ],
+    [
+     953,
+     606
     ]
    ],
    "lamps": [
     [
-     420,
-     172
+     416,
+     176
     ],
     [
-     560,
-     172
+     544,
+     176
     ],
     [
-     412,
+     386,
      292
     ],
     [
-     548,
+     574,
      292
     ]
    ],
    "benches": [
     [
-     405,
-     400
+     560,
+     388
     ],
     [
-     555,
-     400
+     648,
+     388
     ]
    ],
    "centre": [
     480,
-    360
+    302
    ],
    "crystal": [
-    410,
-    455
+    900,
+    285
    ],
    "fire": [
-    640,
-    468
+    270,
+    398
    ],
    "fences": {
     "ranges": [
      [
-      40,
-      250
+      0,
+      430
      ],
      [
-      720,
-      930
+      540,
+      960
      ]
     ],
-    "y": 500,
+    "y": 540,
     "overlap": 4
    },
-   "walls": {
-    "y": 552,
-    "overlap": 4,
-    "gap": 64,
-    "towers": [
-     14,
-     946
+   "gatePosts": [
+    [
+     452,
+     542
     ],
-    "gate": 480
+    [
+     508,
+     542
+    ]
+   ],
+   "river": {
+    "points": [
+     [
+      56,
+      72
+     ],
+     [
+      56,
+      408
+     ],
+     [
+      40,
+      408
+     ],
+     [
+      40,
+      472
+     ],
+     [
+      24,
+      472
+     ],
+     [
+      24,
+      552
+     ]
+    ],
+    "radius": 16,
+    "bank": 6,
+    "bridge": [
+     56,
+     352
+    ],
+    "waterfall": [
+     62,
+     98
+    ]
    },
+   "cliffs": [
+    [
+     0,
+     175,
+     76
+    ],
+    [
+     805,
+     960,
+     92
+    ]
+   ],
+   "stairs": [
+    895,
+    92
+   ],
    "spots": {
     "inn": {
-     "x": 195,
-     "y": 215,
-     "w": 120,
-     "h": 125
+     "x": 293,
+     "y": 266,
+     "w": 128,
+     "h": 112
     },
     "church": {
-     "x": 240,
-     "y": 0,
-     "w": 120,
-     "h": 145
+     "x": 294,
+     "y": 51,
+     "w": 126,
+     "h": 123
     }
    },
    "nodes": {
-    "church": [
-     300,
-     150
-    ],
-    "library": [
-     690,
-     150
-    ],
-    "north": [
-     480,
-     150
-    ],
     "bridge": [
-     480,
-     225
+     145,
+     250
     ],
-    "plazaN": [
-     480,
-     270
+    "west": [
+     270,
+     250
+    ],
+    "churchTurn": [
+     357,
+     250
+    ],
+    "church": [
+     357,
+     216
+    ],
+    "ringW": [
+     414,
+     250
     ],
     "plazaW": [
-     395,
-     330
-    ],
-    "plazaE": [
-     565,
-     330
+     430,
+     292
     ],
     "plazaS": [
      480,
-     395
+     306
     ],
-    "inn": [
-     250,
-     330
+    "plazaE": [
+     530,
+     292
     ],
-    "board": [
-     620,
-     268
+    "ringE": [
+     546,
+     250
     ],
-    "shop": [
-     700,
-     340
+    "libraryTurn": [
+     605,
+     250
+    ],
+    "library": [
+     605,
+     216
+    ],
+    "east": [
+     850,
+     250
+    ],
+    "eastExit": [
+     925,
+     258
+    ],
+    "crystalTurn": [
+     925,
+     315
     ],
     "crystal": [
-     410,
-     430
+     900,
+     315
     ],
-    "homeW": [
-     190,
-     440
-    ],
-    "well": [
-     120,
-     470
-    ],
-    "homeE": [
-     770,
-     450
-    ],
-    "fire": [
-     640,
-     450
+    "south": [
+     480,
+     402
     ],
     "gate": [
      480,
-     500
+     474
+    ],
+    "inn": [
+     357,
+     424
+    ],
+    "shop": [
+     605,
+     424
+    ],
+    "fireTurn": [
+     270,
+     424
+    ],
+    "fire": [
+     270,
+     450
+    ],
+    "bridgeSouth": [
+     155,
+     450
+    ],
+    "wellTurn": [
+     685,
+     424
+    ],
+    "wellApproach": [
+     735,
+     420
+    ],
+    "well": [
+     767,
+     416
+    ],
+    "homeE": [
+     788,
+     412
+    ],
+    "board": [
+     850,
+     250
+    ],
+    "southW": [
+     434,
+     402
+    ],
+    "southE": [
+     526,
+     402
+    ],
+    "innTurn": [
+     434,
+     424
+    ],
+    "shopTurn": [
+     526,
+     424
     ]
    },
    "edges": [
     [
-     "church",
-     "north"
-    ],
-    [
-     "library",
-     "north"
-    ],
-    [
-     "north",
-     "bridge"
-    ],
-    [
      "bridge",
-     "plazaN"
+     "west"
     ],
     [
-     "plazaN",
+     "west",
+     "churchTurn"
+    ],
+    [
+     "churchTurn",
+     "church"
+    ],
+    [
+     "churchTurn",
+     "ringW"
+    ],
+    [
+     "ringW",
      "plazaW"
     ],
     [
-     "plazaN",
+     "plazaW",
+     "plazaS"
+    ],
+    [
+     "plazaS",
      "plazaE"
     ],
     [
-     "plazaW",
-     "plazaS"
-    ],
-    [
      "plazaE",
-     "plazaS"
+     "ringE"
     ],
     [
-     "plazaW",
-     "inn"
+     "ringE",
+     "libraryTurn"
     ],
     [
-     "plazaE",
-     "board"
+     "libraryTurn",
+     "library"
     ],
     [
-     "plazaE",
-     "shop"
+     "libraryTurn",
+     "east"
     ],
     [
-     "plazaS",
+     "east",
+     "eastExit"
+    ],
+    [
+     "eastExit",
+     "crystalTurn"
+    ],
+    [
+     "crystalTurn",
      "crystal"
     ],
     [
-     "crystal",
-     "homeW"
-    ],
-    [
-     "homeW",
-     "well"
-    ],
-    [
      "plazaS",
+     "south"
+    ],
+    [
+     "south",
+     "gate"
+    ],
+    [
+     "inn",
+     "fireTurn"
+    ],
+    [
+     "fireTurn",
      "fire"
     ],
     [
      "fire",
+     "bridgeSouth"
+    ],
+    [
+     "shop",
+     "wellTurn"
+    ],
+    [
+     "wellTurn",
+     "wellApproach"
+    ],
+    [
+     "wellApproach",
+     "well"
+    ],
+    [
+     "well",
      "homeE"
     ],
     [
-     "plazaS",
-     "gate"
+     "east",
+     "board"
+    ],
+    [
+     "south",
+     "southW"
+    ],
+    [
+     "southW",
+     "innTurn"
+    ],
+    [
+     "innTurn",
+     "inn"
+    ],
+    [
+     "south",
+     "southE"
+    ],
+    [
+     "southE",
+     "shopTurn"
+    ],
+    [
+     "shopTurn",
+     "shop"
     ]
    ],
+   "paved": [],
    "looks": {
     "village": {
      "ground": [
-      "tile-ground",
-      "town grass"
+      "tile-town-village",
+      "ground"
      ],
      "street": [
-      "tile-ground",
-      "cobblestone"
+      "tile-town-village",
+      "street"
      ],
-     "canal": [
-      "obj-canal",
-      "canal segment"
+     "path": [
+      "tile-town-village",
+      "path"
      ],
+     "river": [
+      "tile-town-village",
+      "water"
+     ],
+     "cliff": [
+      "obj-cliff",
+      "grass cliff"
+     ],
+     "waterfall": true,
      "inn": [
       "bld-inn",
       "inn"
      ],
      "shop": [
       "bld-shop",
-      "stall"
+      "shop"
      ],
      "church": [
       "bld-church",
@@ -2717,58 +3042,325 @@
       "obj-town",
       "lamp post"
      ],
-     "extras": [
-      [
-       "obj-town",
-       "well",
-       92,
-       472
+     "extras": [],
+     "backdrop": [
+      "bg-town-village",
+      "village"
+     ],
+     "layout": {
+      "buildings": {
+       "church": [
+        357,
+        174
+       ],
+       "library": [
+        605,
+        174
+       ],
+       "inn": [
+        357,
+        378
+       ],
+       "shop": [
+        605,
+        378
+       ],
+       "board": [
+        850,
+        218
+       ],
+       "houses": []
+      },
+      "entrances": {
+       "church": [
+        357,
+        174
+       ],
+       "library": [
+        605,
+        174
+       ],
+       "inn": [
+        357,
+        378
+       ],
+       "shop": [
+        605,
+        378
+       ]
+      },
+      "spots": {
+       "inn": {
+        "x": 293,
+        "y": 266,
+        "w": 128,
+        "h": 112
+       },
+       "church": {
+        "x": 294,
+        "y": 51,
+        "w": 126,
+        "h": 123
+       }
+      },
+      "innSleep": {
+       "balloon": [
+        40,
+        -104
+       ],
+       "count": [
+        62,
+        -112
+       ]
+      },
+      "nodes": {
+       "bridge": [
+        145,
+        250
+       ],
+       "west": [
+        270,
+        250
+       ],
+       "churchTurn": [
+        357,
+        250
+       ],
+       "church": [
+        357,
+        216
+       ],
+       "ringW": [
+        414,
+        250
+       ],
+       "plazaW": [
+        430,
+        292
+       ],
+       "plazaS": [
+        480,
+        306
+       ],
+       "plazaE": [
+        530,
+        292
+       ],
+       "ringE": [
+        546,
+        250
+       ],
+       "libraryTurn": [
+        605,
+        250
+       ],
+       "library": [
+        605,
+        216
+       ],
+       "east": [
+        850,
+        250
+       ],
+       "eastExit": [
+        925,
+        258
+       ],
+       "crystalTurn": [
+        925,
+        315
+       ],
+       "crystal": [
+        900,
+        330
+       ],
+       "south": [
+        480,
+        424
+       ],
+       "gate": [
+        480,
+        474
+       ],
+       "inn": [
+        357,
+        424
+       ],
+       "shop": [
+        605,
+        424
+       ],
+       "fireTurn": [
+        270,
+        424
+       ],
+       "fire": [
+        270,
+        450
+       ],
+       "bridgeSouth": [
+        155,
+        450
+       ],
+       "wellTurn": [
+        685,
+        424
+       ],
+       "wellApproach": [
+        735,
+        420
+       ],
+       "well": [
+        767,
+        416
+       ],
+       "homeE": [
+        825,
+        420
+       ],
+       "board": [
+        850,
+        250
+       ]
+      },
+      "edges": [
+       [
+        "bridge",
+        "west"
+       ],
+       [
+        "west",
+        "churchTurn"
+       ],
+       [
+        "churchTurn",
+        "church"
+       ],
+       [
+        "churchTurn",
+        "ringW"
+       ],
+       [
+        "ringW",
+        "plazaW"
+       ],
+       [
+        "plazaW",
+        "plazaS"
+       ],
+       [
+        "plazaS",
+        "plazaE"
+       ],
+       [
+        "plazaE",
+        "ringE"
+       ],
+       [
+        "ringE",
+        "libraryTurn"
+       ],
+       [
+        "libraryTurn",
+        "library"
+       ],
+       [
+        "libraryTurn",
+        "east"
+       ],
+       [
+        "east",
+        "eastExit"
+       ],
+       [
+        "eastExit",
+        "crystalTurn"
+       ],
+       [
+        "crystalTurn",
+        "crystal"
+       ],
+       [
+        "plazaS",
+        "south"
+       ],
+       [
+        "south",
+        "gate"
+       ],
+       [
+        "south",
+        "inn"
+       ],
+       [
+        "inn",
+        "fireTurn"
+       ],
+       [
+        "fireTurn",
+        "fire"
+       ],
+       [
+        "fire",
+        "bridgeSouth"
+       ],
+       [
+        "south",
+        "shop"
+       ],
+       [
+        "shop",
+        "wellTurn"
+       ],
+       [
+        "wellTurn",
+        "wellApproach"
+       ],
+       [
+        "wellApproach",
+        "well"
+       ],
+       [
+        "well",
+        "homeE"
+       ],
+       [
+        "east",
+        "board"
+       ]
       ],
-      [
-       "obj-town",
-       "firewood pile",
-       222,
-       444
+      "crystal": [
+       900,
+       285
       ],
-      [
-       "obj-town",
-       "wooden cart",
-       880,
-       472
-      ],
-      [
-       "obj-town",
-       "flower planter",
-       742,
-       456
-      ],
-      [
-       "obj-town",
-       "barrel",
-       196,
-       344
-      ],
-      [
-       "obj-town",
-       "crates",
-       812,
-       344
+      "fire": [
+       270,
+       398
       ]
-     ]
+     }
     },
     "port": {
      "ground": [
-      "tile-port",
-      "beach sand"
+      "tile-town-port",
+      "ground"
      ],
      "street": [
-      "tile-port",
-      "wooden boardwalk planks"
+      "tile-town-port",
+      "street"
      ],
-     "canal": [
-      "tile-port",
-      "shallow sea water"
+     "path": [
+      "tile-town-port",
+      "path"
      ],
+     "river": [
+      "tile-town-port",
+      "water"
+     ],
+     "cliff": [
+      "obj-cliff",
+      "sandstone cliff"
+     ],
+     "waterfall": true,
      "inn": [
       "bld-port",
       "inn"
@@ -2817,57 +3409,32 @@
       "obj-town",
       "lamp post"
      ],
-     "extras": [
-      [
-       "obj-port",
-       "lighthouse",
-       60,
-       300
-      ],
-      [
-       "obj-port",
-       "docked sailboat",
-       120,
-       250
-      ],
-      [
-       "obj-port",
-       "fish market stall",
-       812,
-       350
-      ],
-      [
-       "obj-port",
-       "crates of fish",
-       230,
-       450
-      ],
-      [
-       "obj-port",
-       "wooden pier with posts",
-       900,
-       260
-      ],
-      [
-       "obj-town",
-       "barrel",
-       196,
-       344
-      ]
+     "extras": [],
+     "backdrop": [
+      "bg-town-port",
+      "port"
      ]
     },
     "snow": {
      "ground": [
-      "tile-snow",
-      "fresh snow"
+      "tile-town-snow",
+      "ground"
      ],
      "street": [
-      "tile-snow",
-      "trodden snow path"
+      "tile-town-snow",
+      "street"
      ],
-     "canal": [
-      "tile-snow",
-      "blue ice"
+     "path": [
+      "tile-town-snow",
+      "path"
+     ],
+     "river": [
+      "tile-town-snow",
+      "water"
+     ],
+     "cliff": [
+      "obj-cliff",
+      "snowy cliff"
      ],
      "inn": [
       "bld-snow",
@@ -2915,42 +3482,34 @@
       "obj-snow",
       "snowy street lamp"
      ],
-     "extras": [
-      [
-       "obj-snow",
-       "snowman",
-       230,
-       450
-      ],
-      [
-       "obj-snow",
-       "wooden sled",
-       880,
-       472
-      ],
-      [
-       "obj-snow",
-       "snow-covered well",
-       92,
-       472
-      ],
-      [
-       "obj-town",
-       "firewood pile",
-       812,
-       350
-      ]
+     "extras": [],
+     "backdrop": [
+      "bg-town-snow",
+      "snow"
      ]
     },
     "desert": {
      "ground": [
-      "tile-desert",
-      "desert sand"
+      "tile-town-desert",
+      "ground"
      ],
      "street": [
-      "tile-desert",
-      "sandstone paving"
+      "tile-town-desert",
+      "street"
      ],
+     "path": [
+      "tile-town-desert",
+      "path"
+     ],
+     "river": [
+      "tile-town-desert",
+      "water"
+     ],
+     "cliff": [
+      "obj-cliff",
+      "sandstone cliff"
+     ],
+     "waterfall": true,
      "inn": [
       "bld-desert",
       "inn"
@@ -2997,47 +3556,32 @@
       "obj-town",
       "lamp post"
      ],
-     "extras": [
-      [
-       "obj-desert",
-       "camel",
-       600,
-       505
-      ],
-      [
-       "obj-desert",
-       "striped canvas tent",
-       812,
-       350
-      ],
-      [
-       "obj-desert",
-       "clay pots",
-       196,
-       344
-      ],
-      [
-       "obj-desert",
-       "clay pots",
-       230,
-       450
-      ],
-      [
-       "obj-desert",
-       "cactus",
-       880,
-       472
-      ]
+     "extras": [],
+     "backdrop": [
+      "bg-town-desert",
+      "desert"
      ]
     },
     "volcano": {
      "ground": [
-      "tile-volcano",
-      "volcanic ash ground"
+      "tile-town-volcano",
+      "ground"
      ],
      "street": [
-      "tile-volcano",
-      "basalt paving"
+      "tile-town-volcano",
+      "street"
+     ],
+     "path": [
+      "tile-town-volcano",
+      "path"
+     ],
+     "river": [
+      "tile-town-volcano",
+      "water"
+     ],
+     "cliff": [
+      "obj-cliff",
+      "basalt cliff"
      ],
      "inn": [
       "bld-volcano",
@@ -3085,45 +3629,100 @@
       "obj-volcano",
       "glowing magma street lamp"
      ],
-     "extras": [
-      [
-       "obj-volcano",
-       "small lava pool",
-       120,
-       250
-      ],
-      [
-       "obj-volcano",
-       "small lava pool",
-       860,
-       250
-      ],
-      [
-       "obj-volcano",
-       "smoking volcanic vent",
-       230,
-       450
-      ],
-      [
-       "obj-volcano",
-       "smoking volcanic vent",
-       880,
-       472
-      ],
-      [
-       "obj-volcano",
-       "obsidian rocks",
-       92,
-       472
-      ]
-     ],
-     "tint": "rgba(120, 30, 10, 0.12)"
+     "extras": [],
+     "backdrop": [
+      "bg-town-volcano",
+      "volcano"
+     ]
     }
+   },
+   "entrances": {
+    "church": [
+     357,
+     174
+    ],
+    "library": [
+     605,
+     174
+    ],
+    "inn": [
+     357,
+     378
+    ],
+    "shop": [
+     605,
+     378
+    ]
    }
   },
   "foot": [
-   58.0,
-   124
+   64.0,
+   112
+  ]
+ },
+ {
+  "id": "obj-cliff",
+  "group": "まち",
+  "name": "崖の縁と石段",
+  "frame": [
+   56,
+   44
+  ],
+  "frames": [
+   "grass cliff",
+   "snowy cliff",
+   "sandstone cliff",
+   "basalt cliff",
+   "stone stairs"
+  ],
+  "colors": 16,
+  "sub": "地形",
+  "use": "町の高台の縁（町の種類ごと）と石段",
+  "foot": [
+   28.0,
+   44
+  ]
+ },
+ {
+  "id": "obj-river",
+  "group": "まち",
+  "name": "滝・木の橋・畑",
+  "frame": [
+   90,
+   64
+  ],
+  "frames": [
+   "waterfall 1",
+   "waterfall 2",
+   "wooden bridge",
+   "vegetable garden"
+  ],
+  "colors": 20,
+  "sub": "地形",
+  "use": "川の始まりの滝、川を渡る橋、民家の畑",
+  "foot": [
+   45.0,
+   64
+  ]
+ },
+ {
+  "id": "tile-river",
+  "group": "フィールド",
+  "name": "町の川（river water・lava）",
+  "frame": [
+   48,
+   48
+  ],
+  "frames": [
+   "river water",
+   "lava"
+  ],
+  "colors": 12,
+  "sub": "地面",
+  "use": "町の川（草原・砂漠は水、火山は溶岩）",
+  "foot": [
+   24.0,
+   48
   ]
  },
  {
@@ -3270,8 +3869,8 @@
   "group": "まち",
   "name": "海辺の港町の建物（宿屋・道具屋・教会・民家2）",
   "frame": [
-   124,
-   161
+   130,
+   123
   ],
   "frames": [
    "inn",
@@ -3280,22 +3879,34 @@
    "house",
    "house 2"
   ],
-  "colors": 16,
+  "colors": 15,
   "sub": "町のタイプ：海辺の港町",
   "use": "海辺の港町の建物（宿屋・道具屋・教会・民家2）",
   "windows": {
    "church": [
     [
-     0,
-     -59,
-     16,
+     1,
+     -54,
+     12,
      16
+    ],
+    [
+     -37,
+     -31,
+     10,
+     25
+    ],
+    [
+     39,
+     -31,
+     10,
+     25
     ]
    ]
   },
   "foot": [
-   62.0,
-   161
+   65.0,
+   123
   ]
  },
  {
@@ -3303,8 +3914,8 @@
   "group": "まち",
   "name": "雪国の町の建物（宿屋・道具屋・教会・民家2）",
   "frame": [
-   104,
-   133
+   128,
+   123
   ],
   "frames": [
    "inn",
@@ -3313,22 +3924,34 @@
    "house",
    "house 2"
   ],
-  "colors": 19,
+  "colors": 17,
   "sub": "町のタイプ：雪国の町",
   "use": "雪国の町の建物（宿屋・道具屋・教会・民家2）",
   "windows": {
    "church": [
     [
-     0,
-     -54,
-     12,
-     18
+     1,
+     -51,
+     10,
+     14
+    ],
+    [
+     -37,
+     -30,
+     10,
+     22
+    ],
+    [
+     39,
+     -30,
+     10,
+     22
     ]
    ]
   },
   "foot": [
-   52.0,
-   133
+   64.0,
+   123
   ]
  },
  {
@@ -3336,46 +3959,7 @@
   "group": "まち",
   "name": "砂漠のオアシスの建物（宿屋・道具屋・教会・民家2）",
   "frame": [
-   110,
-   149
-  ],
-  "frames": [
-   "inn",
-   "item shop",
-   "church",
-   "house",
-   "house 2"
-  ],
-  "colors": 18,
-  "sub": "町のタイプ：砂漠のオアシス",
-  "use": "砂漠のオアシスの建物（宿屋・道具屋・教会・民家2）",
-  "windows": {
-   "church": [
-    [
-     -34,
-     -32,
-     6,
-     10
-    ],
-    [
-     34,
-     -32,
-     6,
-     10
-    ]
-   ]
-  },
-  "foot": [
-   55.0,
-   149
-  ]
- },
- {
-  "id": "bld-volcano",
-  "group": "まち",
-  "name": "火山の町の建物（宿屋・道具屋・教会・民家2）",
-  "frame": [
-   86,
+   132,
    137
   ],
   "frames": [
@@ -3386,21 +3970,78 @@
    "house 2"
   ],
   "colors": 14,
+  "sub": "町のタイプ：砂漠のオアシス",
+  "use": "砂漠のオアシスの建物（宿屋・道具屋・教会・民家2）",
+  "windows": {
+   "church": [
+    [
+     1,
+     -67,
+     20,
+     22
+    ],
+    [
+     -39,
+     -34,
+     10,
+     26
+    ],
+    [
+     39,
+     -34,
+     10,
+     26
+    ]
+   ]
+  },
+  "foot": [
+   66.0,
+   137
+  ]
+ },
+ {
+  "id": "bld-volcano",
+  "group": "まち",
+  "name": "火山の町の建物（宿屋・道具屋・教会・民家2）",
+  "frame": [
+   130,
+   125
+  ],
+  "frames": [
+   "inn",
+   "item shop",
+   "church",
+   "house",
+   "house 2"
+  ],
+  "colors": 16,
   "sub": "町のタイプ：火山の町",
   "use": "火山の町の建物（宿屋・道具屋・教会・民家2）",
   "windows": {
    "church": [
     [
-     -3,
-     -56,
-     7,
-     19
+     0,
+     -54,
+     12,
+     15
+    ],
+    [
+     -39,
+     -31,
+     10,
+     26
+    ],
+    [
+     36,
+     -31,
+     10,
+     26
     ]
    ]
   },
   "foot": [
-   43.0,
-   137
+   65.0,
+   125
   ]
  },
  {
@@ -3798,6 +4439,427 @@
   "foot": [
    12.0,
    15
+  ]
+ },
+ {
+  "id": "tile-town-village",
+  "group": "フィールド",
+  "name": "villageの格子地面",
+  "frame": [
+   48,
+   48
+  ],
+  "frames": [
+   "ground",
+   "clumps",
+   "path",
+   "street",
+   "water"
+  ],
+  "colors": 40,
+  "sub": "地面",
+  "use": "16px格子の地面・縁・外角・内角",
+  "foot": [
+   24.0,
+   48
+  ]
+ },
+ {
+  "id": "tile-town-port",
+  "group": "フィールド",
+  "name": "portの格子地面",
+  "frame": [
+   48,
+   48
+  ],
+  "frames": [
+   "ground",
+   "clumps",
+   "path",
+   "street",
+   "water"
+  ],
+  "colors": 40,
+  "sub": "地面",
+  "use": "16px格子の地面・縁・外角・内角",
+  "foot": [
+   24.0,
+   48
+  ]
+ },
+ {
+  "id": "tile-town-snow",
+  "group": "フィールド",
+  "name": "snowの格子地面",
+  "frame": [
+   48,
+   48
+  ],
+  "frames": [
+   "ground",
+   "clumps",
+   "path",
+   "street",
+   "water"
+  ],
+  "colors": 40,
+  "sub": "地面",
+  "use": "16px格子の地面・縁・外角・内角",
+  "foot": [
+   24.0,
+   48
+  ]
+ },
+ {
+  "id": "tile-town-desert",
+  "group": "フィールド",
+  "name": "desertの格子地面",
+  "frame": [
+   48,
+   48
+  ],
+  "frames": [
+   "ground",
+   "clumps",
+   "path",
+   "street",
+   "water"
+  ],
+  "colors": 40,
+  "sub": "地面",
+  "use": "16px格子の地面・縁・外角・内角",
+  "foot": [
+   24.0,
+   48
+  ]
+ },
+ {
+  "id": "tile-town-volcano",
+  "group": "フィールド",
+  "name": "volcanoの格子地面",
+  "frame": [
+   48,
+   48
+  ],
+  "frames": [
+   "ground",
+   "clumps",
+   "path",
+   "street",
+   "water"
+  ],
+  "colors": 40,
+  "sub": "地面",
+  "use": "16px格子の地面・縁・外角・内角",
+  "foot": [
+   24.0,
+   48
+  ]
+ },
+ {
+  "id": "bg-town-village",
+  "group": "town",
+  "name": "村の背景",
+  "frame": [
+   960,
+   540
+  ],
+  "frames": [
+   "village"
+  ],
+  "colors": 24,
+  "foot": [
+   480.0,
+   540
+  ]
+ },
+ {
+  "id": "bg-town-port",
+  "group": "town",
+  "name": "港町の背景",
+  "frame": [
+   960,
+   540
+  ],
+  "frames": [
+   "port"
+  ],
+  "colors": 25,
+  "foot": [
+   480.0,
+   540
+  ]
+ },
+ {
+  "id": "bg-town-snow",
+  "group": "town",
+  "name": "雪の町の背景",
+  "frame": [
+   960,
+   540
+  ],
+  "frames": [
+   "snow"
+  ],
+  "colors": 17,
+  "foot": [
+   480.0,
+   540
+  ]
+ },
+ {
+  "id": "bg-town-desert",
+  "group": "town",
+  "name": "砂漠の町の背景",
+  "frame": [
+   960,
+   540
+  ],
+  "frames": [
+   "desert"
+  ],
+  "colors": 22,
+  "foot": [
+   480.0,
+   540
+  ]
+ },
+ {
+  "id": "bg-town-volcano",
+  "group": "town",
+  "name": "火山の町の背景",
+  "frame": [
+   960,
+   540
+  ],
+  "frames": [
+   "volcano"
+  ],
+  "colors": 18,
+  "foot": [
+   480.0,
+   540
+  ]
+ },
+ {
+  "id": "bg-field-meadow",
+  "group": "フィールド",
+  "name": "戦場マップ：そうげん",
+  "frame": [
+   960,
+   540
+  ],
+  "frames": [
+   "backdrop"
+  ],
+  "colors": 32,
+  "field": {
+   "fights": [
+    [
+     275,
+     140
+    ],
+    [
+     704,
+     134
+    ],
+    [
+     260,
+     379
+    ],
+    [
+     782,
+     285
+    ]
+   ],
+   "lights": []
+  },
+  "foot": [
+   480.0,
+   540
+  ]
+ },
+ {
+  "id": "bg-field-cave",
+  "group": "フィールド",
+  "name": "戦場マップ：どうくつ",
+  "frame": [
+   960,
+   540
+  ],
+  "frames": [
+   "backdrop"
+  ],
+  "colors": 32,
+  "field": {
+   "fights": [
+    [
+     273,
+     169
+    ],
+    [
+     682,
+     234
+    ],
+    [
+     289,
+     370
+    ],
+    [
+     628,
+     410
+    ]
+   ],
+   "lights": [
+    [
+     "torch",
+     307,
+     40
+    ],
+    [
+     "torch",
+     617,
+     68
+    ],
+    [
+     "torch",
+     865,
+     20
+    ],
+    [
+     "torch",
+     102,
+     206
+    ],
+    [
+     "torch",
+     111,
+     444
+    ],
+    [
+     "torch",
+     915,
+     386
+    ],
+    [
+     "crystal",
+     219,
+     102
+    ],
+    [
+     "crystal",
+     700,
+     119
+    ],
+    [
+     "crystal",
+     838,
+     300
+    ],
+    [
+     "crystal",
+     156,
+     362
+    ],
+    [
+     "crystal",
+     459,
+     391
+    ],
+    [
+     "crystal",
+     653,
+     489
+    ]
+   ]
+  },
+  "foot": [
+   480.0,
+   540
+  ]
+ },
+ {
+  "id": "bg-field-forest",
+  "group": "フィールド",
+  "name": "戦場マップ：よるのもり",
+  "frame": [
+   960,
+   540
+  ],
+  "frames": [
+   "backdrop"
+  ],
+  "colors": 32,
+  "field": {
+   "fights": [
+    [
+     337,
+     202
+    ],
+    [
+     696,
+     200
+    ],
+    [
+     420,
+     368
+    ],
+    [
+     559,
+     319
+    ]
+   ],
+   "lights": [
+    [
+     "lantern",
+     48,
+     225
+    ],
+    [
+     "lantern",
+     882,
+     66
+    ],
+    [
+     "lantern",
+     890,
+     412
+    ],
+    [
+     "mushroom",
+     368,
+     51
+    ],
+    [
+     "mushroom",
+     459,
+     159
+    ],
+    [
+     "mushroom",
+     322,
+     333
+    ],
+    [
+     "mushroom",
+     358,
+     482
+    ],
+    [
+     "mushroom",
+     684,
+     449
+    ],
+    [
+     "mushroom",
+     253,
+     175
+    ]
+   ]
+  },
+  "foot": [
+   480.0,
+   540
   ]
  }
 ]

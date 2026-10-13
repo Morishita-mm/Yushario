@@ -1,0 +1,19 @@
+{
+  "observedAt": 1791730012915,
+  "lastEventAt": 1791729379544,
+  "inactiveMs": 633371,
+  "sourceEvent": {
+    "state": "idle",
+    "ts": 1791729379544,
+    "context": 0.16051,
+    "detail": "Awaiting prompt",
+    "source": "claude-code",
+    "agent": "25b3f339-fe08-40bf-a306-96526b1691c1",
+    "name": "quiet-quest",
+    "hook": "Notification",
+    "terminal": "eb20fd452576",
+    "project": "quiet-quest"
+  },
+  "clockChanged": false,
+  "method": "Live event recording stayed open through farewell. Continuous absence of agent activity exceeds real dozing threshold; place verified from prefix through pure core and captured app replay. Live inn screenshot not obtained (compact-list rendering race)."
+}

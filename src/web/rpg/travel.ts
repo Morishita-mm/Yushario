@@ -1,8 +1,9 @@
+import type { TownTheme } from "../town/themes";
 import type { Sheets } from "../town/sheets";
 import type { TownHero } from "../../core/town";
 import type { EquipmentTiers } from "../../core/battle-presentation";
 import { heroVariant } from "../town/appearance";
-import { leave, makeWalker, returnWalker, stepWalkers, type Walker } from "../town/walkers";
+import { changeWalkerTheme, leave, makeWalker, returnWalker, stepWalkers, type Walker } from "../town/walkers";
 
 // Only drawing state survives SessionEnd, until the shared gate/wave animation ends.
 export class HeroTravel {
@@ -10,7 +11,7 @@ export class HeroTravel {
   private departing: { project: string; terminal?: string; walker: Walker }[] = [];
   private arriving = new Set<string>();
 
-  constructor(private readonly art: Sheets) {}
+  constructor(private readonly art: Sheets, private readonly theme: (project: string) => TownTheme | undefined) {}
 
   expect(terminal: string, heroes: TownHero[]): void {
     this.arriving.add(terminal);
@@ -21,12 +22,15 @@ export class HeroTravel {
     // A recalled terminal is a new journey, not the old hero finishing its farewell.
     this.departing = this.departing.filter((item) => !heroes.some((hero) => hero.id === item.walker.id
       && hero.agent.terminal !== item.terminal && hero.agent.terminal && this.arriving.has(hero.agent.terminal)));
+    for (const item of this.departing) changeWalkerTheme(this.art, item.walker, this.theme(item.project));
     const strolling = heroes.filter((hero) => hero.place === "town" && !this.departing.some((item) => item.walker.id === hero.id));
     this.walkers = this.walkers.filter((walker) => strolling.some((hero) => hero.id === walker.id));
     for (const hero of strolling) {
       let walker = this.walkers.find((item) => item.id === hero.id);
+      const theme = this.theme(hero.project);
+      if (walker) changeWalkerTheme(this.art, walker, theme);
       if (!walker) {
-        walker = makeWalker(this.art, hero.id, hero.name, heroVariant(hero.id), this.walkers.length);
+        walker = makeWalker(this.art, hero.id, hero.name, heroVariant(hero.id), this.walkers.length, theme);
         this.walkers.push(walker);
       }
       if (hero.agent.terminal && this.arriving.delete(hero.agent.terminal)) returnWalker(this.art, walker);
@@ -40,7 +44,7 @@ export class HeroTravel {
     const terminal = hero.agent.terminal;
     const current = this.walkers.find((item) => item.id === hero.id);
     const walker = current ? { ...current, path: [...current.path], party: [...current.party] }
-      : makeWalker(this.art, hero.id, hero.name, heroVariant(hero.id), 0);
+      : makeWalker(this.art, hero.id, hero.name, heroVariant(hero.id), 0, this.theme(hero.project));
     return () => {
       if (this.departing.some((item) => item.walker.id === hero.id)) return;
       walker.paused = false;

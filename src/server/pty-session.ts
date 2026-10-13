@@ -17,6 +17,7 @@ export type Session = {
   info: TerminalSession; terminal: IPty; output: Buffer; clients: Set<WebSocket>; stop: () => void;
   waiting: boolean; eventAt: number; texts: string[]; enter?: ReturnType<typeof setTimeout>;
   interrupted: boolean; interrupting: boolean; departing: boolean; ended?: boolean;
+  asking: boolean; askedAt: number; // A permission/question prompt that a typed Enter would answer.
   agentId?: string; hasPrompt: boolean; name: string; attention?: boolean;
   finished: Promise<void>; finish: () => void;
   pendingEquipment?: Equipment; equipping?: Equipment;

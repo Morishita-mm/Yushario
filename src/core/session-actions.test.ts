@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { earlyEquippedExit, hasTrustPrompt, replacedSession, waitingAfterEvent } from "./session-actions";
+import { askingAfterEvent, earlyEquippedExit, hasTrustPrompt, replacedSession, waitingAfterEvent } from "./session-actions";
 
 describe("early equipped exit", () => {
   const session = { createdAt: 1000, exited: { code: 1 }, weapon: "steel" };
@@ -74,5 +74,25 @@ describe("session readiness", () => {
       expect(waitingAfterEvent({ state: "working", hook })).toBeUndefined();
     }
     expect(waitingAfterEvent({ state: "success", hook: "Stop", subagent: { id: "helper" } })).toBeUndefined();
+  });
+});
+
+describe("asking after event", () => {
+  it("treats permission requests, input notifications and questions as a prompt waiting for an answer", () => {
+    expect(askingAfterEvent({ state: "waiting_input", hook: "PermissionRequest", tool: "Bash" })).toBe(true);
+    expect(askingAfterEvent({ state: "waiting_input", hook: "Notification" })).toBe(true);
+    expect(askingAfterEvent({ state: "working", hook: "PreToolUse", tool: "AskUserQuestion" })).toBe(true);
+    expect(askingAfterEvent({ state: "waiting_input", hook: "PermissionRequest", subagent: { id: "helper" } })).toBe(true);
+  });
+  it("clears the prompt when the main conversation moves on", () => {
+    expect(askingAfterEvent({ state: "working", hook: "PostToolUse", tool: "Bash" })).toBe(false);
+    expect(askingAfterEvent({ state: "error", hook: "PostToolUseFailure", tool: "Bash" })).toBe(false);
+    expect(askingAfterEvent({ state: "working", hook: "PreToolUse", tool: "Edit" })).toBe(false);
+    expect(askingAfterEvent({ state: "thinking", hook: "Notification" })).toBe(false);
+    expect(askingAfterEvent({ state: "success", hook: "Stop" })).toBe(false);
+  });
+  it("leaves the prompt as it is for helpers and events that do not show progress", () => {
+    expect(askingAfterEvent({ state: "working", hook: "PostToolUse", tool: "Bash", subagent: { id: "helper" } })).toBeUndefined();
+    expect(askingAfterEvent({ state: "working", hook: "TaskCreated" })).toBeUndefined();
   });
 });

@@ -134,7 +134,6 @@ export function showArchivedTowns(layer: HTMLElement, projects: Project[], onRes
 // The first visit to a new town: choose what it looks like (and so its region on the map).
 export function showThemeChooser(layer: HTMLElement, project: Project, art: Sheets, onPick: (theme: TownTheme) => void, onClose: () => void): void {
   const box = windowBox(layer, `「${project.repo}」の 町の すがたを えらぶ`, onClose);
-  box.append(element("p", "who", "えらんだ すがたの 地方に 町が できます。あとから かえられます。"));
   const list = element("div", "theme-list");
   for (const theme of Object.keys(THEME_NAMES) as TownTheme[]) {
     const button = element("button", "theme-option");

@@ -6,7 +6,9 @@ import { drawField, FIELD_EXITS, FIELD_H, FIELD_W, label } from "../town/field";
 import { REPORTS } from "./mock-report";
 import { showReport } from "../town/report";
 import type { TownTheme } from "../town/themes";
-import { showCommands, showRoster } from "../town/command";
+import { showBattleCommands } from "../town/battle-commands";
+import { showRoster } from "../town/command";
+import { mockHeroCommands } from "./mock-heroes";
 import { drawInn } from "../town/inn";
 import { churchPriest, churchSlots, drawChurch, PRIEST_LINES } from "../town/church";
 import { drawTown, TOWN_H, townSpots, TOWN_W } from "../town/town";
@@ -30,7 +32,7 @@ const SCENES: Scene[] = [
   { id: "forest", label: "よるのもり", place: "forest", caption: "コマンド実行の戦場（おばけ）。" },
   { id: "inn", label: "やどや", place: "inn", caption: "宿屋の中。居眠り中（10分以上動きなし）のエージェントがベッドで眠る。ベッドの大きさは空きと同じ。クリックで町へ。" },
   { id: "church", label: "きょうかい", place: "church", caption: "きょうかいの中。入口から祭壇まで1本のじゅうたん。やすむ（会話の整理）の勇者は奥を向いて祈る。神父さまをクリックで一言、勇者でコマンド窓、▼ そとへ で町へ。" },
-  { id: "b-meadow", label: "戦闘：草原", focus: FOCUS("bg-battle-meadow", "meadow", "monster-slime", "claw", "スライム", ["hero-back-battle", "party-thief-back"]), caption: "戦闘フォーカス（草原）。クリックで戻る。" },
+  { id: "b-meadow", label: "戦闘：草原", focus: FOCUS("bg-battle-meadow", "meadow", "monster-slime", "claw", "スライム", ["hero-back-battle", "party-thief-back"]), caption: "戦闘フォーカス（草原）。右下に コマンド（たたかう・さくせん・めいれい・にげる・もどる）。勇者を クリックで ひらき直す、ほかは もどる。" },
   { id: "b-cave", label: "戦闘：洞窟", focus: FOCUS("bg-battle-cave", "cave", "monster-golem", "rocks", "ゴーレム", ["hero-back-battle", "party-warrior-back", "party-mage-back"]), caption: "戦闘フォーカス（洞窟）。" },
   { id: "b-forest", label: "戦闘：夜の森", focus: FOCUS("bg-battle-forest", "forest", "monster-ghost", "curse", "おばけ", ["hero-back-battle", "party-priest-back"]), caption: "戦闘フォーカス（夜の森）。" },
   { id: "b-boss", label: "戦闘：ボス", focus: FOCUS("bg-battle-meadow", "meadow", "monster-dragon", "fire", "ドラゴン", ["hero-back-battle", "party-warrior-back", "party-mage-back", "party-thief-back", "party-priest-back"]), caption: "任せた仕事（ドラゴン）にパーティー全員で挑む。" },
@@ -62,6 +64,7 @@ function enter(project: Project): void {
     return;
   }
   town = { theme: project.theme, repo: project.repo };
+  initTown(art, town.theme);
   go(byId("town"));
 }
 
@@ -90,7 +93,9 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && !reportRoot.hidden) closeLayer();
 });
 reportRoot.addEventListener("click", (event) => {
-  if (event.target === reportRoot) closeLayer();
+  if (event.target !== reportRoot) return;
+  closeLayer();
+  if (current.focus) go(returnTo ?? byId(current.focus.theme), undefined); // Outside the battle commands: back.
 });
 
 const byId = (id: string) => SCENES.find((s) => s.id === id)!;
@@ -114,9 +119,20 @@ function show(scene: Scene): void {
 
 function go(scene: Scene, from?: Scene): void {
   returnTo = scene.focus ? from : undefined;
-  if (scene.focus || current.focus) { fadeAt = performance.now(); show(scene); return; }
+  if (scene.focus || current.focus) { fadeAt = performance.now(); show(scene); if (scene.focus) battleCommands(); return; }
   pending = scene;
   fadeAt = performance.now();
+}
+
+// Same window as the app; the fake hero only shows what would be sent.
+function battleCommands(): void {
+  const rect = canvas.getBoundingClientRect(), [w, h] = size(current), name = current.focus!.status[0]?.name ?? "ゆうしゃ";
+  showBattleCommands(reportRoot, name, [(w - 8) * rect.width / w, (h - 50) * rect.height / h], {
+    working: true, closed: () => undefined,
+    steer: async (text) => { toast(`${name}に「${text}」を つたえた！`); return `${name}に つたえた！`; },
+    interrupt: () => toast(`${name} は たたかいから にげだした！`),
+    back: () => go(returnTo ?? byId(current.focus!.theme), undefined),
+  });
 }
 
 let rosterPlate = { x: 0, y: 0, w: 0, h: 0 };
@@ -133,9 +149,9 @@ function toast(text: string): void {
 function commands(name: string, x: number, y: number, fighting: boolean, watch?: () => void): void {
   const rect = canvas.getBoundingClientRect();
   const [w, h] = size(current);
-  showCommands(reportRoot, { name, fighting, hasReport: Boolean(REPORTS[name]), at: [x * rect.width / w, (y - 30) * rect.height / h] }, {
+  mockHeroCommands(reportRoot, name, [x * rect.width / w, (y - 30) * rect.height / h], fighting, walkers, {
     watch, toast,
-    report: () => openReport(name),
+    talk: () => REPORTS[name] ? openReport(name) : toast(`${name}は こちらを みている`),
     farewell: () => {
       if (current.place === "town") farewell(art, name);
       toast(`${name} は たびだった。ぼうけんしゃの めいぼに なまえが のこった`);
@@ -158,7 +174,11 @@ function hotspots(): Hot[] {
     spots.push({ ...sleepingPlate, act: () => showTownList(reportRoot, `ねむっている町（${sleeping(PROJECTS).length}）`, sleeping(PROJECTS), enter, () => undefined) });
     return spots;
   }
-  if (current.focus) return [{ x: 0, y: 0, w: 9999, h: 9999, act: () => go(returnTo ?? byId(current.focus!.theme), undefined) }];
+  if (current.focus) {
+    const [w, h] = size(current);
+    return [{ x: w / 2 - 130, y: h - 112, w: 260, h: 66, act: battleCommands },
+      { x: 0, y: 0, w: 9999, h: 9999, act: () => go(returnTo ?? byId(current.focus!.theme), undefined) }];
+  }
   if (place === "inn") return [{ x: 0, y: 0, w: 9999, h: 9999, act: () => go(byId("town")) }];
   if (place === "church") return [{ ...churchPriest(art), act: () => {
     document.querySelector<HTMLElement>("#messages")!.textContent = `神父さま「${PRIEST_LINES[priestLine++ % PRIEST_LINES.length]}」`;
@@ -167,8 +187,8 @@ function hotspots(): Hot[] {
     return { x: x - 24, y: y - 55, w: 48, h: 70, act: () => commands(prayer.name, x, y, false) };
   }), { x: 430, y: 500, w: 100, h: 34, text: "▼ そとへ", act: () => go(byId("town")) }];
   if (place === "town") {
-    const spots: Hot[] = [{ ...townSpots(art).inn, act: () => go(byId("inn")) },
-      { ...townSpots(art).church, act: () => go(byId("church")) }];
+    const spots: Hot[] = [{ ...townSpots(art, town.theme).inn, act: () => go(byId("inn")) },
+      { ...townSpots(art, town.theme).church, act: () => go(byId("church")) }];
     for (const hero of townHeroes()) {
       spots.push({ x: hero.x - 16, y: hero.y - 76, w: 32, h: 80, act: () => commands(hero.name, hero.x, hero.y, false) });
     }
@@ -243,7 +263,7 @@ function frame(now: number): void {
   else if (current.focus && ambient) drawFocus(ctx, art, battleBeat(current.focus, now), ambient, now, dt, w, h);
   drawNavigation(ctx, hotspots(), pointer, gateMenu);
 
-  if (current.focus && returnTo) label(ctx, "クリックで もどる", w - 60, 58, "#ffe066", 9);
+  if (current.focus) label(ctx, "クリックで もどる", w - 64, 58, "#ffe066", 9);
   const flash = (now - fadeAt) / 300;
   if (flash < 1 || pending) {
     ctx.fillStyle = current.focus || returnTo ? `rgba(255,255,255,${pending ? flash : 1 - flash})` : `rgba(0,0,0,${pending ? Math.min(1, flash) : Math.max(0, 1 - flash)})`;
@@ -282,7 +302,7 @@ for (const scene of SCENES.filter((scene) => !scene.id.startsWith("equipment-"))
 }
 void (async () => {
   await art.load();
-  initTown(art);
+  initTown(art, town.theme);
   await document.fonts.load('10px "DotGothic16"');
   show(current);
   refreshHerald();

@@ -1,3 +1,4 @@
+import type { TownTheme } from "../town/themes";
 import type { HeroPlace, TownHero } from "../../core/town";
 import { FIELD_EXITS } from "../town/field";
 import { churchPriest, churchSlots } from "../town/church";
@@ -10,7 +11,7 @@ import { FIELD_NAMES } from "./navigation";
 
 export function localHotspots(art: Sheets, place: HeroPlace, heroes: TownHero[], walkers: Walker[], gateMenu: boolean,
   go: (place: HeroPlace, focused?: string) => void,
-  commands: (id: string, x: number, y: number, watch?: () => void) => void, openGate: () => void, priest: () => void) {
+  commands: (id: string, x: number, y: number, watch?: () => void) => void, openGate: () => void, priest: () => void, theme?: TownTheme) {
   if (place === "inn") {
     const slots = innSlots(art), [dx, dy, w, h] = art.entry("inn-wall").inn!.hit;
     const sleepers = heroes.filter((hero) => hero.place === "inn").slice(0, slots.length);
@@ -27,8 +28,8 @@ export function localHotspots(art: Sheets, place: HeroPlace, heroes: TownHero[],
   }
   if (place === "town") {
     const spots = [
-      { ...townSpots(art).inn, act: () => go("inn"), text: undefined as string | undefined },
-      { ...townSpots(art).church, act: () => go("church"), text: undefined as string | undefined },
+      { ...townSpots(art, theme).inn, act: () => go("inn"), text: undefined as string | undefined },
+      { ...townSpots(art, theme).church, act: () => go("church"), text: undefined as string | undefined },
     ];
     for (const walker of walkers.filter((w) => heroes.some((h) => h.id === w.id))) {
       spots.push({ x: walker.x - 16, y: walker.y - 76, w: 32, h: 80, text: undefined, act: () => commands(walker.id, walker.x, walker.y) });

@@ -51,7 +51,7 @@ export function initEquipment(hero: (id: string) => RoomAgent | undefined, name:
   function setPending(terminal: string, equipment?: Equipment): void {
     if (equipment) pending.add(terminal); else pending.delete(terminal);
     if (active?.terminal === terminal) active.hint.textContent = equipment
-      ? "さぎょうが おわったら もちかえる" : "ぶき＝モデル、アクセサリ＝考える量";
+      ? "さぎょうが おわったら もちかえる" : "";
   }
   function open(id: string, layer: HTMLElement, at: [number, number], dismiss: () => void): void {
     const terminal = hero(id)?.terminal;
@@ -68,7 +68,7 @@ export function initEquipment(hero: (id: string) => RoomAgent | undefined, name:
       box.setAttribute("role", "dialog"); box.setAttribute("aria-label", "そうび");
       box.append(element("h4", undefined, `${name(id) ?? hero(id)?.name ?? "勇者"}の そうび`));
       const hint = element("p", "hint", message ?? (pending.has(terminal ?? "")
-        ? "さぎょうが おわったら もちかえる" : "ぶき＝モデル、アクセサリ＝考える量"));
+        ? "さぎょうが おわったら もちかえる" : ""));
       if (terminal) active = { terminal, hint };
       const list = element("div", "commands");
       if (session && items) {
@@ -76,7 +76,6 @@ export function initEquipment(hero: (id: string) => RoomAgent | undefined, name:
         const mutable = Boolean(agent?.equipWeapon || agent?.equipAccessory);
         if (!mutable) {
           for (const text of labels) box.append(element("p", undefined, text));
-          hint.textContent = "かえられるのは しゅつじんの時だけ。よびもどすと 前の そうびのまま。";
         } else {
           list.append(button(labels[0], () => choices("weapon")));
           if (items.accessories.length) list.append(button(labels[1], () => choices("accessory")));
@@ -102,7 +101,7 @@ export function initEquipment(hero: (id: string) => RoomAgent | undefined, name:
       box.append(element("h4", undefined, key === "weapon" ? "ぶき" : "アクセサリ"));
       const list = element("div", "commands");
       const none = button("そうびなし（きほん）", () => { next = { ...next, [key]: undefined }; render(); });
-      none.disabled = Boolean(session[key]); none.title = none.disabled ? "そうびなしに できるのは 新しい しゅつじんの時だけ" : "";
+      none.disabled = Boolean(session[key]);
       list.append(none);
       for (const item of key === "weapon" ? items.weapons : items.accessories) {
         const value = "model" in item ? item.model : item.value;

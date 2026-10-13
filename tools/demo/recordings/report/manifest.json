@@ -1,0 +1,13 @@
+{
+  "claudeVersion": "2.1.296",
+  "sessions": [
+    {
+      "id": "8ea2527aaad3",
+      "preset": "claude",
+      "cwd": "/demo/tiny-quest",
+      "project": "tiny-quest",
+      "createdAt": 1791691173358,
+      "weapon": "legend"
+    }
+  ]
+}

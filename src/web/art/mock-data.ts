@@ -1,3 +1,4 @@
+import type { TownTheme } from "../town/themes";
 import type { Theme } from "../town/ambient";
 import type { Fight } from "../town/field";
 import type { Project } from "../town/world";
@@ -46,16 +47,26 @@ export const SLEEPERS = ["t15-infra", "t16-ops"];
 export const PRAYERS = [{ name: "t18-compact", variant: 0 }, { name: "t22-context", variant: 2 }];
 export const walkers: Walker[] = [];
 export const equippedWalkers: Walker[] = [];
-export function initTown(art: Sheets): void {
-  walkers.push(...["t23-lint", "t4-api", "t6-gesture", "t9-fixes", "t13-auth", "t14-db", "t17-ci"].map((name, i) => makeWalker(art, name, name, i % 5, i)));
+let townTheme: TownTheme | undefined;
+export function initTown(art: Sheets, theme?: TownTheme): void {
+  for (const place of ["meadow", "cave", "forest"] as const) {
+    const slots = art.entry(`bg-field-${place}`).field!.fights;
+    FIGHTS[place].forEach((fight, i) => { [fight.x, fight.y] = slots[i]; });
+  }
+
+  townTheme = theme;
+  walkers.length = equippedWalkers.length = 0;
+  const positions = [[480,370], [680,250], theme === "village" ? [810,420] : [700,424]];
+  [CALLER, ...TOWN_REPORTS].forEach((hero, i) => { [hero.x, hero.y] = positions[i]; });
+  walkers.push(...["t23-lint", "t4-api", "t6-gesture", "t9-fixes", "t13-auth", "t14-db", "t17-ci"].map((name, i) => makeWalker(art, name, name, i % 5, i, theme)));
   equippedWalkers.push(...["そうびなし", "たんけん", "はがね", "でんせつ"].map((name, i) => ({
-    ...makeWalker(art, name, name, 0, i), x: 310 + i * 115, y: 445, paused: true, weaponTier: i,
+    ...makeWalker(art, name, name, 0, i, theme), x: theme === "village" ? 330 + i * 110 : [330,390,570,640][i], y: 424, paused: true, weaponTier: i,
   })));
 }
-export const CALLER = { name: "t11-callme", x: 560, y: 432 };
+export const CALLER = { name: "t11-callme", x: 555, y: 468 };
 export const TOWN_REPORTS = [
-  { name: "t5-hooks", x: 345, y: 420, icon: "rolled parchment scroll" },
-  { name: "t2-docs", x: 610, y: 400, icon: "speech bubble with lines" },
+  { name: "t5-hooks", x: 575, y: 418, icon: "rolled parchment scroll" },
+  { name: "t2-docs", x: 690, y: 470, icon: "speech bubble with lines" },
 ];
 export const ROSTER: Departed[] = [
   { name: "t1-core", repo: "agent-character", left: "きのう 18:20", last: "Room の雛形と relay サーバーを作りました。" },
@@ -70,7 +81,7 @@ export function farewell(art: Sheets, name: string): void {
   const reporter = TOWN_REPORTS.find((r) => r.name === name);
   if (!walker && reporter) {
     gone.add(name);
-    walker = makeWalker(art, name, name, name.length % 5, 0);
+    walker = makeWalker(art, name, name, name.length % 5, 0, townTheme);
     walker.x = reporter.x; walker.y = reporter.y;
     walkers.push(walker);
   }
@@ -83,7 +94,7 @@ export function recall(art: Sheets, name: string): void {
   ROSTER.splice(index, 1);
   const taken = new Set(walkers.map((w) => w.stop));
   const stop = Array.from({ length: 10 }, (_, i) => i).find((i) => !taken.has(i)) ?? 0;
-  const walker = makeWalker(art, name, name, name.length % 5, stop);
+  const walker = makeWalker(art, name, name, name.length % 5, stop, townTheme);
   returnWalker(art, walker);
   walkers.push(walker);
 }
@@ -92,5 +103,5 @@ let last = 0;
 export function walkTown(art: Sheets, t: number): void {
   const departed = stepWalkers(art, walkers, t, Math.min(100, t - last));
   last = t;
-  for (const walker of departed) ROSTER.unshift({ name: walker.name, repo: "agent-character", left: "いま", last: "（さいごの ほうこくが ここに のこる）" });
+  for (const walker of departed) ROSTER.unshift({ name: walker.name, repo: "agent-character", left: "いま", last: "ほうこくは ありません" });
 }

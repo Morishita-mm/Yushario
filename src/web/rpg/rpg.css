@@ -28,7 +28,6 @@ a { color: #9fd3ff; font-size: 14px; }
 .map-nav button, body > header button { font: inherit; background: #1d1726; color: #fff; border: 1px solid #6e6a8a; padding: 4px 8px; cursor: pointer; }
 .map-nav button:hover, .map-nav button:focus-visible, body > header button:hover, body > header button:focus-visible { color: #ffe066; border-color: #ffe066; }
 body > header button { font-size: 14px; }
-#expedition-support { margin: 0; font-size: 13px; }
 #terminals-list .session-row { align-items: center; flex-wrap: wrap; }
 #terminals-list .session-row > div:first-child { flex: 1; min-width: 180px; }
 #terminals-list .hint { margin: 0; font-size: 12px; }
@@ -56,10 +55,9 @@ dialog.terminal-window[open] { display: flex; flex-direction: column; gap: 8px; 
 .terminal-heading { display: flex; align-items: center; gap: 16px; }
 .terminal-heading h3 { flex: 1; text-align: left; margin: 0; overflow-wrap: anywhere; }
 .terminal-heading button { flex: none; }
-#session-status, .terminal-hint { font-size: 13px; color: #c9c3dc; margin: 0; overflow-wrap: anywhere; }
+#session-status { font-size: 13px; color: #c9c3dc; margin: 0; overflow-wrap: anywhere; }
 #session-terminal { flex: 1; min-width: 0; min-height: 0; background: #10141c; }
 #session-terminal .xterm { height: 100%; }
-.terminal-hint { font-size: 12px; }
 #town-pin[aria-pressed="true"] { color: #ffe066; }
 #town-feedback { color: #ffb899; margin: 0; }
 #archive-days { display: flex; flex-wrap: wrap; gap: 8px 18px; border: 1px solid #6e6a8a; margin: 12px 0; padding: 12px; }

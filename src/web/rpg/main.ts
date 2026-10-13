@@ -25,7 +25,7 @@ const canvas = document.querySelector<HTMLCanvasElement>("#world")!;
 const connectionLabel = document.querySelector<HTMLElement>("#connection")!;
 const firstStep = document.createElement("button");
 firstStep.type = "button"; firstStep.className = "first-step";
-firstStep.textContent = "▶ しゅつじんで 勇者を よぼう。Claude Code / pi を 起動できます。";
+firstStep.textContent = "▶ 勇者を よぼう";
 firstStep.addEventListener("click", () => document.querySelector<HTMLButtonElement>("#expedition")!.click());
 document.querySelector(".map-stage")!.before(firstStep);
 const scene = new Scene(canvas, document.querySelector<HTMLElement>("#town-layer")!,

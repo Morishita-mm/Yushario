@@ -3,7 +3,7 @@
 CLI エージェントの仕事を **RPG 風の町と勇者** として見せ、埋め込みターミナルの勇者に依頼し、会話と報告を受け取るローカル Web アプリ。
 ハーネスは作らない。Claude Code / pi / Codex / shell をそのまま PTY で動かし、対応するフック・拡張から届く状態イベントを町の表示に使う。
 
-Node の1プロセスが `127.0.0.1` で build 済みの web と API・WebSocket を配信する。`agent-quest` の bin はビルド済み `lib/server/relay.js` を起動し、実行時に tsx・Vite は使わない。既存 Vite の SSR ビルドで server と pi 拡張の Node ESM を `lib/` に出し、web・絵は `dist/` に入れる。Vite のサーバーと tsx は開発時だけ使う。
+Node の1プロセスが `127.0.0.1` で build 済みの web と API・WebSocket を配信する。`yushario` の bin はビルド済み `lib/server/relay.js` を起動し、実行時に tsx・Vite は使わない。既存 Vite の SSR ビルドで server と pi 拡張の Node ESM を `lib/` に出し、web・絵は `dist/` に入れる。Vite のサーバーと tsx は開発時だけ使う。
 状態の読み取りは `docs/OBSERVATION.md`（段階5対応）、勇者の操作と現在の対応範囲は `docs/PLATFORM.md` の最新段階、絵は `docs/ART.md` が正。過去段階の制限を現在の仕様として扱わない。
 
 ## データフロー
@@ -90,7 +90,7 @@ Notification は実際の入力要求だけ waiting_input。pi の整理失敗�
 
 ### server ↔ web: ローカル HTTP / WebSocket
 
-詳細な入力・返却値は README と `docs/PLATFORM.md` に記載する。
+詳細な入力・返却値は `docs/PLATFORM.md` と各経路の実装に記載する。
 
 | 経路 | 契約 |
 |---|---|
@@ -98,7 +98,7 @@ Notification は実際の入力要求だけ waiting_input。pi の整理失敗�
 | `WS /ws` | `event` / `replay`、`towns`、`names`、`pending`、`equipped`、`attention`、`permission` / `permission-resolved`。web からは `permission-decision` |
 | `/api/agents` | 起動時に PATH で検出した種類（shell は常に含む）と町・再開・整理・途中のそうび変更の対応範囲の公開部分 |
 | `/api/equipment` | エージェントごとの武器（モデル）・アクセサリ（考える量）の読み込み済みマスタ |
-| `/api/sessions` | 装備つき端末の一覧・作成・削除、`/:id/say` で依頼、`/:id/action` で中断・整理・終了、`/:id/equip` で装備の持ちかえ（作業中は預かる） |
+| `/api/sessions` | 装備つき端末の一覧・作成・削除、`/:id/say` で依頼（`steer` で作業中にもすぐ伝える。答え待ちの間は断る）、`/:id/action` で中断・整理・終了、`/:id/equip` で装備の持ちかえ（作業中は預かる） |
 | `WS /pty?session=<id>` | 同じ端末の保持出力とライブ出力。web からは `input` / `resize` |
 | `/api/roster` | 旅立った勇者の一覧と `/:sessionId/recall` で再開 |
 | `/api/names`, `/api/towns`, `/api/settings` | 名前、町の台帳・すがた、町をしまうまでの日数 |
@@ -113,7 +113,7 @@ Notification は実際の入力要求だけ waiting_input。pi の整理失敗�
 ## 寿命・保存・セキュリティ
 
 - server は `127.0.0.1` のみ。起動ごとにランダムなトークンを作り、URL に表示する。token ファイルは読まず・書かず、残っていても使わない。開発時だけ明示的な `AGENT_CHARACTER_TOKEN` 指定を許す。ブラウザを自動で開く（`--no-open` で無効）。既定8790／`--port`／`PORT` から、使用中なら次の空きポートを実際に bind して使う。
-- npm パッケージの allowlist は `dist/`・`lib/`・Claudeフック・bin。アダプタはパッケージの絶対パスから読み込み、ソース・テスト・作業用ファイル・利用者データを同梱しない。
+- npm パッケージの allowlist は `dist/`・`lib/`・Claudeフック・bin・`LICENSE`・`NOTICE`。ライセンスと通知はブラウザ配布用の `dist/` にもコピーする。アダプタはパッケージの絶対パスから読み込み、ソース・テスト・作業用ファイル・利用者データを同梱しない。
 - HTTP・WS Upgrade の入口で Host を `127.0.0.1:<実ポート>`／`localhost:<実ポート>` に限定する。Vite proxy は Host を転送先へ変更する。WS `/ws`・`/pty` と `/api/*` はトークンと自分自身の Origin を検査する。WS は Origin 必須、HTTP API の Origin 無しリクエストはトークンで許可する。開発時だけローカルの別ポートも許可する。
 - フックの `POST /event`・`/hooks/permission` はトークン不要。ブラウザ由来の外部 Origin は拒否する。本文の上限は1MiB、端末作成・町の設定は4KiB、端末操作は64KiB（UTF-8バイト、超過は413）。Claude の command フック stdin も1MiBで、超過時は無言で正常終了する。
 - PTY はブラウザ切断では止めない。明示的な終了・CLI の終了・server の停止で終わる。最大16セッション、各出力の直近256KBを保持する。

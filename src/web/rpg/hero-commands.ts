@@ -1,12 +1,14 @@
 import type { AgentEvent } from "../../core/events";
 import type { RoomAgent } from "../../core/room";
 import { waitingAfterEvent } from "../../core/session-actions";
+import { showBattleCommands } from "../town/battle-commands";
 import { showHeroCommands } from "../town/command";
 import type { Walker } from "../town/walkers";
 import type { initTalk } from "./talk";
 
 type Commands = Parameters<typeof showHeroCommands>[3];
-type Actions = Pick<Commands, "working" | "plan" | "interrupt" | "compact" | "farewell" | "equip">;
+type Actions = Pick<Commands, "working" | "plan" | "interrupt" | "compact" | "farewell" | "equip">
+  & Pick<Parameters<typeof showBattleCommands>[3], "steer">;
 
 export function openHeroCommands(layer: HTMLElement, canvas: HTMLCanvasElement, size: [number, number],
   name: string, walker: Walker | undefined, x: number, y: number, actions: Actions,
@@ -20,6 +22,14 @@ export function openHeroCommands(layer: HTMLElement, canvas: HTMLCanvasElement, 
       on.closed();
     },
   });
+}
+
+// The battle's own command window; (x, y) is its bottom-right corner in battle pixels.
+export function openBattleCommands(layer: HTMLElement, canvas: HTMLCanvasElement, size: [number, number],
+  name: string, x: number, y: number, actions: Actions, on: { back: () => void; closed: () => void }) {
+  const rect = canvas.getBoundingClientRect(), [w, h] = size;
+  const { working, steer, interrupt } = actions;
+  return showBattleCommands(layer, name, [x * rect.width / w, y * rect.height / h], { working, steer, interrupt, ...on });
 }
 
 export function initHeroActions(hero: (id: string) => RoomAgent | undefined, talk: ReturnType<typeof initTalk>,
@@ -66,7 +76,7 @@ export function initHeroActions(hero: (id: string) => RoomAgent | undefined, tal
         talk.open(id);
         talk.notice(action === "interrupt" ? held
           ? `作業を 中断した。あずかった ことば ${held}件を すてた。` : "作業を 中断した。"
-          : "きょうかいで 会話を まとめて 軽くしている…");
+          : "おはなしを まとめている…");
       }
     } catch (error) {
       talk.open(id); talk.notice(error instanceof Error ? error.message : String(error));
@@ -75,11 +85,23 @@ export function initHeroActions(hero: (id: string) => RoomAgent | undefined, tal
       if (action === "interrupt") talk.interrupting(terminal, false);
     }
   }
+  // Tell a working hero now (stage 9); a waiting hero takes it as a new request.
+  async function steer(id: string, text: string): Promise<string> {
+    const agent = hero(id), terminal = agent?.terminal;
+    if (!terminal) throw new Error("この勇者には つたえられません");
+    const response = await fetch(`/api/sessions/${encodeURIComponent(terminal)}/say?${new URLSearchParams({ token })}`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, steer: true }),
+    });
+    const result = await response.json().catch(() => ({})) as { delivered?: boolean; error?: string };
+    if (!response.ok) throw new Error(result.error ?? `つたえられませんでした（${response.status}）`);
+    return result.delivered ? `${name(id) ?? agent.name}に つたえた！` : "あずかった！ たたかいの あとで つたえる";
+  }
   function options(id: string): Actions {
     const terminal = hero(id)?.terminal;
     return { working: !terminal || !waiting.get(terminal),
       ...(terminal ? {
         plan: (text: string) => { talk.open(id); void talk.sendText(text); },
+        steer: (text: string) => steer(id, text),
         equip: (layer: HTMLElement, at: [number, number], dismiss: () => void) => equip(id, layer, at, dismiss),
         interrupt: () => void act(id, "interrupt"), compact: () => void act(id, "compact"), farewell: () => void act(id, "farewell"),
       } : {}),

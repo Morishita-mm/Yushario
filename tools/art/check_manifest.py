@@ -73,6 +73,8 @@ def main():
         if e is None:
             continue
         cid = e["id"]
+        if "palette" in c:
+            check(c.get("kind") == "backdrop" and c["palette"] == "source", f"{cid}: invalid source palette mode")
         check(bool(re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", cid)), f"{cid}: unsafe ID")
         size = e.get("frame")
         if not vector(size) or not all(isinstance(n, int) and n > 0 for n in size):
@@ -137,7 +139,7 @@ def main():
             town = e["town"]
             check(set(town["looks"]) == THEMES, f"{cid}: missing town looks")
             for theme, look in town["looks"].items():
-                for key in ("ground", "street", "inn", "shop", "church", "library", "lamp", "canal"):
+                for key in ("ground", "street", "path", "river", "cliff", "inn", "shop", "church", "library", "lamp"):
                     if key in look:
                         part(look[key], entries, f"{theme}.{key}")
                 for p in look["houses"] + look["trees"]:
@@ -146,10 +148,45 @@ def main():
                     part([look["centre"][0], frame], entries, theme)
                 for prop in look["extras"]:
                     part(prop[:2], entries, theme); check(vector(prop[2:]), f"{theme}: invalid prop position")
+            for theme, look in town["looks"].items():
+                if "backdrop" not in look:
+                    check("layout" not in look, f"{theme}: layout needs backdrop")
+                    continue
+                part(look["backdrop"], entries, theme)
+                check(entries[look["backdrop"][0]]["frame"] == [960, 540], f"{theme}: backdrop must be 960x540")
+                layout = look.get("layout", town)
+                nodes = layout["nodes"]
+                required = {"plazaW", "plazaE", "board", "shop", "well", "bridge", "fire", "crystal", "library", "homeE", "gate", "inn", "church"}
+                check(required <= nodes.keys(), f"{theme}: missing walking stop")
+                for key, point in nodes.items():
+                    check(vector(point) and 16 <= point[0] <= 944 and 60 <= point[1] <= 480, f"{theme}.{key}: unsafe walking position")
+                reached = {"gate"}
+                for a, b in layout["edges"]:
+                    check(a in nodes and b in nodes, f"{theme}: missing edge endpoint")
+                for _ in nodes:
+                    for a, b in layout["edges"]:
+                        if a in reached or b in reached:
+                            reached.update((a, b))
+                check(reached == set(nodes), f"{theme}: disconnected walking graph")
+                check(set(layout["entrances"]) == {"church", "inn", "library", "shop"}, f"{theme}: expected four doors")
+                for key, door in layout["entrances"].items():
+                    check(vector(door) and nodes[key][1] > door[1], f"{theme}.{key}: invalid doorstep")
+                    check(vector(layout["buildings"][key]), f"{theme}.{key}: invalid building")
+                check(layout["buildings"]["houses"] == [], f"{theme}: houses already in backdrop")
+                for key in ("inn", "church"):
+                    box(layout["spots"][key], f"{theme}.spots.{key}")
+                for point in [layout["buildings"]["board"], layout["crystal"], layout["fire"], *layout["innSleep"].values()]:
+                    check(vector(point), f"{theme}: invalid placement")
             for key, p in town["buildings"].items():
-                points(p if key == "houses" else [p], f"town.{key}")
-            for key in ("trees", "lamps", "benches"):
+                if key != "houses" or p:
+                    points(p if key == "houses" else [p], f"town.{key}")
+            for key in ("trees", "lamps", "benches", "gatePosts"):
                 points(town[key], f"town.{key}")
+            river = town["river"]
+            points(river["points"] + [river["bridge"], river["waterfall"], town["stairs"]], "town.river")
+            check(len(river["points"]) > 1 and river["radius"] > 0 and river["bank"] >= 0, "town: invalid river")
+            check(all(isinstance(c, list) and len(c) == 3 and all(number(n) for n in c) and c[0] < c[1] for c in town["cliffs"]), "town: invalid cliffs")
+            box(town["plaza"], "town.plaza")
             for key in ("centre", "crystal", "fire"):
                 points([town[key]], f"town.{key}")
             for key, p in town["spots"].items():
@@ -157,10 +194,24 @@ def main():
             points([town["innSleep"]["balloon"], town["innSleep"]["count"]], "town.innSleep")
             for key, p in town["nodes"].items():
                 points([p], f"town.nodes.{key}")
+            check(all(a[0] == b[0] or a[1] == b[1] for a, b in zip(river["points"], river["points"][1:])), "town: river must be orthogonal")
+            check(all(town["plaza"][k] % 16 == 0 for k in ("x", "y", "w", "h")), "town: plaza must follow grid")
             for key in ("plazaW", "plazaE", "board", "shop", "well", "bridge", "fire", "crystal", "library", "homeE", "gate"):
                 check(key in town["nodes"], f"town: required node {key} missing")
             check(all(a in town["nodes"] and b in town["nodes"] for a, b in town["edges"]), "town: edge references missing node")
-            check(town["fences"]["overlap"] < entries["obj-fence-sign"]["frame"][0] and town["walls"]["overlap"] < entries["town-wall"]["frame"][0], "town: nonpositive fence/wall repeat")
+            check(all([a, b] in town["edges"] or [b, a] in town["edges"] for a, b in town["paved"]), "town: paved street is not an edge")
+            doors = town["entrances"]
+            check(set(doors) == {"church", "inn", "library", "shop"}, "town: expected four entrances")
+            for key, door in doors.items():
+                points([door], f"town.entrances.{key}")
+                check(key in town["nodes"] and town["nodes"][key][1] > door[1], f"town: {key} needs a clear doorstep node")
+            reached = {"gate"}
+            for _ in town["nodes"]:
+                for a, b in town["edges"]:
+                    if a in reached or b in reached:
+                        reached.update((a, b))
+            check(reached == set(town["nodes"]), "town: disconnected walking graph")
+            check(town["fences"]["overlap"] < entries["obj-fence-sign"]["frame"][0], "town: nonpositive fence repeat")
         for key in ("inn", "church"):
             if key not in e:
                 continue
@@ -179,17 +230,22 @@ def main():
         if "field" in e:
             field = e["field"]
             points(field["fights"], f"{cid}.fights")
-            for prop in field["props"]:
-                part(prop[:2], entries, cid); check(vector(prop[2:]), f"{cid}: invalid field prop")
-            for texture in field["textures"]:
-                part(texture[:2], entries, cid)
-                check(vector(texture[2:], 4) and texture[4] > 0 and texture[5] > 0, f"{cid}: invalid texture area")
+            check(e["frame"] == [960, 540] and len(e["frames"]) == 1, f"{cid}: invalid field backdrop")
+            check(all(vector(p) and 100 <= p[0] <= 800 and 120 <= p[1] <= 465
+                      for p in field["fights"]), f"{cid}: fight outside safe map area")
+            lights = field.get("lights")
+            check(isinstance(lights, list), f"{cid}: missing lights")
+            for light in lights if isinstance(lights, list) else []:
+                check(isinstance(light, list) and len(light) == 3
+                      and light[0] in ("torch", "crystal", "lantern", "mushroom")
+                      and vector(light[1:]) and 0 <= light[1] <= 960 and 0 <= light[2] <= 540,
+                      f"{cid}: invalid light")
     # These are the owners consumed by the current shared scenes, not optional plugin hooks.
     for cid, key in (("bld-inn", "town"), ("obj-canal", "bridge"),
                      ("inn-wall", "inn"), ("church-wall", "church"), ("world-map", "regions")):
         check(key in entries.get(cid, {}), f"{cid}: required {key} metadata missing")
     for theme in ("meadow", "cave", "forest"):
-        check("field" in entries.get(f"bg-battle-{theme}", {}), f"{theme}: field metadata missing")
+        check("field" in entries.get(f"bg-field-{theme}", {}), f"{theme}: field metadata missing")
     required_sequences = {
         "hero-walk": ("front", "right"), "hero-walk-back": ("back",), "hero-pray": ("prayer",),
         "ui-weapons": ("tiers",),

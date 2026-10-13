@@ -1,7 +1,7 @@
 import type { Session } from "../terminal";
 import { earlyEquippedExit } from "../../core/session-actions";
 
-export const CLAUDE_SETUP_GUIDANCE = "はじめての時は ターミナルで せっていが ひつようかも。Claude のテーマ・ログイン・フォルダの しんらいなどを たしかめてください。待つだけでは 進まないことが あります。";
+export const CLAUDE_SETUP_GUIDANCE = "ターミナルで Claude のせってい・ログインを たしかめてください。";
 
 // Only the launched/recalled terminal being awaited by the conversation window.
 export function initArrival(title: HTMLElement, history: HTMLElement, form: HTMLFormElement, terminal: HTMLButtonElement) {
@@ -27,8 +27,8 @@ export function initArrival(title: HTMLElement, history: HTMLElement, form: HTML
       + (current.equipmentHint
         ? "\nえらんだ そうび（モデル・考える量）を この CLI が しらない かもしれません。CLI を新しくするか、そうびなしで しゅつじんし直してください。"
         : "\nターミナルの 出力を見て 直してから、もう一度 しゅつじんしてください。")
-      : needsTrust ? "ターミナルで フォルダの しんらいを こたえてください。待つだけでは 進みません。依頼は 勇者が ついたら つたえます。"
-        : `${current.claude ? CLAUDE_SETUP_GUIDANCE : "ターミナルで 起動時の かくにんが ないか たしかめてください。"} 先に書いた 依頼は 準備が できてから つたえます。`;
+      : needsTrust ? "ターミナルで フォルダの しんらいを こたえてください。"
+        : current.claude ? CLAUDE_SETUP_GUIDANCE : "ターミナルで 起動時の かくにんが ないか たしかめてください。";
     if (history.textContent !== text) {
       const message = document.createElement("p");
       message.className = "arrival-guidance";

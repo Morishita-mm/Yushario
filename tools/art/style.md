@@ -1,4 +1,4 @@
-Style/medium: true pixel art for a 16-bit console JRPG (SNES era: Dragon Quest VI, Final Fantasy VI, Chrono Trigger field graphics), cute chibi proportions.
+Style/medium: true pixel art in a 16-bit era top-down fantasy RPG style, cute chibi proportions. Original designs only: do not imitate any existing game's characters, monsters, logos or UI.
 Pixel grid: every art pixel is a crisp square block of the SAME size across the whole image (nearest-neighbour upscale of a small sprite). No anti-aliased outer edges, no blur, no gradients, no soft shading, no painterly brush strokes, no noise or random speckles, no sub-pixel detail, no mixed pixel sizes.
 Palette: limited (about 12-16 colours per object), hue-shifted ramps: shadows lean toward purple/blue, highlights toward yellow. Strong value contrast so the silhouette reads at small size.
 Outlines: one-art-pixel outline; selective outline (the outline is a darker shade of the neighbouring colour, nearly black only at the bottom/shadow side). Ground tiles and floors have no outlines.

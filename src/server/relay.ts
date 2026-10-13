@@ -122,6 +122,7 @@ const server = createServer(async (request, response) => {
     const decision = await waiting;
     response.off("close", disconnected);
     broadcast({ type: "permission-resolved", id: permission.id });
+    if (decision !== "terminal" && summary.agent && !summary.helper) pty.answered(summary.agent);
     if (!response.destroyed) response.writeHead(200, { "Content-Type": "application/json" })
       .end(JSON.stringify(permissionOutput(decision)));
     return;

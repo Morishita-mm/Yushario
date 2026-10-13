@@ -1,5 +1,5 @@
 h1:has(.quest-logo) { line-height: 0; letter-spacing: 0; text-shadow: none; }
-.quest-logo { display: block; width: 184px; height: 54px; image-rendering: pixelated; }
+.quest-logo { display: block; width: 132px; height: 54px; image-rendering: pixelated; }
 body:has(#title-screen[open]) { overflow: hidden; }
 .title-screen {
   position: fixed; inset: 0; margin: 0; width: 100vw; max-width: none;
@@ -12,7 +12,7 @@ body:has(#title-screen[open]) { overflow: hidden; }
 .title-screen::before, .title-screen::after {
   content: ""; height: 2px; width: min(688px, 80vw); background: #694f62;
 }
-.title-logo { display: block; width: 688px; height: 256px; image-rendering: pixelated; animation: title-arrive 180ms ease-out; }
+.title-logo { display: block; width: 684px; height: 282px; image-rendering: pixelated; animation: title-arrive 180ms ease-out; }
 .title-screen p { margin: 0; font-size: 20px; line-height: 1.7; }
 #title-start {
   font: inherit; font-size: 17px; color: #fbff86; cursor: pointer;
@@ -25,13 +25,13 @@ body:has(#title-screen[open]) { overflow: hidden; }
 @media (max-width: 760px), (max-height: 600px) {
   .title-screen { padding: 8px; }
   .title-screen[open] { gap: 20px; }
-  .title-logo { width: 344px; height: 128px; }
+  .title-logo { width: 342px; height: 141px; }
   .title-screen p { font-size: 16px; }
   #title-start { font-size: 14px; padding: 10px 14px; }
 }
 @media (max-width: 350px), (max-height: 360px) {
   .title-screen[open] { gap: 12px; }
-  .title-logo { width: 172px; height: 64px; }
+  .title-logo { width: 228px; height: 94px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .title-logo { animation: none; }

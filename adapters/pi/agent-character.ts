@@ -53,6 +53,10 @@ export default function (pi: ExtensionAPI): void {
     reply = ""; outcome = "Stop"; runSignal = undefined;
     send(ctx, "UserPromptSubmit", "thinking", { text: event.prompt.slice(0, 8000) });
   });
+  // Input typed during a run steers it (Claude Code reports the same as UserPromptSubmit).
+  pi.on("input", (event, ctx) => {
+    if (event.streamingBehavior === "steer") send(ctx, "UserPromptSubmit", "thinking", { text: event.text.slice(0, 8000) });
+  });
   pi.on("agent_start", (_event, ctx) => { active = true; runSignal = ctx.signal; });
   // agent_start can precede creation of the operation signal; capture it inside the run.
   pi.on("before_provider_request", (_event, ctx) => { runSignal = ctx.signal; });

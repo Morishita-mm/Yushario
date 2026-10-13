@@ -135,21 +135,41 @@ def pack_tiles(component: dict, src: Path) -> dict:
     raw = np.array(Image.open(src).convert("RGBA"))
     raw = remove_magenta(raw)
     spans = [s for s in segments(raw[..., 3] > 0) if s[1] - s[0] > 20]
+    if component.get("autotile") and len(spans) != len(component["frames"]):
+        raise ValueError(f"{component['id']}: expected five isolated material squares, got {len(spans)}")
     tiles = []
     for x0, x1 in spans[:len(component["frames"])]:
         part = raw[:, x0:x1]
         rows = np.nonzero(part[..., 3].any(axis=1))[0]
         crop = part[rows.min():rows.max() + 1]
         inset = max(2, crop.shape[1] // 40)  # drop the soft rim that would show as seams
-        crop = crop[inset:-inset, inset:-inset]
-        tile = Image.fromarray(crop, "RGBA").resize((TILE, TILE), Image.BOX)
+        if not component.get("autotile"):
+            crop = crop[inset:-inset, inset:-inset]
+        tile = Image.fromarray(crop, "RGBA").resize((TILE, TILE),
+                    Image.Resampling.NEAREST if component.get("autotile") else Image.Resampling.BOX)
         tiles.append(np.array(tile))
     # Ground keeps its own colours (reduced to a few): the shared palette has no good sand or snow tones,
     # and snapping turned sand pink.
+    if component.get("autotile"):
+        for i, tile in enumerate(tiles):
+            # Preserve a full masonry bond: a narrow crop can omit every vertical joint.
+            if i == 3 and component["id"] != "tile-town-port":
+                tile[16:32, 16:32] = np.array(Image.fromarray(tile[8:40, 8:40]).resize((16, 16), Image.Resampling.NEAREST))
+            tile[..., :3] = np.array(Image.fromarray(tile[..., :3]).quantize(colors=10).convert("RGB"))
+            # Match the repeat boundaries without blending new colours into the pixel art.
+            region = tile if i < 2 else tile[16:32, 16:32]
+            region[-1, :] = region[0, :]
+            region[:, -1] = region[:, 0]
+        # Light/dark ground motifs also share their border when placed next to each other.
+        pair = Image.fromarray(np.concatenate(tiles[:2], axis=1)[..., :3]).quantize(colors=10).convert("RGB")
+        tiles[0][..., :3], tiles[1][..., :3] = np.split(np.array(pair), 2, axis=1)
+        tiles[1][[0, -1], :] = tiles[0][[0, -1], :]
+        tiles[1][:, [0, -1]] = tiles[0][:, [0, -1]]
     sheet = np.concatenate(tiles, axis=1)
     sheet[..., 3] = 255
-    reduced = Image.fromarray(sheet[..., :3]).quantize(colors=12, method=Image.Quantize.MEDIANCUT).convert("RGB")
-    sheet[..., :3] = np.array(reduced)
+    if not component.get("autotile"):
+        reduced = Image.fromarray(sheet[..., :3]).quantize(colors=12, method=Image.Quantize.MEDIANCUT).convert("RGB")
+        sheet[..., :3] = np.array(reduced)
     OUT.mkdir(parents=True, exist_ok=True)
     Image.fromarray(sheet, "RGBA").save(OUT / f"{component['id']}.png")
     colors = len(np.unique(sheet[..., :3].reshape(-1, 3), axis=0))
@@ -169,7 +189,15 @@ def pack(component: dict) -> dict | None:
         scale = Image.open(src).width / component["size"][0]
         subprocess.run([shutil.which("unfake") or "unfake", str(src), "-o", str(tmp), "-c", "32", "-q",
                         "-s", str(max(1, round(scale)))], check=True)
-        image = to_palette(np.array(Image.open(tmp).convert("RGBA")))
+        image = np.array(Image.open(tmp).convert("RGBA").resize(
+            tuple(component["size"]), Image.Resampling.NEAREST))
+        # Source colours preserve painted moonlight and torch falloff in full-scene maps.
+        if component.get("palette") != "source":
+            image = to_palette(image)
+        if component["id"] == "bg-town-port":
+            # Keep beach sand and cliff highlights distinct from the desert's gold.
+            for source, target in [((251, 185, 84), (253, 203, 176)), ((230, 144, 78), (252, 167, 144))]:
+                image[np.all(image[..., :3] == source, axis=-1), :3] = target
         OUT.mkdir(parents=True, exist_ok=True)
         Image.fromarray(image, "RGBA").save(OUT / f"{component['id']}.png")
         h, w = image.shape[:2]

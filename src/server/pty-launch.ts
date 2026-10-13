@@ -35,7 +35,7 @@ export function launchPty(preset: Preset, cwd: string, id: string, port: number,
   if (resume !== undefined && (!agent.resume || !isClaudeSessionId(resume))) throw new Error("再開する勇者の ID が正しくありません");
   const program = agent.command;
   const path = agentExecutables[preset];
-  if (!path) throw new Error(`${program} not found in PATH. Install it, then stop and restart agent-quest. / ${program} が PATH に見つかりません。① CLI を入れて PATH に追加 → ② agent-quest を止める（Ctrl+C）→ ③ 起動し直してください。`);
+  if (!path) throw new Error(`${program} not found in PATH. Install it, then stop and restart yushario. / ${program} が PATH に見つかりません。① CLI を入れて PATH に追加 → ② yushario を止める（Ctrl+C）→ ③ 起動し直してください。`);
   const args = [...agent.args.map((arg) => arg === "$settings" ? settings : arg),
     ...(resume ? [...agent.resumeArgs, resume] : []), ...equipmentArgs(equipment, master, agent)];
   const env = Object.fromEntries(Object.entries(process.env).filter((entry): entry is [string, string] => entry[1] !== undefined));

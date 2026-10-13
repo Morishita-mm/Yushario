@@ -10,7 +10,7 @@ export const PRIEST_LINES = [
   "よく きましたね。こころを しずめて おいのりなさい。",
   "たびの あいだにも ひとやすみは たいせつですよ。",
   "MPが へってきたら ここで いのりなさい。",
-  "ゆうしゃの「やすむ」で おはなしを せいりできますよ。",
+  "ひとやすみは 勇者の「やすむ」から。",
 ] as const;
 type Prayer = { name: string; variant: number; weaponTier?: number };
 

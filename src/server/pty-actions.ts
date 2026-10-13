@@ -1,6 +1,6 @@
 import type { AgentEvent } from "../core/events";
 import { isClaudeSessionId } from "../core/roster";
-import { waitingAfterEvent, type SessionAction } from "../core/session-actions";
+import { askingAfterEvent, waitingAfterEvent, type SessionAction } from "../core/session-actions";
 import type { PendingMessage, Session } from "./pty-session";
 import { AGENTS } from "./agents";
 
@@ -50,6 +50,9 @@ export function deliver(session: Session, text: string): void {
 
 export function observe(session: Session, event: AgentEvent, at: number,
   changed: (message: PendingMessage) => void, flushEquipment?: (sendHeldText: boolean) => void): void {
+  const asking = askingAfterEvent(event);
+  // Hooks run concurrently: an older hook arriving late must not clear a newer prompt.
+  if (asking !== undefined && at >= session.askedAt) { session.asking = asking; session.askedAt = at; }
   if (session.info.exited || session.ended || event.subagent) return;
   if (AGENTS[session.info.preset].hero && isClaudeSessionId(event.agent)) {
     session.agentId = event.agent;

@@ -36,10 +36,7 @@ export function showSettings(layer: HTMLElement): void {
     field.append(label);
     return input;
   });
-  const hint = document.createElement("p");
-  hint.className = "who";
-  hint.textContent = "勇者がいない 古い町を しまいます。ピンどめした町は しまわれません。";
-  box.append(field, hint, status);
+  box.append(field, status);
   loadSettings().then((settings) => {
     if (touched) return;
     for (const radio of radios) radio.checked = Number(radio.value) === settings.archiveAfterDays;

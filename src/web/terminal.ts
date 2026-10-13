@@ -57,7 +57,7 @@ export function connectSessionTerminal(container: HTMLElement, session: Session,
   status.textContent = `${session.preset} / ${session.id} 接続中…`;
   socket.onopen = () => {
     if (disposed) return;
-    status.textContent = session.exited ? `${session.id} 終了 (${session.exited.code})・出力は保持されています`
+    status.textContent = session.exited ? `${session.id} 終了 (${session.exited.code})`
       : `${session.preset} / ${session.id} 接続済み`;
     terminal.focus();
     send({ type: "resize", cols: terminal.cols, rows: terminal.rows });
@@ -68,7 +68,7 @@ export function connectSessionTerminal(container: HTMLElement, session: Session,
   };
   socket.onclose = () => {
     if (disposed) return;
-    status.textContent = `${session.id} 切断（セッションはサーバーに残ります）`;
+    status.textContent = `${session.id} 切断`;
     onDisconnect();
   };
   const disconnect = (): void => { disposed = true; socket.close(); };
@@ -121,7 +121,7 @@ export function initTerminal(): void {
       void refresh().then(() => {
         if (attachment !== current) return;
         const latest = sessions.find((item) => item.id === session.id);
-        if (latest?.exited) status.textContent = `${session.id} 終了 (${latest.exited.code})・出力は保持されています`;
+        if (latest?.exited) status.textContent = `${session.id} 終了 (${latest.exited.code})`;
         else if (!latest) status.textContent = "セッションは削除されました";
       }).catch((error: Error) => { if (attachment === current) status.textContent = error.message; });
     });

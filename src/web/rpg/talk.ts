@@ -28,8 +28,7 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
   const foreign = document.querySelector<HTMLElement>("#talk-foreign")!;
   const terminal = document.querySelector<HTMLButtonElement>("#talk-terminal")!;
   const next = document.querySelector<HTMLButtonElement>("#talk-next")!;
-  const recallHint = document.querySelector<HTMLElement>("#talk-recall")!;
-  const drafts = new Map<string, string>(), recalled = new Set<string>();
+  const drafts = new Map<string, string>();
   const arrival = initArrival(title, history, form, terminal);
   const token = new URLSearchParams(location.search).get("token") ?? "";
   const pending = new Map<string, string[]>(), sending = new Set<string>(), interrupting = new Set<string>();
@@ -123,7 +122,6 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
 
   function update(): void {
     if (!selected || !dialog.open) return;
-    recallHint.hidden = !recalled.has(terminalId() ?? "");
     if ("terminal" in selected) {
       const agent = arrivingHero(selected.terminal);
       if (agent) {
@@ -166,7 +164,8 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
     if (!talk.length) {
       const message = document.createElement("p");
       message.className = needsSetup ? "arrival-guidance" : "";
-      message.textContent = needsSetup ? CLAUDE_SETUP_GUIDANCE : "まだ 会話は ありません。勇者に はなしかけてみよう。";
+      message.textContent = needsSetup ? CLAUDE_SETUP_GUIDANCE : agent.terminal
+        ? "まだ 会話は ありません。勇者に はなしかけてみよう。" : "まだ 会話は ありません。";
       history.append(message);
     }
     for (const entry of talk) {
@@ -246,7 +245,7 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
     else if (terminalId() && at === undefined) input.focus(); else history.focus({ preventScroll: true });
   }
   return { open: (id: string, at?: number) => openConversation({ hero: id }, at),
-    openSession: (id: string, recall = false, preset?: string) => { if (recall) recalled.add(id); openConversation({ terminal: id }, undefined, !recall && preset === "claude"); },
+    openSession: (id: string, recall = false, preset?: string) => openConversation({ terminal: id }, undefined, !recall && preset === "claude"),
     attention: (id: string) => { arrival.attention(id, true); update(); },
     clearAttention: (id: string) => arrival.attention(id, false),
     update, tick, setPending, resetPending, sendText, close,

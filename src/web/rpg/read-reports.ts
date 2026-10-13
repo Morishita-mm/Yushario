@@ -1,7 +1,7 @@
 import type { RoomAgent } from "../../core/room";
 
 // Only identities and times are persisted, never the reply or its tally.
-const KEY = "agent-quest-read-reports";
+const KEY = "yushario-read-reports";
 let read: [string, number][] = [];
 try {
   const saved: unknown = JSON.parse(localStorage.getItem(KEY) ?? "[]");

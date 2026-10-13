@@ -131,7 +131,7 @@ export class Status {
       const project = agent?.project ?? agent?.name;
       cards.push(this.permissionBlock(permission, project === undefined ? name : `${name} — ${project}`, agent?.terminal));
     }
-    if (!cards.length) cards.push(element("p", "empty window", "まだ だれも いない ようだ…\n「しゅつじん」で Claude Code を きどうすると、ゆうしゃが まちに やってくる。"));
+    if (!cards.length) cards.push(element("p", "empty window", "まだ だれも いない ようだ…"));
     if (cards.length !== this.root.children.length || cards.some((card, index) => this.root.children[index] !== card)) this.root.replaceChildren(...cards);
     for (const id of this.signatures.keys()) if (!room.agents.has(id)) this.signatures.delete(id);
   }

@@ -4,7 +4,7 @@ import { townView, type HeroPlace, type TownHero, type TownNames } from "../../c
 import { Ambient, type Theme } from "../town/ambient";
 import { HeroTravel } from "./travel";
 import { drawFocus } from "../town/battle";
-import { openHeroCommands } from "./hero-commands";
+import { openBattleCommands, openHeroCommands } from "./hero-commands";
 import { Following } from "./following";
 import { drawField, label } from "../town/field";
 import { showArchivedTowns, showThemeChooser, showTownList } from "../town/herald";
@@ -41,7 +41,7 @@ export class Scene {
   private list: "sleeping" | "archived" | TownTheme | undefined;
   private listContent = "";
   readonly art = new Sheets();
-  private readonly travel = new HeroTravel(this.art);
+  private readonly travel = new HeroTravel(this.art, (project) => this.look(project));
   private readonly ctx: CanvasRenderingContext2D;
   private place: Place = "world";
   private project: string | undefined;
@@ -71,7 +71,11 @@ export class Scene {
       const hot = this.hit(...this.point(event));
       if (hot) hot.act(); else this.gateMenu = false;
     });
-    layer.addEventListener("click", (event) => { if (event.target === layer) { this.closeCommands?.(); layer.hidden = true; } });
+    layer.addEventListener("click", (event) => {
+      if (event.target !== layer) return;
+      this.closeCommands?.(); layer.hidden = true;
+      if (this.focused) this.go(this.place); // Outside the battle commands: back to the field.
+    });
     document.addEventListener("keydown", (event) => { if (event.key === "Escape" && !event.isComposing) { this.closeCommands?.(); layer.hidden = true; } });
     document.querySelector("#world-back")!.addEventListener("click", () => this.go("world"));
     document.querySelector("#settings")!.addEventListener("click", () => { this.closeCommands?.(); this.list = undefined; showSettings(layer); });
@@ -204,6 +208,15 @@ export class Scene {
     this.place = place; this.focused = focused; this.gateMenu = false;
     this.ambient = focused ? new Ambient(this.art, place as Theme, `bg-battle-${place}`) : undefined;
     this.layer.hidden = true; this.list = undefined;
+    if (focused && !automatic) this.battleCommands();
+  }
+  // Clicking the party opens the commands; anywhere else returns to the field.
+  private battleCommands(): void {
+    const hero = this.heroes.find((h) => h.id === this.focused), size = this.size();
+    if (!hero) return;
+    this.closeCommands?.(); this.commanding = hero.id;
+    this.closeCommands = openBattleCommands(this.layer, this.canvas, size, hero.name, size[0] - 8, size[1] - 50, this.actions(hero.id),
+      { back: () => this.go(this.place), closed: () => { this.closeCommands = undefined; this.commanding = undefined; } });
   }
   private enter(project: Project, place: HeroPlace = "town", followed?: TownHero, entered?: () => void, skipped?: () => void): void {
     if (!this.look(project.repo)) { this.go("world", Boolean(followed)); this.chooseLook(project, place, followed, entered, skipped); return; }
@@ -246,7 +259,8 @@ export class Scene {
     const reports = this.signs().map((sign) => ({ x: sign.x - 18, y: sign.y - 42, w: 50, h: 46,
       act: () => { this.selected = sign.id; this.talk(sign.id, sign.at); } }));
     const [w, h] = this.size();
-    if (this.focused) return [...reports, { x: 0, y: 0, w, h, act: () => this.go(this.place) }];
+    if (this.focused) return [...reports, { x: w / 2 - 130, y: h - 112, w: 260, h: 66, act: () => this.battleCommands() },
+      { x: 0, y: 0, w, h, act: () => this.go(this.place) }];
     if (this.place === "world") {
       const towns = [...this.towns.values()];
       return [...markers(this.art, w, h, towns).map((marker) => ({ x: marker.x - 34, y: marker.y - 22, w: 68, h: 60, act: () => {
@@ -258,7 +272,7 @@ export class Scene {
     return [...reports, ...localHotspots(this.art, this.place, this.localHeroes(), this.travel.walkers, this.gateMenu,
       (place, focused) => this.go(place, false, focused),
       (id, x, y, watch) => this.commands(id, x, y, watch), () => { this.gateMenu = true; },
-      () => this.say(`神父さま「${PRIEST_LINES[this.priestLine++ % PRIEST_LINES.length]}」`, Date.now()))];
+      () => this.say(`神父さま「${PRIEST_LINES[this.priestLine++ % PRIEST_LINES.length]}」`, Date.now()), this.project ? this.look(this.project) : undefined)];
   }
   private point(event: MouseEvent): [number, number] {
     const rect = this.canvas.getBoundingClientRect(), [w, h] = this.size();

@@ -4,8 +4,10 @@ import type { TownTheme } from "./themes";
 export type Point = [number, number];
 export type Box = { x: number; y: number; w: number; h: number };
 export type Part = [string, string];
+export type TownLayout = Pick<TownArt, "buildings" | "entrances" | "spots" | "innSleep" | "nodes" | "edges" | "crystal" | "fire">;
 export type Look = {
-  ground: Part; street: Part; canal?: Part;
+  backdrop?: Part; layout?: TownLayout;
+  ground: Part; street: Part; path: Part; river: Part; cliff: Part; waterfall?: boolean;
   inn: Part; shop: Part; church: Part; library: Part; houses: [Part, Part];
   centre: [string, string[]]; trees: Part[]; lamp: Part;
   extras: [string, string, number, number][]; tint?: string;
@@ -13,12 +15,15 @@ export type Look = {
 export type TownArt = {
   looks: Record<TownTheme, Look>;
   buildings: { church: Point; library: Point; inn: Point; shop: Point; board: Point; houses: Point[] };
-  trees: Point[]; lamps: Point[]; benches: Point[]; centre: Point; crystal: Point; fire: Point;
-  fences: { ranges: Point[]; y: number; overlap: number };
-  walls: { y: number; overlap: number; gap: number; towers: number[]; gate: number };
+  entrances: Record<string, Point>; // Door thresholds; the matching node is the clear standing place.
+  plaza: Box; trees: Point[]; lamps: Point[]; benches: Point[]; centre: Point; crystal: Point; fire: Point;
+  fences: { ranges: Point[]; y: number; overlap: number }; gatePosts: Point[];
+  // Orthogonal cell-centre river segments; the bridge and waterfall are sprite feet.
+  river: { points: Point[]; radius: number; bank: number; bridge: Point; waterfall: Point };
+  cliffs: [number, number, number][]; stairs: Point; // [left, right, foot y] of each cliff edge.
   spots: { inn: Box; church: Box };
   innSleep: { balloon: Point; count: Point }; // Offsets from buildings.inn.
-  nodes: Record<string, Point>; edges: [string, string][];
+  nodes: Record<string, Point>; edges: [string, string][]; paved: [string, string][];
 };
 export type Floor = { base: string; joint: string; highlight: string; row: number; spacing: number; stagger: number };
 export type InnArt = {
@@ -44,6 +49,10 @@ export type ArtEntry = {
   windows?: Record<string, [number, number, number, number][]>; reach?: number;
   fieldLight?: Record<string, Point>; // Map-only light centres, relative to each prop's foot.
   water?: WaterArt; bridge?: BridgeArt; town?: TownArt; inn?: InnArt; church?: ChurchArt;
-  field?: { textures: [string, string, number, number, number, number][]; props: [string, string, number, number][]; fights: Point[] };
+  field?: { fights: Point[]; lights: ["torch" | "crystal" | "lantern" | "mushroom", number, number][] };
   regions?: Record<TownTheme, Point[]>;
 };
+
+export function townLayout(town: TownArt, theme?: TownTheme): TownLayout {
+  return theme ? town.looks[theme].layout ?? town : town;
+}

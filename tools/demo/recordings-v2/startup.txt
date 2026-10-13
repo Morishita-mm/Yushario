@@ -1,4 +1,0 @@
-記録時の開発サーバー（公開用npxの実行ではない）
-node_modules/.bin/tsx src/server/relay.ts --port 8805 --no-open
-Open http://127.0.0.1:8805/?token=[redacted]
-Terminal: http://127.0.0.1:8805/terminal.html?token=[redacted]

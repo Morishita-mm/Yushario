@@ -3,7 +3,7 @@ import "./title-screen.css";
 // Page-only title screen: sessionStorage remembers this tab, never the server.
 export function initTitleScreen(): void {
   const screen = document.querySelector<HTMLDialogElement>("#title-screen")!;
-  const key = "agent-quest-title-seen";
+  const key = "yushario-title-seen";
   try {
     if (sessionStorage.getItem(key)) return;
     sessionStorage.setItem(key, "1");

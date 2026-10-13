@@ -1,3 +1,4 @@
+import { classifyActivity } from "./activity";
 import type { AgentEvent } from "./events";
 
 export type SessionAction = "interrupt" | "compact" | "farewell";
@@ -31,4 +32,12 @@ export function waitingAfterEvent(event: AgentEvent, interrupted = false): boole
     if (interrupted && event.hook !== "UserPromptSubmit") return;
     return false;
   }
+}
+
+// Whether the CLI shows a permission/question prompt, where a typed Enter would answer it.
+// Helpers' prompts also block the terminal, but only the main conversation's next step clears one.
+export function askingAfterEvent(event: AgentEvent): boolean | undefined {
+  if (classifyActivity(event) === "ask") return true;
+  if (event.subagent) return;
+  if (classifyActivity(event) !== undefined || event.hook === "PostToolUse" || event.hook === "PostToolUseFailure") return false;
 }

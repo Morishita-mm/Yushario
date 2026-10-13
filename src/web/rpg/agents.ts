@@ -8,8 +8,3 @@ export async function loadAgents(): Promise<AgentInfo[]> {
   if (!response.ok) throw new Error("勇者の 種類を よみこめませんでした。もういちど おためしください。");
   return response.json() as Promise<AgentInfo[]>;
 }
-
-export function supportText(agent: AgentInfo): string {
-  if (!agent.hero) return `ターミナルのみ（勇者は 出ません）。${agent.id === "shell" ? "シェルを 操作できます。" : "町・会話への 自動連携は ありません。"}`;
-  return `町・会話に 対応。やすむ（会話の 整理）：${agent.compact ? "対応" : "非対応"}。よびもどす（再開）：${agent.resume ? "対応" : "非対応"}。`;
-}

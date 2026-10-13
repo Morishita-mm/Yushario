@@ -38,7 +38,7 @@ function battle(ctx: CanvasRenderingContext2D, art: Sheets, fight: Fight, t: num
   const mx = x + (art.entry(side).reach ?? 60);
   fight.party.forEach((id, i) => {
     const swing = Math.floor((t + i * 300) / 350) % 2 ? 0 : 1;
-    art.draw(ctx, id, enemyTurn ? "right" : art.pose(id, "attack", swing), x - 34 - i * 8, y - 22 + i * 38);
+    art.draw(ctx, id, enemyTurn ? "right" : art.pose(id, "attack", swing), x - 34 - Math.floor(i / 2) * 28, y - 22 + (i % 2) * 38);
   });
   art.draw(ctx, art.variant("hero-battle", fight.variant), heroFrame, x + (heroFrame === "slash" ? 4 : 0) - (heroFrame === "hurt" ? 3 : 0), y);
   if (enemyTurn) {
@@ -80,51 +80,43 @@ function victory(ctx: CanvasRenderingContext2D, art: Sheets, fight: Fight, t: nu
 
 // Ways out of each field: back to town and over to the other fields.
 export const FIELD_EXITS: Record<Theme, { to: "town" | Theme; text: string; x: number; y: number }[]> = {
-  meadow: [{ to: "town", text: "◀ まち", x: 46, y: 270 }, { to: "cave", text: "どうくつ ▶", x: 906, y: 200 }, { to: "forest", text: "よるのもり ▶", x: 900, y: 340 }],
-  cave: [{ to: "town", text: "◀ まち", x: 46, y: 270 }, { to: "meadow", text: "そうげん ▶", x: 906, y: 200 }, { to: "forest", text: "よるのもり ▶", x: 900, y: 340 }],
-  forest: [{ to: "town", text: "◀ まち", x: 46, y: 270 }, { to: "meadow", text: "そうげん ▶", x: 906, y: 200 }, { to: "cave", text: "どうくつ ▶", x: 906, y: 340 }],
+  meadow: [{ to: "town", text: "◀ まち", x: 46, y: 243 }, { to: "cave", text: "どうくつ ▲", x: 906, y: 24 }, { to: "forest", text: "よるのもり ▶", x: 906, y: 498 }],
+  cave: [{ to: "town", text: "◀ まち", x: 46, y: 239 }, { to: "meadow", text: "そうげん ▶", x: 906, y: 56 }, { to: "forest", text: "よるのもり ▶", x: 906, y: 436 }],
+  forest: [{ to: "town", text: "◀ まち", x: 46, y: 250 }, { to: "meadow", text: "そうげん ▶", x: 906, y: 91 }, { to: "cave", text: "どうくつ ▶", x: 906, y: 455 }],
 };
 
 export function drawField(ctx: CanvasRenderingContext2D, art: Sheets, theme: Theme, t: number, fights: Fight[], read = new Set<string>(), overflow = 0): void {
-  const field = art.entry(`bg-battle-${theme}`).field!;
-  for (const [id, frame, x, y, w, h] of field.textures) art.texture(ctx, id, frame, x, y, w, h);
-  for (const [id, frame, x, y] of field.props) art.draw(ctx, id, frame, x, y);
+  const backdrop = `bg-field-${theme}`;
+  const field = art.entry(backdrop).field!;
+  ctx.drawImage(art.image(backdrop)!, 0, 0);
+  // The picture owns darkness and steady illumination; only the local light varies.
+  ctx.save();
+  ctx.globalCompositeOperation = "screen";
+  for (const [kind, x, y] of field.lights) {
+    const warm = kind === "torch" || kind === "lantern";
+    const pulse = warm
+      ? Math.sin(t / 90 + x) * Math.sin(t / 230 + y)
+      : Math.sin(t / 900 + x);
+    const strength = warm ? 0.12 + 0.075 * pulse : 0.1 + 0.065 * pulse;
+    const color = warm ? "255, 170, 80" : kind === "crystal" ? "90, 180, 255" : "70, 235, 220";
+    glow(ctx, x, y, color, warm ? 36 : 26, strength);
+    glow(ctx, x, y, color, warm ? 7 : 10, strength * 0.7);
+  }
+  ctx.restore();
   for (const fight of [...fights].sort((a, b) => a.y - b.y)) {
     if (fight.done) victory(ctx, art, fight, t, read.has(fight.name));
     else battle(ctx, art, fight, t + fight.x * 7);
   }
 
-  // Small life on the map, then darkness and lights for the cave and the night forest.
   if (theme === "meadow") {
     for (let i = 0; i < 3; i++) art.draw(ctx, "amb-butterfly", art.pose("amb-butterfly", i % 2 ? "white" : "yellow", Math.floor(t / 110) % 2), 480 + Math.sin(t / 1600 + i * 2) * 300, 320 + Math.sin(t / 900 + i) * 120);
-  } else {
-    ctx.fillStyle = theme === "cave" ? "rgba(10, 6, 20, 0.5)" : "rgba(8, 16, 48, 0.45)";
-    ctx.fillRect(0, 0, FIELD_W, FIELD_H);
+  } else if (theme === "forest") {
     ctx.save();
-    ctx.globalCompositeOperation = "lighter";
-    if (theme === "cave") {
-      for (const [id, frame, px, py] of field.props) {
-        const offset = art.entry(id).fieldLight?.[frame];
-        if (!offset) continue;
-        const x = px + offset[0], y = py + offset[1];
-        if (frame === "wall torch") glow(ctx, x, y, "255, 170, 80", 70, 0.3 + 0.08 * Math.sin(t / 90 + x));
-        else glow(ctx, x, y, "90, 200, 255", 50, 0.22 + 0.1 * Math.sin(t / 700 + x));
-      }
-    } else {
-      for (const frame of ["lantern post", "glowing mushrooms"]) {
-        for (const [id, name, px, py] of field.props) {
-          const offset = name === frame ? art.entry(id).fieldLight?.[frame] : undefined;
-          if (!offset) continue;
-          const x = px + offset[0], y = py + offset[1];
-          if (frame === "lantern post") glow(ctx, x, y, "255, 200, 120", 70, 0.3);
-          else glow(ctx, x, y, "80, 255, 220", 40, 0.25 + 0.1 * Math.sin(t / 700 + x));
-        }
-      }
-      for (let i = 0; i < 16; i++) {
-        const fx = (i * 137 + Math.sin(t / 1300 + i) * 60 + t / 50) % FIELD_W, fy = 120 + (i * 53) % 380 + Math.cos(t / 900 + i) * 20;
-        const blink = 0.5 + 0.5 * Math.sin(t / 380 + i * 7);
-        if (blink > 0.3) glow(ctx, fx, fy, "210, 255, 120", 6, 0.6 * blink);
-      }
+    ctx.globalCompositeOperation = "screen";
+    for (let i = 0; i < 16; i++) {
+      const fx = (i * 137 + Math.sin(t / 1300 + i) * 60 + t / 50) % FIELD_W, fy = 120 + (i * 53) % 380 + Math.cos(t / 900 + i) * 20;
+      const blink = 0.5 + 0.5 * Math.sin(t / 380 + i * 7);
+      if (blink > 0.3) glow(ctx, fx, fy, "210, 255, 120", 6, 0.6 * blink);
     }
     ctx.restore();
   }

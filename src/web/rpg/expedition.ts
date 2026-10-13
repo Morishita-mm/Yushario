@@ -1,7 +1,7 @@
 import { connectSessionTerminal, sessionRequest, type Session } from "../terminal";
 import { loadSettings, loadTowns, type TownRecord } from "./ledger";
 import { coverMap } from "./talk";
-import { loadAgents, supportText, type AgentInfo } from "./agents";
+import { loadAgents, type AgentInfo } from "./agents";
 import type { EquipmentMaster } from "../../core/equipment";
 import { loadEquipment } from "./equipment";
 
@@ -24,12 +24,10 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
   const pathLabel = document.querySelector<HTMLElement>("#expedition-path-label")!;
   const start = document.querySelector<HTMLButtonElement>("#expedition-start")!;
   const status = document.querySelector<HTMLElement>("#expedition-status")!;
-  const support = document.querySelector<HTMLElement>("#expedition-support")!;
   let agents: AgentInfo[] = [], equipment: EquipmentMaster = {};
   const weapon = document.querySelector<HTMLSelectElement>("#expedition-weapon")!;
   const accessory = document.querySelector<HTMLSelectElement>("#expedition-accessory")!;
   const describe = () => {
-    const agent = agents.find((item) => item.id === preset.value); support.textContent = agent ? supportText(agent) : "";
     const items = equipment[preset.value];
     weapon.replaceChildren(new Option("そうびなし（きほん）", ""));
     accessory.replaceChildren(new Option("そうびなし（きほん）", ""));
@@ -79,22 +77,15 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
     const text = `${name} — ターミナル`;
     if (title.textContent !== text) title.textContent = text;
   }
-  const hint = dialog.querySelector<HTMLElement>(".terminal-hint")!;
-  function showEnded(ended: boolean): void {
-    hint.textContent = ended ? "Esc・窓の外・とじる で 町にもどる。この ターミナルは おわっています（出力は のこります）。"
-      : "Esc・窓の外・とじる で 町にもどる。勇者は うごきつづけます。";
-  }
   function attach(session: Session): void {
     attached = session;
-    showEnded(Boolean(session.exited));
     updateTitle();
     dispose = connectSessionTerminal(container, session, terminalStatus, () => {
       void sessionRequest().then((result) => {
         if (attached !== session) return;
         const latest = (result as Session[]).find((item) => item.id === session.id);
-        if (latest?.exited) terminalStatus.textContent = `おわった (${latest.exited.code})・会話は のこっています`;
+        if (latest?.exited) terminalStatus.textContent = `おわった (${latest.exited.code})`;
         else if (!latest) terminalStatus.textContent = "この ターミナルは なくなりました。";
-        showEnded(Boolean(latest?.exited) || !latest);
       }).catch((error: Error) => { if (attached === session) terminalStatus.textContent = error.message; });
     }).dispose;
   }
@@ -128,7 +119,7 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
   destination.addEventListener("change", chooseDestination);
   document.querySelector("#expedition")!.addEventListener("click", () => {
     const request = ++launching;
-    preset.replaceChildren(); support.textContent = "対応範囲を よみこみ中…";
+    preset.replaceChildren();
     preset.disabled = true;
     destination.replaceChildren(new Option("ほかの フォルダ", ""));
     destination.disabled = start.disabled = true;
@@ -161,15 +152,14 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
       destination.disabled = false;
       if (kinds.status === "fulfilled") {
         agents = kinds.value;
-        for (const agent of agents) preset.add(new Option(`${agent.label} — ${agent.hero ? "町・会話に 対応" : "ターミナルのみ"}`, agent.id));
+        for (const agent of agents) preset.add(new Option(agent.label, agent.id));
         if (agents.some((agent) => agent.id === "claude")) preset.value = "claude";
         preset.disabled = false; start.disabled = !agents.length; describe();
         noAgent = agents.every((agent) => agent.id === "shell");
         if (noAgent) errors.push(
-          "勇者の CLI が 見つかりません。① 下から1つ入れて PATH に追加 → ② agent-quest を止める（Ctrl+C）→ ③ 起動し直す。shell は 使えます。\npi: npm install -g @earendil-works/pi-coding-agent\nCodex: npm install -g @openai/codex\nClaude Code: ",
+          "勇者の CLI が 見つかりません。① 下から1つ入れて PATH に追加 → ② yushario を止める（Ctrl+C）→ ③ 起動し直す。shell は 使えます。\npi: npm install -g @earendil-works/pi-coding-agent\nCodex: npm install -g @openai/codex\nClaude Code: ",
         );
       } else {
-        support.textContent = "対応範囲を よみこめないため 起動できません。";
         errors.push(kinds.reason instanceof Error ? kinds.reason.message : "勇者の 種類を よみこめませんでした。");
       }
       status.textContent = errors.join("\n");

@@ -55,7 +55,9 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
   }
 
   function observe(event: AgentEvent, at: number): void {
-    const session = event.terminal ? sessions.get(event.terminal) : undefined;
+    // Claude's permission hook has no terminal; its conversation ID still names the session.
+    const session = event.terminal ? sessions.get(event.terminal)
+      : event.agent ? [...sessions.values()].find((item) => item.agentId === event.agent) : undefined;
     if (!session) return;
     const previous = replacedSession(event, session.agentId);
     if (previous) {
@@ -118,7 +120,7 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
     const session: Session = {
       info: { id, preset, cwd, project, createdAt: Date.now(), ...selectedEquipment }, terminal,
       output: Buffer.alloc(0), clients: new Set(), stop, waiting: false, eventAt: -Infinity, texts: [],
-      interrupted: false, interrupting: false, departing: false, agentId: resume,
+      interrupted: false, interrupting: false, departing: false, asking: false, askedAt: -Infinity, agentId: resume,
       hasPrompt: Boolean(resume), name: basename(cwd), finished, finish,
     };
     sessions.set(id, session);
@@ -245,6 +247,10 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
   sockets.on("error", (error) => console.error("PTY server error:", error.message));
   return {
     sockets, handleRequest, observe,
+    // The app answered a permission prompt: the CLI no longer waits, so steering is safe again.
+    answered: (agent: string) => {
+      for (const session of sessions.values()) if (session.agentId === agent) { session.asking = false; session.askedAt = Date.now(); }
+    },
     pending: () => [...sessions.values()].filter((session) => session.texts.length || session.pendingEquipment).map(pending),
     attention: () => [...sessions.values()].filter((session) => session.attention && !session.agentId && !session.info.exited)
       .map((session) => ({ type: "attention", terminal: session.info.id, reason: "trust" })),
