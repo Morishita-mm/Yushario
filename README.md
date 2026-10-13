@@ -63,11 +63,10 @@ Hooks are attached only to agents launched from Yushario. Your personal agent se
 Requires Node.js 22.12+, macOS or Linux, and at least one agent CLI installed and logged in.
 
 ```sh
-cd /path/to/your/project
 npx yushario
 ```
 
-Your browser opens the town. Choose **しゅつじん** (Launch) to start an agent, then click your hero.
+Your browser opens the town. Choose **しゅつじん** (Launch), pick your project folder as the destination, and start an agent. Then click your hero. You can run it from any folder; the folder you start from is offered first.
 
 Until the first npm release, run from a checkout:
 

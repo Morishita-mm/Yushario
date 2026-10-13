@@ -63,16 +63,18 @@
           <span id="place-name">ワールドマップ</span>
           <button id="town-look" type="button" hidden>町のすがたを かえる</button>
           <button id="town-pin" type="button" aria-pressed="false" hidden>ピンどめ</button>
+          <div id="following" class="following" role="status" hidden>
+            <span id="following-name"></span>
+            <button id="following-stop" type="button">やめる</button>
+          </div>
+          <p id="town-feedback" role="status" hidden></p>
         </nav>
-        <div id="following" class="following" role="status" hidden>
-          <span id="following-name"></span>
-          <button id="following-stop" type="button">やめる</button>
+        <div class="map-area">
+          <div class="map-stage">
+            <canvas id="world" role="img" aria-label="エージェントたちの町とフィールド"></canvas>
+            <div id="town-layer" class="report-layer" hidden></div>
+          </div>
         </div>
-        <div class="map-stage">
-          <canvas id="world" role="img" aria-label="エージェントたちの町とフィールド"></canvas>
-          <div id="town-layer" class="report-layer" hidden></div>
-        </div>
-        <p id="town-feedback" role="status" hidden></p>
         <div id="messages" class="window messages" aria-live="polite"></div>
       </section>
       <div class="sidebar">

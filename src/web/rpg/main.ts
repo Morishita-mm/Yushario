@@ -27,7 +27,10 @@ const firstStep = document.createElement("button");
 firstStep.type = "button"; firstStep.className = "first-step";
 firstStep.textContent = "▶ 勇者を よぼう";
 firstStep.addEventListener("click", () => document.querySelector<HTMLButtonElement>("#expedition")!.click());
-document.querySelector(".map-stage")!.before(firstStep);
+const mapArea = document.querySelector<HTMLElement>(".map-area")!;
+document.querySelector(".map-nav")!.append(firstStep);
+// The map column is as wide as the map at its height, so the log matches it and the sidebar takes the rest.
+new ResizeObserver(() => document.body.style.setProperty("--map-w", `${Math.floor(mapArea.clientHeight * 16 / 9)}px`)).observe(mapArea);
 const scene = new Scene(canvas, document.querySelector<HTMLElement>("#town-layer")!,
   (id, at) => talk.open(id, at), (terminal) => void expedition.openTerminal(terminal),
   (id) => status.openDetails(room, Date.now(), id, scene.names),

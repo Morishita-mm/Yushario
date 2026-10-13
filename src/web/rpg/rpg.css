@@ -14,7 +14,7 @@ a { color: #9fd3ff; font-size: 14px; }
 #connection { font-size: 14px; color: #c9c3dc; }
 .quest { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 16px; padding: 16px; align-items: start; }
 .stage { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-#world { display: block; width: 100%; image-rendering: pixelated; border: 3px solid #ffffff; border-radius: 6px; cursor: pointer; background: #000; }
+#world { display: block; width: 100%; aspect-ratio: 16 / 9; height: auto; image-rendering: pixelated; border: 3px solid #ffffff; border-radius: 6px; cursor: pointer; background: #000; }
 .map-stage { position: relative; }
 .first-step { font: inherit; font-size: 14px; text-align: left; color: #ffe7a3; background: #1d1726; border: 1px solid #ffe066; padding: 8px 12px; cursor: pointer; }
 .first-step[hidden] { display: none; }
@@ -22,9 +22,13 @@ a { color: #9fd3ff; font-size: 14px; }
 .following { display: flex; align-items: center; gap: 12px; padding: 6px 10px; border: 1px solid #ffe066; background: #1d1726; color: #ffe7a3; }
 .following[hidden] { display: none; }
 #following-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-#following-stop { flex: none; font: inherit; color: #fff; background: none; border: 1px solid #6e6a8a; padding: 4px 8px; cursor: pointer; }
+#following-stop { flex: none; font: inherit; color: #fff; background: none; border: 1px solid #6e6a8a; padding: 2px 8px; cursor: pointer; }
 #following-stop:hover, #following-stop:focus-visible { color: #ffe066; border-color: #ffe066; }
-.map-nav { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; font-size: 14px; }
+/* Hints and banners share the map's top row, so showing them never resizes the map. */
+.map-nav { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; min-height: 32px; font-size: 14px; }
+.map-nav .following, .map-nav .first-step, #town-feedback { margin-left: auto; }
+.map-nav .first-step { padding: 4px 10px; }
+.map-nav .following { padding: 2px 8px; }
 .map-nav button, body > header button { font: inherit; background: #1d1726; color: #fff; border: 1px solid #6e6a8a; padding: 4px 8px; cursor: pointer; }
 .map-nav button:hover, .map-nav button:focus-visible, body > header button:hover, body > header button:focus-visible { color: #ffe066; border-color: #ffe066; }
 body > header button { font-size: 14px; }
@@ -144,4 +148,27 @@ dialog.strength-window[open] { display: flex; flex-direction: column; gap: 10px;
 @media (max-width: 960px) {
   .quest { grid-template-columns: 1fr; }
   .sidebar { max-height: none; }
+}
+/* PC and tablet: the page never scrolls; the map shrinks to fit and only the sidebar scrolls inside. */
+@media (min-width: 600px) and (min-height: 500px) {
+  body { height: 100svh; }
+  .quest { min-height: 0; align-items: stretch; }
+  .sidebar { min-height: 0; max-height: none; }
+}
+@media (min-width: 961px) and (min-height: 500px) {
+  .quest { grid-template-rows: minmax(0, 1fr); grid-template-columns: min(var(--map-w, 100vw), 100% - 376px) minmax(360px, 560px); justify-content: center; }
+  .stage { min-height: 0; container-type: inline-size; }
+  /* As tall as a full-width map, shrinking when the height runs out; spare height goes below the log. */
+  .map-area { flex: 0 1 calc(100cqw * 9 / 16); min-height: 0; container-type: size; }
+  .map-stage { width: min(100cqw, 100cqh * 16 / 9); margin-inline: auto; }
+  .map-nav { flex-wrap: nowrap; }
+  .map-nav > * { flex: none; }
+  #place-name, .map-nav .following, #town-feedback { flex: 0 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .map-nav .following, #town-feedback { flex-shrink: 4; min-width: 7em; } /* The place name keeps priority. */
+  .map-nav .following { min-width: 11em; }
+  #following-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .messages { height: calc(4 * 1.6em + 20px); white-space: pre; overflow: hidden; text-overflow: ellipsis; }
+}
+@media (min-width: 600px) and (max-width: 960px) and (min-height: 500px) {
+  .quest { grid-template-rows: auto minmax(0, 1fr); }
 }
