@@ -13,18 +13,18 @@ export function localHotspots(art: Sheets, place: HeroPlace, heroes: TownHero[],
   go: (place: HeroPlace, focused?: string) => void,
   commands: (id: string, x: number, y: number, watch?: () => void) => void, openGate: () => void, priest: () => void, theme?: TownTheme) {
   if (place === "inn") {
-    const slots = innSlots(art), [dx, dy, w, h] = art.entry("inn-wall").inn!.hit;
+    const room = art.entry("bg-inn").inn!, slots = innSlots(art), [dx, dy, w, h] = room.hit;
     const sleepers = heroes.filter((hero) => hero.place === "inn").slice(0, slots.length);
     return [...sleepers.map((hero, i) => ({ x: slots[i][0] + dx, y: slots[i][1] + dy, w, h, act: () => commands(hero.id, ...slots[i]) })),
-      { x: 430, y: 500, w: 100, h: 34, text: "▼ そとへ", act: () => go("town") }];
+      { ...room.exit, text: "▼ そとへ", act: () => go("town") }];
   }
   if (place === "church") {
-    const slots = churchSlots(art);
+    const room = art.entry("bg-church").church!, slots = churchSlots(art), [dx, dy, w, h] = room.hit;
     const prayers = heroes.filter((hero) => hero.place === "church").slice(0, slots.length);
     return [{ ...churchPriest(art), act: priest }, ...prayers.map((hero, i) => {
       const [x, y] = slots[i];
-      return { x: x - 24, y: y - 55, w: 48, h: 70, act: () => commands(hero.id, x, y) };
-    }), { x: 430, y: 500, w: 100, h: 34, text: "▼ そとへ", act: () => go("town") }];
+      return { x: x + dx, y: y + dy, w, h, act: () => commands(hero.id, x, y) };
+    }), { ...room.exit, text: "▼ そとへ", act: () => go("town") }];
   }
   if (place === "town") {
     const spots = [

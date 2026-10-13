@@ -25,15 +25,13 @@ export type TownArt = {
   innSleep: { balloon: Point; count: Point }; // Offsets from buildings.inn.
   nodes: Record<string, Point>; edges: [string, string][]; paved: [string, string][];
 };
-export type Floor = { base: string; joint: string; highlight: string; row: number; spacing: number; stagger: number };
 export type InnArt = {
-  wallCopies: number; wallBottom: number; floorTop: number; floorBottom: number; floor: Floor;
-  rug: Point; slots: Point[]; hit: [number, number, number, number]; balloon: Point; report: Point;
+  slots: Point[]; hit: [number, number, number, number];
+  balloon: Point; report: Point; label: Point; exit: Box;
 };
 export type ChurchArt = {
-  wallCopies: number; wallTop: number; floorBottom: number; floor: Floor;
-  rug: { x: number; top: number; bottom: number };
-  altar: Point; candles: Point[]; pews: Point[]; slots: Point[]; priest: Box;
+  slots: Point[]; hit: [number, number, number, number];
+  balloon: Point; report: Point; labels: [Point, Point]; exit: Box; priest: Box;
 };
 export type BridgeArt = {
   waterFrame: string; deckFrame: string; waterRows: Point;

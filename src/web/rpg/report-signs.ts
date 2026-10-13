@@ -11,14 +11,15 @@ export function reportSigns(art: Sheets, heroes: TownHero[], walkers: Walker[], 
   // Fields are battles: a floating report would sit over the fight until the next request.
   if (place !== "town" && place !== "inn" && place !== "church") return [];
   const local = heroes.filter((hero) => hero.place === place);
-  const beds = innSlots(art), prayers = churchSlots(art), inn = art.entry("inn-wall").inn!;
+  const beds = innSlots(art), prayers = churchSlots(art);
+  const inn = art.entry("bg-inn").inn!, church = art.entry("bg-church").church!;
   return local.flatMap((hero, index) => {
     const unread = unreadReports(hero.agent), reply = latestReport(hero.agent) ?? unread[unread.length - 1];
     if (!reply) return [];
     const walker = walkers.find((item) => item.id === hero.id);
     const at = place === "town" ? walker && [walker.x, walker.y - 60]
       : place === "inn" ? index < beds.length && [beds[index][0] + inn.report[0], beds[index][1] + inn.report[1]]
-        : index < prayers.length && [prayers[index][0], prayers[index][1] - 60];
+        : index < prayers.length && [prayers[index][0] + church.report[0], prayers[index][1] + church.report[1]];
     if (!at) return [];
     return [{ id: hero.id, at: unread[unread.length - 1]?.at ?? reply.at,
       x: at[0], y: at[1], unread: Boolean(unread.length), frame: REPORT_FRAME[reply.report?.kind ?? "talk"] }];

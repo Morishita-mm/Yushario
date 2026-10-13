@@ -53,14 +53,6 @@ def part(value, entries, where):
           f"{where}: unknown frame {value}")
 
 
-def floor(value, where):
-    for key in ("base", "joint", "highlight"):
-        ramp([value.get(key)], f"{where}.{key}")
-    for key in ("row", "spacing"):
-        check(number(value.get(key)) and value[key] > 1, f"{where}.{key}: must be > 1")
-    check(number(value.get("stagger")), f"{where}.stagger: invalid number")
-
-
 def main():
     path = Path(sys.argv[1]) if len(sys.argv) > 1 else OUT / "manifest.json"
     manifest = json.loads(path.read_text())
@@ -216,17 +208,34 @@ def main():
             if key not in e:
                 continue
             room = e[key]
-            points(room["slots"], f"{key}.slots"); floor(room["floor"], key)
-            check(isinstance(room["wallCopies"], int) and room["wallCopies"] > 0, f"{key}: invalid wall repeat")
-            check(number(room["floorBottom"]), f"{key}: invalid floor edge")
-            if key == "inn":
-                points([room["rug"], room["balloon"], room["report"]], key)
-                check(vector(room["hit"], 4) and room["hit"][2] > 0 and room["hit"][3] > 0, "inn: invalid bed hit area")
-                check(room["floorTop"] < room["floorBottom"], "inn: reversed floor edges")
-            else:
-                points([room["altar"], *room["candles"], *room["pews"]], key)
-                box(room["priest"], "church.priest")
-                check(room["rug"]["top"] < room["rug"]["bottom"], "church: reversed rug edges")
+            check(cid == f"bg-{key}" and c.get("kind") == "backdrop" and c.get("palette") == "source",
+                  f"{key}: expected source-palette backdrop owner")
+            check(size == [960, 540] and frames == ["backdrop"] and 0 < e["colors"] <= 32,
+                  f"{key}: expected 960x540, one frame, at most 32 colours")
+            points(room["slots"], f"{key}.slots")
+            check(len(room["slots"]) == 6 and len({tuple(p) for p in room["slots"]}) == 6,
+                  f"{key}: expected six distinct hero slots")
+            labels = room["labels"] if key == "church" else [room["label"]]
+            points([room["balloon"], room["report"], *labels], key)
+            check(len(labels) == (2 if key == "church" else 1), f"{key}: invalid label offsets")
+            check(vector(room["hit"], 4) and room["hit"][2] > 0 and room["hit"][3] > 0,
+                  f"{key}: invalid hero hit area")
+            dx, dy, hw, hh = room["hit"]
+            for x, y in room["slots"]:
+                check(0 <= x + dx < x + dx + hw <= w and 0 <= y + dy < y + dy + hh <= h,
+                      f"{key}: hero hit area outside backdrop")
+                for offset in (room["balloon"], room["report"], *labels):
+                    check(0 <= x + offset[0] <= w and 0 <= y + offset[1] <= h,
+                          f"{key}: hero decoration outside backdrop")
+            exit = room["exit"]
+            box(exit, f"{key}.exit")
+            check(exit["x"] + exit["w"] / 2 == w / 2 and 480 <= exit["y"] < exit["y"] + exit["h"] <= h,
+                  f"{key}: exit must align with bottom-centre doorway")
+            if key == "church":
+                priest = room["priest"]
+                box(priest, "church.priest")
+                check(0 <= priest["x"] < priest["x"] + priest["w"] <= w
+                      and 0 <= priest["y"] < priest["y"] + priest["h"] <= h, "church: priest outside backdrop")
         if "field" in e:
             field = e["field"]
             points(field["fights"], f"{cid}.fights")
@@ -242,10 +251,17 @@ def main():
                       f"{cid}: invalid light")
     # These are the owners consumed by the current shared scenes, not optional plugin hooks.
     for cid, key in (("bld-inn", "town"), ("obj-canal", "bridge"),
-                     ("inn-wall", "inn"), ("church-wall", "church"), ("world-map", "regions")):
+                     ("bg-inn", "inn"), ("bg-church", "church"), ("world-map", "regions")):
         check(key in entries.get(cid, {}), f"{cid}: required {key} metadata missing")
     for theme in ("meadow", "cave", "forest"):
         check("field" in entries.get(f"bg-field-{theme}", {}), f"{theme}: field metadata missing")
+    empty_bed = entries.get("inn-bed-interior", {})
+    sleeping_bed = entries.get("hero-sleep-bed-interior", {})
+    check(empty_bed.get("frames") == ["empty"] and sleeping_bed.get("frames") == ["sleeping"],
+          "inn: complete empty and sleeping beds required")
+    check(empty_bed.get("frame") == sleeping_bed.get("frame")
+          and empty_bed.get("foot") == sleeping_bed.get("foot"), "inn: bed geometry must match")
+    check("hero-sleep-interior" not in entries, "inn: obsolete head-only sprite must be removed")
     required_sequences = {
         "hero-walk": ("front", "right"), "hero-walk-back": ("back",), "hero-pray": ("prayer",),
         "ui-weapons": ("tiers",),

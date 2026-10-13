@@ -1,8 +1,8 @@
 import "@fontsource/dotgothic16/400.css";
 import "./gallery.css";
-import { Ambient, type Theme } from "../town/ambient";
-import { drawFocus, type Focus } from "../town/battle";
-import { drawField, FIELD_EXITS, FIELD_H, FIELD_W } from "../town/field";
+import { Ambient } from "../town/ambient";
+import { drawFocus } from "../town/battle";
+import { drawField, FIELD_EXITS } from "../town/field";
 import { REPORTS } from "./mock-report";
 import { showReport } from "../town/report";
 import type { TownTheme } from "../town/themes";
@@ -10,37 +10,21 @@ import { showBattleCommands } from "../town/battle-commands";
 import { showRoster } from "../town/command";
 import { mockHeroCommands } from "./mock-heroes";
 import { drawInn } from "../town/inn";
-import { churchPriest, churchSlots, drawChurch, PRIEST_LINES } from "../town/church";
-import { drawTown, TOWN_H, townSpots, TOWN_W } from "../town/town";
+import { drawChurch, PRIEST_LINES } from "../town/church";
+import { interiorHotspots } from "./mock-interior";
+import { drawTown, townSpots } from "../town/town";
 import { FIGHTS, PROJECTS, farewell, recall, ROSTER, SLEEPERS, PRAYERS, TOWN_REPORTS, townHeroes, walkers, equippedWalkers, townReports, CALLER, walkTown, initTown, heroPlace } from "./mock-data";
 import { notices } from "./mock-notices";
 import { renderHerald, showTownList, showThemeChooser, type Notice } from "../town/herald";
 import { drawWorld, markers, plate, regionName, sleeping, type Project } from "../town/world";
 import { Sheets } from "../town/sheets";
 import { drawNavigation } from "../town/navigation";
-import { focusData as FOCUS, battleBeat } from "./mock-battle-data";
+import { battleBeat } from "./mock-battle-data";
 import { noticeMarkMotion } from "../../core/notice-mark";
 import { initSideTabs } from "../town/side-tabs";
 import { renderMockParty } from "./mock-party";
 import { drawNoticeArrow } from "../town/notice-mark";
-
-type Place = "world" | "town" | "inn" | "church" | Theme;
-type Scene = { id: string; label: string; caption: string; place?: Place; focus?: Focus };
-const SCENES: Scene[] = [
-  { id: "equipment-town", label: "そうびの町", place: "town", caption: "そうびなし・鉄のたんけん・青い鋼・金のでんせつ。同じ服の勇者と名前札横の武器の印を見くらべる。" },
-  { id: "equipment-battle", label: "そうびの戦闘", focus: { ...FOCUS("bg-battle-meadow", "meadow", "monster-dragon", "fire", "ドラゴン", ["hero-back-battle", "party-warrior-back", "party-mage-back"]), weaponTier: 3, accessoryTier: 5 }, caption: "でんせつのつるぎ＋高いアクセサリ。長いため・大きいダメージ・ときどき会心。失敗の反撃は変わらない。" },
-  { id: "world", label: "ワールド", place: "world", caption: "ワールドマップ。プロジェクト（リポジトリ）ごとに町がある。町の種類は5つ（草原の村・海辺の港町・雪国・砂漠のオアシス・火山）。人数・戦闘中・未読の報告・呼び出しを町の上に表示。クリックで町へ。" },
-  { id: "town", label: "まち", place: "town", caption: "待機中のエージェントが暮らす町。広場の噴水を中心に宿屋・店が向き合い、通りに沿って歩く。宿屋・きょうかいをクリックで中へ、南の門から各フィールドへ。" },
-  { id: "meadow", label: "そうげん", place: "meadow", caption: "ファイル編集の戦場。勇者とモンスターが向き合って戦う。勇者をクリックでその戦闘にフォーカス。端の立て札で他のマップへ。" },
-  { id: "cave", label: "どうくつ", place: "cave", caption: "テスト・型検査の戦場（しれんのゴーレム）。" },
-  { id: "forest", label: "よるのもり", place: "forest", caption: "コマンド実行の戦場（おばけ）。" },
-  { id: "inn", label: "やどや", place: "inn", caption: "宿屋の中。居眠り中（10分以上動きなし）のエージェントがベッドで眠る。ベッドの大きさは空きと同じ。クリックで町へ。" },
-  { id: "church", label: "きょうかい", place: "church", caption: "きょうかいの中。入口から祭壇まで1本のじゅうたん。やすむ（会話の整理）の勇者は奥を向いて祈る。神父さまをクリックで一言、勇者でコマンド窓、▼ そとへ で町へ。" },
-  { id: "b-meadow", label: "戦闘：草原", focus: FOCUS("bg-battle-meadow", "meadow", "monster-slime", "claw", "スライム", ["hero-back-battle", "party-thief-back"]), caption: "戦闘フォーカス（草原）。右下に コマンド（たたかう・さくせん・めいれい・にげる・もどる）。勇者を クリックで ひらき直す、ほかは もどる。" },
-  { id: "b-cave", label: "戦闘：洞窟", focus: FOCUS("bg-battle-cave", "cave", "monster-golem", "rocks", "ゴーレム", ["hero-back-battle", "party-warrior-back", "party-mage-back"]), caption: "戦闘フォーカス（洞窟）。" },
-  { id: "b-forest", label: "戦闘：夜の森", focus: FOCUS("bg-battle-forest", "forest", "monster-ghost", "curse", "おばけ", ["hero-back-battle", "party-priest-back"]), caption: "戦闘フォーカス（夜の森）。" },
-  { id: "b-boss", label: "戦闘：ボス", focus: FOCUS("bg-battle-meadow", "meadow", "monster-dragon", "fire", "ドラゴン", ["hero-back-battle", "party-warrior-back", "party-mage-back", "party-thief-back", "party-priest-back"]), caption: "任せた仕事（ドラゴン）にパーティー全員で挑む。" },
-];
+import { SCENES, sceneSize, initSceneTabs, type Place, type Scene } from "./mock-scenes";
 const SCALE = 2;
 const canvas = document.querySelector<HTMLCanvasElement>("#mock")!;
 const ctx = canvas.getContext("2d")!;
@@ -75,7 +59,6 @@ function enter(project: Project, place: Place = "town"): void {
   initTown(art, town.theme);
   go(byId(place));
 }
-
 
 let picked: string | undefined; // The mock hero chosen in the ゆうしゃ tab.
 // Like the app: inside a town only its notices; the ゆうしゃ tab lists the mock town's heroes.
@@ -117,12 +100,7 @@ reportRoot.addEventListener("click", (event) => {
 });
 
 const byId = (id: string) => SCENES.find((s) => s.id === id)!;
-
-function size(scene: Scene): [number, number] {
-  if (scene.focus) return art.size(scene.focus.backdrop);
-  if (scene.place === "world") return art.size("world-map");
-  return scene.place === "town" || scene.place === "inn" || scene.place === "church" ? [TOWN_W, TOWN_H] : [FIELD_W, FIELD_H];
-}
+const size = (scene: Scene) => sceneSize(art, scene);
 
 function show(scene: Scene): void {
   current = scene;
@@ -201,13 +179,10 @@ function hotspots(): Hot[] {
     return [{ x: w / 2 - 130, y: h - 112, w: 260, h: 66, act: battleCommands },
       { x: 0, y: 0, w: 9999, h: 9999, act: () => go(returnTo ?? byId(current.focus!.theme), undefined) }];
   }
-  if (place === "inn") return [{ x: 0, y: 0, w: 9999, h: 9999, act: () => go(byId("town")) }];
-  if (place === "church") return [{ ...churchPriest(art), act: () => {
-    document.querySelector<HTMLElement>("#messages")!.textContent = `神父さま「${PRIEST_LINES[priestLine++ % PRIEST_LINES.length]}」`;
-  } }, ...PRAYERS.slice(0, churchSlots(art).length).map((prayer, i) => {
-    const [x, y] = churchSlots(art)[i];
-    return { x: x - 24, y: y - 55, w: 48, h: 70, act: () => commands(prayer.name, x, y, false) };
-  }), { x: 430, y: 500, w: 100, h: 34, text: "▼ そとへ", act: () => go(byId("town")) }];
+  if (place === "inn" || place === "church") return interiorHotspots(art, place,
+    (name, x, y) => commands(name, x, y, false), () => go(byId("town")), () => {
+      document.querySelector<HTMLElement>("#messages")!.textContent = `神父さま「${PRIEST_LINES[priestLine++ % PRIEST_LINES.length]}」`;
+    });
   if (place === "town") {
     const spots: Hot[] = [{ ...townSpots(art, town.theme).inn, act: () => go(byId("inn")) },
       { ...townSpots(art, town.theme).church, act: () => go(byId("church")) }];
@@ -314,17 +289,7 @@ canvas.addEventListener("click", (event) => {
   else gateMenu = false;
 });
 
-// Equipment samples are direct scene URLs; keep the existing review tabs pixel-identical.
-for (const scene of SCENES.filter((scene) => !scene.id.startsWith("equipment-"))) {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.dataset.id = scene.id;
-  button.innerHTML = `<span class="name"></span><span class="count"></span><span class="alert">❗</span>`;
-  button.querySelector(".name")!.textContent = scene.label;
-  if (scene.focus) button.querySelector(".count")!.remove();
-  button.addEventListener("click", () => { returnTo = undefined; show(scene); });
-  tabs.append(button);
-}
+initSceneTabs(tabs, (scene) => { returnTo = undefined; show(scene); });
 void (async () => {
   await art.load();
   initTown(art, town.theme);
