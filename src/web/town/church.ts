@@ -1,4 +1,4 @@
-import { label } from "./field";
+import { label, placeTitle } from "./field";
 import type { Sheets } from "./sheets";
 import { weaponBesideLabel } from "./weapon";
 import { TOWN_H, TOWN_W } from "./town";
@@ -15,7 +15,7 @@ export const PRIEST_LINES = [
 ] as const;
 type Prayer = { id?: string; name: string; variant: number; weaponTier?: number };
 
-export function drawChurch(ctx: CanvasRenderingContext2D, art: Sheets, t: number, prayers: Prayer[], notice?: NoticeMarkFrame): void {
+export function drawChurch(ctx: CanvasRenderingContext2D, art: Sheets, t: number, prayers: Prayer[], notice?: NoticeMarkFrame, town?: string): void {
   const room = art.entry("church-wall").church!, floor = room.floor;
   ctx.fillStyle = "#1d1726";
   ctx.fillRect(0, 0, TOWN_W, TOWN_H);
@@ -53,6 +53,6 @@ export function drawChurch(ctx: CanvasRenderingContext2D, art: Sheets, t: number
     label(ctx, prayer.name, x, y + 14);
     weaponBesideLabel(ctx, art, prayer.weaponTier, t, prayer.name, x, y + 14);
   });
-  label(ctx, "きょうかい（なか）", TOWN_W / 2, 100, "#fff7d6", 16);
+  placeTitle(ctx, "きょうかい（なか）", TOWN_W / 2, 78, town);
   if (prayers.length > room.slots.length) label(ctx, `ほか ${prayers.length - room.slots.length}人`, TOWN_W / 2, 430, "#ffe066", 14);
 }

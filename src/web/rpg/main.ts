@@ -16,6 +16,7 @@ import { initTitleScreen } from "./title-screen";
 import { initSound, notifySound } from "./sound";
 import { initTalk } from "./talk";
 import { initNotices } from "./notices";
+import { initSideTabs } from "../town/side-tabs";
 import { loadNames, parseNames } from "./names";
 import "./rpg.css";
 import "./talk.css";
@@ -23,12 +24,8 @@ import "./talk.css";
 const token = new URLSearchParams(location.search).get("token") ?? "";
 const canvas = document.querySelector<HTMLCanvasElement>("#world")!;
 const connectionLabel = document.querySelector<HTMLElement>("#connection")!;
-const firstStep = document.createElement("button");
-firstStep.type = "button"; firstStep.className = "first-step";
-firstStep.textContent = "▶ 勇者を よぼう";
-firstStep.addEventListener("click", () => document.querySelector<HTMLButtonElement>("#expedition")!.click());
+const launchButton = document.querySelector<HTMLButtonElement>("#expedition")!;
 const mapArea = document.querySelector<HTMLElement>(".map-area")!;
-document.querySelector(".map-nav")!.append(firstStep);
 // The map column is as wide as the map at its height, so the log matches it and the sidebar takes the rest.
 new ResizeObserver(() => document.body.style.setProperty("--map-w", `${Math.floor(mapArea.clientHeight * 16 / 9)}px`)).observe(mapArea);
 const scene = new Scene(canvas, document.querySelector<HTMLElement>("#town-layer")!,
@@ -62,6 +59,7 @@ const talk = initTalk((id) => room.agents.get(id), (id) => scene.names.get(id),
   (terminal) => [...room.agents.values()].find((agent) => agent.terminal === terminal), scene.art);
 const equipment = initEquipment((id) => room.agents.get(id), (id) => scene.names.get(id),
   (text) => messages.say(text, Date.now()), (terminal) => [...room.agents.values()].find((agent) => agent.terminal === terminal));
+const sideTabs = initSideTabs();
 const status = new Status(
   document.querySelector<HTMLElement>("#party")!,
   (id, decision) => {
@@ -72,6 +70,7 @@ const status = new Status(
   namesChanged,
   (id) => scene.select(id, true),
   equipment.describe,
+  (n) => sideTabs.count("party", n),
 );
 function namesChanged(names: Record<string, string>): void {
   scene.savedNames.clear();
@@ -84,8 +83,9 @@ const actions = initHeroActions((id) => room.agents.get(id), talk,
   (id) => scene.names.get(id), equipment.open);
 
 const notices = initNotices(document.querySelector<HTMLElement>("#herald")!, (notice) => {
+  if (notice.hero) sideTabs.show("party");
   scene.visitNotice(notice.repo, notice.hero, notice.at);
-});
+}, (n) => sideTabs.count("herald", n));
 
 function parse(input: unknown, at: unknown): { event: AgentEvent; at: number } | undefined {
   const result = parseAgentEvent(input);
@@ -145,7 +145,7 @@ function connect(): void {
   const current = new WebSocket(`${protocol}//${location.host}/ws?token=${encodeURIComponent(token)}`);
   socket = current;
   connectionLabel.textContent = "せつぞく中…";
-  current.onopen = () => { connectionLabel.textContent = "せつぞく ずみ"; };
+  current.onopen = () => { connectionLabel.textContent = ""; };
   current.onmessage = (message) => {
     try {
       const data = JSON.parse(message.data);
@@ -211,10 +211,10 @@ let lastStatus = 0;
 function frame(time: number): void {
   const now = Date.now();
   if (now - lastStatus > 250) {
-    firstStep.hidden = room.agents.size > 0;
+    launchButton.classList.toggle("beckon", room.agents.size === 0); // No heroes yet: point at the launch.
     talk.update();
     scene.sync(room, now);
-    notices(room, scene.projects, status.permissions, scene.names, now);
+    notices(room, scene.projects, status.permissions, scene.names, now, scene.currentTown);
     status.render(room, now, scene.selected, scene.names, scene.currentTown);
     expedition.updateTitle();
     lastStatus = now;

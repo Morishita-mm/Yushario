@@ -58,6 +58,8 @@ export function initHeroActions(hero: (id: string) => RoomAgent | undefined, tal
     const held = talk.pendingCount(terminal);
     const depart = action === "farewell" ? prepareDeparture(id) : undefined;
     if (action === "interrupt") talk.interrupting(terminal, true);
+    // Said before the request, so the log reads "saw off" before the hero's own SessionEnd "set off".
+    if (action === "farewell") say(`${heroName}を みおくりました。`);
     try {
       const response = await fetch(`/api/sessions/${encodeURIComponent(terminal)}/action?${new URLSearchParams({ token })}`, {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }),
@@ -68,7 +70,6 @@ export function initHeroActions(hero: (id: string) => RoomAgent | undefined, tal
       }
       if (action === "farewell") {
         talk.close(); closeStrength(); depart?.();
-        say(`${heroName}を みおくりました。もんまで あるいて たびだちます。`);
       } else {
         if (action === "interrupt") {
           interrupted.add(terminal); eventAt.set(terminal, Date.now()); waiting.set(terminal, true); talk.setPending(terminal, []);
@@ -79,6 +80,7 @@ export function initHeroActions(hero: (id: string) => RoomAgent | undefined, tal
           : "おはなしを まとめている…");
       }
     } catch (error) {
+      if (action === "farewell") say(`${heroName}を みおくれなかった。`);
       talk.open(id); talk.notice(error instanceof Error ? error.message : String(error));
     } finally {
       busy.delete(terminal);

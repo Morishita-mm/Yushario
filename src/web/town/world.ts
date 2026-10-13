@@ -94,5 +94,6 @@ export function drawWorld(ctx: CanvasRenderingContext2D, art: Sheets, t: number,
     if (projects.some((p) => p.calling)) art.draw(ctx, "ui-balloons", "exclamation", x + 16, y - 22 - (Math.floor(t / 400) % 2));
   }
   plate(ctx, [["ワールドマップ", "#fff7d6", 12]], w / 2, 6);
-  return plate(ctx, [[`💤 ねむっている町 ${sleeping(towns).length}`, "#c9c3dc", 9]], w - 72, h - 24);
+  const asleep = sleeping(towns).length; // Zero-count plates stay hidden and unclickable.
+  return asleep ? plate(ctx, [[`💤 ねむっている町 ${asleep}`, "#c9c3dc", 9]], w - 72, h - 24) : { x: -1, y: -1, w: 0, h: 0 };
 }

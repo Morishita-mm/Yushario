@@ -60,7 +60,6 @@
       <section class="stage">
         <nav class="map-nav" aria-label="地図の操作">
           <button id="world-back" type="button" hidden>◀ ワールドマップ</button>
-          <span id="place-name">ワールドマップ</span>
           <button id="town-look" type="button" hidden>町のすがたを かえる</button>
           <button id="town-pin" type="button" aria-pressed="false" hidden>ピンどめ</button>
           <div id="following" class="following" role="status" hidden>
@@ -78,13 +77,12 @@
         <div id="messages" class="window messages" aria-live="polite"></div>
       </section>
       <div class="sidebar">
-        <aside id="herald" aria-label="でんれい"></aside>
-        <div class="status-size" role="group" aria-label="つよさの 表示">
-          <button type="button" data-status-size="small" aria-pressed="false">ちいさく</button>
-          <span aria-hidden="true">/</span>
-          <button type="button" data-status-size="detailed" aria-pressed="true">くわしく</button>
+        <div class="side-tabs" role="tablist" aria-label="右の列">
+          <button id="tab-herald" type="button" role="tab" aria-controls="herald" aria-selected="true">でんれい</button>
+          <button id="tab-party" type="button" role="tab" aria-controls="party" aria-selected="false">ゆうしゃ</button>
         </div>
-        <aside id="party" aria-label="ゆうしゃたちの つよさ"></aside>
+        <aside id="herald" role="tabpanel" aria-labelledby="tab-herald"></aside>
+        <aside id="party" role="tabpanel" aria-labelledby="tab-party" hidden></aside>
       </div>
     </main>
     <dialog id="expedition-dialog" class="report-window expedition-window" aria-labelledby="expedition-title">

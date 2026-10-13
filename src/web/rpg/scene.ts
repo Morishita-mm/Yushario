@@ -303,18 +303,18 @@ export class Scene {
     const notice = this.noticeMark.frame(time, local, this.place);
     if (hero && this.ambient) {
       drawFocus(ctx, this.art, focus(hero, now, this.gear(hero.agent.terminal)), this.ambient, time, dt, w, h);
-      label(ctx, "クリックで もどる", w - 64, 58, "#ffe066", 9);
     } else if (this.place === "world") {
       this.sleepingPlate = drawWorld(ctx, this.art, time, w, h, [...this.towns.values()]);
-      this.archivedPlate = plate(ctx, [[`しまった町 ${this.records.filter((town) => town.archivedAt !== undefined).length}`, "#c9c3dc", 9]], 68, h - 24);
+      const archived = this.records.filter((town) => town.archivedAt !== undefined).length;
+      this.archivedPlate = archived ? plate(ctx, [[`しまった町 ${archived}`, "#c9c3dc", 9]], 68, h - 24) : { x: -1, y: -1, w: 0, h: 0 };
     }
     else if (this.place === "town") drawTown(ctx, this.art, time, {
-      sleepers: local.filter((h) => h.place === "inn").length, prayers: local.filter((h) => h.place === "church").length, theme: theme!, name: this.project!, unread: this.towns.get(this.project!)?.unread,
+      sleepers: local.filter((h) => h.place === "inn").length, prayers: local.filter((h) => h.place === "church").length, theme: theme!, name: this.project!,
       walkers: this.travel.local(this.project, local), notice,
     });
-    else if (this.place === "inn") drawInn(ctx, this.art, time, local.filter((h) => h.place === "inn").map((h) => ({ id: h.id, name: h.name, ...this.gear(h.agent.terminal) })), notice);
-    else if (this.place === "church") drawChurch(ctx, this.art, time, local.filter((h) => h.place === "church").map((h) => ({ id: h.id, name: h.name, variant: heroVariant(h.id), ...this.gear(h.agent.terminal) })), notice);
-    else drawField(ctx, this.art, this.place, time, fights(this.art, local.filter((h) => h.place === this.place), now, this.gear), undefined, Math.max(0, local.filter((h) => h.place === this.place).length - battleSlots(this.art, this.place).length), notice);
+    else if (this.place === "inn") drawInn(ctx, this.art, time, local.filter((h) => h.place === "inn").map((h) => ({ id: h.id, name: h.name, ...this.gear(h.agent.terminal) })), notice, this.project);
+    else if (this.place === "church") drawChurch(ctx, this.art, time, local.filter((h) => h.place === "church").map((h) => ({ id: h.id, name: h.name, variant: heroVariant(h.id), ...this.gear(h.agent.terminal) })), notice, this.project);
+    else drawField(ctx, this.art, this.place, time, fights(this.art, local.filter((h) => h.place === this.place), now, this.gear), undefined, Math.max(0, local.filter((h) => h.place === this.place).length - battleSlots(this.art, this.place).length), notice, this.project);
     drawReportSigns(ctx, this.art, time, this.signs(), notice);
     drawNoticeArrow(ctx, notice);
     drawNavigation(ctx, this.hotspots(), this.pointer, this.gateMenu);

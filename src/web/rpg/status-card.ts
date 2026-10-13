@@ -114,6 +114,6 @@ export function statusCard(agent: RoomAgent, agentMoods: Mood[], permission: HTM
     log.append(element("li", entry.outcome, `${time} ${DOING[entry.activity](entry.target ?? "")}${outcome}`));
   }
   if (detailed && !agent.log.length) log.append(element("li", undefined, "まだ きろくは ありません"));
-  card.append(element("p", "section", detailed ? "さいきんの きろく" : "ぼうけんの きろく"), log);
+  if (log.childElementCount) card.append(element("p", "section", detailed ? "さいきんの きろく" : "ぼうけんの きろく"), log);
   return card;
 }

@@ -2,7 +2,7 @@ import "@fontsource/dotgothic16/400.css";
 import "./gallery.css";
 import { Ambient, type Theme } from "../town/ambient";
 import { drawFocus, type Focus } from "../town/battle";
-import { drawField, FIELD_EXITS, FIELD_H, FIELD_W, label } from "../town/field";
+import { drawField, FIELD_EXITS, FIELD_H, FIELD_W } from "../town/field";
 import { REPORTS } from "./mock-report";
 import { showReport } from "../town/report";
 import type { TownTheme } from "../town/themes";
@@ -20,6 +20,8 @@ import { Sheets } from "../town/sheets";
 import { drawNavigation } from "../town/navigation";
 import { focusData as FOCUS, battleBeat } from "./mock-battle-data";
 import { noticeMarkMotion } from "../../core/notice-mark";
+import { initSideTabs } from "../town/side-tabs";
+import { renderMockParty } from "./mock-party";
 import { drawNoticeArrow } from "../town/notice-mark";
 
 type Place = "world" | "town" | "inn" | "church" | Theme;
@@ -60,6 +62,8 @@ let sleepingPlate = { x: 0, y: 0, w: 0, h: 0 };
 // Notice target: starts when its scene appears, ends after 3s, on its click, or on leaving.
 let mark: { id: string; place: Place; at?: number } | undefined;
 const herald = document.querySelector<HTMLElement>("#herald")!;
+const party = document.querySelector<HTMLElement>("#party")!;
+const sideTabs = initSideTabs();
 
 // Entering a town; a town whose kind is not chosen yet asks first.
 function enter(project: Project, place: Place = "town"): void {
@@ -73,8 +77,13 @@ function enter(project: Project, place: Place = "town"): void {
 }
 
 
+// Like the app: inside a town only its notices; the ゆうしゃ tab lists the mock town's heroes.
 function refreshHerald(): void {
-  renderHerald(herald, notices(), (notice: Notice) => {
+  const list = notices().filter((notice) => current.place === "world" || notice.repo === town.repo);
+  sideTabs.count("herald", list.length);
+  sideTabs.count("party", renderMockParty(party, town.repo, (name, place) => { mark = { id: name, place }; go(byId(place)); }));
+  renderHerald(herald, list, (notice: Notice) => {
+    if (notice.hero) sideTabs.show("party");
     const project = PROJECTS.find((p) => p.repo === notice.repo);
     const place = notice.hero ? heroPlace(notice.hero) : undefined;
     mark = notice.hero && place ? { id: notice.hero, place } : undefined;
@@ -117,6 +126,7 @@ function size(scene: Scene): [number, number] {
 function show(scene: Scene): void {
   current = scene;
   gateMenu = false;
+  refreshHerald();
   if (mark && mark.at === undefined && mark.place === scene.place && !scene.focus) mark.at = performance.now();
   else mark = undefined;
   ambient = scene.focus ? new Ambient(art, scene.focus.theme, scene.focus.backdrop) : undefined;
@@ -271,14 +281,13 @@ function frame(now: number): void {
     drawTown(ctx, art, now, { sleepers: SLEEPERS.length, prayers: PRAYERS.length, theme: town.theme, name: town.repo, walkers: current.id === "equipment-town" ? equippedWalkers : walkers, reports: current.id === "equipment-town" ? [] : townReports(), caller: current.id === "equipment-town" ? undefined : CALLER, read, notice });
     rosterPlate = plate(ctx, [[`📖 ぼうけんしゃの めいぼ ${ROSTER.length}`, "#fff7d6", 10]], w - 92, 8);
   }
-  else if (current.place === "inn") drawInn(ctx, art, now, SLEEPERS.map((name) => ({ id: name, name })), notice);
-  else if (current.place === "church") drawChurch(ctx, art, now, PRAYERS.map((prayer) => ({ id: prayer.name, ...prayer })), notice);
-  else if (current.place) drawField(ctx, art, current.place, now, FIGHTS[current.place], read, 0, notice);
+  else if (current.place === "inn") drawInn(ctx, art, now, SLEEPERS.map((name) => ({ id: name, name })), notice, town.repo);
+  else if (current.place === "church") drawChurch(ctx, art, now, PRAYERS.map((prayer) => ({ id: prayer.name, ...prayer })), notice, town.repo);
+  else if (current.place) drawField(ctx, art, current.place, now, FIGHTS[current.place], read, 0, notice, town.repo);
   else if (current.focus && ambient) drawFocus(ctx, art, battleBeat(current.focus, now), ambient, now, dt, w, h);
   drawNoticeArrow(ctx, notice);
   drawNavigation(ctx, hotspots(), pointer, gateMenu);
 
-  if (current.focus) label(ctx, "クリックで もどる", w - 64, 58, "#ffe066", 9);
   const flash = (now - fadeAt) / 300;
   if (flash < 1 || pending) {
     ctx.fillStyle = current.focus || returnTo ? `rgba(255,255,255,${pending ? flash : 1 - flash})` : `rgba(0,0,0,${pending ? Math.min(1, flash) : Math.max(0, 1 - flash)})`;

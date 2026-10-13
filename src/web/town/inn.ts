@@ -1,4 +1,4 @@
-import { label } from "./field";
+import { label, placeTitle } from "./field";
 import type { Sheets } from "./sheets";
 import { weaponBesideLabel } from "./weapon";
 import { TOWN_H, TOWN_W } from "./town";
@@ -7,7 +7,7 @@ import { drawNoticeHero, type NoticeMarkFrame } from "./notice-mark";
 export const innSlots = (art: Sheets) => art.entry("inn-wall").inn!.slots;
 
 // Inside the inn: placements are shared by drawing, commands and report signs.
-export function drawInn(ctx: CanvasRenderingContext2D, art: Sheets, t: number, sleepers: (string | { id?: string; name: string; weaponTier?: number })[], notice?: NoticeMarkFrame): void {
+export function drawInn(ctx: CanvasRenderingContext2D, art: Sheets, t: number, sleepers: (string | { id?: string; name: string; weaponTier?: number })[], notice?: NoticeMarkFrame, town?: string): void {
   const room = art.entry("inn-wall").inn!, floor = room.floor;
   ctx.fillStyle = "#1d1726";
   ctx.fillRect(0, 0, TOWN_W, TOWN_H);
@@ -34,6 +34,6 @@ export function drawInn(ctx: CanvasRenderingContext2D, art: Sheets, t: number, s
       weaponBesideLabel(ctx, art, typeof sleeper === "string" ? undefined : sleeper.weaponTier, t, name, x, y + 14);
     }
   });
-  label(ctx, "やどや（なか）", TOWN_W / 2, 120, "#fff7d6", 16);
+  placeTitle(ctx, "やどや（なか）", TOWN_W / 2, 98, town);
   if (sleepers.length > room.slots.length) label(ctx, `ほか ${sleepers.length - room.slots.length}人`, TOWN_W / 2, 430, "#ffe066", 14);
 }

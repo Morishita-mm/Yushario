@@ -3,12 +3,18 @@ import { weaponBesideLabel } from "./weapon";
 import type { Theme } from "./ambient";
 import type { Sheets } from "./sheets";
 import { drawNoticeHero, type NoticeMarkFrame } from "./notice-mark";
+import { plate } from "./world";
 
 // One field map (960×540), composed from the supplied battles.
 export const FIELD_W = 960;
 export const FIELD_H = 540;
 
 export type Fight = EquipmentTiers & { success?: boolean; id?: string; x: number; y: number; name: string; variant: number; monster: string; target: string; party: string[]; fx: string; done?: boolean; level: number; demo?: boolean; counter?: boolean; damage?: { hero: number; enemy: number } };
+
+// A place's title plate: the project (town) name large and gold, the place small under it.
+export function placeTitle(ctx: CanvasRenderingContext2D, place: string, x: number, y: number, town?: string): void {
+  plate(ctx, town ? [[town, "#ffe066", 20], [place, "#fff7d6", 12]] : [[place, "#fff7d6", 16]], x, y);
+}
 
 export function label(ctx: CanvasRenderingContext2D, value: string, x: number, y: number, color = "#ffffff", size = 10): void {
   ctx.font = `${size}px "DotGothic16", monospace`;
@@ -86,7 +92,7 @@ export const FIELD_EXITS: Record<Theme, { to: "town" | Theme; text: string; x: n
   forest: [{ to: "town", text: "◀ まち", x: 46, y: 250 }, { to: "meadow", text: "そうげん ▶", x: 906, y: 91 }, { to: "cave", text: "どうくつ ▶", x: 906, y: 455 }],
 };
 
-export function drawField(ctx: CanvasRenderingContext2D, art: Sheets, theme: Theme, t: number, fights: Fight[], read = new Set<string>(), overflow = 0, notice?: NoticeMarkFrame): void {
+export function drawField(ctx: CanvasRenderingContext2D, art: Sheets, theme: Theme, t: number, fights: Fight[], read = new Set<string>(), overflow = 0, notice?: NoticeMarkFrame, town?: string): void {
   const backdrop = `bg-field-${theme}`;
   const field = art.entry(backdrop).field!;
   ctx.drawImage(art.image(backdrop)!, 0, 0);
@@ -122,6 +128,7 @@ export function drawField(ctx: CanvasRenderingContext2D, art: Sheets, theme: The
     }
     ctx.restore();
   }
-  label(ctx, theme === "meadow" ? "そうげん" : theme === "cave" ? "どうくつ" : "よるのもり", FIELD_W / 2, 26, "#fff7d6", 14);
+  const place = theme === "meadow" ? "そうげん" : theme === "cave" ? "どうくつ" : "よるのもり";
+  placeTitle(ctx, place, FIELD_W / 2, 8, town);
   if (overflow) label(ctx, `ほか ${overflow}人`, FIELD_W / 2, FIELD_H - 18, "#ffe066", 14);
 }

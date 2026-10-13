@@ -11,14 +11,10 @@ type Decision = "allow" | "deny" | "terminal";
 export class Status {
   readonly permissions = new Map<string, Permission>();
   private readonly signatures = new Map<string, string>();
-  private picker: HTMLSelectElement | undefined;
-  private pickerSignature = "";
   private readonly dialog = document.querySelector<HTMLDialogElement>("#strength-dialog")!;
   private readonly details = document.querySelector<HTMLElement>("#strength-content")!;
-  private readonly sizeButtons = [...document.querySelectorAll<HTMLButtonElement>("[data-status-size]")];
-  private compact = false;
-  private compactSignature = "";
-  private rows: HTMLElement[] = [];
+  private readonly list = element("div", "party-list");
+  private listSignature = "";
   private detailed: string | undefined;
   private detailSignature = "";
   private readonly rename: ReturnType<typeof initNameEditor>;
@@ -31,15 +27,9 @@ export class Status {
     namesChanged: (names: Record<string, string>) => void,
     private readonly commands: (id: string) => void,
     private readonly equipment: (terminal?: string) => string[],
+    private readonly counted: (n: number) => void,
   ) {
     this.rename = initNameEditor(() => this.detailed, namesChanged);
-    try { this.compact = localStorage.getItem("agent-character-status-size") === "small"; } catch { /* Page-local fallback. */ }
-    const updateSize = () => { for (const button of this.sizeButtons) button.setAttribute("aria-pressed", String((button.dataset.statusSize === "small") === this.compact)); };
-    updateSize();
-    for (const button of this.sizeButtons) button.addEventListener("click", () => {
-      this.compact = button.dataset.statusSize === "small"; updateSize();
-      try { localStorage.setItem("agent-character-status-size", this.compact ? "small" : "detailed"); } catch { /* Still usable without storage. */ }
-    });
     const close = () => this.closeDetails();
     this.dialog.addEventListener("cancel", (event) => { event.preventDefault(); close(); });
     this.dialog.addEventListener("keydown", (event) => {
@@ -89,31 +79,23 @@ export class Status {
   render(room: Room, now: number, selected: string | undefined, names: Map<string, string>, project?: string): void {
     this.renderDetails(room, now, names);
     const cards: HTMLElement[] = [];
-    const agents = [...room.agents.values()].filter((agent) => !this.compact || project === undefined || (agent.project ?? agent.name) === project);
+    // Inside a town only its heroes; on the world map everyone, grouped by town.
+    const agents = [...room.agents.values()].filter((agent) => project === undefined || (agent.project ?? agent.name) === project);
     const chosen = agents.find((agent) => agent.id === selected) ?? agents[0];
-    if (this.compact) {
-      const signature = JSON.stringify([chosen?.id, agents.map((agent) => [agent.id, names.get(agent.id) ?? agent.name,
-        agent.activity, agent.target, stats(agent, now)]), [...this.permissions.values()]]);
-      if (signature !== this.compactSignature) {
-        this.compactSignature = signature;
-        this.rows = agents.map((agent) => compactRow(agent, now, names.get(agent.id) ?? agent.name, agent === chosen,
-          [...this.permissions.values()].some((item) => (item.agent ?? "default") === agent.id), () => this.commands(agent.id)));
-      }
-      cards.push(...this.rows);
-    } else if (agents.length) {
-      const signature = JSON.stringify(agents.map((agent) => [agent.id, names.get(agent.id), agent.project]));
-      if (!this.picker || signature !== this.pickerSignature) {
-        this.picker = element("select", "hero-picker");
-        this.picker.setAttribute("aria-label", "勇者をえらぶ");
-        for (const agent of agents) {
-          const option = element("option", undefined, `${names.get(agent.id) ?? agent.name} — ${agent.project ?? agent.name}`);
-          option.value = agent.id; this.picker.append(option);
-        }
-        this.picker.addEventListener("change", () => this.select(this.picker!.value));
-        this.pickerSignature = signature;
-      }
-      this.picker.value = chosen!.id; cards.push(this.picker);
+    this.counted(agents.length);
+    const waiting = (id: string) => [...this.permissions.values()].some((item) => (item.agent ?? "default") === id);
+    const signature = JSON.stringify([chosen?.id, agents.map((agent) => [agent.id, names.get(agent.id) ?? agent.name, agent.project,
+      agent.activity, agent.target, stats(agent, now), waiting(agent.id)])]);
+    if (signature !== this.listSignature) {
+      this.listSignature = signature;
+      const towns = new Map<string, RoomAgent[]>();
+      for (const agent of agents) towns.set(agent.project ?? agent.name, [...(towns.get(agent.project ?? agent.name) ?? []), agent]);
+      this.list.replaceChildren(...[...towns].sort(([a], [b]) => a.localeCompare(b)).flatMap(([town, members]) => [
+        element("h3", "party-town", `${town}（${members.length}人）`),
+        ...members.map((agent) => compactRow(agent, now, names.get(agent.id) ?? agent.name, agent === chosen, waiting(agent.id), () => this.commands(agent.id))),
+      ]));
     }
+    if (agents.length) cards.push(this.list);
     if (chosen) {
       const permission = [...this.permissions.values()].find((item) => (item.agent ?? "default") === chosen.id);
       const name = names.get(chosen.id) ?? chosen.name;

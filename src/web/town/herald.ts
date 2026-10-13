@@ -15,11 +15,24 @@ function element<K extends keyof HTMLElementTagNameMap>(tag: K, className?: stri
   return node;
 }
 
+// Grouped by town, most urgent town first (the list arrives sorted); each heading counts the kinds.
 export function renderHerald(root: HTMLElement, list: Notice[], onPick: (notice: Notice) => void): void {
-  const heading = root.querySelector("h2") ?? element("h2");
-  heading.textContent = `でんれい（${list.length}）`;
   const existing = [...root.querySelectorAll<HTMLButtonElement>(".notice")];
-  const items = list.map((notice) => {
+  const headings = [...root.querySelectorAll<HTMLElement>(".herald-town")];
+  const towns = new Map<string, Notice[]>();
+  for (const notice of list) towns.set(notice.repo, [...(towns.get(notice.repo) ?? []), notice]);
+  const nodes = [...towns].flatMap(([repo, notices]) => {
+    const heading = headings.find((item) => item.dataset.town === repo) ?? element("h3", "herald-town");
+    heading.dataset.town = repo;
+    const counts = (Object.keys(ICONS) as Notice["kind"][]).map((kind) => [kind, notices.filter((n) => n.kind === kind).length] as const)
+      .filter(([, n]) => n).map(([kind, n]) => `${ICONS[kind]}${n}`).join(" ");
+    const text = `${repo || "（町なし）"}  ${counts}`;
+    if (heading.textContent !== text) heading.textContent = text;
+    return [heading, ...items(notices)];
+  });
+  if (root.children.length !== nodes.length || nodes.some((node, index) => root.children[index] !== node)) root.replaceChildren(...nodes);
+
+  function items(notices: Notice[]): HTMLButtonElement[] { return notices.map((notice) => {
     const key = JSON.stringify([notice.kind, notice.repo, notice.hero, notice.at, notice.text]);
     const button = existing.find((item) => item.dataset.notice === key) ?? element("button", `notice ${notice.kind}`);
     button.type = "button"; button.dataset.notice = key;
@@ -28,9 +41,7 @@ export function renderHerald(root: HTMLElement, list: Notice[], onPick: (notice:
     button.querySelector(".ago")!.textContent = notice.ago;
     button.onclick = () => onPick(notice);
     return button;
-  });
-  const nodes = [heading, ...items];
-  if (root.children.length !== nodes.length || nodes.some((node, index) => root.children[index] !== node)) root.replaceChildren(...nodes);
+  }); }
 }
 
 export function windowBox(layer: HTMLElement, title: string, onClose: () => void): HTMLElement {

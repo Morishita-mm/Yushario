@@ -1,5 +1,13 @@
 #herald { background: #0a0a1a; border: 3px solid #fff; border-radius: 8px; padding: 10px; max-height: 80vh; overflow-y: auto; }
 #herald h2 { margin: 0 0 8px; font-size: 16px; color: #ffe066; border: 0; padding: 0; }
+/* でんれい / ゆうしゃ tabs over one panel, both grouped by town. */
+.side-tabs { display: flex; gap: 6px; }
+.side-tabs button { flex: 1; font: inherit; font-size: 15px; color: #c9c3dc; background: #1d1726; border: 2px solid #6e6a8a; border-bottom: 0; border-radius: 6px 6px 0 0; padding: 6px 10px; cursor: pointer; }
+.side-tabs button[aria-selected="true"] { color: #ffe066; background: #0a0a1a; border-color: #ffffff; }
+#herald[hidden], #party[hidden] { display: none; }
+.herald-town, .party-town { margin: 12px 0 4px; font-size: 13px; font-weight: normal; color: #9fd3ff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.herald-town:first-child, .party-town:first-child { margin-top: 0; }
+.side-tabs + #herald { border-top-left-radius: 0; border-top-right-radius: 0; }
 .notice { display: grid; grid-template-columns: 1.6em 1fr; gap: 2px 6px; width: 100%; text-align: left; font: inherit; font-size: 13px; color: #fff; background: none; border: 0; border-bottom: 1px dashed #3a3550; padding: 7px 2px; cursor: pointer; }
 .notice:hover, .notice:focus-visible { background: #1d1a30; outline: none; }
 .notice .icon { grid-row: span 2; font-family: system-ui, "Apple Color Emoji", sans-serif; }
