@@ -77,11 +77,12 @@ function enter(project: Project, place: Place = "town"): void {
 }
 
 
+let picked: string | undefined; // The mock hero chosen in the ゆうしゃ tab.
 // Like the app: inside a town only its notices; the ゆうしゃ tab lists the mock town's heroes.
 function refreshHerald(): void {
   const list = notices().filter((notice) => current.place === "world" || notice.repo === town.repo);
   sideTabs.count("herald", list.length);
-  sideTabs.count("party", renderMockParty(party, town.repo, (name, place) => { mark = { id: name, place }; go(byId(place)); }));
+  sideTabs.count("party", renderMockParty(party, town.repo, mark?.id ?? picked, (name, place) => { picked = name; mark = { id: name, place }; go(byId(place)); }));
   renderHerald(herald, list, (notice: Notice) => {
     if (notice.hero) sideTabs.show("party");
     const project = PROJECTS.find((p) => p.repo === notice.repo);
