@@ -28,6 +28,10 @@ a { color: #9fd3ff; font-size: 14px; }
 .map-nav button, body > header button { font: inherit; background: #1d1726; color: #fff; border: 1px solid #6e6a8a; padding: 4px 8px; cursor: pointer; }
 .map-nav button:hover, .map-nav button:focus-visible, body > header button:hover, body > header button:focus-visible { color: #ffe066; border-color: #ffe066; }
 body > header button { font-size: 14px; }
+.settings-buttons { display: flex; align-items: stretch; gap: 16px; flex: none; }
+#sound { display: grid; place-items: center; }
+#sound svg g { display: none; }
+#sound[data-mode="all"] .sound-all, #sound[data-mode="follow"] .sound-follow, #sound[data-mode="off"] .sound-off { display: inline; }
 #terminals-list .session-row { align-items: center; flex-wrap: wrap; }
 #terminals-list .session-row > div:first-child { flex: 1; min-width: 180px; }
 #terminals-list .hint { margin: 0; font-size: 12px; }

@@ -23,6 +23,13 @@ export async function patchTown(name: string, change: TownChange): Promise<TownR
 export async function loadSettings(): Promise<Settings & { startupCwd: string }> {
   return (await request("/api/settings")).json() as Promise<Settings & { startupCwd: string }>;
 }
-export async function saveSettings(settings: Settings): Promise<void> {
-  await request("/api/settings", "PUT", settings);
+let settingsSave = Promise.resolve();
+export function saveSettings(change: Partial<Settings>): Promise<void> {
+  // The two controls can save together; read after the previous save to preserve its choice.
+  const saving = settingsSave.then(async () => {
+    const { archiveAfterDays, sound } = await loadSettings();
+    await request("/api/settings", "PUT", { archiveAfterDays, sound, ...change });
+  });
+  settingsSave = saving.catch(() => undefined);
+  return saving;
 }

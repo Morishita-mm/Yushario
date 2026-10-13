@@ -9,7 +9,26 @@ export type TownRecord = {
   pinned: boolean;
   archivedAt?: number;
 };
-export type TownSettings = { archiveAfterDays: number };
+export type SoundMode = "all" | "follow" | "off";
+export type TownSettings = { archiveAfterDays: number; sound: SoundMode };
+
+export function validSettings(input: unknown): input is TownSettings {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return false;
+  const value = input as Record<string, unknown>;
+  return Object.keys(value).length === 2 && ["all", "follow", "off"].includes(value.sound as string)
+    && typeof value.archiveAfterDays === "number" && Number.isInteger(value.archiveAfterDays)
+    && value.archiveAfterDays >= 0 && value.archiveAfterDays <= 365;
+}
+
+// Only files written before sound was introduced may omit it.
+export function storedSettings(input: unknown): TownSettings | undefined {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return;
+  const value: Record<string, unknown> = { sound: "all", ...input };
+  // Migrate the former on/off preference only when reading a saved file.
+  if (value.sound === true) value.sound = "all";
+  if (value.sound === false) value.sound = "off";
+  return validSettings(value) ? value : undefined;
+}
 
 export const DAY_MS = 24 * 60 * 60 * 1000;
 

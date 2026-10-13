@@ -185,8 +185,9 @@ sockets.on("connection", (client) => {
   client.send(JSON.stringify({ type: "towns", towns: ledger.towns }));
   client.send(JSON.stringify({ type: "names", names: ledger.names }));
   for (const message of pty.pending()) client.send(JSON.stringify(message));
-  for (const message of pty.attention()) client.send(JSON.stringify(message));
-  if (permissions.current) client.send(JSON.stringify(permissions.current));
+  // These are snapshots too, not fresh requests that should ring on reconnect.
+  for (const message of pty.attention()) client.send(JSON.stringify({ ...message, live: false }));
+  if (permissions.current) client.send(JSON.stringify({ ...permissions.current, live: false }));
   client.on("message", (data, binary) => {
     if (binary) return;
     try {

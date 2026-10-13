@@ -1,20 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { closeSync, readFileSync, openSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
-import { TOWN_THEMES, type TownRecord, type TownSettings, type TownTheme } from "../core/town-ledger";
+import { storedSettings, TOWN_THEMES, type TownRecord, type TownSettings, type TownTheme } from "../core/town-ledger";
 import { isClaudeSessionId, ROSTER_LIMIT, type RosterEntry } from "../core/roster";
 import { validHeroNames, type HeroNames } from "../core/names";
 import { AGENTS, PRESETS, type Preset } from "./agents";
 import { isEquipmentId, parseEquipmentMaster, resolveEquipmentMaster, type EquipmentMaster } from "../core/equipment";
 import { dataDirectory as directory } from "./startup";
 export type StoredRosterEntry = RosterEntry & { preset?: Preset };
-
-export function validSettings(input: unknown): input is TownSettings {
-  if (!input || typeof input !== "object" || Array.isArray(input)) return false;
-  const value = input as Record<string, unknown>;
-  return Object.keys(value).length === 1 && typeof value.archiveAfterDays === "number"
-    && Number.isInteger(value.archiveAfterDays) && value.archiveAfterDays >= 0 && value.archiveAfterDays <= 365;
-}
 
 export function validTheme(input: unknown): input is TownTheme {
   return TOWN_THEMES.includes(input as TownTheme);
@@ -58,10 +51,10 @@ export function readTowns(): TownRecord[] {
 
 export function readSettings(): TownSettings {
   try {
-    const input = read("settings.json");
-    if (!validSettings(input)) throw new Error("Invalid settings");
-    return input;
-  } catch (error) { quarantine("settings.json", error); return { archiveAfterDays: 30 }; }
+    const settings = storedSettings(read("settings.json"));
+    if (!settings) throw new Error("Invalid settings");
+    return settings;
+  } catch (error) { quarantine("settings.json", error); return { archiveAfterDays: 30, sound: "all" }; }
 }
 
 export function readRoster(): StoredRosterEntry[] {

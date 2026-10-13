@@ -4,6 +4,7 @@ import type { TownTheme } from "./themes";
 import { label } from "./field";
 import { weaponBesideLabel } from "./weapon";
 import type { Sheets } from "./sheets";
+import { drawNoticeHero, type NoticeMarkFrame } from "./notice-mark";
 
 // Street graph coordinates/edges come from the same data that places the buildings.
 const STOPS: { node: string; pose: [string, string]; balloon?: string }[] = [
@@ -84,7 +85,8 @@ export function stepWalkers(art: Sheets, walkers: Walker[], t: number, dt: numbe
   return departed;
 }
 
-export function drawWalker(ctx: CanvasRenderingContext2D, art: Sheets, walker: Walker, t: number): void {
+export function drawWalker(ctx: CanvasRenderingContext2D, art: Sheets, walker: Walker, t: number, notice?: NoticeMarkFrame): void {
+  const mark = notice?.id === walker.id ? notice : undefined;
   const stride = Math.floor(walker.walked / 7) % 4;
   walker.party.forEach((id, i) => art.draw(ctx, id, walker.path.length ? art.pose(id, "follow", stride % 2) : "front", walker.x - 22 - i * 18, walker.y + 12 + i * 12));
   if (walker.leaving && !walker.path.length) {
@@ -97,17 +99,17 @@ export function drawWalker(ctx: CanvasRenderingContext2D, art: Sheets, walker: W
     return;
   }
   if (walker.paused) {
-    art.draw(ctx, art.variant("hero-model", walker.variant), "front", walker.x, walker.y);
+    drawNoticeHero(ctx, art, art.variant("hero-model", walker.variant), "front", walker.x, walker.y, mark);
   } else if (!walker.path.length) {
     const stop = STOPS[walker.stop];
     const [sheet, frame] = stop.pose;
-    art.draw(ctx, art.variant(sheet, walker.variant), frame, walker.x, walker.y - (Math.floor((t + walker.variant * 300) / 700) % 2));
+    drawNoticeHero(ctx, art, art.variant(sheet, walker.variant), frame, walker.x, walker.y - (Math.floor((t + walker.variant * 300) / 700) % 2), mark);
     if (stop.balloon !== undefined && Math.floor((t + walker.variant * 900) / 2500) % 3 === 0) art.draw(ctx, "ui-balloons", stop.balloon, walker.x, walker.y - 60);
   } else if (Math.abs(walker.dx) > Math.abs(walker.dy)) {
-    art.draw(ctx, art.variant("hero-walk", walker.variant), art.pose("hero-walk", "right", stride), walker.x, walker.y, walker.dx < 0);
+    drawNoticeHero(ctx, art, art.variant("hero-walk", walker.variant), art.pose("hero-walk", "right", stride), walker.x, walker.y, mark, walker.dx < 0);
   } else {
     const id = walker.dy > 0 ? "hero-walk" : "hero-walk-back";
-    art.draw(ctx, art.variant(id, walker.variant), art.pose(id, walker.dy > 0 ? "front" : "back", stride), walker.x, walker.y);
+    drawNoticeHero(ctx, art, art.variant(id, walker.variant), art.pose(id, walker.dy > 0 ? "front" : "back", stride), walker.x, walker.y, mark);
   }
   label(ctx, walker.name, walker.x, walker.y + 13);
   weaponBesideLabel(ctx, art, walker.weaponTier, t, walker.name, walker.x, walker.y + 13);

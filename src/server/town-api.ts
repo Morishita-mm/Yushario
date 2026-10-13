@@ -1,8 +1,8 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { activateTown, archiveTowns, registerTown, type TownRecord, type TownTheme } from "../core/town-ledger";
+import { activateTown, archiveTowns, registerTown, validSettings, type TownRecord, type TownTheme } from "../core/town-ledger";
 import { namedHero, normalizeHeroName, type HeroNames } from "../core/names";
 import { isClaudeSessionId } from "../core/roster";
-import { readNames, readSettings, readTowns, validSettings, validTheme, writeNames, writeSettings, writeTowns } from "./town-data";
+import { readNames, readSettings, readTowns, validTheme, writeNames, writeSettings, writeTowns } from "./town-data";
 import { readJsonBody, SETTINGS_BODY_LIMIT } from "./http-body";
 
 function json(response: ServerResponse, status: number, value: unknown): void {
@@ -115,10 +115,10 @@ export class TownLedger {
         json(response, 200, this.names);
       } else if (settings) {
         if (!validSettings(input)) {
-          json(response, 400, { error: "町をしまうまでの日数は 0〜365 の整数で指定してください" });
+          json(response, 400, { error: "町をしまうまでの日数は 0〜365 の整数、おとは all・follow・off で指定してください" });
           return;
         }
-        if (input.archiveAfterDays !== this.settings.archiveAfterDays) {
+        if (input.archiveAfterDays !== this.settings.archiveAfterDays || input.sound !== this.settings.sound) {
           writeSettings(input);
           this.settings = input;
           this.changed(this.towns);

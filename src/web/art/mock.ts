@@ -12,13 +12,15 @@ import { mockHeroCommands } from "./mock-heroes";
 import { drawInn } from "../town/inn";
 import { churchPriest, churchSlots, drawChurch, PRIEST_LINES } from "../town/church";
 import { drawTown, TOWN_H, townSpots, TOWN_W } from "../town/town";
-import { FIGHTS, PROJECTS, farewell, recall, ROSTER, SLEEPERS, PRAYERS, TOWN_REPORTS, townHeroes, walkers, equippedWalkers, townReports, CALLER, walkTown, initTown } from "./mock-data";
+import { FIGHTS, PROJECTS, farewell, recall, ROSTER, SLEEPERS, PRAYERS, TOWN_REPORTS, townHeroes, walkers, equippedWalkers, townReports, CALLER, walkTown, initTown, heroPlace } from "./mock-data";
 import { notices } from "./mock-notices";
 import { renderHerald, showTownList, showThemeChooser, type Notice } from "../town/herald";
 import { drawWorld, markers, plate, regionName, sleeping, type Project } from "../town/world";
 import { Sheets } from "../town/sheets";
 import { drawNavigation } from "../town/navigation";
 import { focusData as FOCUS, battleBeat } from "./mock-battle-data";
+import { noticeMarkMotion } from "../../core/notice-mark";
+import { drawNoticeArrow } from "../town/notice-mark";
 
 type Place = "world" | "town" | "inn" | "church" | Theme;
 type Scene = { id: string; label: string; caption: string; place?: Place; focus?: Focus };
@@ -55,23 +57,28 @@ let pointer: [number, number] = [-1, -1];
 const startTown = PROJECTS.find((p) => p.theme === new URLSearchParams(location.search).get("town")) ?? PROJECTS[0];
 let town: { theme: TownTheme; repo: string } = { theme: startTown.theme!, repo: startTown.repo };
 let sleepingPlate = { x: 0, y: 0, w: 0, h: 0 };
+// Notice target: starts when its scene appears, ends after 3s, on its click, or on leaving.
+let mark: { id: string; place: Place; at?: number } | undefined;
 const herald = document.querySelector<HTMLElement>("#herald")!;
 
 // Entering a town; a town whose kind is not chosen yet asks first.
-function enter(project: Project): void {
+function enter(project: Project, place: Place = "town"): void {
   if (!project.theme) {
     showThemeChooser(reportRoot, project, art, (theme) => { project.theme = theme; refreshHerald(); enter(project); }, () => undefined);
     return;
   }
   town = { theme: project.theme, repo: project.repo };
   initTown(art, town.theme);
-  go(byId("town"));
+  go(byId(place));
 }
+
 
 function refreshHerald(): void {
   renderHerald(herald, notices(), (notice: Notice) => {
     const project = PROJECTS.find((p) => p.repo === notice.repo);
-    if (project) enter(project);
+    const place = notice.hero ? heroPlace(notice.hero) : undefined;
+    mark = notice.hero && place ? { id: notice.hero, place } : undefined;
+    if (project) enter(project, place);
   });
 }
 const read = new Set<string>();
@@ -79,6 +86,7 @@ let report: string | undefined; // name of the agent whose report is open
 const reportRoot = document.querySelector<HTMLElement>("#report")!;
 
 function openReport(name: string): void {
+  if (mark?.id === name) mark = undefined;
   if (!REPORTS[name]) return;
   report = name;
   showReport(reportRoot, name, REPORTS[name], () => { read.add(name); report = undefined; });
@@ -109,6 +117,8 @@ function size(scene: Scene): [number, number] {
 function show(scene: Scene): void {
   current = scene;
   gateMenu = false;
+  if (mark && mark.at === undefined && mark.place === scene.place && !scene.focus) mark.at = performance.now();
+  else mark = undefined;
   ambient = scene.focus ? new Ambient(art, scene.focus.theme, scene.focus.backdrop) : undefined;
   const [w, h] = size(scene);
   canvas.width = w * SCALE;
@@ -147,6 +157,7 @@ function toast(text: string): void {
 
 // Open the command window next to a hero (map pixels → stage pixels).
 function commands(name: string, x: number, y: number, fighting: boolean, watch?: () => void): void {
+  if (mark?.id === name) mark = undefined;
   const rect = canvas.getBoundingClientRect();
   const [w, h] = size(current);
   mockHeroCommands(reportRoot, name, [x * rect.width / w, (y - 30) * rect.height / h], fighting, walkers, {
@@ -251,16 +262,20 @@ function frame(now: number): void {
   ctx.setTransform(SCALE, 0, 0, SCALE, 0, 0);
   ctx.imageSmoothingEnabled = false;
   ctx.clearRect(0, 0, w, h);
+  const motion = mark?.at === undefined ? undefined : noticeMarkMotion(Math.max(0, now - mark.at));
+  if (mark?.at !== undefined && !motion) mark = undefined;
+  const notice = mark && motion ? { id: mark.id, ...motion } : undefined;
   if (current.place === "world") sleepingPlate = drawWorld(ctx, art, now, w, h, PROJECTS);
   else if (current.place === "town") {
     walkTown(art, now);
-    drawTown(ctx, art, now, { sleepers: SLEEPERS.length, prayers: PRAYERS.length, theme: town.theme, name: town.repo, walkers: current.id === "equipment-town" ? equippedWalkers : walkers, reports: current.id === "equipment-town" ? [] : townReports(), caller: current.id === "equipment-town" ? undefined : CALLER, read });
+    drawTown(ctx, art, now, { sleepers: SLEEPERS.length, prayers: PRAYERS.length, theme: town.theme, name: town.repo, walkers: current.id === "equipment-town" ? equippedWalkers : walkers, reports: current.id === "equipment-town" ? [] : townReports(), caller: current.id === "equipment-town" ? undefined : CALLER, read, notice });
     rosterPlate = plate(ctx, [[`📖 ぼうけんしゃの めいぼ ${ROSTER.length}`, "#fff7d6", 10]], w - 92, 8);
   }
-  else if (current.place === "inn") drawInn(ctx, art, now, SLEEPERS);
-  else if (current.place === "church") drawChurch(ctx, art, now, PRAYERS);
-  else if (current.place) drawField(ctx, art, current.place, now, FIGHTS[current.place], read);
+  else if (current.place === "inn") drawInn(ctx, art, now, SLEEPERS.map((name) => ({ id: name, name })), notice);
+  else if (current.place === "church") drawChurch(ctx, art, now, PRAYERS.map((prayer) => ({ id: prayer.name, ...prayer })), notice);
+  else if (current.place) drawField(ctx, art, current.place, now, FIGHTS[current.place], read, 0, notice);
   else if (current.focus && ambient) drawFocus(ctx, art, battleBeat(current.focus, now), ambient, now, dt, w, h);
+  drawNoticeArrow(ctx, notice);
   drawNavigation(ctx, hotspots(), pointer, gateMenu);
 
   if (current.focus) label(ctx, "クリックで もどる", w - 64, 58, "#ffe066", 9);

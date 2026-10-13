@@ -1,4 +1,5 @@
 import { label } from "./field";
+import { drawNoticeHero, type NoticeMarkFrame } from "./notice-mark";
 import { drawWeather, THEME_NAMES, type TownTheme } from "./themes";
 import { drawWalker, type Walker, type TownSign } from "./walkers";
 import type { Sheets } from "./sheets";
@@ -102,7 +103,7 @@ function churchLight(ctx: CanvasRenderingContext2D, art: Sheets, church: Part, x
 
 type TownData = {
   sleepers: number; prayers?: number; theme: TownTheme; name: string; walkers: Walker[]; unread?: number;
-  reports?: TownSign[]; caller?: { name: string; x: number; y: number }; read?: Set<string>;
+  reports?: TownSign[]; caller?: { name: string; x: number; y: number }; read?: Set<string>; notice?: NoticeMarkFrame;
 };
 
 export function drawTown(ctx: CanvasRenderingContext2D, art: Sheets, t: number, data: TownData): void {
@@ -149,18 +150,23 @@ export function drawTown(ctx: CanvasRenderingContext2D, art: Sheets, t: number, 
     for (const point of town.gatePosts) put("obj-fence-sign", "gate post", ...point);
   }
   if (caller) items.push({ y: caller.y, draw: () => {
-    art.draw(ctx, art.variant("hero-town", 3), "call", caller.x, caller.y - (Math.floor(t / 300) % 2));
+    const mark = data.notice?.id === caller.name ? data.notice : undefined;
+    drawNoticeHero(ctx, art, art.variant("hero-town", 3), "call", caller.x, caller.y - (Math.floor(t / 300) % 2), mark);
     art.draw(ctx, "ui-balloons", "exclamation", caller.x, caller.y - 59);
+    if (mark) mark.signTop = art.spriteTop("ui-balloons", "exclamation", caller.y - 59);
     label(ctx, caller.name, caller.x, caller.y + 13);
   } });
   for (const report of reports) items.push({ y: report.y, draw: () => {
-    art.draw(ctx, art.variant("hero-model", report.name.length % 5), "front", report.x, report.y);
-    const unread = !read?.has(report.name);
-    art.draw(ctx, "ui-report", report.icon, report.x, report.y - 56 - (unread ? Math.floor(t / 400) % 2 : 0));
+    const mark = data.notice?.id === report.name ? data.notice : undefined;
+    drawNoticeHero(ctx, art, art.variant("hero-model", report.name.length % 5), "front", report.x, report.y, mark);
+    const unread = !read?.has(report.name), signY = report.y - 56 - (unread ? Math.floor(t / 400) % 2 : 0);
+    art.draw(ctx, "ui-report", report.icon, report.x, signY);
     if (unread) art.draw(ctx, "ui-balloons", "exclamation", report.x + 16, report.y - 72);
+    if (mark) mark.signTop = Math.min(art.spriteTop("ui-report", report.icon, signY),
+      unread ? art.spriteTop("ui-balloons", "exclamation", report.y - 72) : Infinity);
     label(ctx, report.name, report.x, report.y + 13);
   } });
-  for (const walker of walkers) items.push({ y: walker.y, draw: () => drawWalker(ctx, art, walker, t) });
+  for (const walker of walkers) items.push({ y: walker.y, draw: () => drawWalker(ctx, art, walker, t, data.notice) });
   for (const item of items.sort((a, b) => a.y - b.y)) item.draw();
   drawWeather(ctx, art, theme, t);
   if (look.tint) { ctx.fillStyle = look.tint; ctx.fillRect(0, 0, TOWN_W, TOWN_H); }

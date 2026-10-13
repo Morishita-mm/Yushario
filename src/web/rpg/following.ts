@@ -3,6 +3,7 @@ import type { HeroPlace, TownHero } from "../../core/town";
 // The followed hero lives only in this page; Room still supplies its whereabouts.
 export class Following {
   private id: string | undefined;
+  get heroId(): string | undefined { return this.id; }
   private name = "";
   private readonly banner = document.querySelector<HTMLElement>("#following")!;
   private readonly label = document.querySelector<HTMLElement>("#following-name")!;

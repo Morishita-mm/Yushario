@@ -1,5 +1,6 @@
 import type { HeroPlace, TownHero } from "../../core/town";
 import type { Sheets } from "../town/sheets";
+import type { NoticeMarkFrame } from "../town/notice-mark";
 import { churchSlots } from "../town/church";
 import { innSlots } from "../town/inn";
 import type { Walker } from "../town/walkers";
@@ -25,10 +26,15 @@ export function reportSigns(art: Sheets, heroes: TownHero[], walkers: Walker[], 
 }
 
 export function drawReportSigns(ctx: CanvasRenderingContext2D, art: Sheets, time: number,
-  signs: ReturnType<typeof reportSigns>): void {
+  signs: ReturnType<typeof reportSigns>, notice?: NoticeMarkFrame): void {
   for (const sign of signs) {
     const wobble = sign.unread ? Math.sin(time / 140) * 3 : 0;
     art.draw(ctx, "ui-report", sign.frame, sign.x, sign.y + wobble, false, 0.65);
     if (sign.unread) art.draw(ctx, "ui-balloons", "exclamation", sign.x + 14, sign.y - 13 + wobble, false, 0.85);
+    if (notice?.id === sign.id) {
+      notice.signTop = art.spriteTop("ui-report", sign.frame, sign.y + wobble, 0.65);
+      if (sign.unread) notice.signTop = Math.min(notice.signTop,
+        art.spriteTop("ui-balloons", "exclamation", sign.y - 13 + wobble, 0.85));
+    }
   }
 }

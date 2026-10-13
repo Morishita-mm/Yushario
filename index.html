@@ -28,7 +28,33 @@
       <button id="terminals" type="button">ターミナル</button>
       <button id="roster" type="button">めいぼ</button>
       <button id="help" type="button">ヘルプ</button>
-      <button id="settings" type="button">せってい</button>
+      <div class="settings-buttons">
+        <button id="settings" type="button">せってい</button>
+        <button id="sound" type="button" data-mode="all" aria-label="おと：ぜんいん" disabled>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" shape-rendering="crispEdges" aria-hidden="true" focusable="false">
+            <rect x="1" y="6" width="3" height="4" />
+            <rect x="4" y="4" width="2" height="8" />
+            <rect x="6" y="2" width="2" height="12" />
+            <g class="sound-all">
+              <rect x="10" y="5" width="1" height="6" />
+              <rect x="12" y="3" width="1" height="2" />
+              <rect x="13" y="5" width="1" height="6" />
+              <rect x="12" y="11" width="1" height="2" />
+            </g>
+            <g class="sound-follow">
+              <rect x="11" y="3" width="2" height="6" />
+              <rect x="11" y="11" width="2" height="2" />
+            </g>
+            <g class="sound-off">
+              <rect x="10" y="5" width="2" height="2" />
+              <rect x="14" y="5" width="2" height="2" />
+              <rect x="12" y="7" width="2" height="2" />
+              <rect x="10" y="9" width="2" height="2" />
+              <rect x="14" y="9" width="2" height="2" />
+            </g>
+          </svg>
+        </button>
+      </div>
     </header>
     <main class="quest">
       <section class="stage">

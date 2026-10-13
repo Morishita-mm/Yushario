@@ -9,6 +9,7 @@ function rgb(hex: string): number {
 export class Sheets {
   private readonly images = new Map<string, Source>();
   private readonly entries = new Map<string, Entry>();
+  private readonly opaqueTops = new Map<string, number>();
 
   async load(): Promise<void> {
     const entries: Entry[] = await (await fetch("/art/manifest.json", { cache: "no-store" })).json();
@@ -72,6 +73,24 @@ export class Sheets {
 
   size(id: string): [number, number] {
     return this.entries.get(id)?.frame ?? [0, 0];
+  }
+
+  // First nontransparent row, not the padded frame edge. Colour variants share alpha.
+  spriteTop(id: string, name: string, y: number, scale = 1): number {
+    const base = id.split("~")[0], frame = this.index(base, name), entry = this.entry(base);
+    const key = `${base}:${frame}`;
+    let top = this.opaqueTops.get(key);
+    if (top === undefined) {
+      const [w, h] = entry.frame, canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(this.image(base)!, frame * w, 0, w, h, 0, 0, w, h);
+      const pixels = ctx.getImageData(0, 0, w, h).data;
+      const first = pixels.findIndex((alpha, i) => i % 4 === 3 && alpha > 0);
+      top = first < 0 ? h : Math.floor(first / (w * 4));
+      this.opaqueTops.set(key, top);
+    }
+    return Math.round(y) + Math.round(-entry.foot[1] * scale) + Math.round(top * scale);
   }
 
   // Aligns the frame's manifest foot with (x, y). Missing components/poses draw a placeholder box.

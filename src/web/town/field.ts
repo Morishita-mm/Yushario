@@ -2,6 +2,7 @@ import { battlePresentation, type EquipmentTiers } from "../../core/battle-prese
 import { weaponBesideLabel } from "./weapon";
 import type { Theme } from "./ambient";
 import type { Sheets } from "./sheets";
+import { drawNoticeHero, type NoticeMarkFrame } from "./notice-mark";
 
 // One field map (960×540), composed from the supplied battles.
 export const FIELD_W = 960;
@@ -27,7 +28,7 @@ function glow(ctx: CanvasRenderingContext2D, x: number, y: number, color: string
 }
 
 // A map-scale battle, both facing each other: the hero swings; on an "error" beat the monster strikes back.
-function battle(ctx: CanvasRenderingContext2D, art: Sheets, fight: Fight, t: number): void {
+function battle(ctx: CanvasRenderingContext2D, art: Sheets, fight: Fight, t: number, mark?: NoticeMarkFrame): void {
   const { x, y } = fight;
   const cycle = t % 4200;
   const enemyTurn = fight.demo ? cycle > 2600 && cycle < 3600 : Boolean(fight.counter);
@@ -40,7 +41,7 @@ function battle(ctx: CanvasRenderingContext2D, art: Sheets, fight: Fight, t: num
     const swing = Math.floor((t + i * 300) / 350) % 2 ? 0 : 1;
     art.draw(ctx, id, enemyTurn ? "right" : art.pose(id, "attack", swing), x - 34 - Math.floor(i / 2) * 28, y - 22 + (i % 2) * 38);
   });
-  art.draw(ctx, art.variant("hero-battle", fight.variant), heroFrame, x + (heroFrame === "slash" ? 4 : 0) - (heroFrame === "hurt" ? 3 : 0), y);
+  drawNoticeHero(ctx, art, art.variant("hero-battle", fight.variant), heroFrame, x + (heroFrame === "slash" ? 4 : 0) - (heroFrame === "hurt" ? 3 : 0), y, mark);
   if (enemyTurn) {
     const strike = cycle > 2950 && cycle < 3350;
     art.draw(ctx, side, art.pose(side, "attack", strike ? 1 : 0), mx - (strike && fight.monster !== "monster-dragon" ? 8 : 0), y);
@@ -65,9 +66,9 @@ function battle(ctx: CanvasRenderingContext2D, art: Sheets, fight: Fight, t: num
 
 // A won battle: the hero stands in victory and a chest is left where the monster fell.
 // The chest stays closed and sparkling until you open (click) it; then it shows the report.
-function victory(ctx: CanvasRenderingContext2D, art: Sheets, fight: Fight, t: number, read: boolean): void {
+function victory(ctx: CanvasRenderingContext2D, art: Sheets, fight: Fight, t: number, read: boolean, mark?: NoticeMarkFrame): void {
   const cx = fight.x + 46;
-  art.draw(ctx, art.variant("hero-battle", fight.variant), read ? "ready" : "victory", fight.x, fight.y);
+  drawNoticeHero(ctx, art, art.variant("hero-battle", fight.variant), read ? "ready" : "victory", fight.x, fight.y, mark);
   art.draw(ctx, "ui-report", read ? "treasure chest open glowing" : "treasure chest closed", cx, fight.y);
   if (!read) {
     if (Math.floor(t / 300) % 2) art.draw(ctx, "fx-battle", art.pose("fx-battle", "spell", Math.floor(t / 150) % 3), cx, fight.y - 10);
@@ -85,7 +86,7 @@ export const FIELD_EXITS: Record<Theme, { to: "town" | Theme; text: string; x: n
   forest: [{ to: "town", text: "◀ まち", x: 46, y: 250 }, { to: "meadow", text: "そうげん ▶", x: 906, y: 91 }, { to: "cave", text: "どうくつ ▶", x: 906, y: 455 }],
 };
 
-export function drawField(ctx: CanvasRenderingContext2D, art: Sheets, theme: Theme, t: number, fights: Fight[], read = new Set<string>(), overflow = 0): void {
+export function drawField(ctx: CanvasRenderingContext2D, art: Sheets, theme: Theme, t: number, fights: Fight[], read = new Set<string>(), overflow = 0, notice?: NoticeMarkFrame): void {
   const backdrop = `bg-field-${theme}`;
   const field = art.entry(backdrop).field!;
   ctx.drawImage(art.image(backdrop)!, 0, 0);
@@ -104,8 +105,9 @@ export function drawField(ctx: CanvasRenderingContext2D, art: Sheets, theme: The
   }
   ctx.restore();
   for (const fight of [...fights].sort((a, b) => a.y - b.y)) {
-    if (fight.done) victory(ctx, art, fight, t, read.has(fight.name));
-    else battle(ctx, art, fight, t + fight.x * 7);
+    const mark = notice?.id === fight.id ? notice : undefined;
+    if (fight.done) victory(ctx, art, fight, t, read.has(fight.name), mark);
+    else battle(ctx, art, fight, t + fight.x * 7, mark);
   }
 
   if (theme === "meadow") {

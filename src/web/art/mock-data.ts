@@ -23,7 +23,7 @@ export const FIGHTS: Record<Theme, Fight[]> = {
     { x: 640, y: 170, name: "t21-build", level: 5, variant: 4, monster: "monster-ghost", target: "npm run build", party: [], fx: "curse", done: true },
   ],
 };
-for (const fights of Object.values(FIGHTS)) for (const fight of fights) { fight.demo = true; fight.damage = { hero: 23, enemy: 12 }; }
+for (const fights of Object.values(FIGHTS)) for (const fight of fights) { fight.id = fight.name; fight.demo = true; fight.damage = { hero: 23, enemy: 12 }; }
 
 export const PROJECTS: Project[] = [
   { repo: "agent-character", theme: "village", heroes: 18, fighting: 7, unread: 5, calling: true },
@@ -104,4 +104,12 @@ export function walkTown(art: Sheets, t: number): void {
   const departed = stepWalkers(art, walkers, t, Math.min(100, t - last));
   last = t;
   for (const walker of departed) ROSTER.unshift({ name: walker.name, repo: "agent-character", left: "いま", last: "ほうこくは ありません" });
+}
+
+// Where a mock notice's hero is drawn.
+export function heroPlace(name: string): "town" | "inn" | "church" | Theme | undefined {
+  if (townHeroes().some((hero) => hero.name === name)) return "town";
+  if (SLEEPERS.includes(name)) return "inn";
+  if (PRAYERS.some((prayer) => prayer.name === name)) return "church";
+  return (["meadow", "cave", "forest"] as const).find((theme) => FIGHTS[theme].some((fight) => fight.name === name));
 }

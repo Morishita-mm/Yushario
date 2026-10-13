@@ -13,13 +13,13 @@ import { initExpedition } from "./expedition";
 import { initTerminals } from "./terminals";
 import { initHelp } from "./help";
 import { initTitleScreen } from "./title-screen";
+import { initSound, notifySound } from "./sound";
 import { initTalk } from "./talk";
 import { initNotices } from "./notices";
 import { loadNames, parseNames } from "./names";
 import "./rpg.css";
 import "./talk.css";
 
-initTitleScreen();
 const token = new URLSearchParams(location.search).get("token") ?? "";
 const canvas = document.querySelector<HTMLCanvasElement>("#world")!;
 const connectionLabel = document.querySelector<HTMLElement>("#connection")!;
@@ -33,6 +33,8 @@ const scene = new Scene(canvas, document.querySelector<HTMLElement>("#town-layer
   (id) => status.openDetails(room, Date.now(), id, scene.names),
   (text, at) => messages.say(text, at), (id) => actions.options(id), (terminal) => equipment.tiers(terminal));
 const messages = new Messages(document.querySelector<HTMLElement>("#messages")!, (id) => scene.names.get(id));
+const soundLoaded = initSound((text) => messages.say(text));
+initTitleScreen();
 let room = new Room();
 let socket: WebSocket | undefined;
 const expedition = initExpedition(() => scene.currentTown, (terminal) => {
@@ -88,20 +90,27 @@ function parse(input: unknown, at: unknown): { event: AgentEvent; at: number } |
 }
 
 const endedTerminals = new Set<string>();
+const endedAgents = new Set<string>(); // Sound only: Room may recreate a hero from a late hook.
 function currentTerminal(event: AgentEvent): boolean {
-  if (!event.terminal) return true;
-  if (endedTerminals.has(event.terminal)) return false;
-  const previous = room.agents.get(event.agent ?? "default")?.terminal;
-  if (previous && previous !== event.terminal) {
-    if (event.hook !== "SessionStart" || event.subagent) return false;
-    endedTerminals.add(previous);
+  if (event.terminal) {
+    if (endedTerminals.has(event.terminal)) return false;
+    const previous = room.agents.get(event.agent ?? "default")?.terminal;
+    if (previous && previous !== event.terminal) {
+      if (event.hook !== "SessionStart" || event.subagent) return false;
+      endedTerminals.add(previous);
+    }
+    if (event.hook === "SessionEnd" && !event.subagent) endedTerminals.add(event.terminal);
   }
-  if (event.hook === "SessionEnd" && !event.subagent) endedTerminals.add(event.terminal);
+  if (!event.subagent) {
+    const id = event.agent ?? "default";
+    if (event.hook === "SessionEnd") endedAgents.add(id);
+    if (event.hook === "SessionStart") endedAgents.delete(id);
+  }
   return true;
 }
 
 // A live event: update the world, then tell it as a story.
-function live(event: AgentEvent, at: number): void {
+function live(event: AgentEvent, at: number, audible: boolean): void {
   if (!currentTerminal(event)) return;
   const before = room.agents.get(event.agent ?? "default");
   const level = before ? stats(before, at).level : 1;
@@ -119,6 +128,7 @@ function live(event: AgentEvent, at: number): void {
     const name = scene.names.get(agent!.id) ?? agent!.name;
     messages.say(`${name}は レベル${stats(agent!, at).level}に あがった！`, at, false, { id: agent!.id, name });
   }
+  notifySound({ type: "event", event, levelUp, ended: endedAgents.has(event.agent ?? "default") }, audible, scene.followedId);
 }
 
 function permission(value: Record<string, unknown>): Permission | undefined {
@@ -139,7 +149,7 @@ function connect(): void {
       if (data.type === "replay" && Array.isArray(data.events)) {
         // Rebuild who is in town; retell only the last few lines.
         room = new Room();
-        talk.resetPending(); actions.reset(); equipment.reset(); endedTerminals.clear();
+        talk.resetPending(); actions.reset(); equipment.reset(); endedTerminals.clear(); endedAgents.clear();
         void equipment.refresh().catch((error: Error) => messages.say(error.message));
         const told: [AgentEvent, number][] = [];
         for (const item of data.events) {
@@ -167,14 +177,18 @@ function connect(): void {
         equipment.setPending(data.terminal, data.equipment);
       } else if (data.type === "attention" && typeof data.terminal === "string" && data.reason === "trust") {
         if (![...room.agents.values()].some((agent) => agent.terminal === data.terminal)) talk.attention(data.terminal);
+        notifySound({ type: "attention", reason: data.reason }, data.live !== false, scene.followedId);
       } else if (data.type === "equipped" && typeof data.session?.id === "string") {
         equipment.changed(data.session);
       } else if (data.type === "event") {
         const parsed = parse(data.event, data.at);
-        if (parsed) live(parsed.event, parsed.at);
+        if (parsed) live(parsed.event, parsed.at, data.live !== false);
       } else if (data.type === "permission") {
         const request = permission(data);
-        if (request) status.permissions.set(request.id, request);
+        if (request) {
+          notifySound({ type: "permission", ...request }, data.live !== false, scene.followedId);
+          status.permissions.set(request.id, request);
+        }
       } else if (data.type === "permission-resolved") {
         status.permissions.delete(data.id);
       }
@@ -216,6 +230,7 @@ void scene.load().then(async () => {
   }
   try { namesChanged(await loadNames()); }
   catch (error) { messages.say("勇者の なまえを よみこめませんでした。", undefined, true); console.warn(error); }
+  await soundLoaded;
   connect();
   requestAnimationFrame(frame);
 }).catch((error: unknown) => {

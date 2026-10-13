@@ -2,6 +2,7 @@ import { label } from "./field";
 import type { Sheets } from "./sheets";
 import { weaponBesideLabel } from "./weapon";
 import { TOWN_H, TOWN_W } from "./town";
+import { drawNoticeHero, type NoticeMarkFrame } from "./notice-mark";
 
 // Read the same art placements for drawing, commands and report signs.
 export const churchSlots = (art: Sheets) => art.entry("church-wall").church!.slots;
@@ -12,9 +13,9 @@ export const PRIEST_LINES = [
   "MPが へってきたら ここで いのりなさい。",
   "ひとやすみは 勇者の「やすむ」から。",
 ] as const;
-type Prayer = { name: string; variant: number; weaponTier?: number };
+type Prayer = { id?: string; name: string; variant: number; weaponTier?: number };
 
-export function drawChurch(ctx: CanvasRenderingContext2D, art: Sheets, t: number, prayers: Prayer[]): void {
+export function drawChurch(ctx: CanvasRenderingContext2D, art: Sheets, t: number, prayers: Prayer[], notice?: NoticeMarkFrame): void {
   const room = art.entry("church-wall").church!, floor = room.floor;
   ctx.fillStyle = "#1d1726";
   ctx.fillRect(0, 0, TOWN_W, TOWN_H);
@@ -47,7 +48,7 @@ export function drawChurch(ctx: CanvasRenderingContext2D, art: Sheets, t: number
   const [, prayerH] = art.entry("hero-pray").foot;
   prayers.slice(0, room.slots.length).forEach((prayer, i) => {
     const [x, y] = room.slots[i];
-    art.draw(ctx, art.variant("hero-pray", prayer.variant), art.pose("hero-pray", "prayer", Math.floor((t + i * 120) / 360) % 2), x, y);
+    drawNoticeHero(ctx, art, art.variant("hero-pray", prayer.variant), art.pose("hero-pray", "prayer", Math.floor((t + i * 120) / 360) % 2), x, y, notice?.id === prayer.id ? notice : undefined);
     art.draw(ctx, "ui-prayer-balloon", "praying hands", x + 20, y - prayerH - 4 + (Math.floor((t + i * 400) / 500) % 2));
     label(ctx, prayer.name, x, y + 14);
     weaponBesideLabel(ctx, art, prayer.weaponTier, t, prayer.name, x, y + 14);

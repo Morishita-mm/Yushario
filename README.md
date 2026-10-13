@@ -43,6 +43,7 @@ Agents work in a terminal: useful, but easy to lose track of once several are ru
 - **Work as battles** — the field shows what the agent is doing; Lv, HP and MP sum up finished work, recent failures and remaining context.
 - **Party of subagents** — each subagent joins as a companion: Explore is a thief, Plan a priest, general-purpose a warrior, and your own custom agents are mages.
 - **Talk and reports** — send requests, read reports, and answer Claude Code permission requests without leaving the town.
+- **Notification sounds** — top-bar button: all heroes / followed hero only (permissions from everyone) / off. Gentle cues for permissions, reports, failures and level-ups only.
 - **Rest and pray** — idle heroes doze at the inn; context compaction happens at the church.
 - **Your real terminal, built in** — open the same CLI session at any time. Yushario never replaces your agent.
 

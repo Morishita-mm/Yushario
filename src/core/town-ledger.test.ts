@@ -1,10 +1,47 @@
 import { describe, expect, it } from "vitest";
-import { activateTown, archiveTowns, DAY_MS, registerTown, type TownRecord } from "./town-ledger";
+import { activateTown, archiveTowns, DAY_MS, registerTown, storedSettings, validSettings, type TownRecord } from "./town-ledger";
 
 const now = 100 * DAY_MS;
 function town(overrides: Partial<TownRecord> = {}): TownRecord {
   return { name: "repo", path: "/repo", firstSeenAt: 0, lastActiveAt: 0, pinned: false, ...overrides };
 }
+
+describe("town settings", () => {
+  it("loads old files and migrates boolean sound without changing the input or archive days", () => {
+    expect(storedSettings({ archiveAfterDays: 7 })).toEqual({ archiveAfterDays: 7, sound: "all" });
+    for (const sound of [true, false]) {
+      const input = Object.freeze({ archiveAfterDays: 0, sound });
+      expect(storedSettings(input)).toEqual({ archiveAfterDays: 0, sound: sound ? "all" : "off" });
+      expect(validSettings(input)).toBe(false); // Legacy booleans are for reading files, not new API saves.
+    }
+  });
+
+  it("accepts all three modes and integer days in range for saves and stored files", () => {
+    for (const sound of ["all", "follow", "off"]) {
+      for (const archiveAfterDays of [0, 30, 365]) {
+        const input = { archiveAfterDays, sound };
+        expect(validSettings(input)).toBe(true);
+        expect(storedSettings(input)).toEqual(input);
+      }
+    }
+    expect(validSettings({ archiveAfterDays: 30 })).toBe(false);
+  });
+
+  it("rejects invalid sound, days and extra keys, including in legacy files", () => {
+    for (const input of [null, [], {}, { sound: "all" },
+      { archiveAfterDays: -1, sound: "all" }, { archiveAfterDays: 366, sound: "all" },
+      { archiveAfterDays: 1.5, sound: "all" }, { archiveAfterDays: "30", sound: "all" },
+      { archiveAfterDays: NaN, sound: "all" }, { archiveAfterDays: Infinity, sound: "all" },
+      { archiveAfterDays: 30, sound: "false" }, { archiveAfterDays: 30, sound: 0 },
+      { archiveAfterDays: 30, sound: null }, { archiveAfterDays: 30, sound: undefined },
+      { archiveAfterDays: 30, sound: ["all"] }, { archiveAfterDays: 30, sound: "ALL" },
+      { archiveAfterDays: 30, sound: "all", extra: true }, { archiveAfterDays: 30, extra: true },
+      { archiveAfterDays: 30, sound: true, extra: true }, { archiveAfterDays: -1, sound: false }]) {
+      expect(validSettings(input)).toBe(false);
+      expect(storedSettings(input)).toBeUndefined();
+    }
+  });
+});
 
 describe("town ledger", () => {
   it("registers a new project once with its directory and timestamps", () => {
