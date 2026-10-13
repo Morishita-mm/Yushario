@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Morishita-mm/agent-character/main/public/logo/title.png" width="560" alt="Yushario" />
+  <img src="public/logo/title.png" width="560" alt="Yushario" />
 </p>
 
 <p align="center">
@@ -22,13 +22,13 @@
 Yushario は、コーディングエージェントの仕事を小さな RPG として見せるローカルのブラウザアプリです。セッションは勇者に、プロジェクトは町になります。編集・テスト・コマンドは戦闘に、サブエージェントは仲間に、終わった仕事は開けられる宝箱になって届きます。
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Morishita-mm/agent-character/main/docs/images/town.gif" alt="5種類の町を歩く勇者たち" width="720" />
+  <img src="docs/images/town.gif" alt="5種類の町を歩く勇者たち" width="720" />
   <br/>
   <sub><em>プロジェクトごとに町ができます。村・港・雪・砂漠・火山の5種類。</em></sub>
 </p>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Morishita-mm/agent-character/main/docs/images/party.gif" alt="勇者と4人の仲間がドラゴンに挑む" width="720" />
+  <img src="docs/images/party.gif" alt="勇者と4人の仲間がドラゴンに挑む" width="720" />
   <br/>
   <sub><em>サブエージェントに任せた仕事は、仲間が一緒に戦います。</em></sub>
 </p>

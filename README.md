@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Morishita-mm/agent-character/main/public/logo/title.png" width="560" alt="Yushario" />
+  <img src="public/logo/title.png" width="560" alt="Yushario" />
 </p>
 
 <p align="center">
@@ -22,13 +22,13 @@
 Yushario is a local browser app that watches your coding agents and plays their work as a small RPG. Each session is a hero. Each project is a town. Edits, tests and commands become battles; subagents join the party; finished work arrives as a treasure chest you can open.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Morishita-mm/agent-character/main/docs/images/town.gif" alt="Heroes walking around towns of five styles" width="720" />
+  <img src="docs/images/town.gif" alt="Heroes walking around towns of five styles" width="720" />
   <br/>
   <sub><em>Every project gets its own town — village, port, snow, desert or volcano.</em></sub>
 </p>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Morishita-mm/agent-character/main/docs/images/party.gif" alt="A hero and four companions facing a dragon" width="720" />
+  <img src="docs/images/party.gif" alt="A hero and four companions facing a dragon" width="720" />
   <br/>
   <sub><em>Delegate work to subagents and they fight beside your hero.</em></sub>
 </p>
