@@ -1,3 +1,4 @@
+import { tr } from "../language";
 import type { TownTheme } from "./themes";
 import type { Sheets } from "./sheets";
 
@@ -62,7 +63,7 @@ export function plate(ctx: CanvasRenderingContext2D, lines: [string, string, num
 const sum = (ps: Project[], key: "heroes" | "fighting" | "unread") => ps.reduce((n, p) => n + p[key], 0);
 
 export function regionName(theme: TownTheme): string {
-  return { village: "草原の村", port: "港町", snow: "雪国", desert: "砂漠", volcano: "火山" }[theme];
+  return { village: tr("草原の村", "Meadow Village"), port: tr("港町", "Port"), snow: tr("雪国", "Snow"), desert: tr("砂漠", "Desert"), volcano: tr("火山", "Volcano") }[theme];
 }
 
 // Draws the map; returns the box of the "sleeping towns" plate so it can be clicked.
@@ -93,7 +94,7 @@ export function drawWorld(ctx: CanvasRenderingContext2D, art: Sheets, t: number,
     plate(ctx, [[title, "#ffffff", 10], [badges, "#ffe7a3", 8]], x, y + 14);
     if (projects.some((p) => p.calling)) art.draw(ctx, "ui-balloons", "exclamation", x + 16, y - 22 - (Math.floor(t / 400) % 2));
   }
-  plate(ctx, [["ワールドマップ", "#fff7d6", 12]], w / 2, 6);
+  plate(ctx, [[tr("ワールドマップ", "WORLD MAP"), "#fff7d6", 12]], w / 2, 6);
   const asleep = sleeping(towns).length; // Zero-count plates stay hidden and unclickable.
-  return asleep ? plate(ctx, [[`💤 ねむっている町 ${asleep}`, "#c9c3dc", 9]], w - 72, h - 24) : { x: -1, y: -1, w: 0, h: 0 };
+  return asleep ? plate(ctx, [[tr(`💤 ねむっている町 ${asleep}`, `💤 SLEEPING TOWNS ${asleep}`), "#c9c3dc", 9]], w - 72, h - 24) : { x: -1, y: -1, w: 0, h: 0 };
 }

@@ -1,3 +1,4 @@
+import { tr } from "../language";
 import { battlePresentation, type EquipmentTiers } from "../../core/battle-presentation";
 import { drawWeapon } from "./weapon";
 import type { Ambient, Theme } from "./ambient";
@@ -86,13 +87,13 @@ export function drawFocus(ctx: CanvasRenderingContext2D, art: Sheets, focus: Foc
     windowBox(ctx, x, 6, w, 34);
     line(ctx, status.name, x + 8, 19, 8);
     if (i === 0) drawWeapon(ctx, art, focus.weaponTier, t, x + w - art.size("ui-weapons")[0] / 2 - 3, 23);
-    const values = status.hp === undefined ? "なかま" : `HP ${Math.round(status.hp * 100)}  MP ${Math.round((status.mp ?? 1) * 100)}`;
+    const values = status.hp === undefined ? tr("なかま", "Ally") : `HP ${Math.round(status.hp * 100)}  MP ${Math.round((status.mp ?? 1) * 100)}`;
     line(ctx, values, x + 8, 32, 7, "#c9c3dc");
   });
   windowBox(ctx, 6, H - 46, W - 12, 40);
   const charging = !counter && !victory && c > 500 && c < strikeAt && effects.charging;
   const critical = !counter && heroHit && effects.critical;
-  const message = charging ? `ちからを ためている…\n${focus.message.split("\n")[1] ?? ""}`
-    : critical ? `かいしんの いちげき！\n${focus.name}に ${effects.damage}の ダメージ！` : focus.message;
+  const message = charging ? tr(`ちからを ためている…\n${focus.message.split("\n")[1] ?? ""}`, `Charging…\n${focus.message.split("\n")[1] ?? ""}`)
+    : critical ? tr(`かいしんの いちげき！\n${focus.name}に ${effects.damage}の ダメージ！`, `Critical hit!\n${effects.damage} damage to ${focus.name}!`) : focus.message;
   message.split("\n").forEach((row, i) => line(ctx, row, 16, H - 28 + i * 14, 10));
 }

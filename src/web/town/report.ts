@@ -1,3 +1,4 @@
+import { tr } from "../language";
 export type Report = { title: string; who: string; rows: [string, string][]; reply: string };
 
 function element<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] {
@@ -16,17 +17,17 @@ export function showReport(root: HTMLElement, name: string, report: Report, onCl
   box.append(element("h3", undefined, report.title), element("p", "who", report.who));
   const table = element("dl");
   for (const [key, value] of report.rows) table.append(element("dt", undefined, key), element("dd", undefined, value));
-  box.append(table, element("h4", undefined, "さいごの へんじ"), element("p", "reply", report.reply));
+  box.append(table, element("h4", undefined, tr("さいごの へんじ", "Last reply")), element("p", "reply", report.reply));
   const sent = element("div", "thread");
-  const renderThread = () => sent.replaceChildren(...(threads.get(name) ?? []).map((text) => element("p", "mine", `あなた：${text}`)));
+  const renderThread = () => sent.replaceChildren(...(threads.get(name) ?? []).map((text) => element("p", "mine", tr(`あなた：${text}`, `You: ${text}`))));
   renderThread();
   box.append(sent);
-  if (report.title === "へんじ") {
+  if (report.title === tr("へんじ", "Reply")) {
     const form = element("form", "answer");
     const input = element("textarea");
     input.rows = 3;
-    input.placeholder = `${name} に へんじを かく（Ctrl+Enter で おくる）`;
-    const send = element("button", undefined, "▶ おくる");
+    input.placeholder = tr(`${name} に へんじを かく（Ctrl+Enter で おくる）`, `Reply to ${name} (Ctrl+Enter to send)`);
+    const send = element("button", undefined, tr("▶ おくる", "▶ Send"));
     send.type = "submit";
     form.append(input, send);
     form.addEventListener("submit", (event) => {
@@ -44,10 +45,10 @@ export function showReport(root: HTMLElement, name: string, report: Report, onCl
     setTimeout(() => input.focus(), 0);
   }
   const actions = element("div", "actions");
-  const close = element("button", undefined, "▶ とじる");
+  const close = element("button", undefined, tr("▶ とじる", "▶ Close"));
   close.type = "button";
   close.addEventListener("click", () => { root.hidden = true; onClose(); });
-  const terminal = element("button", undefined, "▶ ターミナルで ひらく");
+  const terminal = element("button", undefined, tr("▶ ターミナルで ひらく", "▶ Open terminal"));
   terminal.type = "button";
   terminal.disabled = true;
   actions.append(close, terminal);

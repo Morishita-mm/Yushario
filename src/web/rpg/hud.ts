@@ -1,3 +1,4 @@
+import { clock, language, tr } from "../language";
 import { moods, type Room, type RoomAgent } from "../../core/room";
 import type { AgentEvent } from "../../core/events";
 import { narrate, stats } from "../../core/story";
@@ -65,14 +66,14 @@ export class Status {
     if (!this.detailed) return;
     const agent = room.agents.get(this.detailed);
     const name = names.get(this.detailed) ?? agent?.name ?? this.detailed;
-    document.querySelector<HTMLElement>("#strength-title")!.textContent = `${name}の つよさ`;
+    document.querySelector<HTMLElement>("#strength-title")!.textContent = tr(`${name}の つよさ`, `${name}'s status`);
     this.rename.available(Boolean(agent));
     const signature = agent ? this.signature(agent, now, name, undefined, true) : "departed";
     if (signature === this.detailSignature) return;
     this.detailSignature = signature;
     const scroll = this.details.scrollTop;
     this.details.replaceChildren(agent ? this.card(agent, now, name, undefined, true)
-      : element("p", "hint", "この勇者は たびだちました。"));
+      : element("p", "hint", tr("この勇者は たびだちました。", "This hero has set off.")));
     this.details.scrollTop = scroll;
   }
 
@@ -91,7 +92,7 @@ export class Status {
       const towns = new Map<string, RoomAgent[]>();
       for (const agent of agents) towns.set(agent.project ?? agent.name, [...(towns.get(agent.project ?? agent.name) ?? []), agent]);
       this.list.replaceChildren(...[...towns].sort(([a], [b]) => a.localeCompare(b)).flatMap(([town, members]) => [
-        element("h3", "party-town", `${town}（${members.length}人）`),
+        element("h3", "party-town", tr(`${town}（${members.length}人）`, `${town} (${members.length} heroes)`)),
         ...members.map((agent) => compactRow(agent, now, names.get(agent.id) ?? agent.name, agent === chosen, waiting(agent.id), () => this.commands(agent.id))),
       ]));
     }
@@ -113,7 +114,7 @@ export class Status {
       const project = agent?.project ?? agent?.name;
       cards.push(this.permissionBlock(permission, project === undefined ? name : `${name} — ${project}`, agent?.terminal));
     }
-    if (!cards.length) cards.push(element("p", "empty window", "まだ だれも いない ようだ…"));
+    if (!cards.length) cards.push(element("p", "empty window", tr("まだ だれも いない ようだ…", "No heroes here yet…")));
     if (cards.length !== this.root.children.length || cards.some((card, index) => this.root.children[index] !== card)) this.root.replaceChildren(...cards);
     for (const id of this.signatures.keys()) if (!room.agents.has(id)) this.signatures.delete(id);
   }
@@ -126,9 +127,9 @@ export class Status {
   private permissionBlock(permission: Permission, heading?: string, terminal?: string): HTMLElement {
     const block = element("div", "permission");
     if (heading) block.append(element("h3", "section", heading));
-    block.append(element("p", undefined, `「${permission.summary}」\nを おこなっても よいですか？`));
+    block.append(element("p", undefined, tr(`「${permission.summary}」\nを おこなっても よいですか？`, `Allow "${permission.summary}"?`)));
     const actions = element("div", "actions");
-    for (const [label, decision] of [["はい", "allow"], ["いいえ", "deny"], ["ターミナルで こたえる", "terminal"]] as const) {
+    for (const [label, decision] of [[tr("はい", "Yes"), "allow"], [tr("いいえ", "No"), "deny"], [tr("ターミナルで こたえる", "Answer in terminal"), "terminal"]] as const) {
       const button = element("button", undefined, `▶ ${label}`); button.type = "button";
       button.addEventListener("click", (event) => {
         event.stopPropagation(); this.respond(permission.id, decision);
@@ -146,13 +147,13 @@ export class Messages {
   constructor(private readonly root: HTMLElement, private readonly name: (id: string) => string | undefined) {}
 
   say(text: string, at?: number, instant = false, hero?: { id: string; name: string }): void {
-    const time = at === undefined ? "" : `${new Date(at).toLocaleTimeString("ja-JP", { hour12: false, hour: "2-digit", minute: "2-digit" })}  `;
+    const time = at === undefined ? "" : `${clock(at)}  `;
     this.lines.push({ time, text, shown: instant ? text.length : 0, hero });
     if (this.lines.length > 4) this.lines.shift();
   }
 
   event(event: AgentEvent, at: number, instant = false, previousContext?: number): void {
-    const text = narrate({ ...event, name: this.name(event.agent ?? "default") ?? event.name }, previousContext);
+    const text = narrate({ ...event, name: this.name(event.agent ?? "default") ?? event.name }, previousContext, language);
     if (!text) return;
     this.say(text, at, instant);
     const line = this.lines[this.lines.length - 1]!;
@@ -161,7 +162,7 @@ export class Messages {
 
   tick(): void {
     for (const line of this.lines) {
-      const text = line.event ? narrate({ ...line.event, name: this.name(line.event.agent ?? "default") ?? line.event.name }, line.previousContext)!
+      const text = line.event ? narrate({ ...line.event, name: this.name(line.event.agent ?? "default") ?? line.event.name }, line.previousContext, language)!
         : line.hero ? line.text.replace(line.hero.name, this.name(line.hero.id) ?? line.hero.name) : line.text;
       if (text !== line.text) {
         if (line.shown >= line.text.length) line.shown = text.length;

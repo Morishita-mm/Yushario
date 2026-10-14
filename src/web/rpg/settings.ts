@@ -1,21 +1,22 @@
+import { language, tr } from "../language";
 import { windowBox } from "../town/herald";
 import { loadSettings, saveSettings } from "./ledger";
 
 const DAYS = [0, 7, 14, 30, 90];
-const dayLabel = (days: number) => days === 0 ? "しまわない" : `${days}日`;
+const dayLabel = (days: number) => days === 0 ? tr("しまわない", "Never") : tr(`${days}日`, `${days} days`);
 
 // The settings window: loads once when opened; a choice is saved at once.
 export function showSettings(layer: HTMLElement): void {
-  const box = windowBox(layer, "せってい", () => undefined);
+  const box = windowBox(layer, tr("せってい", "Settings"), () => undefined);
   const field = document.createElement("fieldset");
   field.id = "archive-days";
   const legend = document.createElement("legend");
-  legend.textContent = "町を しまうまで";
+  legend.textContent = tr("町を しまうまで", "Archive towns after");
   field.append(legend);
   const status = document.createElement("p");
   status.className = "settings-status";
   status.setAttribute("role", "status");
-  status.textContent = "よみこみ中…";
+  status.textContent = tr("よみこみ中…", "Loading…");
   let touched = false; // a choice made before loading finishes wins over the loaded value
   const radios = DAYS.map((days) => {
     const label = document.createElement("label");
@@ -26,20 +27,34 @@ export function showSettings(layer: HTMLElement): void {
     input.addEventListener("change", () => {
       touched = true;
       field.disabled = true;
-      status.textContent = "ほぞん中…";
+      status.textContent = tr("ほぞん中…", "Saving…");
       saveSettings({ archiveAfterDays: days })
-        .then(() => { status.textContent = `${dayLabel(days)}に しました。`; })
-        .catch(() => { input.checked = false; status.textContent = "ほぞんできませんでした。もういちど おためしください。"; })
+        .then(() => { status.textContent = tr(`${dayLabel(days)}に しました。`, `Set to ${dayLabel(days)}.`); })
+        .catch(() => { input.checked = false; status.textContent = tr("ほぞんできませんでした。もういちど おためしください。", "Could not save. Try again."); })
         .finally(() => { field.disabled = false; });
     });
     label.append(input, document.createTextNode(dayLabel(days)));
     field.append(label);
     return input;
   });
-  box.append(field, status);
+  const langLabel = document.createElement("label");
+  langLabel.textContent = tr("言語 ", "Language ");
+  const select = document.createElement("select");
+  select.id = "settings-language";
+  select.append(new Option("日本語", "ja"), new Option("English", "en"));
+  select.value = language;
+  select.addEventListener("change", () => {
+    select.disabled = true;
+    void saveSettings({ language: select.value as "ja" | "en" }).then(() => location.reload()).catch(() => {
+      select.disabled = false; select.value = language;
+      status.textContent = tr("ほぞんできませんでした。もういちど おためしください。", "Could not save. Try again.");
+    });
+  });
+  langLabel.append(select);
+  box.append(langLabel, field, status);
   loadSettings().then((settings) => {
     if (touched) return;
     for (const radio of radios) radio.checked = Number(radio.value) === settings.archiveAfterDays;
     status.textContent = "";
-  }).catch(() => { if (!touched) status.textContent = "せっていを よみこめませんでした。"; });
+  }).catch(() => { if (!touched) status.textContent = tr("せっていを よみこめませんでした。", "Could not load settings."); });
 }

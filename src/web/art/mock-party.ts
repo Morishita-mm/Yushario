@@ -1,3 +1,4 @@
+import { tr } from "../language";
 import { moods, Room } from "../../core/room";
 import type { AgentEvent } from "../../core/events";
 import { compactRow, element, statusCard } from "../rpg/status-card";
@@ -19,13 +20,13 @@ export function renderMockParty(root: HTMLElement, town: string, selected: strin
     if (places.has(fight.name)) continue; // A name already shown in town.
     hook(fight.name, theme, now);
     const tool = theme === "meadow" ? { tool: "Edit", target: fight.target } : { tool: "Bash", target: fight.target };
-    hook(fight.name, theme, now, fight.done ? { state: "success", hook: "Stop", text: "おわりました。" } : { state: "working", hook: "PreToolUse", ...tool });
+    hook(fight.name, theme, now, fight.done ? { state: "success", hook: "Stop", text: tr("おわりました。", "Done.") } : { state: "working", hook: "PreToolUse", ...tool });
   }
   for (const name of SLEEPERS) hook(name, "inn", now - DOZING);
   for (const prayer of PRAYERS) { hook(prayer.name, "church", now); hook(prayer.name, "church", now, { state: "working", hook: "PreCompact" }); }
   const agents = [...room.agents.values()], chosen = agents.find((agent) => agent.id === selected) ?? agents[0];
   const list = element("div", "party-list");
-  list.append(element("h3", "party-town", `${town}（${agents.length}人）`),
+  list.append(element("h3", "party-town", tr(`${town}（${agents.length}人）`, `${town} (${agents.length} heroes)`)),
     ...agents.map((agent) => compactRow(agent, now, agent.name, agent === chosen, false, () => pick(agent.id, places.get(agent.id)!))));
   root.replaceChildren(list, ...(chosen ? [statusCard(chosen, moods(chosen, now), undefined, now, chosen.name, false, () => undefined, () => undefined)] : []));
   return agents.length;

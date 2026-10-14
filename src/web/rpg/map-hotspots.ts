@@ -1,3 +1,4 @@
+import { tr } from "../language";
 import type { TownTheme } from "../town/themes";
 import type { HeroPlace, TownHero } from "../../core/town";
 import { FIELD_EXITS } from "../town/field";
@@ -16,7 +17,7 @@ export function localHotspots(art: Sheets, place: HeroPlace, heroes: TownHero[],
     const room = art.entry("bg-inn").inn!, slots = innSlots(art), [dx, dy, w, h] = room.hit;
     const sleepers = heroes.filter((hero) => hero.place === "inn").slice(0, slots.length);
     return [...sleepers.map((hero, i) => ({ x: slots[i][0] + dx, y: slots[i][1] + dy, w, h, act: () => commands(hero.id, ...slots[i]) })),
-      { ...room.exit, text: "▼ そとへ", act: () => go("town") }];
+      { ...room.exit, text: tr("▼ そとへ", "▼ Exit"), act: () => go("town") }];
   }
   if (place === "church") {
     const room = art.entry("bg-church").church!, slots = churchSlots(art), [dx, dy, w, h] = room.hit;
@@ -24,7 +25,7 @@ export function localHotspots(art: Sheets, place: HeroPlace, heroes: TownHero[],
     return [{ ...churchPriest(art), act: priest }, ...prayers.map((hero, i) => {
       const [x, y] = slots[i];
       return { x: x + dx, y: y + dy, w, h, act: () => commands(hero.id, x, y) };
-    }), { ...room.exit, text: "▼ そとへ", act: () => go("town") }];
+    }), { ...room.exit, text: tr("▼ そとへ", "▼ Exit"), act: () => go("town") }];
   }
   if (place === "town") {
     const spots = [
@@ -37,7 +38,7 @@ export function localHotspots(art: Sheets, place: HeroPlace, heroes: TownHero[],
     if (gateMenu) for (const [i, theme] of (["meadow", "cave", "forest"] as const).entries()) spots.push({
       x: 410, y: 404 + i * 20, w: 140, h: 18, text: `▶ ${FIELD_NAMES[theme]}`, act: () => go(theme),
     });
-    else spots.push({ x: 430, y: 488, w: 100, h: 52, text: "▼ フィールドへ", act: openGate });
+    else spots.push({ x: 430, y: 488, w: 100, h: 52, text: tr("▼ フィールドへ", "▼ To the field"), act: openGate });
     return spots;
   }
   const spots = FIELD_EXITS[place].map((exit) => ({ x: exit.x - 44, y: exit.y - 14, w: 88, h: 22, text: exit.text as string | undefined, act: () => go(exit.to) }));

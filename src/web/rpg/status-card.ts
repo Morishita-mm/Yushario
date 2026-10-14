@@ -1,20 +1,21 @@
+import { clock, language, tr } from "../language";
 import type { Activity } from "../../core/activity";
 import type { Mood, RoomAgent } from "../../core/room";
-import { JOB_NAMES, jobOf, stats } from "../../core/story";
+import { jobName, jobOf, stats } from "../../core/story";
 import { heroAccent } from "../town/appearance";
 
 const DOING: Record<Activity, (target: string) => string> = {
-  idle: () => "まちで ひとやすみしている", think: () => "たきびの まえで かんがえている",
-  read: (t) => `としょかんで ${t || "まどうしょ"}を よんでいる`, search: () => "しょこを さがしまわっている",
-  edit: (t) => `${t || "まもの"}と たたかっている`, test: (t) => `しれんの ゴーレムと たたかっている ${t}`,
-  run: (t) => `じゅもん「${t || "？"}」を となえている`, git: (t) => `ぼうけんのしょに きろくしている ${t}`,
-  web: (t) => `ものみのとうで ${t || "とおく"}を みている`, plan: () => "クエストを ねっている",
-  delegate: () => "なかまと ドラゴンに いどんでいる", ask: () => "あなたを よんでいる！",
-  tool: (t) => `どうぐを つかっている ${t}`, rest: () => "きょうかいで いのりを ささげている",
+  idle: () => tr("まちで ひとやすみしている", "Resting in town"), think: () => tr("たきびの まえで かんがえている", "Thinking by the fire"),
+  read: (t) => tr(`としょかんで ${t || "まどうしょ"}を よんでいる`, `Reading ${t || "a spellbook"}`), search: () => tr("しょこを さがしまわっている", "Searching the archives"),
+  edit: (t) => tr(`${t || "まもの"}と たたかっている`, `Battling ${t || "a monster"}`), test: (t) => tr(`しれんの ゴーレムと たたかっている ${t}`, `Battling the Golem ${t}`),
+  run: (t) => tr(`じゅもん「${t || "？"}」を となえている`, `Casting "${t || "?"}"`), git: (t) => tr(`ぼうけんのしょに きろくしている ${t}`, `Recording the journey ${t}`),
+  web: (t) => tr(`ものみのとうで ${t || "とおく"}を みている`, `Surveying ${t || "the horizon"}`), plan: () => tr("クエストを ねっている", "Planning a quest"),
+  delegate: () => tr("なかまと ドラゴンに いどんでいる", "Battling the Dragon together"), ask: () => tr("あなたを よんでいる！", "Calling you!"),
+  tool: (t) => tr(`どうぐを つかっている ${t}`, `Using a tool ${t}`), rest: () => tr("きょうかいで いのりを ささげている", "Praying at the church"),
 };
 const MOODS: Record<Mood, string> = {
-  waiting_long: "⏳ まちくたびれている", struggling: "💦 くるしい たたかい", recovered: "✨ たちなおった",
-  flowing: "♪ ちょうしが いい", tired: "💤 つかれぎみ", calling_long: "❗ ずっと よんでいる", dozing: "💤 いねむり",
+  waiting_long: tr("⏳ まちくたびれている", "⏳ Waiting a while"), struggling: tr("💦 くるしい たたかい", "💦 Tough battle"), recovered: tr("✨ たちなおった", "✨ Recovered"),
+  flowing: tr("♪ ちょうしが いい", "♪ In good spirits"), tired: tr("💤 つかれぎみ", "💤 Tired"), calling_long: tr("❗ ずっと よんでいる", "❗ Still calling"), dozing: tr("💤 いねむり", "💤 Dozing"),
 };
 
 export function element<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] {
@@ -67,34 +68,34 @@ export function statusCard(agent: RoomAgent, agentMoods: Mood[], permission: HTM
   card.append(head, bar("HP", hp, hpColor(hp)), bar("MP", mp, "#62b8ff"));
   card.append(element("p", "doing", `▶ ${DOING[agent.activity](agent.target ?? "")}`));
   if (equipment.length) {
-    card.append(element("p", "section", "そうび"));
+    card.append(element("p", "section", tr("そうび", "Equipment")));
     for (const text of equipment) card.append(element("p", "hint", text));
   }
   if (detailed) {
     const seconds = Math.max(0, Math.floor((now - agent.since) / 1000));
-    card.append(element("p", "hint", `この行動を ${Math.floor(seconds / 60)}分 ${seconds % 60}秒 つづけている`));
+    card.append(element("p", "hint", tr(`この行動を ${Math.floor(seconds / 60)}分 ${seconds % 60}秒 つづけている`, `${Math.floor(seconds / 60)}m ${seconds % 60}s in this action`)));
   }
   if (!detailed && agent.terminal) {
     const actions = element("div", "actions");
-    const terminal = element("button", undefined, "▶ ターミナル"); terminal.type = "button";
+    const terminal = element("button", undefined, tr("▶ ターミナル", "▶ Terminal")); terminal.type = "button";
     terminal.addEventListener("click", (event) => { event.stopPropagation(); openTerminal(agent.terminal!); });
     actions.append(terminal); card.append(actions);
-  } else if (!detailed) card.append(element("p", "hint", "外から来た 勇者"));
+  } else if (!detailed) card.append(element("p", "hint", tr("外から来た 勇者", "Visiting hero")));
   if (detailed || agentMoods.length) {
     const chips = element("p", "moods");
     for (const mood of agentMoods) chips.append(element("span", "chip", MOODS[mood]));
-    if (!agentMoods.length) chips.append(element("span", "chip", "いつもどおり"));
-    if (detailed) card.append(element("p", "section", "きぶん"));
+    if (!agentMoods.length) chips.append(element("span", "chip", tr("いつもどおり", "As usual")));
+    if (detailed) card.append(element("p", "section", tr("きぶん", "Mood")));
     card.append(chips);
   }
-  if (mp <= 0.1) card.append(element("p", "hint", "MPが のこりわずか！"));
+  if (mp <= 0.1) card.append(element("p", "hint", tr("MPが のこりわずか！", "MP is running low!")));
   if (detailed || agent.helpers.length) {
     const party = element("ul", "party");
     for (const helper of agent.helpers) {
-      party.append(element("li", undefined, `${JOB_NAMES[jobOf(helper.type)]}（${helper.type ?? "なかま"}）: ${DOING[helper.activity](helper.target ?? "")}`));
+      party.append(element("li", undefined, tr(`${jobName(jobOf(helper.type))}（${helper.type ?? "なかま"}）: ${DOING[helper.activity](helper.target ?? "")}`, `${jobName(jobOf(helper.type), language)} (${helper.type ?? "Ally"}): ${DOING[helper.activity](helper.target ?? "")}`)));
     }
-    if (!agent.helpers.length) party.append(element("li", undefined, "いまは ひとりで ぼうけんしている"));
-    card.append(element("p", "section", "なかま"), party);
+    if (!agent.helpers.length) party.append(element("li", undefined, tr("いまは ひとりで ぼうけんしている", "Adventuring solo")));
+    card.append(element("p", "section", tr("なかま", "Party")), party);
   }
   if (detailed || agent.tasks.length) {
     const done = agent.tasks.filter((task) => task.status === "completed").length;
@@ -103,17 +104,17 @@ export function statusCard(agent: RoomAgent, agentMoods: Mood[], permission: HTM
       const mark = task.status === "completed" ? "✔" : task.status === "in_progress" ? "▶" : "・";
       list.append(element("li", task.status, `${mark} ${task.subject ?? `#${task.id}`}`));
     }
-    if (!agent.tasks.length) list.append(element("li", undefined, "まだ クエストは ありません"));
-    card.append(element("p", "section", `クエスト ${done}/${agent.tasks.length}${detailed ? " たっせい" : ""}`), list);
+    if (!agent.tasks.length) list.append(element("li", undefined, tr("まだ クエストは ありません", "No quests yet")));
+    card.append(element("p", "section", tr(`クエスト ${done}/${agent.tasks.length}${detailed ? " たっせい" : ""}`, `Quests ${done}/${agent.tasks.length}${detailed ? " complete" : ""}`)), list);
   }
   if (permission) card.append(permission);
   const log = element("ol", "log");
   for (const entry of agent.log.slice(-12).reverse()) {
-    const time = new Date(entry.at).toLocaleTimeString("ja-JP", { hour12: false });
+    const time = clock(entry.at, true);
     const outcome = entry.outcome === "ok" ? " ○" : entry.outcome === "failed" ? " ×" : "";
     log.append(element("li", entry.outcome, `${time} ${DOING[entry.activity](entry.target ?? "")}${outcome}`));
   }
-  if (detailed && !agent.log.length) log.append(element("li", undefined, "まだ きろくは ありません"));
-  if (log.childElementCount) card.append(element("p", "section", detailed ? "さいきんの きろく" : "ぼうけんの きろく"), log);
+  if (detailed && !agent.log.length) log.append(element("li", undefined, tr("まだ きろくは ありません", "No records yet")));
+  if (log.childElementCount) card.append(element("p", "section", detailed ? tr("さいきんの きろく", "Recent records") : tr("ぼうけんの きろく", "Adventure log")), log);
   return card;
 }

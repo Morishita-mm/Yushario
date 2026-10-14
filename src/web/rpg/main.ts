@@ -1,3 +1,4 @@
+import { language, tr } from "../language";
 import "@fontsource/dotgothic16/400.css";
 import { parseAgentEvent, type AgentEvent } from "../../core/events";
 import { Room } from "../../core/room";
@@ -129,7 +130,7 @@ function live(event: AgentEvent, at: number, audible: boolean): void {
   if (event.hook !== "SessionEnd" || before) messages.event(event, at, false, previousContext);
   if (levelUp) {
     const name = scene.names.get(agent!.id) ?? agent!.name;
-    messages.say(`${name}は レベル${stats(agent!, at).level}に あがった！`, at, false, { id: agent!.id, name });
+    messages.say(tr(`${name}は レベル${stats(agent!, at).level}に あがった！`, `${name} reached level ${stats(agent!, at).level}!`), at, false, { id: agent!.id, name });
   }
   notifySound({ type: "event", event, levelUp, ended: endedAgents.has(event.agent ?? "default") }, audible, scene.followedId);
 }
@@ -144,7 +145,7 @@ function connect(): void {
   const protocol = location.protocol === "https:" ? "wss:" : "ws:";
   const current = new WebSocket(`${protocol}//${location.host}/ws?token=${encodeURIComponent(token)}`);
   socket = current;
-  connectionLabel.textContent = "せつぞく中…";
+  connectionLabel.textContent = tr("せつぞく中…", "Connecting…");
   current.onopen = () => { connectionLabel.textContent = ""; };
   current.onmessage = (message) => {
     try {
@@ -163,12 +164,12 @@ function connect(): void {
           room.apply(parsed.event, parsed.at);
           scene.sync(room, parsed.at, true);
           const line = parsed.event.hook === "SessionEnd" && !present ? undefined
-            : narrate({ ...parsed.event, name: scene.names.get(parsed.event.agent ?? "default") ?? parsed.event.name });
+            : narrate({ ...parsed.event, name: scene.names.get(parsed.event.agent ?? "default") ?? parsed.event.name }, undefined, language);
           if (line) told.push([parsed.event, parsed.at]);
         }
         scene.sync(room, Date.now());
         for (const [event, at] of told.slice(-3)) messages.event(event, at, true);
-        if (!told.length) messages.say("ここは エージェントたちの まち。 ゆうしゃの とうちゃくを まっている…", undefined, true);
+        if (!told.length) messages.say(tr("ここは エージェントたちの まち。 ゆうしゃの とうちゃくを まっている…", "A town for your heroes. Awaiting their arrival…"), undefined, true);
       } else if (data.type === "names") {
         const names = parseNames(data.names);
         if (names) namesChanged(names);
@@ -202,7 +203,7 @@ function connect(): void {
   current.onerror = () => current.close();
   current.onclose = () => {
     status.permissions.clear();
-    connectionLabel.textContent = "せつだん… さいせつぞく まち";
+    connectionLabel.textContent = tr("せつだん… さいせつぞく まち", "Disconnected… Reconnecting");
     setTimeout(connect, 3000);
   };
 }
@@ -228,15 +229,15 @@ function frame(time: number): void {
 void scene.load().then(async () => {
   try { scene.setTowns(await loadTowns()); }
   catch (error) {
-    messages.say("町の台帳を よみこめませんでした。せつぞくを おたしかめください。", undefined, true);
+    messages.say(tr("町の台帳を よみこめませんでした。せつぞくを おたしかめください。", "Could not load towns. Check the connection."), undefined, true);
     console.warn(error);
   }
   try { namesChanged(await loadNames()); }
-  catch (error) { messages.say("勇者の なまえを よみこめませんでした。", undefined, true); console.warn(error); }
+  catch (error) { messages.say(tr("勇者の なまえを よみこめませんでした。", "Could not load hero names."), undefined, true); console.warn(error); }
   await soundLoaded;
   connect();
   requestAnimationFrame(frame);
 }).catch((error: unknown) => {
-  connectionLabel.textContent = "町の絵を よみこめませんでした";
+  connectionLabel.textContent = tr("町の絵を よみこめませんでした", "Could not load town art");
   console.error(error);
 });

@@ -1,3 +1,4 @@
+import { tr } from "../language";
 import { battlePresentation, type EquipmentTiers } from "../../core/battle-presentation";
 import { weaponBesideLabel } from "./weapon";
 import type { Theme } from "./ambient";
@@ -60,12 +61,12 @@ function battle(ctx: CanvasRenderingContext2D, art: Sheets, fight: Fight, t: num
       art.draw(ctx, "fx-battle", art.pose("fx-battle", "slash", Math.floor((cycle % 300) / 100)), mx - 8, y - 18);
       if (fight.damage || fight.weaponTier) {
         if (effects.damage !== undefined) label(ctx, String(effects.damage), mx, y - 66, "#ffffff", 14);
-        if (effects.critical) label(ctx, "かいしんの いちげき！", mx, y - 84, "#ffe066", 10);
+        if (effects.critical) label(ctx, tr("かいしんの いちげき！", "Critical hit!"), mx, y - 84, "#ffe066", 10);
       }
     }
   }
   label(ctx, fight.target, mx, y + 14, "#ffe7a3");
-  if (!enemyTurn && heroFrame === "wind-up" && effects.charging) label(ctx, "ちからを ためている…", x, y - 76, "#ffe066", 10);
+  if (!enemyTurn && heroFrame === "wind-up" && effects.charging) label(ctx, tr("ちからを ためている…", "Charging…"), x, y - 76, "#ffe066", 10);
   label(ctx, `${fight.name} Lv${fight.level}`, x - 6, y + 28);
   weaponBesideLabel(ctx, art, fight.weaponTier, t, `${fight.name} Lv${fight.level}`, x - 6, y + 28);
 }
@@ -80,16 +81,16 @@ function victory(ctx: CanvasRenderingContext2D, art: Sheets, fight: Fight, t: nu
     if (Math.floor(t / 300) % 2) art.draw(ctx, "fx-battle", art.pose("fx-battle", "spell", Math.floor(t / 150) % 3), cx, fight.y - 10);
     art.draw(ctx, "ui-balloons", "exclamation", cx, fight.y - 34 - (Math.floor(t / 400) % 2));
   }
-  label(ctx, read ? "かくにん ずみ" : "しょうり！", cx, fight.y + 14, read ? "#c9c3dc" : "#ffe066");
+  label(ctx, read ? tr("かくにん ずみ", "Seen") : tr("しょうり！", "Victory!"), cx, fight.y + 14, read ? "#c9c3dc" : "#ffe066");
   label(ctx, `${fight.name} Lv${fight.level}`, fight.x - 6, fight.y + 28);
   weaponBesideLabel(ctx, art, fight.weaponTier, t, `${fight.name} Lv${fight.level}`, fight.x - 6, fight.y + 28);
 }
 
 // Ways out of each field: back to town and over to the other fields.
 export const FIELD_EXITS: Record<Theme, { to: "town" | Theme; text: string; x: number; y: number }[]> = {
-  meadow: [{ to: "town", text: "◀ まち", x: 46, y: 243 }, { to: "cave", text: "どうくつ ▲", x: 906, y: 24 }, { to: "forest", text: "よるのもり ▶", x: 906, y: 498 }],
-  cave: [{ to: "town", text: "◀ まち", x: 46, y: 239 }, { to: "meadow", text: "そうげん ▶", x: 906, y: 56 }, { to: "forest", text: "よるのもり ▶", x: 906, y: 436 }],
-  forest: [{ to: "town", text: "◀ まち", x: 46, y: 250 }, { to: "meadow", text: "そうげん ▶", x: 906, y: 91 }, { to: "cave", text: "どうくつ ▶", x: 906, y: 455 }],
+  meadow: [{ to: "town", text: tr("◀ まち", "◀ TOWN"), x: 46, y: 243 }, { to: "cave", text: tr("どうくつ ▲", "CAVE ▲"), x: 906, y: 24 }, { to: "forest", text: tr("よるのもり ▶", "NIGHT FOREST ▶"), x: 906, y: 498 }],
+  cave: [{ to: "town", text: tr("◀ まち", "◀ TOWN"), x: 46, y: 239 }, { to: "meadow", text: tr("そうげん ▶", "MEADOW ▶"), x: 906, y: 56 }, { to: "forest", text: tr("よるのもり ▶", "NIGHT FOREST ▶"), x: 906, y: 436 }],
+  forest: [{ to: "town", text: tr("◀ まち", "◀ TOWN"), x: 46, y: 250 }, { to: "meadow", text: tr("そうげん ▶", "MEADOW ▶"), x: 906, y: 91 }, { to: "cave", text: tr("どうくつ ▶", "CAVE ▶"), x: 906, y: 455 }],
 };
 
 export function drawField(ctx: CanvasRenderingContext2D, art: Sheets, theme: Theme, t: number, fights: Fight[], read = new Set<string>(), overflow = 0, notice?: NoticeMarkFrame, town?: string): void {
@@ -128,7 +129,7 @@ export function drawField(ctx: CanvasRenderingContext2D, art: Sheets, theme: The
     }
     ctx.restore();
   }
-  const place = theme === "meadow" ? "そうげん" : theme === "cave" ? "どうくつ" : "よるのもり";
+  const place = theme === "meadow" ? tr("そうげん", "MEADOW") : theme === "cave" ? tr("どうくつ", "CAVE") : tr("よるのもり", "NIGHT FOREST");
   placeTitle(ctx, place, FIELD_W / 2, 8, town);
-  if (overflow) label(ctx, `ほか ${overflow}人`, FIELD_W / 2, FIELD_H - 18, "#ffe066", 14);
+  if (overflow) label(ctx, tr(`ほか ${overflow}人`, `${overflow} more`), FIELD_W / 2, FIELD_H - 18, "#ffe066", 14);
 }

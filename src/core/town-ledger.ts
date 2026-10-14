@@ -10,20 +10,22 @@ export type TownRecord = {
   archivedAt?: number;
 };
 export type SoundMode = "all" | "follow" | "off";
-export type TownSettings = { archiveAfterDays: number; sound: SoundMode };
+export type Language = "ja" | "en";
+export type TownSettings = { archiveAfterDays: number; sound: SoundMode; language: "auto" | Language };
 
 export function validSettings(input: unknown): input is TownSettings {
   if (!input || typeof input !== "object" || Array.isArray(input)) return false;
   const value = input as Record<string, unknown>;
-  return Object.keys(value).length === 2 && ["all", "follow", "off"].includes(value.sound as string)
+  return Object.keys(value).length === 3 && ["all", "follow", "off"].includes(value.sound as string)
+    && ["auto", "ja", "en"].includes(value.language as string)
     && typeof value.archiveAfterDays === "number" && Number.isInteger(value.archiveAfterDays)
     && value.archiveAfterDays >= 0 && value.archiveAfterDays <= 365;
 }
 
-// Only files written before sound was introduced may omit it.
+// Older files may omit sound and language.
 export function storedSettings(input: unknown): TownSettings | undefined {
   if (!input || typeof input !== "object" || Array.isArray(input)) return;
-  const value: Record<string, unknown> = { sound: "all", ...input };
+  const value: Record<string, unknown> = { sound: "all", language: "auto", ...input };
   // Migrate the former on/off preference only when reading a saved file.
   if (value.sound === true) value.sound = "all";
   if (value.sound === false) value.sound = "off";

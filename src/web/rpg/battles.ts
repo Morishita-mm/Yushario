@@ -1,4 +1,5 @@
-import { JOB_NAMES, stats } from "../../core/story";
+import { language, tr } from "../language";
+import { jobName, stats } from "../../core/story";
 import { recentBattleSuccess, type EquipmentTiers } from "../../core/battle-presentation";
 import type { TownHero } from "../../core/town";
 import type { Theme } from "../town/ambient";
@@ -9,7 +10,7 @@ import type { Fight } from "../town/field";
 import type { Sheets } from "../town/sheets";
 
 export const battleSlots = (art: Sheets, theme: Theme) => art.entry(`bg-field-${theme}`).field!.fights;
-const MONSTER_NAMES = { slime: "スライム", golem: "ゴーレム", ghost: "おばけ", dragon: "ドラゴン" };
+const MONSTER_NAMES = { slime: tr("スライム", "Slime"), golem: tr("ゴーレム", "Golem"), ghost: tr("おばけ", "Ghost"), dragon: tr("ドラゴン", "Dragon") };
 const FX = { slime: "claw", golem: "rocks", ghost: "curse", dragon: "fire" };
 
 export function fights(art: Sheets, heroes: TownHero[], now: number, gear: (terminal?: string) => EquipmentTiers = () => ({})): Fight[] {
@@ -28,8 +29,8 @@ export function focus(hero: TownHero, now: number, gear: EquipmentTiers = {}): F
   return { backdrop: `bg-battle-${hero.place}`, theme: hero.place as Theme, monster: `monster-${hero.monster}`,
     enemyFx: FX[hero.monster!], name: MONSTER_NAMES[hero.monster!], variant: heroVariant(hero.id),
     party: ["hero-back-battle", ...hero.party.slice(0, 4).map((job) => `party-${job}-back`)],
-    status: [{ name: hero.name, ...values }, ...hero.party.slice(0, 4).map((job) => ({ name: JOB_NAMES[job] }))],
-    message: `${hero.name}は ${MONSTER_NAMES[hero.monster!]}と たたかっている！\n${hero.agent.target ?? ""}`,
+    status: [{ name: hero.name, ...values }, ...hero.party.slice(0, 4).map((job) => ({ name: jobName(job, language) }))],
+    message: tr(`${hero.name}は ${MONSTER_NAMES[hero.monster!]}と たたかっている！\n${hero.agent.target ?? ""}`, `${hero.name} battles the ${MONSTER_NAMES[hero.monster!]}!\n${hero.agent.target ?? ""}`),
     counter: hero.agent.failures.some((at) => now >= at && now - at < 2000),
     ...gear, success: recentBattleSuccess(hero.agent, now),
   };

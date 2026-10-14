@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { closeSync, readFileSync, openSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
-import { storedSettings, TOWN_THEMES, type TownRecord, type TownSettings, type TownTheme } from "../core/town-ledger";
+import { storedSettings, TOWN_THEMES, type Language, type TownRecord, type TownSettings, type TownTheme } from "../core/town-ledger";
 import { isClaudeSessionId, ROSTER_LIMIT, type RosterEntry } from "../core/roster";
 import { validHeroNames, type HeroNames } from "../core/names";
 import { AGENTS, PRESETS, type Preset } from "./agents";
@@ -54,7 +54,7 @@ export function readSettings(): TownSettings {
     const settings = storedSettings(read("settings.json"));
     if (!settings) throw new Error("Invalid settings");
     return settings;
-  } catch (error) { quarantine("settings.json", error); return { archiveAfterDays: 30, sound: "all" }; }
+  } catch (error) { quarantine("settings.json", error); return { archiveAfterDays: 30, sound: "all", language: "auto" }; }
 }
 
 export function readRoster(): StoredRosterEntry[] {
@@ -79,8 +79,8 @@ export function readRoster(): StoredRosterEntry[] {
   } catch (error) { quarantine("roster.json", error); return []; }
 }
 
-export function readEquipment(): EquipmentMaster {
-  const defaults = parseEquipmentMaster(JSON.parse(readFileSync(new URL("./equipment.json", import.meta.url), "utf8")));
+export function readEquipment(language: Language = "ja"): EquipmentMaster {
+  const defaults = parseEquipmentMaster(JSON.parse(readFileSync(new URL("./equipment.json", import.meta.url), "utf8")), language);
   try { return resolveEquipmentMaster(defaults, read("equipment.json")); }
   catch (error) { quarantine("equipment.json", error); return defaults; }
 }

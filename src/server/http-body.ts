@@ -1,3 +1,4 @@
+import { tr } from "./language";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
 export const EVENT_BODY_LIMIT = 1024 * 1024;
@@ -12,16 +13,16 @@ export async function readJsonBody(request: IncomingMessage, response: ServerRes
     request.resume();
     return { ok: false };
   };
-  if (Number(request.headers["content-length"]) > limit) return reject(413, "送る内容が長すぎます");
+  if (Number(request.headers["content-length"]) > limit) return reject(413, tr("送る内容が長すぎます", "Message too long"));
   try {
     const chunks: Buffer[] = [];
     let bytes = 0;
     for await (const chunk of request.iterator({ destroyOnReturn: false })) {
       const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
       bytes += buffer.length;
-      if (bytes > limit) return reject(413, "送る内容が長すぎます");
+      if (bytes > limit) return reject(413, tr("送る内容が長すぎます", "Message too long"));
       chunks.push(buffer);
     }
     return { ok: true, value: JSON.parse(Buffer.concat(chunks).toString("utf8")) };
-  } catch { return reject(400, "内容を JSON で指定してください"); }
+  } catch { return reject(400, tr("内容を JSON で指定してください", "Send JSON content")); }
 }

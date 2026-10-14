@@ -1,3 +1,4 @@
+import { tr } from "../language";
 import { label, placeTitle } from "./field";
 import type { Sheets } from "./sheets";
 import { heroVariant } from "./appearance";
@@ -20,6 +21,6 @@ export function drawInn(ctx: CanvasRenderingContext2D, art: Sheets, t: number, s
     label(ctx, sleeper.name, x + lx, y + ly);
     weaponBesideLabel(ctx, art, sleeper.weaponTier, t, sleeper.name, x + lx, y + ly);
   });
-  placeTitle(ctx, "やどや（なか）", TOWN_W / 2, 8, town);
-  if (sleepers.length > room.slots.length) label(ctx, `ほか ${sleepers.length - room.slots.length}人`, TOWN_W / 2, 430, "#ffe066", 14);
+  placeTitle(ctx, tr("やどや（なか）", "INN"), TOWN_W / 2, 8, town);
+  if (sleepers.length > room.slots.length) label(ctx, tr(`ほか ${sleepers.length - room.slots.length}人`, `${sleepers.length - room.slots.length} more`), TOWN_W / 2, 430, "#ffe066", 14);
 }

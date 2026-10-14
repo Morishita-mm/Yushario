@@ -1,3 +1,4 @@
+import { dateTime, tr } from "../language";
 import type { RosterEntry } from "../../core/roster";
 import type { Session } from "../terminal";
 import { loadTowns, type TownRecord } from "./ledger";
@@ -23,7 +24,7 @@ export function initRoster(recalled: (session: Session, towns: TownRecord[]) => 
   async function fetchRoster(suffix = "", method = "GET"): Promise<RosterEntry[] | Session> {
     const response = await fetch(`/api/roster${suffix}?${new URLSearchParams({ token })}`, { method, cache: "no-store" });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error ?? `めいぼを よみこめませんでした（${response.status}）`);
+    if (!response.ok) throw new Error(data.error ?? tr(`めいぼを よみこめませんでした（${response.status}）`, `Could not load roster (${response.status})`));
     return data;
   }
   async function recall(entry: RosterEntry): Promise<void> {
@@ -31,7 +32,7 @@ export function initRoster(recalled: (session: Session, towns: TownRecord[]) => 
     recalling = true;
     const current = request;
     for (const button of list.querySelectorAll<HTMLButtonElement>("button")) button.disabled = true;
-    status.textContent = `${entry.name}を よびもどしている…`;
+    status.textContent = tr(`${entry.name}を よびもどしている…`, `Recalling ${entry.name}…`);
     try {
       const session = await fetchRoster(`/${encodeURIComponent(entry.sessionId)}/recall`, "POST") as Session;
       const towns = await loadTowns();
@@ -46,20 +47,20 @@ export function initRoster(recalled: (session: Session, towns: TownRecord[]) => 
   }
   document.querySelector("#roster")!.addEventListener("click", () => {
     const current = ++request;
-    list.replaceChildren(); status.textContent = "めいぼを よみこみ中…";
+    list.replaceChildren(); status.textContent = tr("めいぼを よみこみ中…", "Loading roster…");
     dialog.showModal();
     void fetchRoster().then((data) => {
       if (request !== current || !dialog.open) return;
       const entries = data as RosterEntry[];
-      status.textContent = entries.length ? "" : "まだ だれも たびだって いません。";
+      status.textContent = entries.length ? "" : tr("まだ だれも たびだって いません。", "No one has set off yet.");
       for (const entry of [...entries].sort((a, b) => b.leftAt - a.leftAt)) {
         const row = document.createElement("div"); row.className = "roster-row";
         const text = document.createElement("div");
-        const name = document.createElement("p"); name.className = "name"; name.textContent = `${entry.name}（${entry.project}）`;
+        const name = document.createElement("p"); name.className = "name"; name.textContent = tr(`${entry.name}（${entry.project}）`, `${entry.name} (${entry.project})`);
         const left = document.createElement("p"); left.className = "last";
-        left.textContent = `${new Date(entry.leftAt).toLocaleString("ja-JP", { hour12: false })} に たびだった`;
+        left.textContent = tr(`${dateTime(entry.leftAt)} に たびだった`, `Left ${dateTime(entry.leftAt)}`);
         text.append(name, left);
-        const button = document.createElement("button"); button.type = "button"; button.textContent = "▶ よびもどす";
+        const button = document.createElement("button"); button.type = "button"; button.textContent = tr("▶ よびもどす", "▶ Recall");
         button.title = entry.cwd; button.disabled = recalling;
         button.addEventListener("click", () => void recall(entry));
         row.append(text, button); list.append(row);

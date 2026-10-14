@@ -1,3 +1,4 @@
+import { tr } from "../language";
 import { THEME_NAMES, type TownTheme } from "./themes";
 import { ICON, type Project } from "./world";
 import type { Sheets } from "./sheets";
@@ -26,7 +27,7 @@ export function renderHerald(root: HTMLElement, list: Notice[], onPick: (notice:
     heading.dataset.town = repo;
     const counts = (Object.keys(ICONS) as Notice["kind"][]).map((kind) => [kind, notices.filter((n) => n.kind === kind).length] as const)
       .filter(([, n]) => n).map(([kind, n]) => `${ICONS[kind]}${n}`).join(" ");
-    const text = `${repo || "（町なし）"}  ${counts}`;
+    const text = `${repo || tr("（町なし）", "(No town)")}  ${counts}`;
     if (heading.textContent !== text) heading.textContent = text;
     return [heading, ...items(notices)];
   });
@@ -50,7 +51,7 @@ export function windowBox(layer: HTMLElement, title: string, onClose: () => void
   box.setAttribute("aria-modal", "true");
   box.setAttribute("aria-label", title);
   box.append(element("h3", undefined, title));
-  const close = element("button", undefined, "▶ とじる");
+  const close = element("button", undefined, tr("▶ とじる", "▶ Close"));
   close.type = "button";
   close.addEventListener("click", () => { layer.hidden = true; onClose(); });
   const actions = element("div", "actions");
@@ -82,15 +83,15 @@ export function showTownList(layer: HTMLElement, title: string, projects: Projec
       button.append(element("span", "name"), element("span", "status"));
       row.append(button);
     }
-    const status = p.heroes ? [`👤${p.heroes}`, p.fighting ? `⚔️${p.fighting}` : "", p.unread ? `📜${p.unread}` : "", p.calling ? "❗" : ""].filter(Boolean).join("  ") : "だれも いない";
+    const status = p.heroes ? [`👤${p.heroes}`, p.fighting ? `⚔️${p.fighting}` : "", p.unread ? `📜${p.unread}` : "", p.calling ? "❗" : ""].filter(Boolean).join("  ") : tr("だれも いない", "No heroes");
     button.querySelector(".name")!.textContent = p.repo;
     button.querySelector(".status")!.textContent = status;
     button.onclick = () => { layer.hidden = true; onPick(p); };
     if (onPin && p.pinned !== undefined) {
       const pin = row.querySelector<HTMLButtonElement>(".town-pin") ?? element("button", "town-pin");
       pin.type = "button";
-      pin.textContent = p.pinned ? "◆ ピンどめ中" : "◇ ピンどめ";
-      pin.setAttribute("aria-label", `${p.repo}の ピンどめ`);
+      pin.textContent = p.pinned ? tr("◆ ピンどめ中", "◆ Pinned") : tr("◇ ピンどめ", "◇ Pin");
+      pin.setAttribute("aria-label", tr(`${p.repo}の ピンどめ`, `Pin ${p.repo}`));
       pin.setAttribute("aria-pressed", String(p.pinned));
       pin.onclick = () => {
         pin.disabled = true;
@@ -101,7 +102,7 @@ export function showTownList(layer: HTMLElement, title: string, projects: Projec
     if (list.children[index] !== row) list.insertBefore(row, list.children[index] ?? null);
   }
   for (const row of [...list.children]) if (!projects.some((p) => p.repo === (row as HTMLElement).dataset.repo)) row.remove();
-  if (!projects.length) list.append(element("p", "who", "町は ありません。"));
+  if (!projects.length) list.append(element("p", "who", tr("町は ありません。", "No towns yet.")));
   if (!list.parentElement) box.append(list);
   if (focused && document.activeElement !== focused) {
     const target = focused.isConnected ? focused : list.children[Math.min(Math.max(0, focusedIndex), list.children.length - 1)]?.querySelector<HTMLButtonElement>("button:not(:disabled)") ?? box.querySelector<HTMLButtonElement>(".actions button");
@@ -110,7 +111,7 @@ export function showTownList(layer: HTMLElement, title: string, projects: Projec
 }
 
 export function showArchivedTowns(layer: HTMLElement, projects: Project[], onRestore: (p: Project) => Promise<void>, onClose: () => void): void {
-  const title = `しまった町（${projects.length}）`;
+  const title = tr(`しまった町（${projects.length}）`, `Archived towns (${projects.length})`);
   const box = (!layer.hidden && layer.querySelector<HTMLElement>('[data-town-list="archived"]')) || windowBox(layer, title, onClose);
   box.dataset.townList = "archived";
   box.setAttribute("aria-label", title);
@@ -123,10 +124,10 @@ export function showArchivedTowns(layer: HTMLElement, projects: Project[], onRes
     const row = [...list.children].find((node) => (node as HTMLElement).dataset.repo === project.repo) as HTMLElement | undefined
       ?? element("div", "town-row");
     row.dataset.repo = project.repo;
-    if (!row.children.length) row.append(element("span", "name", project.repo), element("button", undefined, "▶ もどす"));
+    if (!row.children.length) row.append(element("span", "name", project.repo), element("button", undefined, tr("▶ もどす", "▶ Restore")));
     const restore = row.querySelector<HTMLButtonElement>("button")!;
     restore.type = "button";
-    restore.setAttribute("aria-label", `${project.repo}を もどす`);
+    restore.setAttribute("aria-label", tr(`${project.repo}を もどす`, `Restore ${project.repo}`));
     restore.onclick = () => {
       restore.disabled = true;
       void onRestore(project).finally(() => { restore.disabled = false; });
@@ -134,7 +135,7 @@ export function showArchivedTowns(layer: HTMLElement, projects: Project[], onRes
     if (list.children[index] !== row) list.insertBefore(row, list.children[index] ?? null);
   }
   for (const row of [...list.children]) if (!projects.some((p) => p.repo === (row as HTMLElement).dataset.repo)) row.remove();
-  if (!projects.length) list.append(element("p", "who", "しまった町は ありません。"));
+  if (!projects.length) list.append(element("p", "who", tr("しまった町は ありません。", "No archived towns.")));
   if (!list.parentElement) box.append(list);
   if (focused && document.activeElement !== focused) {
     const target = focused.isConnected ? focused : list.children[Math.min(Math.max(0, focusedIndex), list.children.length - 1)]?.querySelector<HTMLButtonElement>("button:not(:disabled)") ?? box.querySelector<HTMLButtonElement>(".actions button");
@@ -144,7 +145,7 @@ export function showArchivedTowns(layer: HTMLElement, projects: Project[], onRes
 
 // The first visit to a new town: choose what it looks like (and so its region on the map).
 export function showThemeChooser(layer: HTMLElement, project: Project, art: Sheets, onPick: (theme: TownTheme) => void, onClose: () => void): void {
-  const box = windowBox(layer, `「${project.repo}」の 町の すがたを えらぶ`, onClose);
+  const box = windowBox(layer, tr(`「${project.repo}」の 町の すがたを えらぶ`, `Choose a look for ${project.repo}`), onClose);
   const list = element("div", "theme-list");
   for (const theme of Object.keys(THEME_NAMES) as TownTheme[]) {
     const button = element("button", "theme-option");

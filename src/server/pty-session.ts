@@ -1,3 +1,4 @@
+import { tr } from "./language";
 import { isAbsolute } from "node:path";
 import type { IPty } from "node-pty";
 import type { WebSocket } from "ws";
@@ -26,11 +27,11 @@ export type PendingMessage = { type: "pending"; terminal: string; texts: string[
 export type EquippedMessage = { type: "equipped"; session: TerminalSession };
 
 export function sessionInput(input: unknown): { preset: Preset; cwd?: string } {
-  if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("起動の設定を指定してください");
+  if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error(tr("起動の設定を指定してください", "Choose launch settings"));
   const value = input as Record<string, unknown>;
-  if (!PRESETS.includes(value.preset as Preset)) throw new Error("勇者の種類が正しくありません");
+  if (!PRESETS.includes(value.preset as Preset)) throw new Error(tr("勇者の種類が正しくありません", "Invalid hero kind"));
   if (value.cwd !== undefined && (typeof value.cwd !== "string" || !isAbsolute(value.cwd))) {
-    throw new Error("行き先はフォルダの絶対パスで指定してください");
+    throw new Error(tr("行き先はフォルダの絶対パスで指定してください", "Use an absolute folder path"));
   }
   return { preset: value.preset as Preset, ...(value.cwd !== undefined ? { cwd: value.cwd as string } : {}) };
 }

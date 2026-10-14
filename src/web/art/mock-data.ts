@@ -1,3 +1,4 @@
+import { tr } from "../language";
 import type { TownTheme } from "../town/themes";
 import type { Theme } from "../town/ambient";
 import type { Fight } from "../town/field";
@@ -59,7 +60,7 @@ export function initTown(art: Sheets, theme?: TownTheme): void {
   const positions = [[480,370], [680,250], theme === "village" ? [810,420] : [700,424]];
   [CALLER, ...TOWN_REPORTS].forEach((hero, i) => { [hero.x, hero.y] = positions[i]; });
   walkers.push(...["t23-lint", "t4-api", "t6-gesture", "t9-fixes", "t13-auth", "t14-db", "t17-ci"].map((name, i) => makeWalker(art, name, name, i % 5, i, theme)));
-  equippedWalkers.push(...["そうびなし", "たんけん", "はがね", "でんせつ"].map((name, i) => ({
+  equippedWalkers.push(...[tr("そうびなし", "None"), tr("たんけん", "Dagger"), tr("はがね", "Steel"), tr("でんせつ", "Legend")].map((name, i) => ({
     ...makeWalker(art, name, name, 0, i, theme), x: theme === "village" ? 330 + i * 110 : [330,390,570,640][i], y: 424, paused: true, weaponTier: i,
   })));
 }
@@ -69,8 +70,8 @@ export const TOWN_REPORTS = [
   { name: "t2-docs", x: 690, y: 470, icon: "speech bubble with lines" },
 ];
 export const ROSTER: Departed[] = [
-  { name: "t1-core", repo: "agent-character", left: "きのう 18:20", last: "Room の雛形と relay サーバーを作りました。" },
-  { name: "t7-server", repo: "agent-character", left: "きょう 09:05", last: "町の台帳を追加し、使っていない町をしまえるようにしました。" },
+  { name: "t1-core", repo: "agent-character", left: tr("きのう 18:20", "Yesterday 18:20"), last: tr("Room の雛形と relay サーバーを作りました。", "Created the Room foundation and relay server.") },
+  { name: "t7-server", repo: "agent-character", left: tr("きょう 09:05", "Today 09:05"), last: tr("町の台帳を追加し、使っていない町をしまえるようにしました。", "Added a town ledger and archiving for unused towns.") },
 ];
 const gone = new Set<string>();
 export const townReports = () => TOWN_REPORTS.filter((r) => !gone.has(r.name));
@@ -103,7 +104,7 @@ let last = 0;
 export function walkTown(art: Sheets, t: number): void {
   const departed = stepWalkers(art, walkers, t, Math.min(100, t - last));
   last = t;
-  for (const walker of departed) ROSTER.unshift({ name: walker.name, repo: "agent-character", left: "いま", last: "ほうこくは ありません" });
+  for (const walker of departed) ROSTER.unshift({ name: walker.name, repo: "agent-character", left: tr("いま", "just now"), last: tr("ほうこくは ありません", "No report") });
 }
 
 // Where a mock notice's hero is drawn.

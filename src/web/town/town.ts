@@ -1,3 +1,4 @@
+import { tr } from "../language";
 import { label, placeTitle } from "./field";
 import { drawNoticeHero, type NoticeMarkFrame } from "./notice-mark";
 import { drawWeather, THEME_NAMES, type TownTheme } from "./themes";
@@ -175,8 +176,8 @@ export function drawTown(ctx: CanvasRenderingContext2D, art: Sheets, t: number, 
     art.draw(ctx, "ui-balloons", "sleep Zz", x + balloon[0], y + balloon[1] + (Math.floor(t / 500) % 2));
     label(ctx, `×${sleepers}`, x + count[0], y + count[1], "#ffffff", 11);
   }
-  for (const [text, [x, y]] of [["やどや", building.inn], ["きょうかい", building.church],
-    ["としょかん", building.library], ["どうぐや", building.shop]] as const) {
+  for (const [text, [x, y]] of [[tr("やどや", "INN"), building.inn], [tr("きょうかい", "CHURCH"), building.church],
+    [tr("としょかん", "LIBRARY"), building.library], [tr("どうぐや", "ITEM SHOP"), building.shop]] as const) {
     // Mount above the doorway, clear of the walking lane and the inn's sleep balloon.
     const width = text.length * 12 + 12, left = x - width / 2, top = y - 66;
     ctx.fillStyle = "#0a0a1a"; ctx.fillRect(left - 1, top - 1, width + 2, 24);
@@ -184,5 +185,5 @@ export function drawTown(ctx: CanvasRenderingContext2D, art: Sheets, t: number, 
     ctx.fillStyle = "#0a0a1a"; ctx.fillRect(left + 1, top + 1, width - 2, 20);
     label(ctx, text, x, top + 15, "#ffffff", 12);
   }
-  placeTitle(ctx, `まち（${THEME_NAMES[theme]}）`, TOWN_W / 2, 8, name);
+  placeTitle(ctx, tr(`まち（${THEME_NAMES[theme]}）`, `TOWN (${THEME_NAMES[theme].toUpperCase()})`), TOWN_W / 2, 8, name);
 }

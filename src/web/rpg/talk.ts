@@ -1,4 +1,5 @@
 import type { Sheets } from "../town/sheets";
+import { tr } from "../language";
 import type { RoomAgent } from "../../core/room";
 import { renderTalk, talkParts } from "./talk-text";
 import { createReportCard } from "./report-card";
@@ -44,7 +45,7 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
     return selected && ("terminal" in selected ? selected.terminal : hero(selected.hero)?.terminal);
   }
   function heldMessage(): string {
-    return selected && "terminal" in selected ? "勇者が ついたら つたえる" : "たたかいが おわったら つたえる";
+    return selected && "terminal" in selected ? tr("勇者が ついたら つたえる", "Will send on arrival") : tr("たたかいが おわったら つたえる", "Will send after battle");
   }
   function draftKey(): string | undefined { return selected && ("hero" in selected ? `hero:${selected.hero}` : `terminal:${selected.terminal}`); }
   function saveDraft(): void { const key = draftKey(); if (key) drafts.set(key, input.value); }
@@ -107,7 +108,7 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
     const heading = document.createElement("p"); heading.textContent = heldMessage(); pendingBox.append(heading);
     for (const text of texts) {
       const item = document.createElement("p"); item.className = "pending-text";
-      item.textContent = `あなた「${text}」`; pendingBox.append(item);
+      item.textContent = tr(`あなた「${text}」`, `You: "${text}"`); pendingBox.append(item);
     }
   }
   function setPending(id: string, texts: string[]): void {
@@ -115,7 +116,7 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
     pending.set(id, texts);
     if (id === terminalId()) {
       renderPending(id);
-      if (delivered && !interrupting.has(id)) status.textContent = "あずかった ことばを つたえた！";
+      if (delivered && !interrupting.has(id)) status.textContent = tr("あずかった ことばを つたえた！", "Held messages sent!");
     }
   }
   function resetPending(): void { pending.clear(); if (selected) renderPending(terminalId()); }
@@ -138,16 +139,16 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
     const agent = hero(selected.hero);
     if (!agent) {
       form.hidden = true; foreign.hidden = true; terminal.disabled = true;
-      renderPending(undefined); status.textContent = "この勇者は たびだちました。会話は ここまでです。"; return;
+      renderPending(undefined); status.textContent = tr("この勇者は たびだちました。会話は ここまでです。", "This hero has set off. Our talk ends here."); return;
     }
     const heroName = name(agent.id) ?? agent.name;
-    title.textContent = `${heroName} · 会話と報告`;
+    title.textContent = tr(`${heroName} · 会話と報告`, `${heroName} · Talk and reports`);
     form.hidden = !agent.terminal; foreign.hidden = Boolean(agent.terminal); terminal.disabled = !agent.terminal;
     send.disabled = Boolean(agent.terminal && sending.has(agent.terminal));
     const talk = agent.talk;
     const needsSetup = setupGuidance && !talk.length;
     terminal.classList.toggle("terminal-attention", needsSetup);
-    terminal.textContent = needsSetup ? "▶ ターミナルで せっていを たしかめる" : "▶ ターミナル";
+    terminal.textContent = needsSetup ? tr("▶ ターミナルで せっていを たしかめる", "▶ Check terminal setup") : tr("▶ ターミナル", "▶ Terminal");
     const nextSignature = JSON.stringify([heroName, agent.terminal, talk.map(({ at, from, report }) => [at, from, report])]);
     if (nextSignature === signature && talk.every((entry, i) => entry.text === texts[i])) return;
     signature = nextSignature; texts = talk.map((entry) => entry.text);
@@ -165,15 +166,15 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
       const message = document.createElement("p");
       message.className = needsSetup ? "arrival-guidance" : "";
       message.textContent = needsSetup ? CLAUDE_SETUP_GUIDANCE : agent.terminal
-        ? "まだ 会話は ありません。勇者に はなしかけてみよう。" : "まだ 会話は ありません。";
+        ? tr("まだ 会話は ありません。勇者に はなしかけてみよう。", "No talk yet. Say hello to your hero!") : tr("まだ 会話は ありません。", "No talk yet.");
       history.append(message);
     }
     for (const entry of talk) {
       if (entry.from === "you") {
         const row = document.createElement("div"); row.className = "talk-line you";
-        const speaker = document.createElement("span"); speaker.className = "talk-speaker"; speaker.textContent = "あなた「";
+        const speaker = document.createElement("span"); speaker.className = "talk-speaker"; speaker.textContent = tr("あなた「", 'You: "');
         const body = document.createElement("span"); body.className = "talk-body"; renderTalk(body, talkParts(entry.text));
-        row.append(speaker, body, document.createTextNode("」")); history.append(row); continue;
+        row.append(speaker, body, document.createTextNode(tr("」", '"'))); history.append(row); continue;
       }
       const card = createReportCard(entry, heroName, art);
       card.row.classList.toggle("unread", !reportRead(agent.id, entry.at));
@@ -211,19 +212,19 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
     if (!id || !text.trim() || text.length > 8000 || sending.has(id)) return;
     const key = draftKey();
     sending.add(id); send.disabled = true;
-    status.textContent = "つたえている…";
+    status.textContent = tr("つたえている…", "Sending…");
     await fetch(`/api/sessions/${encodeURIComponent(id)}/say?token=${encodeURIComponent(token)}`, {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }),
     }).then(async (response) => {
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
-        throw new Error(data.error ?? `つたえられませんでした（${response.status}）`);
+        throw new Error(data.error ?? tr(`つたえられませんでした（${response.status}）`, `Could not send (${response.status})`));
       }
       const result = await response.json() as { delivered: boolean };
       if (key && drafts.get(key) === text) drafts.delete(key);
       if (terminalId() !== id || !dialog.open) return;
       if (input.value === text) { input.value = ""; saveDraft(); }
-      status.textContent = result.delivered ? "つたえた！ へんじを まっている…" : "あずかった！"; input.focus();
+      status.textContent = result.delivered ? tr("つたえた！ へんじを まっている…", "Sent! Awaiting a reply…") : tr("あずかった！", "Held!"); input.focus();
     }).catch((error: unknown) => {
       if (terminalId() === id && dialog.open) status.textContent = error instanceof Error ? error.message : String(error);
     }).finally(() => { sending.delete(id); if (terminalId() === id) send.disabled = false; });

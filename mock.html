@@ -16,14 +16,14 @@
       <div class="layout">
         <div class="stage">
           <canvas id="mock"></canvas>
-          <p id="messages" role="status" aria-label="メッセージ"></p>
+          <p id="messages" role="status" aria-label="メッセージ" data-en-aria-label="Message"></p>
           <div id="report" class="report-layer" hidden></div>
           <div id="toast" class="toast" role="status" hidden></div>
         </div>
         <div class="side">
-          <div class="side-tabs" role="tablist" aria-label="右の列">
-            <button id="tab-herald" type="button" role="tab" aria-controls="herald" aria-selected="true">でんれい</button>
-            <button id="tab-party" type="button" role="tab" aria-controls="party" aria-selected="false">ゆうしゃ</button>
+          <div class="side-tabs" role="tablist" aria-label="右の列" data-en-aria-label="Sidebar">
+            <button id="tab-herald" data-en="Herald" type="button" role="tab" aria-controls="herald" aria-selected="true">でんれい</button>
+            <button id="tab-party" data-en="Heroes" type="button" role="tab" aria-controls="party" aria-selected="false">ゆうしゃ</button>
           </div>
           <aside id="herald" role="tabpanel" aria-labelledby="tab-herald"></aside>
           <aside id="party" role="tabpanel" aria-labelledby="tab-party" hidden></aside>

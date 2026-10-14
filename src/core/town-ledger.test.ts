@@ -8,10 +8,10 @@ function town(overrides: Partial<TownRecord> = {}): TownRecord {
 
 describe("town settings", () => {
   it("loads old files and migrates boolean sound without changing the input or archive days", () => {
-    expect(storedSettings({ archiveAfterDays: 7 })).toEqual({ archiveAfterDays: 7, sound: "all" });
+    expect(storedSettings({ archiveAfterDays: 7 })).toEqual({ archiveAfterDays: 7, sound: "all", language: "auto" });
     for (const sound of [true, false]) {
       const input = Object.freeze({ archiveAfterDays: 0, sound });
-      expect(storedSettings(input)).toEqual({ archiveAfterDays: 0, sound: sound ? "all" : "off" });
+      expect(storedSettings(input)).toEqual({ archiveAfterDays: 0, sound: sound ? "all" : "off", language: "auto" });
       expect(validSettings(input)).toBe(false); // Legacy booleans are for reading files, not new API saves.
     }
   });
@@ -19,12 +19,27 @@ describe("town settings", () => {
   it("accepts all three modes and integer days in range for saves and stored files", () => {
     for (const sound of ["all", "follow", "off"]) {
       for (const archiveAfterDays of [0, 30, 365]) {
-        const input = { archiveAfterDays, sound };
+        const input = { archiveAfterDays, sound, language: "auto" };
         expect(validSettings(input)).toBe(true);
         expect(storedSettings(input)).toEqual(input);
       }
     }
     expect(validSettings({ archiveAfterDays: 30 })).toBe(false);
+  });
+
+  it("accepts the two languages and auto, migrates old files, and rejects other language values", () => {
+    for (const language of ["auto", "ja", "en"]) {
+      const input = Object.freeze({ archiveAfterDays: 30, sound: "follow", language });
+      expect(validSettings(input)).toBe(true);
+      expect(storedSettings(input)).toEqual(input);
+    }
+    expect(storedSettings({ archiveAfterDays: 14, sound: "off" })).toEqual({ archiveAfterDays: 14, sound: "off", language: "auto" });
+    expect(validSettings({ archiveAfterDays: 30, sound: "all" })).toBe(false);
+    for (const language of [undefined, null, "fr", "EN", true, 0, ["ja"]]) {
+      const input = { archiveAfterDays: 30, sound: "all", language };
+      expect(validSettings(input)).toBe(false);
+      expect(storedSettings(input)).toBeUndefined();
+    }
   });
 
   it("rejects invalid sound, days and extra keys, including in legacy files", () => {

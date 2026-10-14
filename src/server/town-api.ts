@@ -1,3 +1,4 @@
+import { setLanguage, tr } from "./language";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { activateTown, archiveTowns, registerTown, validSettings, type TownRecord, type TownTheme } from "../core/town-ledger";
 import { namedHero, normalizeHeroName, type HeroNames } from "../core/names";
@@ -18,7 +19,7 @@ export class TownLedger {
   private activityDirty = false;
 
   constructor(private readonly changed: (towns: TownRecord[]) => void,
-    private readonly namesChanged: (names: HeroNames) => void) {}
+    private readonly namesChanged: (names: HeroNames) => void) { setLanguage(this.settings.language); }
 
   private save(towns: TownRecord[]): void {
     if (towns === this.towns) return;
@@ -80,14 +81,14 @@ export class TownLedger {
     let name: string | undefined;
     if (rename) {
       try { name = decodeURIComponent(url.pathname.slice("/api/names/".length)); }
-      catch { json(response, 400, { error: "勇者の ID が正しくありません" }); return; }
-      if (!isClaudeSessionId(name)) { json(response, 400, { error: "勇者の ID が正しくありません" }); return; }
+      catch { json(response, 400, { error: tr("勇者の ID が正しくありません", "Invalid hero ID") }); return; }
+      if (!isClaudeSessionId(name)) { json(response, 400, { error: tr("勇者の ID が正しくありません", "Invalid hero ID") }); return; }
     }
     if (patch) {
       try { name = decodeURIComponent(url.pathname.slice("/api/towns/".length)); }
-      catch { json(response, 400, { error: "町の名前が正しくありません" }); return; }
+      catch { json(response, 400, { error: tr("町の名前が正しくありません", "Invalid town name") }); return; }
       if (!this.towns.some((town) => town.name === name)) {
-        json(response, 404, { error: "その町が見つかりません" });
+        json(response, 404, { error: tr("その町が見つかりません", "Town not found") });
         return;
       }
     }
@@ -100,7 +101,7 @@ export class TownLedger {
           ? (input as Record<string, unknown>).name : undefined;
         const chosen = normalizeHeroName(value);
         if (chosen === undefined) {
-          json(response, 400, { error: "名前は 1〜24 文字で入力してください。空にすると元の名前に戻ります" });
+          json(response, 400, { error: tr("名前は 1〜24 文字で入力してください。空にすると元の名前に戻ります", "Use 1–24 characters, or leave blank for the default name") });
           return;
         }
         const id = name!;
@@ -115,18 +116,19 @@ export class TownLedger {
         json(response, 200, this.names);
       } else if (settings) {
         if (!validSettings(input)) {
-          json(response, 400, { error: "町をしまうまでの日数は 0〜365 の整数、おとは all・follow・off で指定してください" });
+          json(response, 400, { error: tr("町をしまうまでの日数は 0〜365 の整数、おとは all・follow・off で指定してください", "Use 0–365 whole days, sound all/follow/off, and language auto/ja/en") });
           return;
         }
-        if (input.archiveAfterDays !== this.settings.archiveAfterDays || input.sound !== this.settings.sound) {
+        if (input.archiveAfterDays !== this.settings.archiveAfterDays || input.sound !== this.settings.sound || input.language !== this.settings.language) {
           writeSettings(input);
           this.settings = input;
+          setLanguage(input.language);
           this.changed(this.towns);
         }
         json(response, 200, this.settings);
       } else {
         if (!validPatch(input)) {
-          json(response, 400, { error: "町のすがた・ピンどめ・しまった町を戻す設定が正しくありません" });
+          json(response, 400, { error: tr("町のすがた・ピンどめ・しまった町を戻す設定が正しくありません", "Invalid town look, pin, or restore setting") });
           return;
         }
         const town = this.towns.find((town) => town.name === name)!;
@@ -143,7 +145,7 @@ export class TownLedger {
       }
     } catch (error) {
       console.error("Town save failed:", error instanceof Error ? error.message : String(error));
-      json(response, 500, { error: "町の記録を保存できませんでした。データフォルダの権限を確認してください" });
+      json(response, 500, { error: tr("町の記録を保存できませんでした。データフォルダの権限を確認してください", "Could not save towns. Check data-folder permissions") });
     }
   }
 }

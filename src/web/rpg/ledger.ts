@@ -1,3 +1,4 @@
+import { tr } from "../language";
 import type { TownRecord, TownSettings as Settings, TownTheme } from "../../core/town-ledger";
 
 export type { TownRecord, Settings };
@@ -10,7 +11,7 @@ async function request(path: string, method = "GET", body?: TownChange | Setting
     method, cache: "no-store",
     ...(body ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {}),
   });
-  if (!response.ok) throw new Error(`町の台帳に つながりませんでした（${response.status}）`);
+  if (!response.ok) throw new Error(tr(`町の台帳に つながりませんでした（${response.status}）`, `Could not reach the town ledger (${response.status})`));
   return response;
 }
 
@@ -25,10 +26,10 @@ export async function loadSettings(): Promise<Settings & { startupCwd: string }>
 }
 let settingsSave = Promise.resolve();
 export function saveSettings(change: Partial<Settings>): Promise<void> {
-  // The two controls can save together; read after the previous save to preserve its choice.
+  // Read after the previous save to preserve all other choices.
   const saving = settingsSave.then(async () => {
-    const { archiveAfterDays, sound } = await loadSettings();
-    await request("/api/settings", "PUT", { archiveAfterDays, sound, ...change });
+    const { archiveAfterDays, sound, language } = await loadSettings();
+    await request("/api/settings", "PUT", { archiveAfterDays, sound, language, ...change });
   });
   settingsSave = saving.catch(() => undefined);
   return saving;

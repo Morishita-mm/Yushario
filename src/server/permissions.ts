@@ -1,3 +1,4 @@
+import { tr } from "./language";
 import type { AgentEvent } from "../core/events";
 
 export const PERMISSION_TIMEOUT_MS = 120_000;
@@ -21,7 +22,7 @@ export function permissionSummary(input: unknown): Summary | undefined {
   const name = typeof hook.cwd === "string" ? shortText(hook.cwd.split(/[\\/]/).filter(Boolean).pop()) : undefined;
   // Keep only a short local summary, not the full input, prompt or tool output.
   return { tool: hook.tool_name, summary: `${hook.tool_name}: ${typeof detail === "string"
-    ? detail.replace(/[\u0000-\u001f\u007f]/g, " ").slice(0, 120) : "実行の許可が必要です"}`,
+    ? detail.replace(/[\u0000-\u001f\u007f]/g, " ").slice(0, 120) : tr("実行の許可が必要です", "Permission needed")}`,
     ...(agent ? { agent } : {}), ...(name ? { name } : {}),
     ...(shortText(hook.agent_id) ? { helper: shortText(hook.agent_id) } : {}) };
 }
@@ -29,7 +30,7 @@ export function permissionSummary(input: unknown): Summary | undefined {
 export function permissionOutput(decision: PermissionDecision): object {
   if (decision === "terminal") return {};
   return { hookSpecificOutput: { hookEventName: "PermissionRequest", decision: decision === "allow"
-    ? { behavior: "allow" } : { behavior: "deny", message: "キャラクター画面で拒否されました" } } };
+    ? { behavior: "allow" } : { behavior: "deny", message: tr("キャラクター画面で拒否されました", "Denied on the hero screen") } } };
 }
 
 // One outstanding call; a replacement falls back to the terminal, never silently approves.

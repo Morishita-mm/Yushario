@@ -1,3 +1,4 @@
+import { tr } from "../language";
 import { canPlaySound, notificationSound, type NotificationSound, type PlayedSounds,
   type SoundNotice } from "../../core/notification-sound";
 import type { SoundMode } from "../../core/town-ledger";
@@ -12,7 +13,7 @@ const SOUNDS: Record<NotificationSound, { wave: OscillatorType; gain: number; no
 };
 let context: AudioContext | undefined;
 let mode: SoundMode = "off"; // Wait for the saved preference before accepting notifications.
-const LABELS: Record<SoundMode, string> = { all: "おと：ぜんいん", follow: "おと：ついていく勇者だけ", off: "おと：なし" };
+const LABELS: Record<SoundMode, string> = { all: tr("おと：ぜんいん", "Sound: all heroes"), follow: tr("おと：ついていく勇者だけ", "Sound: followed hero"), off: tr("おと：なし", "Sound: off") };
 const played: PlayedSounds = {};
 const seenPermissions = new Set<string>();
 
@@ -73,7 +74,7 @@ export async function initSound(say: (message: string) => void): Promise<void> {
     } catch {
       mode = previous;
       render();
-      say("おとを ほぞんできませんでした。もういちど おためしください。");
+      say(tr("おとを ほぞんできませんでした。もういちど おためしください。", "Could not save sound. Try again."));
     } finally { button.disabled = false; }
   });
   try {
@@ -82,6 +83,6 @@ export async function initSound(say: (message: string) => void): Promise<void> {
     button.disabled = false;
   } catch {
     render();
-    say("おとの せっていを よみこめませんでした。さいよみこみしてください。");
+    say(tr("おとの せっていを よみこめませんでした。さいよみこみしてください。", "Could not load sound settings. Reload."));
   }
 }

@@ -8,6 +8,19 @@ const items = {
 const controls = { modelArg: "--model", thinkingArg: "--thinking", modelCommand: "/model", thinkingCommand: "/thinking" };
 
 describe("equipment master and selection", () => {
+  it("translates only built-in bilingual names, leaving custom names intact", () => {
+    const input = { claude: { weapons: [{ id: "dagger", name: "たんけん", nameEn: "Dagger", model: "haiku" }], accessories: [] } };
+    expect(parseEquipmentMaster(input).claude.weapons[0].name).toBe("たんけん");
+    const english = parseEquipmentMaster(input, "en");
+    expect(english.claude.weapons[0].name).toBe("Dagger");
+    expect(input.claude.weapons[0].name).toBe("たんけん");
+    expect(resolveEquipmentMaster(english, { claude: items }).claude.weapons[0].name).toBe("たんけん");
+    expect(() => parseEquipmentMaster(null, "en")).toThrow("Invalid equipment master");
+    expect(() => equipmentInput({ weapon: "missing" }, items, "en")).toThrow("Invalid equipment ID");
+    expect(() => equipmentCommands({ weapon: "steel" }, {}, items, controls, "en")).toThrow("Choose no equipment when embarking or recalling");
+    expect(() => equipmentCommands({}, { weapon: "steel" }, items, { ...controls, modelCommand: "" }, "en")).toThrow("Change equipment when embarking or recalling");
+    expect(() => equipmentArgs({ accessory: "low" }, items, { ...controls, thinkingArg: "" }, "en")).toThrow("This hero cannot use that equipment");
+  });
   it("replaces an entire agent, preserves other agents and never merges tiers", () => {
     const base = { pi: items, claude: items };
     const override = { pi: { weapons: [items.weapons[0]], accessories: [] } };

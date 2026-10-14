@@ -1,3 +1,4 @@
+import { tr } from "../language";
 import "@fontsource/dotgothic16/400.css";
 import "./gallery.css";
 import { Ambient } from "../town/ambient";
@@ -38,8 +39,7 @@ let gateMenu = false;
 let priestLine = 0;
 let fadeAt = -Infinity;
 let pending: Scene | undefined;
-let last = 0;
-let pointer: [number, number] = [-1, -1];
+let last = 0; let pointer: [number, number] = [-1, -1];
 const startTown = PROJECTS.find((p) => p.theme === new URLSearchParams(location.search).get("town")) ?? PROJECTS[0];
 let town: { theme: TownTheme; repo: string } = { theme: startTown.theme!, repo: startTown.repo };
 let sleepingPlate = { x: 0, y: 0, w: 0, h: 0 };
@@ -125,11 +125,11 @@ function go(scene: Scene, from?: Scene): void {
 
 // Same window as the app; the fake hero only shows what would be sent.
 function battleCommands(): void {
-  const rect = canvas.getBoundingClientRect(), [w, h] = size(current), name = current.focus!.status[0]?.name ?? "ゆうしゃ";
+  const rect = canvas.getBoundingClientRect(), [w, h] = size(current), name = current.focus!.status[0]?.name ?? tr("ゆうしゃ", "Hero");
   showBattleCommands(reportRoot, name, [(w - 8) * rect.width / w, (h - 50) * rect.height / h], {
     working: true, closed: () => undefined,
-    steer: async (text) => { toast(`${name}に「${text}」を つたえた！`); return `${name}に つたえた！`; },
-    interrupt: () => toast(`${name} は たたかいから にげだした！`),
+    steer: async (text) => { toast(tr(`${name}に「${text}」を つたえた！`, `Sent to ${name}: "${text}"!`)); return tr(`${name}に つたえた！`, `Sent to ${name}!`); },
+    interrupt: () => toast(tr(`${name} は たたかいから にげだした！`, `${name} fled the battle!`)),
     back: () => go(returnTo ?? byId(current.focus!.theme), undefined),
   });
 }
@@ -151,10 +151,10 @@ function commands(name: string, x: number, y: number, fighting: boolean, watch?:
   const [w, h] = size(current);
   mockHeroCommands(reportRoot, name, [x * rect.width / w, (y - 30) * rect.height / h], fighting, walkers, {
     watch, toast,
-    talk: () => REPORTS[name] ? openReport(name) : toast(`${name}は こちらを みている`),
+    talk: () => REPORTS[name] ? openReport(name) : toast(tr(`${name}は こちらを みている`, `${name} looks your way`)),
     farewell: () => {
       if (current.place === "town") farewell(art, name);
-      toast(`${name} は たびだった。ぼうけんしゃの めいぼに なまえが のこった`);
+      toast(tr(`${name} は たびだった。ぼうけんしゃの めいぼに なまえが のこった`, `${name} set off. Their name remains in the roster`) );
     },
   });
 }
@@ -168,10 +168,10 @@ function hotspots(): Hot[] {
     const spots: Hot[] = markers(art, w, h, PROJECTS).map((m) => ({
       x: m.x - 34, y: m.y - 22, w: 68, h: 60,
       act: () => m.projects.length > 1
-        ? showTownList(reportRoot, `${regionName(m.theme)}の 町（${m.projects.length}）`, m.projects, enter, () => undefined)
+        ? showTownList(reportRoot, tr(`${regionName(m.theme)}の 町（${m.projects.length}）`, `${regionName(m.theme)} towns (${m.projects.length})`), m.projects, enter, () => undefined)
         : enter(m.projects[0]),
     }));
-    spots.push({ ...sleepingPlate, act: () => showTownList(reportRoot, `ねむっている町（${sleeping(PROJECTS).length}）`, sleeping(PROJECTS), enter, () => undefined) });
+    spots.push({ ...sleepingPlate, act: () => showTownList(reportRoot, tr(`ねむっている町（${sleeping(PROJECTS).length}）`, `Sleeping towns (${sleeping(PROJECTS).length})`), sleeping(PROJECTS), enter, () => undefined) });
     return spots;
   }
   if (current.focus) {
@@ -181,7 +181,8 @@ function hotspots(): Hot[] {
   }
   if (place === "inn" || place === "church") return interiorHotspots(art, place,
     (name, x, y) => commands(name, x, y, false), () => go(byId("town")), () => {
-      document.querySelector<HTMLElement>("#messages")!.textContent = `神父さま「${PRIEST_LINES[priestLine++ % PRIEST_LINES.length]}」`;
+      const line = PRIEST_LINES[priestLine++ % PRIEST_LINES.length];
+      document.querySelector<HTMLElement>("#messages")!.textContent = tr(`神父さま「${line}」`, `Priest: "${line}"`);
     });
   if (place === "town") {
     const spots: Hot[] = [{ ...townSpots(art, town.theme).inn, act: () => go(byId("inn")) },
@@ -189,14 +190,14 @@ function hotspots(): Hot[] {
     for (const hero of townHeroes()) {
       spots.push({ x: hero.x - 16, y: hero.y - 76, w: 32, h: 80, act: () => commands(hero.name, hero.x, hero.y, false) });
     }
-    spots.push({ x: 8, y: 8, w: 130, h: 22, text: "◀ ワールドマップ", act: () => go(byId("world")) });
-    spots.push({ ...rosterPlate, act: () => showRoster(reportRoot, ROSTER, (name) => { recall(art, name); toast(`${name} を よびもどした！ もんから もどってくる`); }) });
+    spots.push({ x: 8, y: 8, w: 130, h: 22, text: tr("◀ ワールドマップ", "◀ World Map"), act: () => go(byId("world")) });
+    spots.push({ ...rosterPlate, act: () => showRoster(reportRoot, ROSTER, (name) => { recall(art, name); toast(tr(`${name} を よびもどした！ もんから もどってくる`, `${name} recalled! Returning through the gate`)); }) });
     if (gateMenu) {
       (["meadow", "cave", "forest"] as const).forEach((theme, i) => spots.push({
         x: 410, y: 404 + i * 20, w: 140, h: 18, text: `▶ ${byId(theme).label}`, act: () => go(byId(theme)),
       }));
     } else {
-      spots.push({ x: 430, y: 488, w: 100, h: 52, text: "▼ フィールドへ", act: () => { gateMenu = true; } });
+      spots.push({ x: 430, y: 488, w: 100, h: 52, text: tr("▼ フィールドへ", "▼ To the field"), act: () => { gateMenu = true; } });
     }
     return spots;
   }
@@ -228,7 +229,7 @@ function updateTabs(now: number): void {
     if (scene.place === "world") count.textContent = `🏰 ${PROJECTS.length}`;
     else if (scene.place === "town") count.textContent = `👤 ${7 + 3}`;
     else if (scene.place === "inn") count.textContent = `💤 ${SLEEPERS.length}`;
-    else if (scene.place === "church") count.textContent = `祈り ${PRAYERS.length}`;
+    else if (scene.place === "church") count.textContent = tr(`祈り ${PRAYERS.length}`, `Praying ${PRAYERS.length}`);
     else if (theme) count.textContent = `⚔️ ${FIGHTS[theme].filter((f) => !f.done).length}`;
     if (scene.place === "town") button.querySelector(".name")!.textContent = town.repo;
     const unread = theme !== undefined && FIGHTS[theme].some((f) => f.done && !read.has(f.name))
@@ -255,7 +256,7 @@ function frame(now: number): void {
   else if (current.place === "town") {
     walkTown(art, now);
     drawTown(ctx, art, now, { sleepers: SLEEPERS.length, prayers: PRAYERS.length, theme: town.theme, name: town.repo, walkers: current.id === "equipment-town" ? equippedWalkers : walkers, reports: current.id === "equipment-town" ? [] : townReports(), caller: current.id === "equipment-town" ? undefined : CALLER, read, notice });
-    rosterPlate = plate(ctx, [[`📖 ぼうけんしゃの めいぼ ${ROSTER.length}`, "#fff7d6", 10]], w - 92, 8);
+    rosterPlate = plate(ctx, [[tr(`📖 ぼうけんしゃの めいぼ ${ROSTER.length}`, `📖 ROSTER ${ROSTER.length}`), "#fff7d6", 10]], w - 92, 8);
   }
   else if (current.place === "inn") drawInn(ctx, art, now, SLEEPERS.map((name) => ({ id: name, name })), notice, town.repo);
   else if (current.place === "church") drawChurch(ctx, art, now, PRAYERS.map((prayer) => ({ id: prayer.name, ...prayer })), notice, town.repo);
@@ -285,8 +286,7 @@ canvas.addEventListener("mousemove", (event) => {
 });
 canvas.addEventListener("click", (event) => {
   const spot = hit(...mapPoint(event));
-  if (spot) spot.act();
-  else gateMenu = false;
+  if (spot) spot.act(); else gateMenu = false;
 });
 
 initSceneTabs(tabs, (scene) => { returnTo = undefined; show(scene); });

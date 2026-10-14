@@ -1,3 +1,4 @@
+import { tr } from "./language";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
@@ -16,7 +17,7 @@ export async function sessionRequest(method = "GET", suffix = "", body?: object)
   });
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    throw new Error(error.error ?? `API ${response.status}（トークン付き URL を確認してください）`);
+    throw new Error(error.error ?? tr(`API ${response.status}（トークン付き URL を確認してください）`, `API ${response.status} (check the URL token)`));
   }
   return response.status === 204 ? undefined : response.json();
 }
@@ -54,21 +55,21 @@ export function connectSessionTerminal(container: HTMLElement, session: Session,
   };
   terminal.onData((data) => send({ type: "input", data }));
   terminal.onResize(({ cols, rows }) => send({ type: "resize", cols, rows }));
-  status.textContent = `${session.preset} / ${session.id} 接続中…`;
+  status.textContent = tr(`${session.preset} / ${session.id} 接続中…`, `${session.preset} / ${session.id} connecting…`);
   socket.onopen = () => {
     if (disposed) return;
-    status.textContent = session.exited ? `${session.id} 終了 (${session.exited.code})`
-      : `${session.preset} / ${session.id} 接続済み`;
+    status.textContent = session.exited ? tr(`${session.id} 終了 (${session.exited.code})`, `${session.id} ended (${session.exited.code})`)
+      : tr(`${session.preset} / ${session.id} 接続済み`, `${session.preset} / ${session.id} connected`);
     terminal.focus();
     send({ type: "resize", cols: terminal.cols, rows: terminal.rows });
   };
   socket.onmessage = (event) => { if (!disposed) terminal.write(event.data); };
   socket.onerror = () => {
-    if (!disposed) terminal.writeln("\r\n接続できません。server のトークン付き URL とセッション一覧を確認してください。");
+    if (!disposed) terminal.writeln(tr("\r\n接続できません。server のトークン付き URL とセッション一覧を確認してください。", "\r\nCannot connect. Check the server URL token and session list."));
   };
   socket.onclose = () => {
     if (disposed) return;
-    status.textContent = `${session.id} 切断`;
+    status.textContent = tr(`${session.id} 切断`, `${session.id} disconnected`);
     onDisconnect();
   };
   const disconnect = (): void => { disposed = true; socket.close(); };
@@ -87,7 +88,7 @@ export function initTerminal(): void {
   const status = document.querySelector<HTMLElement>("#terminal-status")!;
   const storageKey = "agent-character-terminal-session";
   const welcome = openXterm(container);
-  welcome.terminal.writeln("プリセットと作業ディレクトリを選んで「起動」、またはセッションに「接続」してください。");
+  welcome.terminal.writeln(tr("プリセットと作業ディレクトリを選んで「起動」、またはセッションに「接続」してください。", "Choose a preset and folder to start, or connect to a session."));
   let attachment: ReturnType<typeof connectSessionTerminal> | undefined;
   let attachedId: string | undefined;
   let sessions: Session[] = [];
@@ -100,10 +101,10 @@ export function initTerminal(): void {
   }
   async function refresh(selected = list.value || attachedId): Promise<void> {
     sessions = await sessionRequest() as Session[];
-    list.replaceChildren(new Option("セッションを選択", ""));
+    list.replaceChildren(new Option(tr("セッションを選択", "Select a session"), ""));
     for (const session of sessions) {
       const option = new Option(`${session.project} / ${session.preset} / ${session.id}${
-        session.exited ? ` / 終了 (${session.exited.code})` : ""}`, session.id);
+        session.exited ? tr(` / 終了 (${session.exited.code})`, ` / Ended (${session.exited.code})`) : ""}`, session.id);
       option.title = session.cwd;
       list.add(option);
     }
@@ -121,8 +122,8 @@ export function initTerminal(): void {
       void refresh().then(() => {
         if (attachment !== current) return;
         const latest = sessions.find((item) => item.id === session.id);
-        if (latest?.exited) status.textContent = `${session.id} 終了 (${latest.exited.code})`;
-        else if (!latest) status.textContent = "セッションは削除されました";
+        if (latest?.exited) status.textContent = tr(`${session.id} 終了 (${latest.exited.code})`, `${session.id} ended (${latest.exited.code})`);
+        else if (!latest) status.textContent = tr("セッションは削除されました", "Session removed");
       }).catch((error: Error) => { if (attachment === current) status.textContent = error.message; });
     });
     controls();
@@ -135,7 +136,7 @@ export function initTerminal(): void {
     } finally { busy = false; controls(); }
   }
   start.addEventListener("click", () => void run(async () => {
-    status.textContent = "起動中…";
+    status.textContent = tr("起動中…", "Starting…");
     const session = await sessionRequest("POST", "", { preset: preset.value, ...(cwd.value ? { cwd: cwd.value } : {}) }) as Session;
     connect(session);
     await refresh(session.id);
@@ -147,7 +148,7 @@ export function initTerminal(): void {
   const confirmation = document.createElement("dialog");
   const question = document.createElement("p");
   const no = document.createElement("button"), yes = document.createElement("button");
-  no.type = yes.type = "button"; no.textContent = "いいえ"; yes.textContent = "はい";
+  no.type = yes.type = "button"; no.textContent = tr("いいえ", "No"); yes.textContent = tr("はい", "Yes");
   confirmation.append(question, no, yes); document.body.append(confirmation);
   confirmation.addEventListener("keydown", (event) => event.stopPropagation());
   no.addEventListener("click", () => confirmation.close());
@@ -156,7 +157,7 @@ export function initTerminal(): void {
     const session = sessions.find((item) => item.id === list.value);
     if (!session) return;
     endingId = session.id;
-    question.textContent = `「${session.project} / ${session.preset} / ${session.id}」を 終了して 削除しますか？`;
+    question.textContent = tr(`「${session.project} / ${session.preset} / ${session.id}」を 終了して 削除しますか？`, `End and remove ${session.project} / ${session.preset} / ${session.id}?`);
     confirmation.showModal(); no.focus();
   });
   yes.addEventListener("click", () => { confirmation.close(); void run(async () => {
@@ -167,7 +168,7 @@ export function initTerminal(): void {
       attachment?.disconnect();
       attachedId = undefined;
       sessionStorage.removeItem(storageKey);
-      status.textContent = "セッションを終了・削除しました";
+      status.textContent = tr("セッションを終了・削除しました", "Session ended and removed");
     }
     await refresh();
   }); });

@@ -1,3 +1,4 @@
+import "./language";
 import "./style.css";
 import { initTerminal } from "./terminal";
 

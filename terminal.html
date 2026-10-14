@@ -7,22 +7,22 @@
   </head>
   <body>
     <header>
-      <h1>ターミナル</h1>
-      <a id="town-link" href="/">◀ 町へ もどる</a>
-      <label for="preset">プリセット</label>
+      <h1 data-en="Terminal">ターミナル</h1>
+      <a id="town-link" data-en="◀ Back to town" href="/">◀ 町へ もどる</a>
+      <label for="preset" data-en="Preset">プリセット</label>
       <select id="preset"></select>
-      <label for="cwd">作業ディレクトリ</label>
-      <input id="cwd" type="text" placeholder="/absolute/path/to/project" aria-label="作業ディレクトリ（絶対パス）" />
-      <button id="start" type="button" disabled>起動</button>
-      <label for="sessions">セッション</label>
-      <select id="sessions"><option value="">セッションを選択</option></select>
-      <button id="connect-session" type="button" disabled>接続</button>
-      <button id="end-session" type="button" disabled>終了</button>
-      <button id="refresh-sessions" type="button">一覧を更新</button>
-      <span id="terminal-status" aria-live="polite">未起動</span>
+      <label for="cwd" data-en="Working directory">作業ディレクトリ</label>
+      <input id="cwd" type="text" placeholder="/absolute/path/to/project" aria-label="作業ディレクトリ（絶対パス）" data-en-aria-label="Working directory (absolute path)" />
+      <button id="start" data-en="Start" type="button" disabled>起動</button>
+      <label for="sessions" data-en="Session">セッション</label>
+      <select id="sessions"><option value="" data-en="Select a session">セッションを選択</option></select>
+      <button id="connect-session" data-en="Connect" type="button" disabled>接続</button>
+      <button id="end-session" data-en="End" type="button" disabled>終了</button>
+      <button id="refresh-sessions" data-en="Refresh" type="button">一覧を更新</button>
+      <span id="terminal-status" data-en="Not started" aria-live="polite">未起動</span>
     </header>
     <main>
-      <section id="terminal-panel" aria-label="エージェントのターミナル">
+      <section id="terminal-panel" aria-label="エージェントのターミナル" data-en-aria-label="Agent terminal">
         <div id="terminal"></div>
       </section>
     </main>

@@ -1,9 +1,10 @@
+import { tr } from "../language";
 import type { Sheets } from "./sheets";
 
 // The five kinds of town. Their component choices and placements live in bld-inn.town.
 export type TownTheme = "village" | "port" | "snow" | "desert" | "volcano";
 export const THEME_NAMES: Record<TownTheme, string> = {
-  village: "草原の村", port: "海辺の港町", snow: "雪国の町", desert: "砂漠のオアシス", volcano: "火山の町",
+  village: tr("草原の村", "Meadow Village"), port: tr("海辺の港町", "Seaside Port"), snow: tr("雪国の町", "Snow Town"), desert: tr("砂漠のオアシス", "Desert Oasis"), volcano: tr("火山の町", "Volcano Town"),
 };
 
 interface Mote { x: number; y: number; speed: number; drift: number; phase: number }

@@ -1,3 +1,4 @@
+import { serverLanguage, tr } from "./language";
 import { equipmentCommands, equipmentInput, type AgentEquipment, type Equipment } from "../core/equipment";
 import { AGENTS } from "./agents";
 import { deliver, pending } from "./pty-actions";
@@ -7,10 +8,10 @@ export function requestEquipment(session: Session, input: unknown, master: Agent
   changed: (message: PendingMessage) => void, equipped: (message: EquippedMessage) => void): boolean {
   const agent = AGENTS[session.info.preset];
   if (!agent.hero || (!agent.modelCommand && !agent.thinkingCommand)) {
-    throw new Error("途中では かえられません。しゅつじん・よびもどす時だけ かえられます");
+    throw new Error(tr("途中では かえられません。しゅつじん・よびもどす時だけ かえられます", "Change equipment when embarking or recalling"));
   }
-  const next = equipmentInput(input, master);
-  equipmentCommands(session.equipping ?? session.info, next, master, agent); // Also validate against any in-flight change.
+  const next = equipmentInput(input, master, serverLanguage());
+  equipmentCommands(session.equipping ?? session.info, next, master, agent, serverLanguage()); // Also validate against any in-flight change.
   const delivered = session.waiting && !session.equipping;
   session.pendingEquipment = next; // The latest choice replaces any earlier held equipment.
   if (delivered) void flushEquipment(session, master, changed, equipped);
@@ -27,7 +28,7 @@ export async function flushEquipment(session: Session, master: AgentEquipment,
   session.pendingEquipment = undefined;
   changed(pending(session));
   try {
-    const commands = equipmentCommands(session.info, next, master, AGENTS[session.info.preset]);
+    const commands = equipmentCommands(session.info, next, master, AGENTS[session.info.preset], serverLanguage());
     for (const text of commands) {
       session.terminal.write(AGENTS[session.info.preset].clearDraft);
       deliver(session, text); // Bracketed paste and the same 300ms Enter delay as はなす.

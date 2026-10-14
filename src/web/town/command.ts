@@ -1,9 +1,10 @@
+import { tr } from "../language";
 import type { Departed } from "./walkers";
 
 // The command window that opens next to a hero you click (docs/PLATFORM.md); the mock uses the same window.
 interface HeroState { name: string; fighting: boolean; at: [number, number] } // at: CSS px in the stage
 
-const PLANS = ["テストを とおして", "コミットして", "ほうしんを みなおして"];
+const PLANS = [tr("テストを とおして", "Run the tests"), tr("コミットして", "Commit the changes"), tr("ほうしんを みなおして", "Rethink the plan")];
 
 export function element<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
@@ -82,7 +83,7 @@ export function showHeroCommands(layer: HTMLElement, name: string, at: [number, 
 }) {
   const box = element("div", "command-window");
   box.setAttribute("role", "dialog");
-  box.setAttribute("aria-label", `${name}の コマンド`);
+  box.setAttribute("aria-label", tr(`${name}の コマンド`, `Commands for ${name}`));
   box.append(element("h4", undefined, name));
   let closed = false;
   const dismiss = () => {
@@ -93,20 +94,20 @@ export function showHeroCommands(layer: HTMLElement, name: string, at: [number, 
   };
   const choose = (action: () => void) => () => { dismiss(); action(); };
   const list = element("div", "commands");
-  if (on.watch) list.append(option("たたかいを みる", choose(on.watch)));
+  if (on.watch) list.append(option(tr("たたかいを みる", "Watch battle"), choose(on.watch)));
   const unavailable = !on.terminal;
   const hero = { name, fighting: on.working, at };
-  const interrupt = option("にげる", choose(on.interrupt ?? (() => undefined)));
-  const compact = option("やすむ", () => showRestConfirmation(layer, at, name,
+  const interrupt = option(tr("にげる", "Flee"), choose(on.interrupt ?? (() => undefined)));
+  const compact = option(tr("やすむ", "Rest"), () => showRestConfirmation(layer, at, name,
     () => { dismiss(); on.compact?.(); }, dismiss));
-  list.append(option("はなす", choose(on.talk)), option("ようすを みる", choose(on.status)),
-    option("ついていく", choose(on.follow)),
-    option("そうび", () => on.equip?.(layer, at, dismiss), unavailable),
-    option("さくせん", () => showPlans(layer, hero, (text) => { dismiss(); on.plan?.(text); }, dismiss), unavailable),
+  list.append(option(tr("はなす", "Talk"), choose(on.talk)), option(tr("ようすを みる", "Status"), choose(on.status)),
+    option(tr("ついていく", "Follow"), choose(on.follow)),
+    option(tr("そうび", "Equip"), () => on.equip?.(layer, at, dismiss), unavailable),
+    option(tr("さくせん", "Tactics"), () => showPlans(layer, hero, (text) => { dismiss(); on.plan?.(text); }, dismiss), unavailable),
     interrupt, compact,
-    option("ターミナル", choose(on.terminal ?? (() => undefined)), unavailable),
-    option("みおくる", () => showFarewell(layer, hero, () => { dismiss(); on.farewell?.(); }, dismiss), unavailable),
-    option("とじる", dismiss));
+    option(tr("ターミナル", "Terminal"), choose(on.terminal ?? (() => undefined)), unavailable),
+    option(tr("みおくる", "See off"), () => showFarewell(layer, hero, () => { dismiss(); on.farewell?.(); }, dismiss), unavailable),
+    option(tr("とじる", "Close"), dismiss));
   box.append(list);
   const update = (working: boolean) => {
     hero.fighting = working;
@@ -121,7 +122,7 @@ export function showHeroCommands(layer: HTMLElement, name: string, at: [number, 
 
 function showPlans(layer: HTMLElement, hero: Pick<HeroState, "at">, done: (text: string) => void, dismiss = () => close(layer)): void {
   const box = element("div", "command-window");
-  box.append(element("h4", undefined, "さくせん"));
+  box.append(element("h4", undefined, tr("さくせん", "Tactics")));
   const list = element("div", "commands");
   for (const plan of PLANS) list.append(option(plan, () => done(plan)));
   box.append(list);
@@ -131,7 +132,7 @@ function showPlans(layer: HTMLElement, hero: Pick<HeroState, "at">, done: (text:
 function showFarewell(layer: HTMLElement, hero: Pick<HeroState, "name" | "fighting" | "at">,
   farewell: () => void, dismiss = () => close(layer)): void {
   const working = hero.fighting;
-  showConfirmation(layer, hero.at, working ? "中断して たびだたせますか？" : `${hero.name} を みおくりますか？`,
+  showConfirmation(layer, hero.at, working ? tr("中断して たびだたせますか？", "Interrupt and see this hero off?") : tr(`${hero.name} を みおくりますか？`, `See ${hero.name} off?`),
     "", () => {
       if (!working && hero.fighting) showFarewell(layer, hero, farewell, dismiss);
       else farewell();
@@ -145,14 +146,14 @@ function showConfirmation(layer: HTMLElement, at: [number, number], title: strin
   box.append(element("h4", undefined, title));
   if (hint) box.append(element("p", "hint", hint));
   const list = element("div", "commands row");
-  list.append(option("はい", yes), option("いいえ", no));
+  list.append(option(tr("はい", "Yes"), yes), option(tr("いいえ", "No"), no));
   box.append(list);
   place(layer, box, at, no, 1);
 }
 
 function showRestConfirmation(layer: HTMLElement, at: [number, number], name: string, yes: () => void, no: () => void): void {
-  showConfirmation(layer, at, `${name}の おはなしを まとめて やすませますか？`,
-    "ターミナルの 書きかけの ことばは 消えます。",
+  showConfirmation(layer, at, tr(`${name}の おはなしを まとめて やすませますか？`, `Let ${name} rest and lighten the conversation?`),
+    tr("ターミナルの 書きかけの ことばは 消えます。", "Unsent terminal text will be cleared."),
     () => { close(layer); yes(); }, () => { close(layer); no(); });
 }
 
@@ -161,18 +162,18 @@ export function showRoster(layer: HTMLElement, roster: Departed[], onRecall: (na
   layer.classList.remove("menu-layer");
   const box = element("div", "report-window");
   box.setAttribute("role", "dialog");
-  box.append(element("h3", undefined, `ぼうけんしゃの めいぼ（${roster.length}）`));
-  if (!roster.length) box.append(element("p", "who", "まだ だれも たびだって いません。"));
+  box.append(element("h3", undefined, tr(`ぼうけんしゃの めいぼ（${roster.length}）`, `Adventurers' roster (${roster.length})`)));
+  if (!roster.length) box.append(element("p", "who", tr("まだ だれも たびだって いません。", "No one has set off yet.")));
   for (const d of roster) {
     const row = element("div", "roster-row");
     const text = element("div");
-    text.append(element("p", "name", `${d.name}（${d.repo}）　${d.left} に たびだった`), element("p", "last", d.last));
-    const recall = option("▶ よびもどす", () => { layer.hidden = true; onRecall(d.name); });
+    text.append(element("p", "name", tr(`${d.name}（${d.repo}）　${d.left} に たびだった`, `${d.name} (${d.repo}) · Left ${d.left}`)), element("p", "last", d.last));
+    const recall = option(tr("▶ よびもどす", "▶ Recall"), () => { layer.hidden = true; onRecall(d.name); });
     row.append(text, recall);
     box.append(row);
   }
   const actions = element("div", "actions");
-  actions.append(option("▶ とじる", () => { layer.hidden = true; }));
+  actions.append(option(tr("▶ とじる", "▶ Close"), () => { layer.hidden = true; }));
   box.append(actions);
   layer.replaceChildren(box);
   layer.hidden = false;

@@ -1,3 +1,4 @@
+import { tr } from "../language";
 import { label } from "./field";
 
 type Spot = { x: number; y: number; w: number; h: number; text?: string };
@@ -13,5 +14,5 @@ export function drawNavigation(ctx: CanvasRenderingContext2D, spots: Spot[], poi
     ctx.strokeRect(spot.x + 1.5, spot.y + 1.5, spot.w - 3, spot.h - 3);
     label(ctx, spot.text, spot.x + spot.w / 2, spot.y + spot.h / 2 + 4, hover ? "#ffe066" : "#ffffff", 11);
   }
-  if (gateMenu) label(ctx, "どこへ いく？", 480, 396, "#fff7d6", 12);
+  if (gateMenu) label(ctx, tr("どこへ いく？", "Where to?"), 480, 396, "#fff7d6", 12);
 }

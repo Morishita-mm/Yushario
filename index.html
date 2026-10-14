@@ -15,22 +15,22 @@
     <meta property="og:image:alt" content="Yushario" />
   </head>
   <body>
-    <dialog id="title-screen" class="title-screen" aria-label="Yushario 起動画面" aria-describedby="title-tagline">
+    <dialog id="title-screen" class="title-screen" aria-label="Yushario 起動画面" data-en-aria-label="Yushario title screen" aria-describedby="title-tagline">
       <img class="title-logo" src="/logo/title.png" width="684" height="282" alt="Yushario" />
-      <p id="title-tagline">AI のしごとが、冒険に みえる。</p>
-      <button id="title-start" type="button">▶ クリックか キーで はじめる</button>
+      <p id="title-tagline" data-en="Your AI's work becomes an adventure.">AI のしごとが、冒険に みえる。</p>
+      <button id="title-start" data-en="▶ Click or press a key to begin" type="button">▶ クリックか キーで はじめる</button>
       <span class="title-caption" aria-hidden="true">AI AGENTS · A LIVING RPG</span>
     </dialog>
     <header>
       <h1><img class="quest-logo" src="/logo/logo.png" width="132" height="54" alt="Yushario" /></h1>
-      <span id="connection" aria-live="polite">せつぞく中…</span>
-      <button id="expedition" type="button">しゅつじん</button>
-      <button id="terminals" type="button">ターミナル</button>
-      <button id="roster" type="button">めいぼ</button>
-      <button id="help" type="button">ヘルプ</button>
+      <span id="connection" data-en="Connecting…" aria-live="polite">せつぞく中…</span>
+      <button id="expedition" data-en="Embark" type="button">しゅつじん</button>
+      <button id="terminals" data-en="Terminal" type="button">ターミナル</button>
+      <button id="roster" data-en="Roster" type="button">めいぼ</button>
+      <button id="help" data-en="Help" type="button">ヘルプ</button>
       <div class="settings-buttons">
-        <button id="settings" type="button">せってい</button>
-        <button id="sound" type="button" data-mode="all" aria-label="おと：ぜんいん" disabled>
+        <button id="settings" data-en="Settings" type="button">せってい</button>
+        <button id="sound" type="button" data-mode="all" aria-label="おと：ぜんいん" data-en-aria-label="Sound: all heroes" disabled>
           <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" shape-rendering="crispEdges" aria-hidden="true" focusable="false">
             <rect x="1" y="6" width="3" height="4" />
             <rect x="4" y="4" width="2" height="8" />
@@ -58,117 +58,117 @@
     </header>
     <main class="quest">
       <section class="stage">
-        <nav class="map-nav" aria-label="地図の操作">
-          <button id="world-back" type="button" hidden>◀ ワールドマップ</button>
-          <button id="town-look" type="button" hidden>町のすがたを かえる</button>
-          <button id="town-pin" type="button" aria-pressed="false" hidden>ピンどめ</button>
+        <nav class="map-nav" aria-label="地図の操作" data-en-aria-label="Map controls">
+          <button id="world-back" data-en="◀ World Map" type="button" hidden>◀ ワールドマップ</button>
+          <button id="town-look" data-en="Change town look" type="button" hidden>町のすがたを かえる</button>
+          <button id="town-pin" data-en="Pin" type="button" aria-pressed="false" hidden>ピンどめ</button>
           <div id="following" class="following" role="status" hidden>
             <span id="following-name"></span>
-            <button id="following-stop" type="button">やめる</button>
+            <button id="following-stop" data-en="Stop" type="button">やめる</button>
           </div>
           <p id="town-feedback" role="status" hidden></p>
         </nav>
         <div class="map-area">
           <div class="map-stage">
-            <canvas id="world" role="img" aria-label="エージェントたちの町とフィールド"></canvas>
+            <canvas id="world" role="img" aria-label="エージェントたちの町とフィールド" data-en-aria-label="Heroes' towns and fields"></canvas>
             <div id="town-layer" class="report-layer" hidden></div>
           </div>
         </div>
         <div id="messages" class="window messages" aria-live="polite"></div>
       </section>
       <div class="sidebar">
-        <div class="side-tabs" role="tablist" aria-label="右の列">
-          <button id="tab-herald" type="button" role="tab" aria-controls="herald" aria-selected="true">でんれい</button>
-          <button id="tab-party" type="button" role="tab" aria-controls="party" aria-selected="false">ゆうしゃ</button>
+        <div class="side-tabs" role="tablist" aria-label="右の列" data-en-aria-label="Sidebar">
+          <button id="tab-herald" data-en="Herald" type="button" role="tab" aria-controls="herald" aria-selected="true">でんれい</button>
+          <button id="tab-party" data-en="Heroes" type="button" role="tab" aria-controls="party" aria-selected="false">ゆうしゃ</button>
         </div>
         <aside id="herald" role="tabpanel" aria-labelledby="tab-herald"></aside>
         <aside id="party" role="tabpanel" aria-labelledby="tab-party" hidden></aside>
       </div>
     </main>
     <dialog id="expedition-dialog" class="report-window expedition-window" aria-labelledby="expedition-title">
-      <h3 id="expedition-title">しゅつじん</h3>
+      <h3 id="expedition-title" data-en="Embark">しゅつじん</h3>
       <form id="expedition-form">
-        <label for="expedition-preset">勇者の種類</label>
+        <label for="expedition-preset" data-en="Hero kind">勇者の種類</label>
         <select id="expedition-preset"></select>
-        <label id="expedition-weapon-label" for="expedition-weapon" hidden>ぶき</label>
-        <select id="expedition-weapon" hidden><option value="">そうびなし（きほん）</option></select>
-        <label id="expedition-accessory-label" for="expedition-accessory" hidden>アクセサリ</label>
-        <select id="expedition-accessory" hidden><option value="">そうびなし（きほん）</option></select>
-        <label for="expedition-destination">行き先</label>
-        <select id="expedition-destination"><option value="">ほかの フォルダ</option></select>
-        <label id="expedition-path-label" for="expedition-path">絶対パス</label>
+        <label id="expedition-weapon-label" data-en="Weapon" for="expedition-weapon" hidden>ぶき</label>
+        <select id="expedition-weapon" hidden><option value="" data-en="None (default)">そうびなし（きほん）</option></select>
+        <label id="expedition-accessory-label" data-en="Accessory" for="expedition-accessory" hidden>アクセサリ</label>
+        <select id="expedition-accessory" hidden><option value="" data-en="None (default)">そうびなし（きほん）</option></select>
+        <label for="expedition-destination" data-en="Destination">行き先</label>
+        <select id="expedition-destination"><option value="" data-en="Other folder">ほかの フォルダ</option></select>
+        <label id="expedition-path-label" data-en="Absolute path" for="expedition-path">絶対パス</label>
         <input id="expedition-path" type="text" placeholder="/absolute/path/to/project" required />
-        <button id="expedition-start" type="submit">▶ しゅつじん！</button>
+        <button id="expedition-start" data-en="▶ Embark!" type="submit">▶ しゅつじん！</button>
       </form>
       <p id="expedition-status" class="settings-status" role="status"></p>
 
-      <div class="actions"><button id="expedition-close" type="button">▶ とじる</button></div>
+      <div class="actions"><button id="expedition-close" data-en="▶ Close" type="button">▶ とじる</button></div>
     </dialog>
     <dialog id="terminals-dialog" class="report-window" aria-labelledby="terminals-title">
-      <h3 id="terminals-title">ターミナルの 一覧</h3>
+      <h3 id="terminals-title" data-en="Terminals">ターミナルの 一覧</h3>
       <p id="terminals-status" class="settings-status" role="status"></p>
       <div id="terminals-list" class="town-list"></div>
-      <div class="actions"><button id="terminals-refresh" type="button">▶ 一覧を 更新</button><button id="terminals-close" type="button">▶ とじる</button></div>
+      <div class="actions"><button id="terminals-refresh" data-en="▶ Refresh" type="button">▶ 一覧を 更新</button><button id="terminals-close" data-en="▶ Close" type="button">▶ とじる</button></div>
     </dialog>
     <dialog id="help-dialog" class="report-window" aria-labelledby="help-title">
-      <h3 id="help-title">ヘルプ</h3>
-      <h4>そうさ</h4>
+      <h3 id="help-title" data-en="Help">ヘルプ</h3>
+      <h4 data-en="Controls">そうさ</h4>
       <ul>
-        <li>町や 勇者を クリック</li>
-        <li>コマンド：↑ ↓ ← → で えらぶ・Enter で きめる</li>
-        <li>Ctrl+Enter で つたえる</li>
-        <li>Esc で とじる</li>
+        <li data-en="Click a town or hero">町や 勇者を クリック</li>
+        <li data-en="Commands: arrow keys to choose, Enter to confirm">コマンド：↑ ↓ ← → で えらぶ・Enter で きめる</li>
+        <li data-en="Ctrl+Enter to send">Ctrl+Enter で つたえる</li>
+        <li data-en="Esc to close">Esc で とじる</li>
       </ul>
-      <div class="actions"><button id="help-close" type="button">▶ とじる</button></div>
+      <div class="actions"><button id="help-close" data-en="▶ Close" type="button">▶ とじる</button></div>
     </dialog>
     <dialog id="roster-dialog" class="report-window" aria-labelledby="roster-title">
-      <h3 id="roster-title">ぼうけんしゃの めいぼ</h3>
+      <h3 id="roster-title" data-en="Adventurers' roster">ぼうけんしゃの めいぼ</h3>
       <p id="roster-status" class="settings-status" role="status"></p>
       <div id="roster-list" class="town-list"></div>
-      <div class="actions"><button id="roster-close" type="button">▶ とじる</button></div>
+      <div class="actions"><button id="roster-close" data-en="▶ Close" type="button">▶ とじる</button></div>
     </dialog>
     <dialog id="session-dialog" class="report-window terminal-window" aria-labelledby="session-title">
       <div class="terminal-heading">
-        <h3 id="session-title">ターミナル</h3>
-        <button id="session-talk" class="switch-view" type="button" hidden>▶ はなす</button>
-        <button id="session-close" type="button">▶ とじる</button>
+        <h3 id="session-title" data-en="Terminal">ターミナル</h3>
+        <button id="session-talk" data-en="▶ Talk" class="switch-view" type="button" hidden>▶ はなす</button>
+        <button id="session-close" data-en="▶ Close" type="button">▶ とじる</button>
       </div>
       <p id="session-status" role="status"></p>
-      <div id="session-terminal" aria-label="勇者のターミナル"></div>
+      <div id="session-terminal" aria-label="勇者のターミナル" data-en-aria-label="Hero's terminal"></div>
     </dialog>
     <dialog id="talk-dialog" class="report-window talk-window" aria-labelledby="talk-title">
       <div class="talk-heading">
-        <h3 id="talk-title">会話と報告</h3>
-        <button id="talk-terminal" class="switch-view" type="button">▶ ターミナル</button>
-        <button id="talk-close" type="button">▶ とじる</button>
+        <h3 id="talk-title" data-en="Talk and reports">会話と報告</h3>
+        <button id="talk-terminal" data-en="▶ Terminal" class="switch-view" type="button">▶ ターミナル</button>
+        <button id="talk-close" data-en="▶ Close" type="button">▶ とじる</button>
       </div>
-      <div id="talk-history" aria-label="勇者との会話と報告" tabindex="0"></div>
-      <div class="talk-pages"><button id="talk-next" type="button" hidden>▼ すべて みる</button></div>
+      <div id="talk-history" aria-label="勇者との会話と報告" data-en-aria-label="Talk and reports with a hero" tabindex="0"></div>
+      <div class="talk-pages"><button id="talk-next" data-en="▼ Show all" type="button" hidden>▼ すべて みる</button></div>
       <div id="talk-pending" aria-live="polite" hidden></div>
       <form id="talk-form" class="answer">
-        <label for="talk-input">勇者に つたえる</label>
-        <textarea id="talk-input" rows="2" maxlength="8000" required placeholder="いらいを かく（Ctrl+Enter でも つたえる）"></textarea>
-        <button id="talk-send" type="submit">▶ つたえる</button>
+        <label for="talk-input" data-en="Send to hero">勇者に つたえる</label>
+        <textarea id="talk-input" rows="2" maxlength="8000" required placeholder="いらいを かく（Ctrl+Enter でも つたえる）" data-en-placeholder="Write a request (Ctrl+Enter to send)"></textarea>
+        <button id="talk-send" data-en="▶ Send" type="submit">▶ つたえる</button>
       </form>
-      <p id="talk-foreign" class="hint" hidden>ここからは つたえられない。勇者を 起動した ターミナルで はなしかけてください。</p>
+      <p id="talk-foreign" data-en="Speak in the hero's own terminal." class="hint" hidden>ここからは つたえられない。勇者を 起動した ターミナルで はなしかけてください。</p>
       <p id="talk-status" role="status"></p>
     </dialog>
     <dialog id="strength-dialog" class="report-window strength-window" aria-labelledby="strength-title">
       <div class="strength-heading">
-        <h3 id="strength-title">つよさ</h3>
-        <button id="strength-close" type="button">▶ とじる</button>
+        <h3 id="strength-title" data-en="Status">つよさ</h3>
+        <button id="strength-close" data-en="▶ Close" type="button">▶ とじる</button>
       </div>
       <div class="name-controls">
-        <button id="strength-rename" type="button">▶ なまえを かえる</button>
+        <button id="strength-rename" data-en="▶ Rename" type="button">▶ なまえを かえる</button>
         <form id="name-form" hidden>
-          <label for="hero-name">なまえ（1〜24文字・空で じどうの なまえ）</label>
+          <label for="hero-name" data-en="Name (1–24 characters; blank for default)">なまえ（1〜24文字・空で じどうの なまえ）</label>
           <input id="hero-name" type="text" maxlength="24" autocomplete="off" />
-          <button id="name-save" type="submit">▶ ほぞん</button>
-          <button id="name-cancel" type="button">やめる</button>
+          <button id="name-save" data-en="▶ Save" type="submit">▶ ほぞん</button>
+          <button id="name-cancel" data-en="Cancel" type="button">やめる</button>
         </form>
         <p id="name-status" role="status"></p>
       </div>
-      <div id="strength-content" aria-label="勇者の つよさ" tabindex="0"></div>
+      <div id="strength-content" aria-label="勇者の つよさ" data-en-aria-label="Hero status" tabindex="0"></div>
     </dialog>
     <script type="module" src="/src/web/rpg/main.ts"></script>
   </body>

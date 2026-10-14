@@ -1,3 +1,4 @@
+import { tr } from "../language";
 import type { HeroPlace, TownHero } from "../../core/town";
 
 // The followed hero lives only in this page; Room still supplies its whereabouts.
@@ -15,7 +16,7 @@ export class Following {
   start(hero: TownHero): void {
     this.id = hero.id;
     this.name = hero.name;
-    this.label.textContent = `▶ ${hero.name}に ついていく`;
+    this.label.textContent = tr(`▶ ${hero.name}に ついていく`, `▶ Following ${hero.name}`);
     this.banner.hidden = false;
   }
 
@@ -29,7 +30,7 @@ export class Following {
     if (!this.id) return;
     const hero = heroes.find((item) => item.id === this.id);
     if (!hero) {
-      this.say(`${this.name}は たびだちました。ついていくのを やめました。`, now);
+      this.say(tr(`${this.name}は たびだちました。ついていくのを やめました。`, `${this.name} set off. Following ended.`), now);
       this.stop();
       return;
     }

@@ -1,25 +1,20 @@
 import { toolActivity, type Activity } from "./activity";
 import type { AgentEvent } from "./events";
 import { MOOD_RULES, type RoomAgent } from "./room";
+import type { Language } from "./town-ledger";
 
-// The RPG telling of agent work (docs/OBSERVATION.md): agents are heroes, work is battle,
-// subagents join the party, compacting is prayer at the church (dozing belongs in the inn).
+// Agents are heroes, work is battle; compacting is prayer, dozing belongs in the inn.
 export type Job = "hero" | "warrior" | "mage" | "thief" | "priest";
 export type MonsterKind = "slime" | "ghost" | "golem" | "dragon";
-
-export const JOB_NAMES: Record<Job, string> = {
-  hero: "ゆうしゃ", warrior: "せんし", mage: "まほうつかい", thief: "とうぞく", priest: "そうりょ",
-};
-
-// Battles: what each kind of work is fought as.
-const BATTLES: Partial<Record<Activity, MonsterKind>> = {
-  edit: "slime", run: "ghost", test: "golem", delegate: "dragon",
-};
-
-export function battleMonster(activity: Activity): MonsterKind | undefined {
-  return BATTLES[activity];
+export function jobName(job: Job, language: Language = "ja"): string {
+  return language === "ja" ? { hero: "ゆうしゃ", warrior: "せんし", mage: "まほうつかい", thief: "とうぞく", priest: "そうりょ" }[job]
+    : { hero: "Hero", warrior: "Warrior", mage: "Mage", thief: "Thief", priest: "Priest" }[job];
 }
-
+export const JOB_NAMES: Record<Job, string> = {
+  hero: jobName("hero"), warrior: jobName("warrior"), mage: jobName("mage"), thief: jobName("thief"), priest: jobName("priest"),
+};
+const BATTLES: Partial<Record<Activity, MonsterKind>> = { edit: "slime", run: "ghost", test: "golem", delegate: "dragon" };
+export function battleMonster(activity: Activity): MonsterKind | undefined { return BATTLES[activity]; }
 export function jobOf(subagentType: string | undefined): Job {
   switch (subagentType) {
     case "Explore": return "thief";
@@ -28,94 +23,81 @@ export function jobOf(subagentType: string | undefined): Job {
     default: return "mage";
   }
 }
-
 export interface Stats { level: number; hp: number; mp: number }
-
-// hp and mp are 0–1. HP falls with recent failures, MP is the context left.
 export function stats(agent: RoomAgent, now: number): Stats {
-  const recentFailures = agent.failures
-    .filter((at) => at <= now && now - at < MOOD_RULES.struggleWindowMs).length;
-  return {
-    level: 1 + Math.floor((agent.wins + agent.quests * 5) / 10),
-    hp: Math.max(0.1, 1 - recentFailures / 5),
-    mp: 1 - (agent.context ?? 0),
-  };
+  const recentFailures = agent.failures.filter((at) => at <= now && now - at < MOOD_RULES.struggleWindowMs).length;
+  return { level: 1 + Math.floor((agent.wins + agent.quests * 5) / 10), hp: Math.max(0.1, 1 - recentFailures / 5), mp: 1 - (agent.context ?? 0) };
 }
-
-// A stable, varied damage number for a hit (no randomness, so replays agree).
-export function damage(event: AgentEvent): number {
-  return 3 + Math.abs(Math.round(event.ts ?? 0)) % 37;
+export function damage(event: AgentEvent): number { return 3 + Math.abs(Math.round(event.ts ?? 0)) % 37; }
+function quoted(text: string | undefined, fallback: string, language: Language): string {
+  return text ? language === "ja" ? `「${text}」` : `"${text}"` : fallback;
 }
-
-function quoted(text: string | undefined, fallback: string): string {
-  return text ? `「${text}」` : fallback;
-}
-
-// One line of narration for an event, in the style of an old console RPG. Undefined = say nothing.
-export function narrate(event: AgentEvent, previousContext?: number): string | undefined {
-  const name = event.name ?? "ゆうしゃ";
+// Pure: language, event and previous context are all inputs. Undefined means silence.
+export function narrate(event: AgentEvent, previousContext?: number, language: Language = "ja"): string | undefined {
+  const tr = (ja: string, en: string) => language === "ja" ? ja : en;
+  const name = event.name ?? tr("ゆうしゃ", "Hero");
   const target = event.target;
   if (event.subagent) {
-    const job = JOB_NAMES[jobOf(event.subagent.type)];
-    if (event.hook === "SubagentStart") return `${job}（${event.subagent.type ?? "なかま"}）が なかまに くわわった！`;
-    if (event.hook === "SubagentStop") return `${job}は ${name}の パーティーを はなれた。`;
-    if (event.state === "error") return `${job}は ダメージを うけた！`;
+    const job = jobName(jobOf(event.subagent.type), language);
+    if (event.hook === "SubagentStart") return tr(`${job}（${event.subagent.type ?? "なかま"}）が なかまに くわわった！`, `${job} (${event.subagent.type ?? "Ally"}) joined the party!`);
+    if (event.hook === "SubagentStop") return tr(`${job}は ${name}の パーティーを はなれた。`, `${job} left ${name}'s party.`);
+    if (event.state === "error") return tr(`${job}は ダメージを うけた！`, `${job} took damage!`);
     return undefined;
   }
   switch (event.hook) {
-    case "SessionStart": return `${name}が 町に やってきた！`;
-    case "SessionEnd": return `${name}は 旅立っていった。`;
-    case "Interrupt": return `${name}は たたかいから にげだした！`;
-    case "UserPromptSubmit": return `${name}は あたらしい いらいを うけた！`;
-    case "Notification": return event.state === "waiting_input" ? `${name}は あなたを よんでいる！`
-      : event.state === "idle" ? `${name}は つぎの いらいを まっている。` : undefined;
-    case "PermissionRequest": return `${name}は ${event.tool ?? "じゅもん"}の きょかを もとめている！`;
-    case "PreCompact": return `${name}は きょうかいで いのりを ささげている`;
+    case "SessionStart": return tr(`${name}が 町に やってきた！`, `${name} arrived in town!`);
+    case "SessionEnd": return tr(`${name}は 旅立っていった。`, `${name} set off on a journey.`);
+    case "Interrupt": return tr(`${name}は たたかいから にげだした！`, `${name} fled the battle!`);
+    case "UserPromptSubmit": return tr(`${name}は あたらしい いらいを うけた！`, `${name} took on a new quest!`);
+    case "Notification": return event.state === "waiting_input" ? tr(`${name}は あなたを よんでいる！`, `${name} is calling you!`)
+      : event.state === "idle" ? tr(`${name}は つぎの いらいを まっている。`, `${name} awaits the next quest.`) : undefined;
+    case "PermissionRequest": return tr(`${name}は ${event.tool ?? "じゅもん"}の きょかを もとめている！`, `${name} asks permission for ${event.tool ?? "a spell"}!`);
+    case "PreCompact": return tr(`${name}は きょうかいで いのりを ささげている`, `${name} is praying at the church.`);
     case "PostCompact": {
       if (event.detail === "Compaction failed" || event.detail === "Compaction cancelled") {
-        return `${name}は 会話を せいりできなかった。町で ひとやすみ。`;
+        return tr(`${name}は 会話を せいりできなかった。町で ひとやすみ。`, `${name} couldn't rest. Back to town.`);
       }
       const recovered = previousContext !== undefined && event.context !== undefined
         && Math.round((1 - event.context) * 100) > Math.round((1 - previousContext) * 100);
-      return `${name}は 会話を まとめた！${recovered ? " MPが かいふくした！" : ""}`;
+      return tr(`${name}は 会話を まとめた！${recovered ? " MPが かいふくした！" : ""}`, `${name} rested!${recovered ? " MP restored!" : ""}`);
     }
-    case "Stop": return `${name}は 町で ひとやすみ することにした。`;
-    case "StopFailure": return `${name}は ちからつきた…`;
-    case "TaskCreated": return `クエスト${quoted(event.task?.subject, "")}を うけた！`;
-    case "TaskCompleted": return `クエスト${quoted(event.task?.subject, "")}を たっせいした！`;
-    case "PreToolUse": return event.tool ? begin(name, toolActivity(event.tool, target), target, event.tool) : undefined;
+    case "Stop": return tr(`${name}は 町で ひとやすみ することにした。`, `${name} takes a break in town.`);
+    case "StopFailure": return tr(`${name}は ちからつきた…`, `${name} ran out of strength…`);
+    case "TaskCreated": return tr(`クエスト${quoted(event.task?.subject, "", "ja")}を うけた！`, `Quest accepted${event.task?.subject ? `: ${quoted(event.task.subject, "", "en")}` : ""}!`);
+    case "TaskCompleted": return tr(`クエスト${quoted(event.task?.subject, "", "ja")}を たっせいした！`, `Quest complete${event.task?.subject ? `: ${quoted(event.task.subject, "", "en")}` : ""}!`);
+    case "PreToolUse": return event.tool ? begin(name, toolActivity(event.tool, target), target, event.tool, language) : undefined;
     case "PostToolUse":
-      if (event.state === "error") return `${name}は ダメージを うけた！（${event.tool ?? "こうどう"}が しっぱい）`;
-      return event.tool ? finish(event, toolActivity(event.tool, target)) : undefined;
+      if (event.state === "error") return tr(`${name}は ダメージを うけた！（${event.tool ?? "こうどう"}が しっぱい）`, `${name} took damage! (${event.tool ?? "Action"} failed)`);
+      return event.tool ? finish(event, toolActivity(event.tool, target), language) : undefined;
     case "PostToolUseFailure":
-      if (event.state === "idle") return `${name}の こうどうは さえぎられた。`;
-      return `${name}は ダメージを うけた！（${event.tool ?? "こうどう"}が しっぱい）`;
+      if (event.state === "idle") return tr(`${name}の こうどうは さえぎられた。`, `${name}'s action was interrupted.`);
+      return tr(`${name}は ダメージを うけた！（${event.tool ?? "こうどう"}が しっぱい）`, `${name} took damage! (${event.tool ?? "Action"} failed)`);
     default: return undefined;
   }
 }
-
-function begin(name: string, activity: Activity, target: string | undefined, tool: string): string | undefined {
+function begin(name: string, activity: Activity, target: string | undefined, tool: string, language: Language): string | undefined {
+  const tr = (ja: string, en: string) => language === "ja" ? ja : en;
   switch (activity) {
-    case "edit": return `${name}の こうげき！ ${quoted(target, "まもの")}に きりかかった！`;
-    case "test": return `${name}は しれんの ゴーレムに いどんだ！ ${quoted(target, "")}`;
-    case "run": return `${name}は じゅもんを となえた！ ${quoted(target, "")}`;
-    case "read": return `${name}は 図書館で ${quoted(target, "まどうしょ")}を ひもといた。`;
-    case "search": return `${name}は 書庫を さがしまわっている…`;
-    case "web": return `${name}は 物見の塔から ${target ?? "とおく"}を みわたした。`;
-    case "git": return `${name}は 冒険の書に きろくした。${quoted(target, "")}`;
-    case "delegate": return `${name}は なかまを よびあつめた！`;
-    case "ask": return `${name}は あなたに たずねている。`;
-    case "tool": return `${name}は どうぐを つかった。（${tool}）`;
-    default: return undefined; // plan is told through quests
+    case "edit": return tr(`${name}の こうげき！ ${quoted(target, "まもの", "ja")}に きりかかった！`, `${name} attacks ${quoted(target, "the monster", "en")}!`);
+    case "test": return tr(`${name}は しれんの ゴーレムに いどんだ！ ${quoted(target, "", "ja")}`, `${name} challenges the Golem! ${quoted(target, "", "en")}`);
+    case "run": return tr(`${name}は じゅもんを となえた！ ${quoted(target, "", "ja")}`, `${name} casts a spell! ${quoted(target, "", "en")}`);
+    case "read": return tr(`${name}は 図書館で ${quoted(target, "まどうしょ", "ja")}を ひもといた。`, `${name} reads ${quoted(target, "a spellbook", "en")} in the library.`);
+    case "search": return tr(`${name}は 書庫を さがしまわっている…`, `${name} searches the archives…`);
+    case "web": return tr(`${name}は 物見の塔から ${target ?? "とおく"}を みわたした。`, `${name} surveys ${target ?? "the horizon"} from the tower.`);
+    case "git": return tr(`${name}は 冒険の書に きろくした。${quoted(target, "", "ja")}`, `${name} records the journey. ${quoted(target, "", "en")}`);
+    case "delegate": return tr(`${name}は なかまを よびあつめた！`, `${name} gathers the party!`);
+    case "ask": return tr(`${name}は あなたに たずねている。`, `${name} has a question for you.`);
+    case "tool": return tr(`${name}は どうぐを つかった。（${tool}）`, `${name} uses a tool. (${tool})`);
+    default: return undefined;
   }
 }
-
-function finish(event: AgentEvent, activity: Activity): string | undefined {
+function finish(event: AgentEvent, activity: Activity, language: Language): string | undefined {
+  const tr = (ja: string, en: string) => language === "ja" ? ja : en;
   switch (activity) {
-    case "edit": return `${quoted(event.target, "まもの")}に ${damage(event)}の ダメージ！`;
-    case "test": return "しれんを のりこえた！ ゴーレムを たおした！";
-    case "run": return "じゅもんは みごとに きまった！";
-    case "delegate": return "なかまの ちからで ドラゴンを たおした！";
+    case "edit": return tr(`${quoted(event.target, "まもの", "ja")}に ${damage(event)}の ダメージ！`, `${damage(event)} damage to ${quoted(event.target, "the monster", "en")}!`);
+    case "test": return tr("しれんを のりこえた！ ゴーレムを たおした！", "Trial complete! Golem defeated!");
+    case "run": return tr("じゅもんは みごとに きまった！", "The spell struck true!");
+    case "delegate": return tr("なかまの ちからで ドラゴンを たおした！", "The party defeated the Dragon!");
     default: return undefined;
   }
 }

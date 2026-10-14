@@ -1,10 +1,11 @@
+import { tr } from "../language";
 type Tab = "herald" | "party";
 const KEY = "yushario-side-tab";
 
 // The sidebar's two tabs; the chosen tab is a page-local convenience.
 export function initSideTabs() {
   const tabs = { herald: document.querySelector<HTMLButtonElement>("#tab-herald")!, party: document.querySelector<HTMLButtonElement>("#tab-party")! };
-  const names: Record<Tab, string> = { herald: "でんれい", party: "ゆうしゃ" };
+  const names: Record<Tab, string> = { herald: tr("でんれい", "Herald"), party: tr("ゆうしゃ", "Heroes") };
   function show(tab: Tab): void {
     for (const key of ["herald", "party"] as const) {
       tabs[key].setAttribute("aria-selected", String(key === tab));
@@ -18,6 +19,6 @@ export function initSideTabs() {
   show(saved === "party" ? "party" : "herald");
   return {
     show,
-    count(tab: Tab, n: number): void { const text = `${names[tab]}（${n}）`; if (tabs[tab].textContent !== text) tabs[tab].textContent = text; },
+    count(tab: Tab, n: number): void { const text = tr(`${names[tab]}（${n}）`, `${names[tab]} (${n})`); if (tabs[tab].textContent !== text) tabs[tab].textContent = text; },
   };
 }

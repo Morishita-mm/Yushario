@@ -1,3 +1,4 @@
+import { tr } from "../language";
 import type { Sheets } from "../town/sheets";
 import { churchPriest } from "../town/church";
 import { PRAYERS, SLEEPERS } from "./mock-data";
@@ -14,6 +15,6 @@ export function interiorHotspots(art: Sheets, place: "inn" | "church",
       const [x, y] = room.slots[i];
       return { x: x + dx, y: y + dy, w, h, act: () => commands(name, x, y) };
     }),
-    { ...room.exit, text: "▼ そとへ", act: outside },
+    { ...room.exit, text: tr("▼ そとへ", "▼ Exit"), act: outside },
   ];
 }

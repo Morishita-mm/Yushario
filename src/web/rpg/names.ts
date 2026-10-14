@@ -1,3 +1,4 @@
+import { tr } from "../language";
 import { normalizeHeroName, validHeroNames } from "../../core/names";
 
 const token = new URLSearchParams(location.search).get("token") ?? "";
@@ -8,9 +9,9 @@ export function parseNames(value: unknown): Record<string, string> | undefined {
 
 export async function loadNames(): Promise<Record<string, string>> {
   const response = await fetch(`/api/names?${new URLSearchParams({ token })}`, { cache: "no-store" });
-  if (!response.ok) throw new Error("勇者の なまえを よみこめませんでした。");
+  if (!response.ok) throw new Error(tr("勇者の なまえを よみこめませんでした。", "Could not load hero names."));
   const names = parseNames(await response.json());
-  if (!names) throw new Error("勇者の なまえを よみこめませんでした。");
+  if (!names) throw new Error(tr("勇者の なまえを よみこめませんでした。", "Could not load hero names."));
   return names;
 }
 
@@ -27,19 +28,19 @@ export function initNameEditor(selected: () => string | undefined, changed: (nam
     event.preventDefault();
     const id = selected(), name = normalizeHeroName(input.value);
     if (!id || busy) return;
-    if (name === undefined) { status.textContent = "なまえは 24文字までです。"; return; }
-    busy = true; save.disabled = true; status.textContent = "ほぞんしている…";
+    if (name === undefined) { status.textContent = tr("なまえは 24文字までです。", "Names may have up to 24 characters."); return; }
+    busy = true; save.disabled = true; status.textContent = tr("ほぞんしている…", "Saving…");
     void fetch(`/api/names/${encodeURIComponent(id)}?${new URLSearchParams({ token })}`, {
       method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }),
     }).then(async (response) => {
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
-        throw new Error(data.error ?? "なまえを ほぞんできませんでした。");
+        throw new Error(data.error ?? tr("なまえを ほぞんできませんでした。", "Could not save the name."));
       }
       // Read the canonical map rather than assuming a PUT response shape.
       changed(await loadNames());
       if (selected() !== id) return;
-      status.textContent = name ? "なまえを かえた！" : "じどうの なまえに もどした！";
+      status.textContent = name ? tr("なまえを かえた！", "Name changed!") : tr("じどうの なまえに もどした！", "Default name restored!");
       form.hidden = true; button.focus();
     }).catch((error: unknown) => {
       if (selected() === id) status.textContent = error instanceof Error ? error.message : String(error);
