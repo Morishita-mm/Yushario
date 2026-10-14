@@ -42,6 +42,7 @@ export interface RoomAgent {
   name: string;
   terminal?: string;
   project?: string;
+  branch?: string;
   activity: Activity;
   target?: string;
   since: number; // When the current activity (or its target) began.
@@ -87,6 +88,7 @@ export class Room {
     if (event.name) agent.name = event.name;
     if (event.terminal) agent.terminal = event.terminal;
     if (event.project) agent.project = event.project;
+    if (event.branch !== undefined) agent.branch = event.branch;
     agent.lastEventAt = Math.max(agent.lastEventAt, at);
     agent.down = downAfterEvent(agent.down, event, at);
     if (!event.subagent) {
@@ -108,8 +110,12 @@ export class Room {
     this.turns.set(agent.id, turns);
     recordTurn(turns, event, at);
     const reply = event.hook === "Stop" || event.hook === "StopFailure";
-    if (event.text !== undefined && (event.hook === "UserPromptSubmit" || reply)) {
-      agent.talk.push({ at, from: reply ? "hero" : "you", text: event.text });
+    const party = event.hook === "PartyRequest";
+    const held = event.hook === "UserPromptSubmit" ? agent.talk.filter((entry) => entry.partyPending && event.text?.includes(entry.text)) : [];
+    for (const entry of held) entry.partyPending = false;
+    const duplicate = held.length > 0 && event.text === held.map((entry) => entry.text).join("\n");
+    if (event.text !== undefined && (event.hook === "UserPromptSubmit" && !duplicate || reply || party)) {
+      agent.talk.push({ at, from: reply ? "hero" : "you", text: event.text, ...(party ? { partyPending: true, commander: event.detail } : {}) });
       agent.talk.sort((left, right) => left.at - right.at);
       if (agent.talk.length > TALK_LIMIT) agent.talk.shift();
     }

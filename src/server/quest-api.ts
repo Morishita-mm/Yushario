@@ -1,0 +1,54 @@
+import type { IncomingMessage, ServerResponse } from "node:http";
+import { validQuestPatch } from "../core/quests";
+import { townKey, type TownRecord } from "../core/town-ledger";
+import { readJsonBody, ACTION_BODY_LIMIT } from "./http-body";
+import type { QuestLedger } from "./quest-ledger";
+import type { TerminalSession } from "./pty-session";
+import { tr } from "./language";
+
+function json(response: ServerResponse, status: number, value: unknown): void {
+  response.writeHead(status, { "Content-Type": "application/json", "Cache-Control": "no-store" }).end(JSON.stringify(value));
+}
+export async function handleQuestRequest(request: IncomingMessage, response: ServerResponse, url: URL,
+  quests: QuestLedger, towns: TownRecord[], session: (id: string) => TerminalSession | undefined): Promise<void> {
+  try {
+    const parts = url.pathname.split("/");
+    const id = parts[3] ? decodeURIComponent(parts[3]) : undefined;
+    const method = request.method;
+    if (!id && method === "GET") { json(response, 200, quests.list().filter((quest) => !url.searchParams.has("town") || quest.town === url.searchParams.get("town"))); return; }
+    if (!id && method === "DELETE") {
+      const town = url.searchParams.get("town") ?? undefined;
+      if (town && !towns.some((item) => townKey(item) === town)) { json(response, 404, { error: tr("町が みつからない", "Town not found") }); return; }
+      quests.clear(town); response.writeHead(204).end(); return;
+    }
+    if (id && !quests.get(id)) { json(response, 404, { error: tr("クエストが みつからない", "Quest not found") }); return; }
+    if (id && !parts[4] && method === "GET") { json(response, 200, quests.get(id)); return; }
+    if (id && !parts[4] && method === "DELETE") { quests.delete(id); response.writeHead(204).end(); return; }
+    if (id && parts[4] === "base" && method === "DELETE") { quests.clearWorktree(id); response.writeHead(204).end(); return; }
+    if (!["POST", "PATCH"].includes(method ?? "")) { response.writeHead(405).end(); return; }
+    const body = await readJsonBody(request, response, ACTION_BODY_LIMIT);
+    if (!body.ok) return;
+    const input = body.value && typeof body.value === "object" && !Array.isArray(body.value) ? body.value as Record<string, unknown> : {};
+    if (!id && method === "POST") {
+      const { town, ...patch } = input;
+      if (typeof town !== "string" || !towns.some((item) => townKey(item) === town) || !validQuestPatch(patch) || !patch.title) {
+        json(response, 400, { error: tr("町と クエストの 題を えらんで", "Choose a town and quest title") }); return;
+      }
+      json(response, 201, quests.create(town, patch.title, patch.purpose)); return;
+    }
+    if (id && parts[4] === "base" && method === "POST") {
+      const chosen = typeof input.session === "string" ? session(input.session) : undefined;
+      if (!chosen || chosen.exited || quests.get(id)?.town !== chosen.project) { json(response, 400, { error: tr("この町の 拠点を えらんで", "Choose a base in this town") }); return; }
+      quests.setWorktree(id, { path: chosen.cwd, branch: chosen.branch }); json(response, 200, quests.get(id)); return;
+    }
+    if (id && parts[4] === "assign" && method === "POST") {
+      const chosen = typeof input.session === "string" ? session(input.session) : undefined;
+      if (!chosen || chosen.exited) { json(response, 404, { error: tr("勇者が みつからない", "Hero not found") }); return; }
+      quests.assign(id, chosen); json(response, 200, quests.get(id)); return;
+    }
+    if (id && !parts[4] && method === "PATCH" && validQuestPatch(input)) {
+      json(response, 200, quests.patch(id, input)); return;
+    }
+    json(response, 400, { error: tr("クエストの ことばが ちがう", "Invalid quest details") });
+  } catch (error) { json(response, 400, { error: error instanceof Error ? error.message : tr("クエストを のこせない", "Could not save quest") }); }
+}

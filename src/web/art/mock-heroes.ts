@@ -3,6 +3,7 @@ import type { AgentEquipment, Equipment } from "../../core/equipment";
 import { equipmentTiers } from "../../core/battle-presentation";
 import { element, option, place, showHeroCommands } from "../town/command";
 import type { Walker } from "../town/walkers";
+import { mockReview } from "./mock-review";
 
 // Mock: the app's own hero command window, with fake heroes and fake equipment (docs/PLATFORM.md stage 7).
 // Same items as src/server/equipment.json; changing them only changes this page (and the sword on the map).
@@ -43,6 +44,7 @@ export function mockHeroCommands(layer: HTMLElement, name: string, at: [number, 
     status: () => showStatus(layer, name, at, fighting, () => equip(layer, at, () => dismiss())),
     follow: () => toast(tr(`${name}に ついていく`, `Following ${name}`)),
     terminal: () => toast(tr("いまは ひらけない", "Cannot open now")),
+    review: () => mockReview(name),
     plan: (text) => toast(tr(`${name} に さくせん「${text}」を つたえた`, `Sent tactics to ${name}: ${text}`)),
     interrupt: () => toast(tr(`${name} は たたかいから にげだした！`, `${name} fled the battle!`)),
     compact: () => toast(tr(`${name} は おはなしを まとめた`, `${name} rested`)),

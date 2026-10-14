@@ -17,10 +17,12 @@ export interface AgentEvent {
   agent?: string; // Session id; one character per session.
   name?: string; // Display name (last segment of the working directory).
   terminal?: string; // Embedded terminal session id.
-  project?: string; // Repository name (shared by its worktrees).
+  project?: string; // Repository identity (shared by its worktrees).
+  branch?: string; // Local branch, for the base's name badge.
   text?: string; // Prompt/final reply for local conversation display only.
   hook?: string; // Harness hook name, e.g. "PreToolUse".
   target?: string; // What the activity is about: file basename, command head, domain…
+  command?: string; // Completed command input, transient until check matching; never replayed.
   subagent?: { id: string; type?: string };
   task?: { id: string; subject?: string; status: TaskStatus };
 }
@@ -30,6 +32,7 @@ const TASK_STATUSES: readonly TaskStatus[] = ["pending", "in_progress", "complet
 
 export const MAX_EVENT_METADATA_LENGTH = 200;
 export const MAX_EVENT_TEXT_LENGTH = 8000;
+export const MAX_PROJECT_KEY_LENGTH = 4096; // Canonical repository paths must not collide at 200 characters.
 
 // Count UTF-16 units, as the UI does, without leaving a split surrogate pair.
 export function truncateEventString(value: string, limit: number): string {
@@ -67,7 +70,7 @@ export function parseAgentEvent(
     return { ok: false, error: "text must be a string" };
   }
 
-  for (const field of ["source", "tool", "agent", "name", "hook", "target", "terminal", "project"] as const) {
+  for (const field of ["source", "tool", "agent", "name", "hook", "target", "terminal", "project", "branch"] as const) {
     const metadata = value[field];
     if (metadata !== undefined) {
       if (typeof metadata !== "string") {
@@ -97,12 +100,18 @@ export function parseAgentEvent(
       ...(raw.subject !== undefined ? { subject: truncateEventString(raw.subject as string, MAX_EVENT_METADATA_LENGTH) } : {}) };
   }
 
+  const rawCommand = value.command ?? (value.tool_input && typeof value.tool_input === "object" ? (value.tool_input as Record<string, unknown>).command : undefined);
+  if (rawCommand !== undefined && typeof rawCommand !== "string") return { ok: false, error: "command must be a string" };
   const event: AgentEvent = { state: value.state as AgentState };
+  if (typeof rawCommand === "string" && value.tool === "Bash" && ["PostToolUse", "PostToolUseFailure"].includes(String(value.hook))) {
+    event.command = truncateEventString(rawCommand, MAX_EVENT_TEXT_LENGTH);
+    if (value.target === undefined) event.target = truncateEventString(rawCommand, MAX_EVENT_METADATA_LENGTH);
+  }
   if (value.ts !== undefined) event.ts = value.ts as number;
   if (value.context !== undefined) event.context = value.context as number;
-  for (const field of ["detail", "source", "tool", "agent", "name", "hook", "target", "terminal", "project", "text"] as const) {
+  for (const field of ["detail", "source", "tool", "agent", "name", "hook", "target", "terminal", "project", "branch", "text"] as const) {
     if (value[field] !== undefined) event[field] = truncateEventString(value[field] as string,
-      field === "text" ? MAX_EVENT_TEXT_LENGTH : MAX_EVENT_METADATA_LENGTH);
+      field === "text" ? MAX_EVENT_TEXT_LENGTH : field === "project" ? MAX_PROJECT_KEY_LENGTH : MAX_EVENT_METADATA_LENGTH);
   }
   if (subagent) event.subagent = subagent;
   if (task) event.task = task;

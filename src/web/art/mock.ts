@@ -1,4 +1,6 @@
 import { tr } from "../language";
+import { initMockQuests, mockReportChecks } from "./mock-quests";
+import { questBoardHotspot } from "../town/quest-board";
 import "@fontsource/dotgothic16/400.css";
 import "./gallery.css";
 import { Ambient } from "../town/ambient";
@@ -58,13 +60,13 @@ function enter(project: Project, place: Place = "town"): void {
   initTown(art, town.theme);
   go(byId(place));
 }
-
 let picked: string | undefined; // The mock hero chosen in the ゆうしゃ tab.
 // Like the app: urgent news crosses town borders, but the heroes list stays local.
 function refreshHerald(): void {
   const localTown = current.place === "world" ? undefined : town.repo;
   const list = noticesInTown(notices(), localTown);
   sideTabs.count("herald", list.length);
+  sideTabs.count("quests", mockQuests(localTown));
   sideTabs.count("party", renderMockParty(party, town.repo, mark?.id ?? picked, (name, place) => { picked = name; mark = { id: name, place }; go(byId(place)); }));
   renderHerald(herald, list, (notice: Notice) => {
     if (notice.hero) sideTabs.show("party");
@@ -77,12 +79,12 @@ function refreshHerald(): void {
 const read = new Set<string>();
 let report: string | undefined; // name of the agent whose report is open
 const reportRoot = document.querySelector<HTMLElement>("#report")!;
-
+const mockQuests = initMockQuests(PROJECTS, reportRoot, openReport);
 function openReport(name: string): void {
   if (mark?.id === name) mark = undefined;
   if (!REPORTS[name]) return;
   report = name;
-  showReport(reportRoot, name, REPORTS[name], () => { read.add(name); report = undefined; });
+  showReport(reportRoot, name, REPORTS[name], () => { read.add(name); report = undefined; }); mockReportChecks(reportRoot);
 }
 function closeLayer(): void {
   reportRoot.hidden = true;
@@ -185,7 +187,7 @@ function hotspots(): Hot[] {
       document.querySelector<HTMLElement>("#messages")!.textContent = tr(`神父さま「${line}」`, `Priest: "${line}"`);
     });
   if (place === "town") {
-    const spots: Hot[] = [{ ...townSpots(art, town.theme).inn, act: () => go(byId("inn")) },
+    const spots: Hot[] = [questBoardHotspot(art, town.theme, () => sideTabs.show("quests")), { ...townSpots(art, town.theme).inn, act: () => go(byId("inn")) },
       { ...townSpots(art, town.theme).church, act: () => go(byId("church")) }];
     for (const hero of townHeroes()) {
       spots.push({ x: hero.x - 16, y: hero.y - 76, w: 32, h: 80, act: () => commands(hero.name, hero.x, hero.y, false) });
@@ -214,11 +216,9 @@ function hotspots(): Hot[] {
   }
   return exits;
 }
-
 function hit(x: number, y: number): Hot | undefined {
   return hotspots().find((h) => x >= h.x && x <= h.x + h.w && y >= h.y && y <= h.y + h.h);
 }
-
 function updateTabs(now: number): void {
   for (const button of tabs.querySelectorAll<HTMLButtonElement>("button")) {
     const scene = byId(button.dataset.id!);

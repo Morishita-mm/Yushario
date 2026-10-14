@@ -19,7 +19,7 @@ export type Walker = {
   theme?: TownTheme;
   id: string; name: string; variant: number; x: number; y: number; at: string; stop: number; path: string[];
   waitUntil: number; walked: number; dx: number; dy: number; party: string[];
-  leaving?: boolean; wavedAt?: number; paused?: boolean; weaponTier?: number;
+  leaving?: boolean; wavedAt?: number; paused?: boolean; weaponTier?: number; branch?: string;
 };
 export type TownSign = { name: string; x: number; y: number; icon: string };
 export type Departed = { name: string; repo: string; left: string; last: string };
@@ -113,5 +113,6 @@ export function drawWalker(ctx: CanvasRenderingContext2D, art: Sheets, walker: W
     drawNoticeHero(ctx, art, art.variant(id, walker.variant), art.pose(id, walker.dy > 0 ? "front" : "back", stride), walker.x, walker.y, mark);
   }
   label(ctx, walker.name, walker.x, walker.y + 13);
+  if (walker.branch) label(ctx, `⑂ ${walker.branch}`, walker.x, walker.y + 25, "#9fd3ff", 8);
   weaponBesideLabel(ctx, art, walker.weaponTier, t, walker.name, walker.x, walker.y + 13);
 }

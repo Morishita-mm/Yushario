@@ -1,6 +1,6 @@
 import { serverLanguage, tr } from "./language";
 import { randomBytes } from "node:crypto";
-import { mkdtempSync, rmSync, statSync } from "node:fs";
+import { mkdtempSync, realpathSync, rmSync, statSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { tmpdir } from "node:os";
 import { basename, isAbsolute, join } from "node:path";
@@ -9,12 +9,14 @@ import { equipmentInput } from "../core/equipment";
 import { WebSocket, WebSocketServer } from "ws";
 import { appendOutput, dimensions, SESSION_LIMIT, sessionInput, type EquippedMessage, type PendingMessage, type Session, type TerminalSession } from "./pty-session";
 import { modePrefix } from "../core/terminal-modes";
-import { clearPending, observe as observeSession, pending } from "./pty-actions";
+import { capturePreviewUrls } from "./preview-output";
+import { worktreeBranch, worktreeRemoving } from "./worktrees";
+import { clearPending, observe as observeSession, pending, say } from "./pty-actions";
 import { flushEquipment } from "./pty-equipment";
 import { handlePtyAction } from "./pty-api-actions";
 import { addRosterEntry, isClaudeSessionId } from "../core/roster";
 import { readEquipment, readRoster, writeRoster } from "./town-data";
-import { projectName } from "./project";
+import { projectIdentity } from "./project";
 import { launchPty, writeClaudeSettings } from "./pty-launch";
 import { AGENTS, publicAgents } from "./agents";
 import { hasTrustPrompt, replacedSession } from "../core/session-actions";
@@ -30,7 +32,8 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
   pendingChanged: (message: PendingMessage) => void, recordEvent: (event: AgentEvent) => void,
   terminalEnded: (terminal: string) => void, chosenName: (id: string) => string | undefined,
   attentionChanged: (message: { type: "attention"; terminal: string; reason: "trust" }) => void,
-  equipmentChanged: (message: EquippedMessage) => void) {
+  equipmentChanged: (message: EquippedMessage) => void,
+  requested?: (session: TerminalSession, text: string, hero?: string) => void) {
   const temporary = mkdtempSync(join(tmpdir(), "agent-character-"));
   const settings = writeClaudeSettings(port, temporary);
   const sockets = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 });
@@ -61,6 +64,7 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
     const session = event.terminal ? sessions.get(event.terminal)
       : event.agent ? [...sessions.values()].find((item) => item.agentId === event.agent) : undefined;
     if (!session) return;
+    if (!event.subagent && event.agent) session.info.hero = event.agent;
     const previous = replacedSession(event, session.agentId);
     if (previous) {
       rememberDeparture(session);
@@ -85,18 +89,24 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
   }
 
   async function create(input: unknown, resume?: string): Promise<TerminalSession> {
-    const { preset, cwd = process.env.AGENT_CHARACTER_CWD || process.env.INIT_CWD || process.cwd() } = sessionInput(input);
+    const { preset, cwd: inputCwd = process.env.AGENT_CHARACTER_CWD || process.env.INIT_CWD || process.cwd() } = sessionInput(input);
+    let cwd = inputCwd;
     if (!isAbsolute(cwd)) throw new Error(tr("行き先はフォルダの絶対パスで指定してください", "Use an absolute folder path"));
     try {
       if (!statSync(cwd).isDirectory()) throw new Error();
+      cwd = realpathSync(cwd);
     } catch { throw new Error(tr("行き先のフォルダが見つかりません。存在するフォルダを指定してください", "Destination folder not found. Choose an existing folder")); }
     const selectedEquipment = equipmentInput(input, equipment[preset], serverLanguage());
-    const project = await projectName(cwd);
+    const identity = await projectIdentity(cwd);
+    const project = identity.key;
+    const branch = await worktreeBranch(cwd);
+    if (worktreeRemoving(cwd)) throw new Error(tr("この 拠点は たたんでいる", "This base is folding"));
     // Check after the await too: concurrent requests must not exceed the limit.
     if (disposed) throw new Error(tr("サーバーは停止中です", "Server is stopping"));
     if (sessions.size >= SESSION_LIMIT) throw new Error(tr("ターミナルの上限（16）に達しました。使わないものを終わらせて消してください", "Terminal limit (16) reached. End and remove unused terminals"));
     const id = randomBytes(6).toString("hex");
-    const terminal = launchPty(preset, cwd, id, port, settings, selectedEquipment, equipment[preset], project, resume);
+    const agentToken = randomBytes(32).toString("hex");
+    const terminal = launchPty(preset, cwd, id, port, settings, selectedEquipment, equipment[preset], identity.name, resume, agentToken);
     groups.add(terminal.pid);
     let stopped = false;
     const stop = (): void => {
@@ -120,14 +130,15 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
     let finish!: () => void;
     const finished = new Promise<void>((resolve) => { finish = resolve; });
     const session: Session = {
-      info: { id, preset, cwd, project, createdAt: Date.now(), ...selectedEquipment }, terminal,
-      output: Buffer.alloc(0), modes: new Map(), clients: new Set(), stop, waiting: false, eventAt: -Infinity, texts: [],
+      info: { id, preset, cwd, project, branch, projectName: identity.name, projectParent: identity.parent, createdAt: Date.now(), ...selectedEquipment }, terminal,
+      agentToken, output: Buffer.alloc(0), modes: new Map(), clients: new Set(), stop, waiting: false, eventAt: -Infinity, texts: [],
       interrupted: false, interrupting: false, departing: false, asking: false, askedAt: -Infinity, agentId: resume,
       hasPrompt: Boolean(resume), name: basename(cwd), finished, finish,
     };
     sessions.set(id, session);
     const output = (data: string): void => {
       session.output = appendOutput(session.output, data, session.modes);
+      capturePreviewUrls(session, data, port);
       if (!session.attention && !session.agentId && !session.info.exited && AGENTS[preset].hero && hasTrustPrompt(session.output.toString("utf8").slice(-8192))) {
         session.attention = true;
         attentionChanged({ type: "attention", terminal: id, reason: "trust" });
@@ -204,7 +215,7 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
       const session = sessions.get(url.pathname.split("/")[3]);
       if (!session) { json(response, 404, { error: tr("そのターミナルが見つかりません", "Terminal not found") }); return; }
       const departed = await handlePtyAction(request, response, url.pathname, session,
-        equipment[session.info.preset], pendingChanged, equipmentChanged, recordEvent);
+        equipment[session.info.preset], pendingChanged, equipmentChanged, recordEvent, requested);
       if (departed) sessions.delete(session.info.id);
     } else if (url.pathname.startsWith("/api/sessions/") && request.method === "DELETE") {
       const id = url.pathname.slice("/api/sessions/".length);
@@ -256,7 +267,15 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
     pending: () => [...sessions.values()].filter((session) => session.texts.length || session.pendingEquipment).map(pending),
     attention: () => [...sessions.values()].filter((session) => session.attention && !session.agentId && !session.info.exited)
       .map((session) => ({ type: "attention", terminal: session.info.id, reason: "trust" })),
+    create,
+    end: (id: string) => { sessions.get(id)?.stop(); sessions.delete(id); },
+    agentSession: (id: string) => { const session = sessions.get(id); return session && { token: session.agentToken, waiting: session.waiting, active: !disposed && !session.ended && !session.departing && !session.info.exited }; },
+    say: (id: string, text: string) => { const session = sessions.get(id); if (!session) throw new Error(tr("勇者が みつからない", "Hero not found")); return say(session, text, pendingChanged); },
+    sessionLabel: (id: string) => sessions.get(id)?.name,
     getSession: (id: string) => sessions.get(id)?.info,
+    listSessions: () => [...sessions.values()].map((session) => session.info),
+    refreshBranch: async (id: string) => { const session = sessions.get(id); if (session) session.info.branch = await worktreeBranch(session.info.cwd); },
+    sessionForAgent: (agent: string) => [...sessions.values()].find((item) => item.agentId === agent)?.info,
     activeProjects: () => new Set([...sessions.values()]
       .filter((session) => !session.info.exited && AGENTS[session.info.preset].hero).map((session) => session.info.project)),
     dispose: () => {

@@ -6,7 +6,17 @@ import { EVENT_HISTORY_LIMIT, historyDiscardIndex, type RecordedEvent } from "..
 import { DAY_MS } from "../core/town-ledger";
 import { namedHero } from "../core/names";
 import { TownLedger } from "./town-api";
+import { QuestLedger } from "./quest-ledger";
+import { handleQuestRequest } from "./quest-api";
+import { QuestParty } from "./party";
+import { handlePartyRequest } from "./party-api";
+import { handleAgentQuest } from "./party-agent-api";
+import { handleChecksRequest } from "./checks-api";
+import { observeChecks, refreshCheckFingerprint } from "./checks";
 import { serveStatic } from "./static";
+import { handleReview } from "./review";
+import { handleWorktrees } from "./worktrees";
+import { handlePreview } from "./preview";
 import { createPtyServer } from "./pty";
 import { AGENTS } from "./agents";
 import { PermissionWaiter, PERMISSION_TIMEOUT_MS, permissionOutput, permissionSummary } from "./permissions";
@@ -36,14 +46,20 @@ const history: RecordedEvent[] = [];
 const endedTerminals = new Set<string>();
 const ledger = new TownLedger((towns) => broadcast({ type: "towns", towns }),
   (names) => broadcast({ type: "names", names }));
+const quests = new QuestLedger(broadcast, () => ledger.saveConversation);
 
 function record(event: AgentEvent): boolean {
+  const { command, ...observed } = event; event = observed;
   if (event.terminal && endedTerminals.has(event.terminal)) return false;
   if (event.terminal && event.hook === "SessionEnd" && !event.subagent) endedTerminals.add(event.terminal);
   // Hooks run concurrently, so order by the hook's own clock when it is plausible.
   const now = Date.now();
   const at = event.ts !== undefined && Math.abs(event.ts - now) < 60_000 ? event.ts : now;
-  const session = event.terminal ? pty.getSession(event.terminal) : undefined;
+  const session = event.terminal ? pty.getSession(event.terminal) : event.agent ? pty.sessionForAgent(event.agent) : undefined;
+  if (session) {
+    event = { ...event, project: session.project, branch: session.branch ?? "" };
+    try { quests.observe(session, event, at); } catch (error) { console.error("Quest save failed:", error); }
+  }
   if (session && AGENTS[session.preset].hero) {
     try { ledger.observe(session.project, now); }
     catch (error) { console.error("Town activity save failed:", error); }
@@ -52,6 +68,8 @@ function record(event: AgentEvent): boolean {
   if (history.length > EVENT_HISTORY_LIMIT) history.splice(historyDiscardIndex(history), 1);
   broadcast({ type: "event", event, at });
   pty.observe(event, at);
+  if (session) try { party.observe(session, event, at); } catch (error) { console.error("Party save failed:", error); }
+  if (session) try { observeChecks(quests, session, { ...event, command }, at); } catch (error) { console.error("Check save failed:", error); }
   return true;
 }
 
@@ -70,13 +88,36 @@ const server = createServer(async (request, response) => {
   let url: URL;
   try { url = new URL(request.url ?? "/", `http://127.0.0.1:${port}`); }
   catch { response.writeHead(400).end(); return; }
+  if (url.pathname === "/api/agent/quests" || url.pathname.startsWith("/api/agent/quests/")) {
+    if (request.headers.origin !== undefined) { response.writeHead(403).end(); return; }
+    await handleAgentQuest(request, response, url, party); return;
+  }
   const sessionApi = url.pathname === "/api/equipment" || url.pathname === "/api/agents" || url.pathname === "/api/sessions" || url.pathname.startsWith("/api/sessions/")
     || url.pathname === "/api/roster" || url.pathname.startsWith("/api/roster/");
   const townApi = url.pathname === "/api/towns" || url.pathname.startsWith("/api/towns/")
     || url.pathname === "/api/settings" || url.pathname === "/api/names" || url.pathname.startsWith("/api/names/");
-  if (sessionApi || townApi) {
+  const questApi = url.pathname === "/api/quests" || url.pathname.startsWith("/api/quests/");
+  const reviewApi = url.pathname === "/api/review" || url.pathname === "/api/review/diff";
+  const worktreeApi = url.pathname === "/api/worktrees";
+  const previewApi = url.pathname === "/api/previews";
+  const partyApi = url.pathname === "/api/party-notices" || url.pathname.startsWith("/api/party-notices/") || /^\/api\/quests\/[^/]+\/(party|scroll|send|summary|handoff)$/.test(url.pathname);
+  if (sessionApi || townApi || questApi || reviewApi || worktreeApi || previewApi || partyApi) {
     if (!authorized(url, request.headers.origin, false)) { response.writeHead(403).end(); return; }
-    if (sessionApi) await pty.handleRequest(request, response, url);
+    if (partyApi) await handlePartyRequest(request, response, url, party);
+    else if (previewApi) await handlePreview(request, response, url, port, quests, ledger.towns, pty.listSessions());
+    else if (worktreeApi) await handleWorktrees(request, response, url, pty.listSessions, (path) => quests.foldedWorktree(path));
+    else if (reviewApi) await handleReview(request, response, url, pty.getSession(url.searchParams.get("session") ?? ""), () => {
+      try {
+        const session = pty.getSession(url.searchParams.get("session") ?? ""), quest = session && quests.current(session.id);
+        if (quest && session) void refreshCheckFingerprint(quests, quest.id, session.cwd).catch(() => undefined);
+        quests.reviewed(url.searchParams.get("session") ?? "", Date.now());
+      }
+      catch (error) { console.error("Quest review save failed:", error); }
+    });
+    else if (questApi) {
+      if (!await handleChecksRequest(request, response, url, quests, pty.listSessions)) await handleQuestRequest(request, response, url, quests, ledger.towns, pty.getSession);
+    }
+    else if (sessionApi) await pty.handleRequest(request, response, url);
     else await ledger.handleRequest(request, response, url);
     return;
   }
@@ -136,6 +177,8 @@ const server = createServer(async (request, response) => {
   response.writeHead(204).end();
   if (!record(result.event)) return;
   permissions.observe(result.event);
+  // Git must never delay hook ordering; the refreshed badge is used by the next event/list.
+  if (result.event.terminal && !result.event.subagent && ["SessionStart", "UserPromptSubmit", "Stop", "StopFailure"].includes(result.event.hook ?? "")) void pty.refreshBranch(result.event.terminal);
   if (process.env.AGENT_CHARACTER_DEBUG === "1") {
     const { state, source, tool, ts, context, hook, agent, target, terminal, project } = result.event;
     console.log(JSON.stringify({ state, source, tool, ts, context, hook, agent, target, terminal, project }));
@@ -144,8 +187,10 @@ const server = createServer(async (request, response) => {
 
 port = await listenAvailable(server, options.port);
 const sockets = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 });
-const pty = createPtyServer(port, (session) => ledger.register(session.project, session.cwd, session.createdAt), broadcast,
-  record, (terminal) => { endedTerminals.add(terminal); }, (id) => namedHero(ledger.names, id), broadcast, broadcast);
+const pty = createPtyServer(port, (session) => ledger.register(session.projectName ?? session.project, session.cwd, session.createdAt, session.project, session.projectParent), broadcast,
+  record, (terminal) => { endedTerminals.add(terminal); broadcast(party.snapshot()); }, (id) => namedHero(ledger.names, id), broadcast, broadcast,
+  (session, text, hero) => quests.requested(session, text, Date.now(), hero));
+const party = new QuestParty(quests, pty, broadcast, record, (id) => namedHero(ledger.names, id));
 function archive(): void {
   try { ledger.archive(pty.activeProjects(), Date.now()); }
   catch (error) { console.error("Town archive failed:", error); }
@@ -184,6 +229,8 @@ sockets.on("connection", (client) => {
   client.send(JSON.stringify({ type: "replay", events: history }));
   client.send(JSON.stringify({ type: "towns", towns: ledger.towns }));
   client.send(JSON.stringify({ type: "names", names: ledger.names }));
+  client.send(JSON.stringify(quests.snapshot()));
+  client.send(JSON.stringify(party.snapshot()));
   for (const message of pty.pending()) client.send(JSON.stringify(message));
   // These are snapshots too, not fresh requests that should ring on reconnect.
   for (const message of pty.attention()) client.send(JSON.stringify({ ...message, live: false }));
@@ -211,6 +258,7 @@ function shutdown(): void {
   catch (error) { console.error("Town activity save failed:", error); }
   permissions.cancel();
   pty.dispose();
+  quests.close();
   for (const client of sockets.clients) client.terminate();
   sockets.close();
   server.close(() => process.exit());

@@ -13,7 +13,7 @@ export type TalkReport = {
   waitedMs?: number;
   mp?: { start: number; end: number };
 };
-export type TalkEntry = { at: number; from: "you" | "hero"; text: string; report?: TalkReport };
+export type TalkEntry = { at: number; from: "you" | "hero"; text: string; report?: TalkReport; commander?: string; partyPending?: boolean };
 
 // Older contributions become totals, not an ever-growing list. Late hooks can
 // correct only this recent window; older completed cards are left unchanged.
@@ -91,7 +91,7 @@ function applyMark(cursor: Cursor, mark: Mark): { stopped: boolean; report?: Tal
   report.endedAt = at;
   if (hook === "StopFailure") report.stopFailure = true;
   report.kind = report.stopFailure || report.tests.last === "failed" ? "scroll"
-    : report.files.length ? "chest" : report.tools ? "scroll" : "talk";
+    : report.files.length ? report.tests.last === "passed" ? "chest" : "scroll" : report.tools ? "scroll" : "talk";
   if (active.mpStart !== undefined && cursor.context !== undefined) report.mp = { start: active.mpStart, end: 1 - cursor.context };
   return { stopped: true, report };
 }

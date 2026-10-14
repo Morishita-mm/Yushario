@@ -22,7 +22,7 @@ export function equipmentLabels(gear: Equipment, master: AgentEquipment): string
 }
 
 export function initEquipment(hero: (id: string) => RoomAgent | undefined, name: (id: string) => string | undefined,
-  say: (text: string) => void, terminalHero: (terminal: string) => RoomAgent | undefined) {
+  say: (text: string) => void, terminalHero: (terminal: string) => RoomAgent | undefined, townName: (key: string) => string) {
   let master: EquipmentMaster = {}, agents: AgentInfo[] = [];
   const sessions = new Map<string, Session>();
   let pending = new Set<string>();
@@ -47,7 +47,7 @@ export function initEquipment(hero: (id: string) => RoomAgent | undefined, name:
     const agent = terminalHero(session.id);
     if (active?.terminal === session.id) active.hint.textContent = tr("もちかえました！", "Equipped!");
     const labels = describe(session.id).map((text) => text.slice(text.indexOf(tr("：", ":")) + 1).trim());
-    say(tr(`${agent ? name(agent.id) ?? agent.name : session.project}は ${labels.join("と ")}を そうびした！`, `${agent ? name(agent.id) ?? agent.name : session.project} equipped ${labels.join(" and ")}!`));
+    say(tr(`${agent ? name(agent.id) ?? agent.name : townName(session.project)}は ${labels.join("と ")}を そうびした！`, `${agent ? name(agent.id) ?? agent.name : townName(session.project)} equipped ${labels.join(" and ")}!`));
   }
   function setPending(terminal: string, equipment?: Equipment): void {
     if (equipment) pending.add(terminal); else pending.delete(terminal);

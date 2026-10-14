@@ -3,6 +3,9 @@ import { moods, Room } from "../../core/room";
 import type { AgentEvent } from "../../core/events";
 import { compactRow, element, statusCard } from "../rpg/status-card";
 import { FIGHTS, PRAYERS, SLEEPERS, townHeroes } from "./mock-data";
+import { renderPartyList } from "../town/party-list";
+import "../rpg/worktrees.css";
+import { mockReview } from "./mock-review";
 
 export type MockPlace = "town" | "meadow" | "cave" | "forest" | "inn" | "church";
 const DOZING = 15 * 60_000;
@@ -13,7 +16,7 @@ export function renderMockParty(root: HTMLElement, town: string, selected: strin
   const now = Date.now(), room = new Room(), places = new Map<string, MockPlace>();
   const hook = (name: string, place: MockPlace, at: number, event: Partial<AgentEvent> = {}) => {
     places.set(name, place);
-    room.apply({ state: "idle", hook: "SessionStart", agent: name, name, project: town, ...event }, at);
+    room.apply({ state: "idle", hook: "SessionStart", agent: name, name, project: town, terminal: `mock-${name}`, branch: name.length % 2 ? "main" : "yushario/map", ...event }, at);
   };
   for (const hero of townHeroes()) hook(hero.name, "town", now);
   for (const theme of ["meadow", "cave", "forest"] as const) for (const fight of FIGHTS[theme]) {
@@ -25,9 +28,8 @@ export function renderMockParty(root: HTMLElement, town: string, selected: strin
   for (const name of SLEEPERS) hook(name, "inn", now - DOZING);
   for (const prayer of PRAYERS) { hook(prayer.name, "church", now); hook(prayer.name, "church", now, { state: "working", hook: "PreCompact" }); }
   const agents = [...room.agents.values()], chosen = agents.find((agent) => agent.id === selected) ?? agents[0];
-  const list = element("div", "party-list");
-  list.append(element("h3", "party-town", tr(`${town}（${agents.length}人）`, `${town} (${agents.length} heroes)`)),
-    ...agents.map((agent) => compactRow(agent, now, agent.name, agent === chosen, false, () => pick(agent.id, places.get(agent.id)!))));
-  root.replaceChildren(list, ...(chosen ? [statusCard(chosen, moods(chosen, now), undefined, now, chosen.name, false, () => undefined, () => undefined)] : []));
+  const list = root.querySelector<HTMLElement>(".party-list") ?? element("div", "party-list");
+  renderPartyList(list, agents, (agent) => compactRow(agent, now, agent.name, agent === chosen, false, () => pick(agent.id, places.get(agent.id)!)));
+  root.replaceChildren(list, ...(chosen ? [statusCard(chosen, moods(chosen, now), undefined, now, chosen.name, false, () => undefined, () => undefined, [], () => mockReview(chosen.name))] : []));
   return agents.length;
 }

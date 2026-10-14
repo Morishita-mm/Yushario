@@ -12,7 +12,7 @@
   "files": ["dist/", "lib/", "adapters/claude-code/hook.mjs", "scripts/yushario.mjs", "LICENSE", "NOTICE"],
   "type": "module",
   "engines": {
-    "node": ">=22.12.0"
+    "node": ">=22.13.0"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

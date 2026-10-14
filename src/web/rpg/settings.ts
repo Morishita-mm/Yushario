@@ -1,12 +1,15 @@
 import { language, tr } from "../language";
 import { windowBox } from "../town/herald";
 import { loadSettings, saveSettings } from "./ledger";
+import { selectedEditor, selectEditor } from "./file-open";
+import type { Editor } from "../../core/file-path";
+import { questSettings } from "./quest-settings";
 
 const DAYS = [0, 7, 14, 30, 90];
 const dayLabel = (days: number) => days === 0 ? tr("しまわない", "Never") : tr(`${days}日`, `${days} days`);
 
 // The settings window: loads once when opened; a choice is saved at once.
-export function showSettings(layer: HTMLElement): void {
+export function showSettings(layer: HTMLElement, town?: string): void {
   const box = windowBox(layer, tr("せってい", "Settings"), () => undefined);
   const field = document.createElement("fieldset");
   field.id = "archive-days";
@@ -51,7 +54,14 @@ export function showSettings(layer: HTMLElement): void {
     });
   });
   langLabel.append(select);
-  box.append(langLabel, field, status);
+  const editorLabel = document.createElement("label"); editorLabel.textContent = tr("ファイルを ひらく：", "Open files with: ");
+  const editor = document.createElement("select"); editor.id = "settings-editor";
+  editor.append(new Option(tr("なし（パスを コピー）", "None (copy path)"), "none"), new Option("VS Code", "vscode"), new Option("Cursor", "cursor"));
+  editor.value = selectedEditor();
+  editor.addEventListener("change", () => selectEditor(editor.value as Editor));
+  editorLabel.append(editor);
+  box.append(langLabel, editorLabel, field, status);
+  questSettings(box, status, town);
   loadSettings().then((settings) => {
     if (touched) return;
     for (const radio of radios) radio.checked = Number(radio.value) === settings.archiveAfterDays;

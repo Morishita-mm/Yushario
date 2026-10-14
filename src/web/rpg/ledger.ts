@@ -28,8 +28,8 @@ let settingsSave = Promise.resolve();
 export function saveSettings(change: Partial<Settings>): Promise<void> {
   // Read after the previous save to preserve all other choices.
   const saving = settingsSave.then(async () => {
-    const { archiveAfterDays, sound, language } = await loadSettings();
-    await request("/api/settings", "PUT", { archiveAfterDays, sound, language, ...change });
+    const { archiveAfterDays, sound, language, saveConversation = false } = await loadSettings();
+    await request("/api/settings", "PUT", { archiveAfterDays, sound, language, saveConversation, ...change });
   });
   settingsSave = saving.catch(() => undefined);
   return saving;

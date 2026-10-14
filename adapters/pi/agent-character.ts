@@ -6,7 +6,7 @@ import { projectName } from "../../src/server/project";
 const tools: Record<string, string> = { read: "Read", edit: "Edit", write: "Write", bash: "Bash",
   powershell: "Bash", grep: "Grep", find: "Glob", ls: "LS" };
 
-// Only short local-display targets leave the adapter, never tool output or full paths.
+// Short display targets and completed command input for local checks; never tool output.
 function target(input: Record<string, unknown>): string | undefined {
   if (typeof input.path === "string") return basename(input.path).slice(0, 200);
   if (typeof input.command !== "string") return;
@@ -67,7 +67,8 @@ export default function (pi: ExtensionAPI): void {
     const aborted = ctx.signal?.aborted === true;
     if (aborted) runSignal = ctx.signal; // Some pi versions settle an aborted tool as completed.
     send(ctx, aborted || event.isError ? "PostToolUseFailure" : "PostToolUse", aborted ? "idle" : event.isError ? "error" : "working",
-      { tool: (tools[event.toolName] ?? event.toolName).slice(0, 200), target: target(event.input) });
+      { tool: (tools[event.toolName] ?? event.toolName).slice(0, 200), target: target(event.input),
+        ...((tools[event.toolName] ?? event.toolName) === "Bash" && typeof event.input.command === "string" ? { command: event.input.command.slice(0, 8000) } : {}) });
   });
   pi.on("agent_end", (event) => {
     const last = [...event.messages].reverse().find((message) => message.role === "assistant");

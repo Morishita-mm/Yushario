@@ -4,12 +4,13 @@ import { renderHerald, noticesInTown, NOTICE_ORDER, type Notice } from "../town/
 import type { Project } from "../town/world";
 import type { Permission } from "./hud";
 import { unreadReports } from "./read-reports";
+import { partyNotices } from "./party-notices";
 
-export function initNotices(root: HTMLElement, pick: (notice: Notice) => void, counted: (n: number) => void) {
+export function initNotices(root: HTMLElement, pick: (notice: Notice) => void, counted: (n: number) => void, townName: (key: string) => string = (key) => key) {
   let signature = "";
   // Urgent calls cross town borders; ordinary news stays local.
   return (room: Room, towns: Project[], permissions: Map<string, Permission>, names: Map<string, string>, now: number, town?: string) => {
-    let list: Notice[] = [];
+    let list: Notice[] = partyNotices(room, names);
     const ago = (at: number) => timeAgo(now - at);
     for (const permission of permissions.values()) {
       const hero = permission.agent ?? "default", agent = room.agents.get(hero);
@@ -37,10 +38,10 @@ export function initNotices(root: HTMLElement, pick: (notice: Notice) => void, c
     list = noticesInTown(list, town);
     counted(list.length);
     list.sort((a, b) => NOTICE_ORDER.indexOf(a.kind) - NOTICE_ORDER.indexOf(b.kind) || (b.at ?? 0) - (a.at ?? 0));
-    const next = JSON.stringify([town, list]);
+    const next = JSON.stringify([town, list, towns.map((item) => item.label)]);
     if (signature === next) return;
     signature = next;
-    renderHerald(root, list, pick, town);
+    renderHerald(root, list, pick, town, townName);
     if (!list.length) {
       const empty = document.createElement("p"); empty.className = "herald-empty"; empty.textContent = tr("いまは おしらせ なし", "No news for now"); root.append(empty);
     }

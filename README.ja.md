@@ -9,7 +9,7 @@
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
-  <img src="https://img.shields.io/badge/node-%E2%89%A522.12-339933.svg" alt="Node ≥ 22.12" />
+  <img src="https://img.shields.io/badge/node-%E2%89%A522.13-339933.svg" alt="Node ≥ 22.13" />
   <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey.svg" alt="macOS | Linux" />
 </p>
 
@@ -60,7 +60,7 @@ Yushario は、コーディングエージェントの仕事を小さな RPG と
 
 ## はじめ方
 
-Node.js 22.12 以上、macOS か Linux、ログイン済みのエージェント CLI が1つ以上必要です。
+Node.js 22.13 以上、macOS か Linux、ログイン済みのエージェント CLI が1つ以上必要です。
 
 ```sh
 npx yushario
@@ -81,7 +81,7 @@ npm install && npm run build && npm start
 ## プライバシーとセキュリティ
 
 - `127.0.0.1` だけで動き、起動ごとのランダムなトークンで守ります。ターミナルは利用者の権限で動くので、**公開プロキシやトンネルで外に出さないでください。**
-- 会話・報告・ターミナルの出力はメモリにだけ置き、Yushario を止めると消えます。町と設定は `~/.config/agent-character/` に保存します。
+- クエストの題・状態・報告の要点は `~/.config/agent-character/yushario.db` に残ります。依頼と返事の本文は「かいわも のこす」を選んだ時だけ保存します（既定はオフ）。題（依頼の1行目）はいつも残ります。端末の出力はメモリだけ。町と設定は JSON のままです。クエストの記録は設定から消せます。
 
 ## 開発
 

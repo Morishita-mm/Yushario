@@ -1,8 +1,10 @@
 import type { MarkdownBlock } from "../../core/markdown";
 import type { MarkdownInline } from "../../core/markdown-inline";
+import { fileReference } from "../../core/file-path";
+import { fileOpen } from "./file-open";
 
 // Build once, then reveal text nodes in document order. Source syntax is never typed out.
-export function renderMarkdown(root: HTMLElement, blocks: MarkdownBlock[], shown = Infinity) {
+export function renderMarkdown(root: HTMLElement, blocks: MarkdownBlock[], shown = Infinity, cwd?: string) {
   root.replaceChildren(); root.classList.add("markdown-body");
   const runs: { node: Text; chars: string[]; start: number; shown: number }[] = [];
   const groups: { node: HTMLElement; start: number; end: number }[] = [];
@@ -20,7 +22,13 @@ export function renderMarkdown(root: HTMLElement, blocks: MarkdownBlock[], shown
   function inline(parent: HTMLElement, parts: MarkdownInline[]): void {
     for (const part of parts) {
       if (part.type === "text") text(parent, part.text);
-      else if (part.type === "code") element(parent, "code", (node) => text(node, part.text));
+      else if (part.type === "code") {
+        element(parent, "span", (span) => {
+          element(span, "code", (node) => text(node, part.text));
+          const ref = fileReference(part.text), open = cwd && ref && !parent.closest("a") ? fileOpen(cwd, ref) : undefined;
+          if (open) { span.append(open); groups.push({ node: open, start: length - 1, end: length }); }
+        });
+      }
       else if (part.type === "link") {
         element(parent, "a", (node) => {
           const link = node as HTMLAnchorElement;

@@ -5,13 +5,17 @@ import { coverMap } from "./talk";
 import { loadAgents, type AgentInfo } from "./agents";
 import type { EquipmentMaster } from "../../core/equipment";
 import { loadEquipment } from "./equipment";
+import { initExpeditionBases } from "./expedition-bases";
+import type { Quest } from "../../core/quests";
+import { townLabel } from "../../core/town-ledger";
+import "./worktrees.css";
 
 const CLAUDE_SETUP = "https://code.claude.com/docs/en/setup";
 
 // Page-local windows. All session ownership stays on the server.
 export function initExpedition(currentTown: () => string | undefined, heroName: (terminal: string) => string | undefined,
   launched: (session: Session, towns: TownRecord[]) => void, talkHero: (terminal: string) => string | undefined,
-  openTalk: (id: string) => void) {
+  openTalk: (id: string) => void, townName: (key: string) => string) {
   const launch = document.querySelector<HTMLDialogElement>("#expedition-dialog")!;
   const dialog = document.querySelector<HTMLDialogElement>("#session-dialog")!;
   const title = document.querySelector<HTMLElement>("#session-title")!;
@@ -26,6 +30,9 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
   const start = document.querySelector<HTMLButtonElement>("#expedition-start")!;
   const status = document.querySelector<HTMLElement>("#expedition-status")!;
   let agents: AgentInfo[] = [], equipment: EquipmentMaster = {};
+  let quest: Quest | undefined;
+  const bases = initExpeditionBases(document.querySelector<HTMLElement>("#expedition-bases")!, heroName,
+    (preset) => Boolean(agents.find((agent) => agent.id === preset)?.hero));
   const weapon = document.querySelector<HTMLSelectElement>("#expedition-weapon")!;
   const accessory = document.querySelector<HTMLSelectElement>("#expedition-accessory")!;
   const describe = () => {
@@ -74,7 +81,7 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
   function updateTitle(): void {
     talk.hidden = !attached || Boolean(attached.exited) || !talkHero(attached.id);
     if (!attached) return;
-    const name = heroName(attached.id) ?? `${attached.project} / ${attached.preset}`;
+    const name = heroName(attached.id) ?? `${townName(attached.project)} / ${attached.preset}${attached.branch ? ` [${attached.branch}]` : ""}`;
     const text = tr(`${name} — ターミナル`, `${name} — Terminal`);
     if (title.textContent !== text) title.textContent = text;
   }
@@ -117,8 +124,12 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
     path.disabled = !other;
     path.required = other;
   }
-  destination.addEventListener("change", chooseDestination);
-  document.querySelector("#expedition")!.addEventListener("click", () => {
+  const loadBases = () => bases.load(destination.value || path.value.trim());
+  destination.addEventListener("change", () => { chooseDestination(); void loadBases(); });
+  path.addEventListener("change", () => void loadBases());
+  document.querySelector("#expedition")!.addEventListener("click", () => openLaunch());
+  function openLaunch(selectedQuest?: Quest): void {
+    quest = selectedQuest; bases.setQuest(quest); void bases.load("");
     const request = ++launching;
     preset.replaceChildren();
     preset.disabled = true;
@@ -128,7 +139,7 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
     chooseDestination();
     status.textContent = tr("よみこみ中…", "Loading…");
     launch.showModal();
-    const selectedTown = currentTown();
+    const selectedTown = quest?.town ?? currentTown();
     void Promise.allSettled([loadTowns(), loadAgents(), loadEquipment(), loadSettings()]).then(([towns, kinds, gear, settings]) => {
       if (launching !== request || !launch.open) return;
       const errors: string[] = [];
@@ -143,13 +154,14 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
       if (towns.status === "fulfilled") {
         for (const town of towns.value.filter((item) => item.archivedAt === undefined)) {
           if (town.path === startupCwd) continue;
-          const option = new Option(`${town.name} — ${town.path}`, town.path);
+          const option = new Option(`${townLabel(town, towns.value)} — ${town.path}`, town.path);
           destination.add(option, destination.options.length - 1);
-          if (town.name === selectedTown) destination.value = town.path;
+          if ((town.key ?? town.name) === selectedTown) destination.value = town.path;
         }
         if (!startupCwd && !selectedTown && destination.options.length > 1) destination.selectedIndex = 0;
       } else errors.push(tr("町の台帳を よみこめませんでした。ほかの フォルダを 指定できます。", "Could not load towns. Choose another folder."));
       chooseDestination();
+      void loadBases();
       destination.disabled = false;
       if (kinds.status === "fulfilled") {
         agents = kinds.value;
@@ -169,16 +181,27 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
         status.append(link);
       }
     });
-  });
+  }
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     if (start.disabled) return;
     const request = launching;
-    const cwd = destination.value || path.value.trim();
+    const selectedQuest = quest;
     start.disabled = true;
     status.textContent = tr("しゅつじん中…", "Embarking…");
-    void sessionRequest("POST", "", { preset: preset.value, cwd,
-      ...(weapon.value ? { weapon: weapon.value } : {}), ...(accessory.value ? { accessory: accessory.value } : {}) }).then(async (result) => {
+    void bases.prepare(destination.value || path.value.trim()).then(async (cwd) => {
+      if (launching !== request || !launch.open) return;
+      return sessionRequest("POST", "", { preset: preset.value, cwd,
+        ...(weapon.value ? { weapon: weapon.value } : {}), ...(accessory.value ? { accessory: accessory.value } : {}) });
+    }).then(async (result) => {
+      if (!result) return;
+      if (selectedQuest) {
+        const token = new URLSearchParams(location.search).get("token") ?? "";
+        const response = await fetch(`/api/quests/${encodeURIComponent(selectedQuest.id)}/assign?${new URLSearchParams({ token })}`, {
+          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ session: (result as Session).id }),
+        });
+        if (!response.ok) throw new Error((await response.json()).error);
+      }
       if (launching !== request || !launch.open) return; // Closing never cancels or deletes a created session.
       const session = result as Session;
       // Terminal-only presets must never wait for a hero who cannot arrive.
@@ -193,5 +216,5 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
   });
   window.addEventListener("resize", () => { if (dialog.open) coverMap(dialog); });
   window.addEventListener("pagehide", () => dispose?.());
-  return { openTerminal, updateTitle };
+  return { openTerminal, updateTitle, openLaunch };
 }

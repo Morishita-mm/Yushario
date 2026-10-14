@@ -11,7 +11,7 @@ if (token) {
     const settings: TownSettings = await response.json();
     if (settings.language === "auto") {
       const saved = await fetch(url, { method: "PUT", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ archiveAfterDays: settings.archiveAfterDays, sound: settings.sound, language }) });
+        body: JSON.stringify({ archiveAfterDays: settings.archiveAfterDays, sound: settings.sound, language, saveConversation: settings.saveConversation ?? false }) });
       if (!saved.ok) throw new Error(`Settings ${saved.status}`);
     } else language = settings.language;
   } catch (error) { console.warn("Could not load/save the screen language:", error); }

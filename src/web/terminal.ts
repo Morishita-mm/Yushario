@@ -3,9 +3,12 @@ import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 import { loadAgents } from "./rpg/agents";
+import { loadTowns } from "./rpg/ledger";
+import { townNameForKey, type TownRecord } from "../core/town-ledger";
 
 export type Session = {
   id: string; preset: string; cwd: string; project: string; createdAt: number;
+  branch?: string; projectName?: string; projectParent?: string;
   exited?: { code: number; at: number }; weapon?: string; accessory?: string;
 };
 const token = new URLSearchParams(location.search).get("token") ?? "";
@@ -91,7 +94,7 @@ export function initTerminal(): void {
   welcome.terminal.writeln(tr("プリセットと作業ディレクトリを選んで「起動」、またはセッションに「接続」してください。", "Choose a preset and folder to start, or connect to a session."));
   let attachment: ReturnType<typeof connectSessionTerminal> | undefined;
   let attachedId: string | undefined;
-  let sessions: Session[] = [];
+  let sessions: Session[] = [], towns: TownRecord[] = [];
   let busy = false;
 
   function controls(): void {
@@ -100,10 +103,11 @@ export function initTerminal(): void {
     connectButton.disabled = end.disabled = busy || !list.value;
   }
   async function refresh(selected = list.value || attachedId): Promise<void> {
-    sessions = await sessionRequest() as Session[];
+    const [current, records] = await Promise.all([sessionRequest(), loadTowns()]);
+    sessions = current as Session[]; towns = records;
     list.replaceChildren(new Option(tr("セッションを選択", "Select a session"), ""));
     for (const session of sessions) {
-      const option = new Option(`${session.project} / ${session.preset} / ${session.id}${
+      const option = new Option(`${townNameForKey(session.project, towns)} / ${session.preset} / ${session.id}${
         session.exited ? tr(` / 終了 (${session.exited.code})`, ` / Ended (${session.exited.code})`) : ""}`, session.id);
       option.title = session.cwd;
       list.add(option);
@@ -157,7 +161,7 @@ export function initTerminal(): void {
     const session = sessions.find((item) => item.id === list.value);
     if (!session) return;
     endingId = session.id;
-    question.textContent = tr(`「${session.project} / ${session.preset} / ${session.id}」を 終了して 削除しますか？`, `End and remove ${session.project} / ${session.preset} / ${session.id}?`);
+    question.textContent = tr(`「${townNameForKey(session.project, towns)} / ${session.preset} / ${session.id}」を 終了して 削除しますか？`, `End and remove ${townNameForKey(session.project, towns)} / ${session.preset} / ${session.id}?`);
     confirmation.showModal(); no.focus();
   });
   yes.addEventListener("click", () => { confirmation.close(); void run(async () => {

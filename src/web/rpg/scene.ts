@@ -1,4 +1,5 @@
 import { tr } from "../language";
+import { townKey, townNameForKey, type TownTheme } from "../../core/town-ledger";
 import type { Room } from "../../core/room";
 import type { EquipmentTiers } from "../../core/battle-presentation";
 import { townView, type HeroPlace, type TownHero, type TownNames } from "../../core/town";
@@ -7,14 +8,13 @@ import { HeroTravel } from "./travel";
 import { drawFocus } from "../town/battle";
 import { openBattleCommands, openHeroCommands } from "./hero-commands";
 import { Following } from "./following";
-import { drawField, label } from "../town/field";
+import { drawField } from "../town/field";
 import { showArchivedTowns, showThemeChooser, showTownList } from "../town/herald";
 import { drawInn } from "../town/inn";
 import { drawChurch, PRIEST_LINES } from "../town/church";
 import { heroVariant } from "../town/appearance";
 import { Sheets } from "../town/sheets";
 import { drawNavigation } from "../town/navigation";
-import type { TownTheme } from "../town/themes";
 import { drawTown, TOWN_H, TOWN_W } from "../town/town";
 import { drawWorld, markers, plate, regionName, sleeping, type Project } from "../town/world";
 import { patchTown, type TownChange, type TownRecord } from "./ledger";
@@ -22,15 +22,16 @@ import { showSettings } from "./settings";
 import { fights, focus, battleSlots } from "./battles";
 import { updateMapNav } from "./navigation";
 import { localHotspots } from "./map-hotspots";
-import { townProjects } from "./town-projects";
+import { archivedTownProjects, townProjects } from "./town-projects";
 import { drawReportSigns, reportSigns } from "./report-signs";
 import { drawNoticeArrow, NoticeMark } from "../town/notice-mark";
-
 type Place = "world" | HeroPlace;
 type Hot = { x: number; y: number; w: number; h: number; text?: string; act: () => void };
 // Page-local drawing state only. Room remains the source of agent state.
 export class Scene {
   selected: string | undefined;
+  openQuests: () => void = () => undefined;
+  townName = (key: string): string => this.towns.get(key)?.label ?? townNameForKey(key, this.records);
   get currentTown(): string | undefined { return this.place === "world" ? undefined : this.project; }
   get projects(): Project[] { return [...this.towns.values()]; }
   get followedId(): string | undefined { return this.following.heroId; }
@@ -77,13 +78,13 @@ export class Scene {
     });
     document.addEventListener("keydown", (event) => { if (event.key === "Escape" && !event.isComposing) { this.closeCommands?.(); layer.hidden = true; } });
     document.querySelector("#world-back")!.addEventListener("click", () => this.go("world"));
-    document.querySelector("#settings")!.addEventListener("click", () => { this.closeCommands?.(); this.list = undefined; showSettings(layer); });
+    document.querySelector("#settings")!.addEventListener("click", () => { this.closeCommands?.(); this.list = undefined; showSettings(layer, this.currentTown); });
     const pin = document.querySelector<HTMLButtonElement>("#town-pin")!;
     pin.addEventListener("click", () => {
-      const town = this.records.find((record) => record.name === this.project);
+      const town = this.records.find((record) => townKey(record) === this.project);
       if (!town) return;
       pin.disabled = true;
-      void this.changeTown(town.name, { pinned: !town.pinned }).finally(() => { pin.disabled = false; });
+      void this.changeTown(townKey(town), { pinned: !town.pinned }).finally(() => { pin.disabled = false; });
     });
     document.querySelector("#town-look")!.addEventListener("click", () => {
       const town = this.project === undefined ? undefined : this.towns.get(this.project);
@@ -119,12 +120,12 @@ export class Scene {
   }
   setTowns(towns: TownRecord[]): void {
     this.records = towns;
-    for (const town of towns) this.foreignLooks.delete(town.name);
+    for (const town of towns) this.foreignLooks.delete(townKey(town));
     this.rebuildTowns();
     if (this.list && !this.layer.hidden) this.openList(this.list);
   }
   private look(name: string): TownTheme | undefined {
-    const record = this.records.find((town) => town.name === name);
+    const record = this.records.find((town) => townKey(town) === name);
     return record ? record.theme : this.foreignLooks.get(name);
   }
   private rebuildTowns(): void { this.towns = townProjects(this.records, this.heroes, (name) => this.look(name)); }
@@ -132,7 +133,7 @@ export class Scene {
     const feedback = document.querySelector<HTMLElement>("#town-feedback")!;
     try {
       const town = await patchTown(name, change);
-      this.setTowns(this.records.map((record) => record.name === town.name ? town : record));
+      this.setTowns(this.records.map((record) => townKey(record) === townKey(town) ? town : record));
       feedback.hidden = true;
       return true;
     } catch {
@@ -143,9 +144,7 @@ export class Scene {
   }
   private openList(kind: "sleeping" | "archived" | TownTheme): void {
     const towns = [...this.towns.values()];
-    const projects = kind === "archived" ? this.records.filter((record) => record.archivedAt !== undefined).map((record) => ({
-      repo: record.name, theme: record.theme, heroes: 0, fighting: 0, unread: 0, calling: false,
-    })) : kind === "sleeping" ? sleeping(towns) : towns.filter((town) => town.heroes > 0 && town.theme === kind);
+    const projects = kind === "archived" ? archivedTownProjects(this.records) : kind === "sleeping" ? sleeping(towns) : towns.filter((town) => town.heroes > 0 && town.theme === kind);
     const content = JSON.stringify(projects);
     if (this.list === kind && !this.layer.hidden && this.listContent === content) return;
     this.list = kind; this.listContent = content;
@@ -212,7 +211,7 @@ export class Scene {
     this.closeCommands?.(); this.list = undefined;
     showThemeChooser(this.layer, project, this.art, (theme) => {
       void (async () => {
-        if (this.records.some((record) => record.name === project.repo)) {
+        if (this.records.some((record) => townKey(record) === project.repo)) {
           if (!await this.changeTown(project.repo, { theme })) return;
         } else { this.foreignLooks.set(project.repo, theme); this.rebuildTowns(); }
         this.enter(this.towns.get(project.repo) ?? { ...project, theme }, place, followed, entered);
@@ -255,7 +254,7 @@ export class Scene {
     return [...reports, ...localHotspots(this.art, this.place, this.localHeroes(), this.travel.walkers, this.gateMenu,
       (place, focused) => this.go(place, false, focused),
       (id, x, y, watch) => this.commands(id, x, y, watch), () => { this.gateMenu = true; },
-      () => { const line = PRIEST_LINES[this.priestLine++ % PRIEST_LINES.length]; this.say(tr(`神父さま「${line}」`, `Priest: "${line}"`), Date.now()); }, this.project ? this.look(this.project) : undefined)];
+      () => { const line = PRIEST_LINES[this.priestLine++ % PRIEST_LINES.length]; this.say(tr(`神父さま「${line}」`, `Priest: "${line}"`), Date.now()); }, this.project ? this.look(this.project) : undefined, this.openQuests)];
   }
   private point(event: MouseEvent): [number, number] {
     const rect = this.canvas.getBoundingClientRect(), [w, h] = this.size();
@@ -263,6 +262,7 @@ export class Scene {
   }
   private hit(x: number, y: number): Hot | undefined { return this.hotspots().find((s) => x >= s.x && x <= s.x + s.w && y >= s.y && y <= s.y + s.h); }
   frame(time: number, now: number): void {
+    const displayName = this.project ? this.townName(this.project) : undefined;
     const theme = this.project === undefined ? undefined : this.look(this.project);
     if (this.place !== "world" && !theme) {
       const place = this.place, town = this.project && this.towns.get(this.project);
@@ -284,17 +284,17 @@ export class Scene {
       this.archivedPlate = archived ? plate(ctx, [[tr(`しまった町 ${archived}`, `ARCHIVED TOWNS ${archived}`), "#c9c3dc", 9]], 68, h - 24) : { x: -1, y: -1, w: 0, h: 0 };
     }
     else if (this.place === "town") drawTown(ctx, this.art, time, {
-      sleepers: local.filter((h) => h.place === "inn").length, prayers: local.filter((h) => h.place === "church").length, theme: theme!, name: this.project!,
+      sleepers: local.filter((h) => h.place === "inn").length, prayers: local.filter((h) => h.place === "church").length, theme: theme!, name: this.townName(this.project!),
       walkers: this.travel.local(this.project, local), notice,
     });
-    else if (this.place === "inn") drawInn(ctx, this.art, time, local.filter((h) => h.place === "inn").map((h) => ({ id: h.id, name: h.name, ...this.gear(h.agent.terminal) })), notice, this.project);
-    else if (this.place === "church") drawChurch(ctx, this.art, time, local.filter((h) => h.place === "church").map((h) => ({ id: h.id, name: h.name, variant: heroVariant(h.id), ...this.gear(h.agent.terminal) })), notice, this.project);
-    else drawField(ctx, this.art, this.place, time, fights(this.art, local.filter((h) => h.place === this.place), now, this.gear), undefined, Math.max(0, local.filter((h) => h.place === this.place).length - battleSlots(this.art, this.place).length), notice, this.project);
+    else if (this.place === "inn") drawInn(ctx, this.art, time, local.filter((h) => h.place === "inn").map((h) => ({ id: h.id, name: h.name, branch: h.agent.branch, ...this.gear(h.agent.terminal) })), notice, displayName);
+    else if (this.place === "church") drawChurch(ctx, this.art, time, local.filter((h) => h.place === "church").map((h) => ({ id: h.id, name: h.name, branch: h.agent.branch, variant: heroVariant(h.id), ...this.gear(h.agent.terminal) })), notice, displayName);
+    else drawField(ctx, this.art, this.place, time, fights(this.art, local.filter((h) => h.place === this.place), now, this.gear), undefined, Math.max(0, local.filter((h) => h.place === this.place).length - battleSlots(this.art, this.place).length), notice, displayName);
     drawReportSigns(ctx, this.art, time, this.signs(), notice);
     drawNoticeArrow(ctx, notice);
     drawNavigation(ctx, this.hotspots(), this.pointer, this.gateMenu);
     if (time - this.flashAt < 300) { ctx.fillStyle = `rgba(${this.flashWhite ? "255,255,255" : "0,0,0"},${1 - (time - this.flashAt) / 300})`; ctx.fillRect(0, 0, w, h); }
-    const title = updateMapNav(this.place, this.project, this.records.find((town) => town.name === this.project)?.pinned);
+    const title = updateMapNav(this.place, this.project ? this.townName(this.project) : undefined, this.records.find((town) => townKey(town) === this.project)?.pinned);
     this.canvas.setAttribute("aria-label", tr(`${title}。${local.map((h) => `${h.name}: ${h.place}`).join("、")}`, `${title}. ${local.map((h) => `${h.name}: ${h.place}`).join(", ")}`));
   }
 }

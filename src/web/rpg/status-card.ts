@@ -47,9 +47,11 @@ export function compactRow(agent: RoomAgent, now: number, name: string, selected
   row.classList.toggle("selected", selected); row.classList.toggle("waiting", waiting || agent.activity === "ask");
   row.setAttribute("aria-pressed", String(selected));
   const doing = DOING[agent.activity](agent.target ?? "");
-  row.title = `${name} · Lv ${level} · HP ${Math.round(hp * 100)} · MP ${mp === undefined ? "？" : Math.round(mp * 100)} · ${doing}`;
+  row.title = `${name}${agent.branch ? ` [${agent.branch}]` : ""} · Lv ${level} · HP ${Math.round(hp * 100)} · MP ${mp === undefined ? "？" : Math.round(mp * 100)} · ${doing}`;
   row.setAttribute("aria-label", row.title);
-  row.append(element("span", "compact-name", `${waiting ? "！ " : ""}${name}`), levelLabel(level));
+  const badge = element("span", "compact-name", `${waiting ? "！ " : ""}${name}`);
+  if (agent.branch) badge.append(element("small", "branch-name", `⑂ ${agent.branch}`));
+  row.append(badge, levelLabel(level));
   const bars = element("span", "compact-bars"); bars.append(bar("HP", hp, hpColor(hp)), bar("MP", mp, "#62b8ff"));
   row.append(bars, element("span", "compact-doing", doing));
   row.addEventListener("click", pick);
@@ -57,7 +59,7 @@ export function compactRow(agent: RoomAgent, now: number, name: string, selected
 }
 
 export function statusCard(agent: RoomAgent, agentMoods: Mood[], permission: HTMLElement | undefined, now: number,
-  name: string, detailed: boolean, select: () => void, openTerminal: (terminal: string) => void, equipment: string[] = []): HTMLElement {
+  name: string, detailed: boolean, select: () => void, openTerminal: (terminal: string) => void, equipment: string[] = [], review?: () => void): HTMLElement {
   const { level, hp, mp } = stats(agent, now);
   const card = element("article", detailed ? "hero" : "window hero selected");
   card.dataset.agent = agent.id;
@@ -65,7 +67,9 @@ export function statusCard(agent: RoomAgent, agentMoods: Mood[], permission: HTM
   const head = element("header");
   const crest = element("span", "crest"); crest.style.background = heroAccent(agent.id);
   head.append(crest, element("strong", undefined, name), levelLabel(level));
-  card.append(head, bar("HP", hp, hpColor(hp)), bar("MP", mp, "#62b8ff"));
+  card.append(head);
+  if (agent.branch) card.append(element("small", "branch-name", `⑂ ${agent.branch}`));
+  card.append(bar("HP", hp, hpColor(hp)), bar("MP", mp, "#62b8ff"));
   card.append(element("p", "doing", `▶ ${DOING[agent.activity](agent.target ?? "")}`));
   if (equipment.length) {
     card.append(element("p", "section", tr("そうび", "Equipment")));
@@ -79,8 +83,17 @@ export function statusCard(agent: RoomAgent, agentMoods: Mood[], permission: HTM
     const actions = element("div", "actions");
     const terminal = element("button", undefined, tr("▶ ターミナル", "▶ Terminal")); terminal.type = "button";
     terminal.addEventListener("click", (event) => { event.stopPropagation(); openTerminal(agent.terminal!); });
-    actions.append(terminal); card.append(actions);
+    actions.append(terminal);
+    if (review) {
+      const button = element("button", undefined, tr("▶ かんてい", "▶ Review")); button.type = "button";
+      button.addEventListener("click", (event) => { event.stopPropagation(); review(); }); actions.append(button);
+    }
+    card.append(actions);
   } else if (!detailed) card.append(element("p", "hint", tr("外から来た 勇者", "Visiting hero")));
+  if (detailed && agent.terminal && review) {
+    const button = element("button", undefined, tr("▶ かんてい", "▶ Review")); button.type = "button";
+    button.addEventListener("click", review); card.append(button);
+  }
   if (detailed || agentMoods.length) {
     const chips = element("p", "moods");
     for (const mood of agentMoods) chips.append(element("span", "chip", MOODS[mood]));

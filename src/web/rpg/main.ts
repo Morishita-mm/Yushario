@@ -16,7 +16,12 @@ import { initHelp } from "./help";
 import { initTitleScreen } from "./title-screen";
 import { initSound, notifySound } from "./sound";
 import { initTalk } from "./talk";
+import { markReviewed, openReview } from "./review-window";
+import { initQuests } from "./quests";
+import { initPreview } from "./preview";
+import "./quests.css";
 import { initNotices } from "./notices";
+import { pickPartyNotice, setPartyNotices } from "./party-notices";
 import { initSideTabs } from "../town/side-tabs";
 import { loadNames, parseNames } from "./names";
 import "./rpg.css";
@@ -51,25 +56,30 @@ const expedition = initExpedition(() => scene.currentTown, (terminal) => {
   const agent = [...room.agents.values()].find((item) => item.terminal === terminal);
   return agent && (scene.names.get(agent.id) ?? agent.name);
 }, arrived, (terminal) => [...room.agents.values()].find((agent) => agent.terminal === terminal)?.id,
-  (id) => talk.open(id));
+  (id) => talk.open(id), scene.townName);
 function arrived(session: Session, towns: TownRecord[], recalled = false): void {
   equipment.remember(session);
   // Launch and recall both register the town before the hero reaches its gate.
   scene.setTowns(towns); scene.expectArrival(session.id);
   scene.enterTown(session.project, () => talk.openSession(session.id, recalled, session.preset));
 }
-initRoster((session, towns) => arrived(session, towns, true));
+initRoster((session, towns) => arrived(session, towns, true), scene.townName);
 initHelp();
 initTerminals((terminal) => {
   const agent = [...room.agents.values()].find((item) => item.terminal === terminal);
   return agent && (scene.names.get(agent.id) ?? agent.name);
-}, (terminal) => void expedition.openTerminal(terminal));
+}, (terminal) => void expedition.openTerminal(terminal), scene.townName);
 const talk = initTalk((id) => room.agents.get(id), (id) => scene.names.get(id),
   (terminal) => void expedition.openTerminal(terminal),
-  (terminal) => [...room.agents.values()].find((agent) => agent.terminal === terminal), scene.art);
+  (terminal) => [...room.agents.values()].find((agent) => agent.terminal === terminal), scene.art, reviewHero);
 const equipment = initEquipment((id) => room.agents.get(id), (id) => scene.names.get(id),
-  (text) => messages.say(text, Date.now()), (terminal) => [...room.agents.values()].find((agent) => agent.terminal === terminal));
+  (text) => messages.say(text, Date.now()), (terminal) => [...room.agents.values()].find((agent) => agent.terminal === terminal), scene.townName);
 const sideTabs = initSideTabs();
+const previews = initPreview(talk.draft);
+const quests = initQuests(() => scene.currentTown, () => scene.projects, (id) => room.agents.get(id), (id) => scene.names.get(id),
+  (id) => { sideTabs.show("party"); scene.select(id, true); }, (id, at) => talk.open(id, at), (n) => sideTabs.count("quests", n), expedition.openLaunch, scene.townName, previews.section, (session) => void expedition.openTerminal(session));
+talk.setQuestControls(quests.current, quests.choose, quests.reportTitle);
+scene.openQuests = () => sideTabs.show("quests");
 const status = new Status(
   document.querySelector<HTMLElement>("#party")!,
   (id, decision) => {
@@ -80,7 +90,7 @@ const status = new Status(
   namesChanged,
   (id) => scene.select(id, true),
   equipment.describe,
-  (n) => sideTabs.count("party", n),
+  (n) => sideTabs.count("party", n), scene.townName, reviewHero,
 );
 function namesChanged(names: Record<string, string>): void {
   scene.savedNames.clear();
@@ -90,12 +100,21 @@ function namesChanged(names: Record<string, string>): void {
 
 const actions = initHeroActions((id) => room.agents.get(id), talk,
   (id) => scene.prepareDeparture(id), () => status.closeDetails(), (text) => messages.say(text, Date.now()),
-  (id) => scene.names.get(id), equipment.open);
+  (id) => scene.names.get(id), equipment.open, reviewHero);
+function reviewHero(id: string, at?: number): void {
+  const agent = room.agents.get(id), terminal = agent?.terminal;
+  if (!terminal) return;
+  const reportAt = at ?? [...agent.talk].reverse().find((entry) => entry.report?.files.length)?.at;
+  talk.close(); status.closeDetails();
+  openReview(scene.names.get(id) ?? agent.name, terminal, () => talk.open(id, reportAt),
+    () => void expedition.openTerminal(terminal), () => { if (reportAt !== undefined) markReviewed(id, reportAt); });
+}
 
 const notices = initNotices(document.querySelector<HTMLElement>("#herald")!, (notice) => {
+  if (pickPartyNotice(notice, quests.open)) return;
   if (notice.hero) sideTabs.show("party");
   scene.visitNotice(notice.repo, notice.hero, notice.kind === "report" ? notice.at : undefined);
-}, (n) => sideTabs.count("herald", n));
+}, (n) => sideTabs.count("herald", n), scene.townName);
 
 function parse(input: unknown, at: unknown): { event: AgentEvent; at: number } | undefined {
   const result = parseAgentEvent(input);
@@ -181,6 +200,10 @@ function connect(): void {
         scene.sync(room, Date.now());
         for (const [event, at] of told.slice(-3)) messages.event(event, at, true);
         if (!told.length) messages.say(tr("ここは エージェントたちの まち。 ゆうしゃの とうちゃくを まっている…", "A town for your heroes. Awaiting their arrival…"), undefined, true);
+      } else if (data.type === "quests" && Array.isArray(data.quests) && Array.isArray(data.bindings)) {
+        quests.set(data); previews.remember(data.quests); talk.update();
+      } else if (data.type === "party-notices") {
+        setPartyNotices(data);
       } else if (data.type === "names") {
         const names = parseNames(data.names);
         if (names) namesChanged(names);
@@ -213,7 +236,7 @@ function connect(): void {
   };
   current.onerror = () => current.close();
   current.onclose = () => {
-    status.permissions.clear();
+    status.permissions.clear(); setPartyNotices({});
     connectionLabel.textContent = tr("せつだん… さいせつぞく まち", "Disconnected… Reconnecting");
     setTimeout(connect, 3000);
   };
@@ -228,6 +251,8 @@ function frame(time: number): void {
     scene.sync(room, now);
     notices(room, scene.projects, status.permissions, scene.names, now, scene.currentTown);
     status.render(room, now, scene.selected, scene.names, scene.currentTown);
+    quests.render();
+    previews.decorate(room.agents.values(), quests.current, scene.currentTown);
     expedition.updateTitle();
     lastStatus = now;
   }

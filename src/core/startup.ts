@@ -1,10 +1,10 @@
-export const MINIMUM_NODE_VERSION = "22.12.0";
+export const MINIMUM_NODE_VERSION = "22.13.0";
 
 export function supportedNodeVersion(version: string): boolean {
   const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(version);
   if (!match) return false;
   const major = Number(match[1]), minor = Number(match[2]);
-  return major > 22 || (major === 22 && minor >= 12);
+  return major > 22 || (major === 22 && minor >= 13);
 }
 
 export type StartupOptions = { port: number; open: boolean };

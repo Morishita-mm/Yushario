@@ -5,13 +5,13 @@ import type { Sheets } from "./sheets";
 
 // The herald (でんれい): everything that needs you, across all projects, most urgent first.
 // With many projects you don't browse towns; you work down this list.
-export interface Notice { kind: "permission" | "call" | "down" | "new" | "struggle" | "report"; repo: string; text: string; ago: string; hero?: string; at?: number; id?: string }
-export const NOTICE_ORDER: Notice["kind"][] = ["permission", "call", "down", "new", "struggle", "report"];
+export interface Notice { kind: "permission" | "party-invite" | "outside-role" | "call" | "down" | "new" | "struggle" | "report"; repo: string; text: string; ago: string; hero?: string; at?: number; id?: string }
+export const NOTICE_ORDER: Notice["kind"][] = ["permission", "party-invite", "outside-role", "call", "down", "new", "struggle", "report"];
 export function noticesInTown(list: Notice[], town?: string): Notice[] {
-  return list.filter((notice) => town === undefined || notice.repo === town || ["permission", "call", "down"].includes(notice.kind));
+  return list.filter((notice) => town === undefined || notice.repo === town || ["permission", "party-invite", "outside-role", "call", "down"].includes(notice.kind));
 }
 
-const ICONS: Record<Notice["kind"], string> = { permission: "🔑", call: "❗", down: "⚠", new: "🏗", struggle: "💦", report: "📜" };
+const ICONS: Record<Notice["kind"], string> = { permission: "🔑", "party-invite": "👥", "outside-role": "⚠", call: "❗", down: "⚠", new: "🏗", struggle: "💦", report: "📜" };
 
 function element<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
@@ -21,7 +21,7 @@ function element<K extends keyof HTMLElementTagNameMap>(tag: K, className?: stri
 }
 
 // Grouped by town, most urgent town first (the list arrives sorted); each heading counts the kinds.
-export function renderHerald(root: HTMLElement, list: Notice[], onPick: (notice: Notice) => void, town?: string): void {
+export function renderHerald(root: HTMLElement, list: Notice[], onPick: (notice: Notice) => void, town?: string, townName: (key: string) => string = (key) => key): void {
   const existing = [...root.querySelectorAll<HTMLButtonElement>(".notice")];
   const headings = [...root.querySelectorAll<HTMLElement>(".herald-town")];
   const towns = new Map<string, Notice[]>();
@@ -38,7 +38,7 @@ export function renderHerald(root: HTMLElement, list: Notice[], onPick: (notice:
     heading.dataset.town = repo;
     const counts = (Object.keys(ICONS) as Notice["kind"][]).map((kind) => [kind, notices.filter((n) => n.kind === kind).length] as const)
       .filter(([, n]) => n).map(([kind, n]) => `${ICONS[kind]}${n}`).join(" ");
-    const text = `${repo || tr("（町なし）", "(No town)")}  ${counts}`;
+    const text = `${townName(repo) || tr("（町なし）", "(No town)")}  ${counts}`;
     if (heading.textContent !== text) heading.textContent = text;
     return [heading, ...items(notices)];
   }
@@ -94,14 +94,14 @@ export function showTownList(layer: HTMLElement, title: string, projects: Projec
       row.append(button);
     }
     const status = p.heroes ? [`👤${p.heroes}`, p.fighting ? `⚔️${p.fighting}` : "", p.unread ? `📜${p.unread}` : "", p.calling ? "❗" : ""].filter(Boolean).join("  ") : tr("だれも いない", "No heroes");
-    button.querySelector(".name")!.textContent = p.repo;
+    button.querySelector(".name")!.textContent = p.label ?? p.repo;
     button.querySelector(".status")!.textContent = status;
     button.onclick = () => { layer.hidden = true; onPick(p); };
     if (onPin && p.pinned !== undefined) {
       const pin = row.querySelector<HTMLButtonElement>(".town-pin") ?? element("button", "town-pin");
       pin.type = "button";
       pin.textContent = p.pinned ? tr("◆ ピンどめ中", "◆ Pinned") : tr("◇ ピンどめ", "◇ Pin");
-      pin.setAttribute("aria-label", tr(`${p.repo}の ピンどめ`, `Pin ${p.repo}`));
+      pin.setAttribute("aria-label", tr(`${p.label ?? p.repo}の ピンどめ`, `Pin ${p.label ?? p.repo}`));
       pin.setAttribute("aria-pressed", String(p.pinned));
       pin.onclick = () => {
         pin.disabled = true;
@@ -134,10 +134,10 @@ export function showArchivedTowns(layer: HTMLElement, projects: Project[], onRes
     const row = [...list.children].find((node) => (node as HTMLElement).dataset.repo === project.repo) as HTMLElement | undefined
       ?? element("div", "town-row");
     row.dataset.repo = project.repo;
-    if (!row.children.length) row.append(element("span", "name", project.repo), element("button", undefined, tr("▶ もどす", "▶ Restore")));
+    if (!row.children.length) row.append(element("span", "name", project.label ?? project.repo), element("button", undefined, tr("▶ もどす", "▶ Restore")));
     const restore = row.querySelector<HTMLButtonElement>("button")!;
     restore.type = "button";
-    restore.setAttribute("aria-label", tr(`${project.repo}を もどす`, `Restore ${project.repo}`));
+    restore.setAttribute("aria-label", tr(`${project.label ?? project.repo}を もどす`, `Restore ${project.label ?? project.repo}`));
     restore.onclick = () => {
       restore.disabled = true;
       void onRestore(project).finally(() => { restore.disabled = false; });
@@ -155,7 +155,7 @@ export function showArchivedTowns(layer: HTMLElement, projects: Project[], onRes
 
 // The first visit to a new town: choose what it looks like (and so its region on the map).
 export function showThemeChooser(layer: HTMLElement, project: Project, art: Sheets, onPick: (theme: TownTheme) => void, onClose: () => void): void {
-  const box = windowBox(layer, tr(`「${project.repo}」の 町の すがたを えらぶ`, `Choose a look for ${project.repo}`), onClose);
+  const box = windowBox(layer, tr(`「${project.label ?? project.repo}」の 町の すがたを えらぶ`, `Choose a look for ${project.label ?? project.repo}`), onClose);
   const list = element("div", "theme-list");
   for (const theme of Object.keys(THEME_NAMES) as TownTheme[]) {
     const button = element("button", "theme-option");

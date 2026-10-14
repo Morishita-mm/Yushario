@@ -1,0 +1,18 @@
+.check-marks { display: flex; flex-wrap: wrap; gap: 4px 8px; margin: 6px 0; }
+#quests .check-mark, .quest-checks .check-mark, .report-card .check-mark, .check-mark { font: inherit; color: var(--check-color, #e8dac1); border: 1px solid var(--check-border, #59616b); border-radius: 3px; background: #182133; padding: 3px 7px; cursor: pointer; }
+.check-passed { --check-color: #a7e6a1; --check-border: #6b9b75; }
+.check-failed { --check-color: #ffadad; --check-border: #bf7373; }
+.check-stale { --check-color: #ffd17b; --check-border: #a78958; }
+.check-unrun { --check-color: #c3c8d1; }
+.check-mark:focus-visible { outline: 2px solid #f9c22b; outline-offset: 2px; }
+.quest-checks { border-top: 1px solid #59616b; margin-top: 14px; padding-top: 8px; }
+.quest-card .quest-checks h4 { color: #f9c22b; margin: 4px 0; }
+.quest-check-row { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.quest-check-row code { flex: 1; overflow-wrap: anywhere; min-width: 140px; }
+.quest-check-form { display: grid; gap: 6px; margin: 10px 0; }
+.quest-check-form input { box-sizing: border-box; width: 100%; }
+.check-candidates { display: flex; flex-wrap: wrap; gap: 6px; }
+.check-evidence pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #111927; padding: 8px; max-height: 180px; overflow: auto; }
+.check-evidence-window { color: #f1dfb6; background: #182133; border: 3px solid #e8dac1; max-width: min(520px, calc(100vw - 36px)); }
+.check-evidence-window::backdrop { background: #0009; }
+.quest-row .check-marks { grid-column: 1 / -1; font-size: 12px; margin: 2px 0; }

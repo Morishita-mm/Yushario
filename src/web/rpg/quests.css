@@ -1,0 +1,17 @@
+#quests { border: 3px solid #fff; border-radius: 6px; padding: 12px; color: #eee; background: #0a0a1a; overflow: auto; min-height: 0; flex: 1; }
+#quests[hidden] { display: none; }
+.quest-row { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 12px; text-align: left; margin: 4px 0; padding: 9px; font: inherit; color: #eee; background: #19182c; border: 1px solid #777; }
+.quest-row-title { color: #ffe066; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.quest-row small { grid-column: 1 / -1; color: #b9b1cc; }
+.quest-new { margin-bottom: 8px; }
+#quests button, .quest-window button { font: inherit; color: #eee; background: #19182c; border: 1px solid #777; padding: 7px 10px; cursor: pointer; }
+#quests button:hover, .quest-window button:hover { border-color: #ffe066; color: #ffe066; }
+.quest-window input, .quest-window select { color: #eee; background: #19182c; border: 1px solid #777; padding: 6px; }
+.quest-window { overflow: auto; }
+.quest-card form, .quest-window form { display: grid; gap: 10px; }
+.quest-card label, .quest-window form label { display: grid; gap: 4px; }
+.quest-card input, .quest-card select, .quest-card textarea, .quest-window input, .quest-window textarea { font: inherit; width: 100%; box-sizing: border-box; }
+.quest-event { border-top: 1px solid #605776; margin-top: 10px; padding-top: 8px; overflow-wrap: anywhere; }
+.quest-event-body { white-space: pre-wrap; font: inherit; background: #111020; padding: 8px; }
+.talk-quest { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: #ffe066; }
+.report-quest-title { color: #ffe066; font-size: 13px; margin: 0 0 5px; }

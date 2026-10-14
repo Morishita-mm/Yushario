@@ -5,7 +5,7 @@ import type { Sheets } from "./sheets";
 // The world map. Every project (repository) is a town in the region of its kind.
 // Only towns with agents in them are on the map; quiet ones sleep in a list. When one region has
 // too many towns, they are shown as one bundle that opens a list.
-export interface Project { repo: string; theme?: TownTheme; heroes: number; fighting: number; unread: number; calling: boolean; pinned?: boolean }
+export interface Project { repo: string; label?: string; theme?: TownTheme; heroes: number; fighting: number; unread: number; calling: boolean; pinned?: boolean }
 
 const BUNDLE_AT = 5; // this many active towns in one region become one bundle
 export const ICON: Record<TownTheme, string> = {
@@ -90,7 +90,7 @@ export function drawWorld(ctx: CanvasRenderingContext2D, art: Sheets, t: number,
     }
     const fighting = sum(projects, "fighting"), unread = sum(projects, "unread");
     const badges = [`👤${sum(projects, "heroes")}`, fighting ? `⚔️${fighting}` : "", unread ? `📜${unread}` : ""].filter(Boolean).join("  ");
-    const title = bundle ? `${regionName(marker.theme)} ×${projects.length}` : projects[0].repo;
+    const title = bundle ? `${regionName(marker.theme)} ×${projects.length}` : (projects[0].label ?? projects[0].repo);
     plate(ctx, [[title, "#ffffff", 10], [badges, "#ffe7a3", 8]], x, y + 14);
     if (projects.some((p) => p.calling)) art.draw(ctx, "ui-balloons", "exclamation", x + 16, y - 22 - (Math.floor(t / 400) % 2));
   }

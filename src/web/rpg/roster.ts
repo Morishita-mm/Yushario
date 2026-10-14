@@ -3,7 +3,7 @@ import type { RosterEntry } from "../../core/roster";
 import type { Session } from "../terminal";
 import { loadTowns, type TownRecord } from "./ledger";
 
-export function initRoster(recalled: (session: Session, towns: TownRecord[]) => void): void {
+export function initRoster(recalled: (session: Session, towns: TownRecord[]) => void, townName: (key: string) => string): void {
   const dialog = document.querySelector<HTMLDialogElement>("#roster-dialog")!;
   const list = document.querySelector<HTMLElement>("#roster-list")!;
   const status = document.querySelector<HTMLElement>("#roster-status")!;
@@ -56,7 +56,7 @@ export function initRoster(recalled: (session: Session, towns: TownRecord[]) => 
       for (const entry of [...entries].sort((a, b) => b.leftAt - a.leftAt)) {
         const row = document.createElement("div"); row.className = "roster-row";
         const text = document.createElement("div");
-        const name = document.createElement("p"); name.className = "name"; name.textContent = tr(`${entry.name}（${entry.project}）`, `${entry.name} (${entry.project})`);
+        const name = document.createElement("p"); name.className = "name"; name.textContent = tr(`${entry.name}（${townName(entry.project)}）`, `${entry.name} (${townName(entry.project)})`);
         const left = document.createElement("p"); left.className = "last";
         left.textContent = tr(`${dateTime(entry.leftAt)} に たびだった`, `Left ${dateTime(entry.leftAt)}`);
         text.append(name, left);

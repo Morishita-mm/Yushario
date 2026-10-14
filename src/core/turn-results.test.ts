@@ -28,8 +28,9 @@ describe("truthful turn results", () => {
     test(room, true, 10); test(room, false, 20);
     expect(stop(room)).toMatchObject({ kind: "chest", tests: { passed: 1, failed: 1, last: "passed" }, failures: 1 });
   });
-  it("keeps victory for edits without tests, but a fall overrides it with or without passing tests", () => {
-    expect(stop(editingRoom()).kind).toBe("chest");
+  it("uses a scroll for edits without tests, and a fall overrides passing tests", () => {
+    const untested = stop(editingRoom());
+    expect(untested).toMatchObject({ kind: "scroll", files: ["a.ts"], tests: { passed: 0, failed: 0 } });
     for (const tested of [false, true]) {
       const room = editingRoom();
       if (tested) test(room, false, 10);

@@ -1,8 +1,12 @@
-import { clock, tr } from "../language";
+import { clock, language, tr } from "../language";
+import { reportTitle } from "../../core/quests";
 import type { RoomAgent, TalkReport } from "../../core/room";
 import { parseMarkdown } from "../../core/markdown";
 import { markdownPreview } from "../../core/markdown-preview";
 import { renderMarkdown } from "./markdown";
+import { reportChecks } from "../town/quest-checks";
+import { checkMarks } from "../town/check-marks";
+import type { ChecksData } from "../town/quest-checks";
 
 import type { Sheets } from "../town/sheets";
 
@@ -23,16 +27,8 @@ export function duration(ms: number): string {
   return seconds >= 60 ? tr(`${Math.floor(seconds / 60)}分 ${seconds % 60}秒`, `${Math.floor(seconds / 60)}m ${seconds % 60}s`) : tr(`${seconds}秒`, `${seconds}s`);
 }
 
-function reportHeadline(entry: Reply): string {
-  const report = entry.report;
-  if (!report) return tr("へんじが とどいた", "A reply arrived");
-  if (report.stopFailure) return tr("とちゅうで たおれた…", "Went down partway…");
-  if (report.tests.last === "failed") return tr(`ファイル ${report.files.length}つを かえた。テストは しっぱい`, `Changed ${report.files.length} files. Tests failed`);
-  if (report.kind === "chest") return tr(`しょうり！ ファイル ${report.files.length}つを なおした`, `Victory! Files fixed: ${report.files.length}`);
-  return report.kind === "scroll" ? tr("しらべて もどってきた", "Returned from exploring") : tr("はなしかけてきた", "Came to talk");
-}
-
-export function createReportCard(entry: Reply, name: string, art: Sheets) {
+export function createReportCard(entry: Reply, name: string, art: Sheets,
+  review?: { open: () => void; reviewed: boolean; session?: string }, cwd?: string, checks?: ChecksData) {
   const row = node("article", `report-card ${entry.report?.kind ?? "talk"}`);
   row.dataset.reportAt = String(entry.at);
   const head = node("div", "report-card-heading");
@@ -43,9 +39,11 @@ export function createReportCard(entry: Reply, name: string, art: Sheets) {
   icon.setAttribute("aria-label", { chest: tr("宝箱", "Chest"), scroll: tr("巻物", "Scroll"), talk: tr("吹き出し", "Speech") }[entry.report?.kind ?? "talk"]);
   const time = clock(entry.at, true);
   const caption = node("div", "report-caption");
-  caption.append(node("h4", "report-headline", reportHeadline(entry)),
+  caption.append(node("h4", "report-headline", reportTitle(entry.report, language)),
     node("p", "report-time", `${name} · ${time}${entry.report ? ` · ${duration(entry.report.endedAt - entry.report.startedAt - (entry.report.waitedMs ?? 0))}${entry.report.waitedMs ? tr(`（きょか まち ${duration(entry.report.waitedMs)} を のぞく）`, ` (excludes ${duration(entry.report.waitedMs)} permission wait)`) : ""}` : tr(" · 集計なし", " · No tally")}`));
   head.append(icon, caption); row.append(head);
+  if (checks) row.append(checkMarks(checks.checks, checks.fingerprint));
+  else if (review?.session) row.append(reportChecks(review.session, entry.at));
   const report = entry.report;
   if (report) {
     const tally = node("div", "report-tally");
@@ -70,6 +68,13 @@ export function createReportCard(entry: Reply, name: string, art: Sheets) {
   more.type = "button"; more.className = "report-more";
   more.setAttribute("aria-expanded", "false");
   row.append(body, more);
+  if (review && entry.report?.files.length) {
+    const actions = node("div", "report-review"), button = document.createElement("button");
+    button.type = "button"; button.textContent = tr("▶ かんてい", "▶ Review"); button.addEventListener("click", review.open);
+    actions.append(button);
+    if (review.reviewed) actions.append(node("span", "reviewed-mark", tr("かんてい ずみ", "Reviewed")));
+    row.append(actions);
+  }
   const blocks = parseMarkdown(entry.text), preview = markdownPreview(blocks);
   let view: ReturnType<typeof renderMarkdown> | undefined, isExpanded: boolean | undefined;
   function show(shown: number): void {
@@ -79,7 +84,7 @@ export function createReportCard(entry: Reply, name: string, art: Sheets) {
   }
   function renderBody(expanded: boolean, shown = Infinity): number {
     if (!view || expanded !== isExpanded) {
-      view = renderMarkdown(body, expanded ? blocks : preview.blocks, shown);
+      view = renderMarkdown(body, expanded ? blocks : preview.blocks, shown, cwd);
       isExpanded = expanded;
       more.textContent = expanded ? tr("▲ たたむ", "▲ Less") : tr("▼ つづき", "▼ More");
       more.setAttribute("aria-expanded", String(expanded));

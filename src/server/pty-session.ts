@@ -11,12 +11,14 @@ export const SESSION_LIMIT = 16;
 export const OUTPUT_LIMIT = 256 * 1024;
 
 export type TerminalSession = {
-  id: string; preset: Preset; cwd: string; project: string; createdAt: number;
+  id: string; preset: Preset; cwd: string; project: string; projectName?: string; projectParent?: string; createdAt: number;
+  branch?: string; hero?: string;
+  previewUrls?: string[];
   exited?: { code: number; at: number };
 } & Equipment;
 
 export type Session = {
-  info: TerminalSession; terminal: IPty; output: Buffer; modes: TerminalModes; clients: Set<WebSocket>; stop: () => void;
+  agentToken: string; info: TerminalSession; terminal: IPty; output: Buffer; modes: TerminalModes; clients: Set<WebSocket>; stop: () => void;
   waiting: boolean; eventAt: number; texts: string[]; enter?: ReturnType<typeof setTimeout>;
   interrupted: boolean; interrupting: boolean; departing: boolean; ended?: boolean;
   asking: boolean; askedAt: number; // A permission/question prompt that a typed Enter would answer.

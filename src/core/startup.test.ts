@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import { parseStartupOptions, supportedNodeVersion } from "./startup";
 
 describe("Node version requirement", () => {
-  it.each(["20.20.2", "21.9.0", "22.0.0", "22.11.99", "", "v22.12.0", "22.12"])("rejects %s", (version) => {
+  it.each(["20.20.2", "21.9.0", "22.0.0", "22.11.99", "22.12.99", "", "v22.12.0", "22.12"])("rejects %s", (version) => {
     expect(supportedNodeVersion(version)).toBe(false);
   });
-  it.each(["22.12.0", "22.12.1", "22.99.0", "23.0.0", "26.4.0"])("accepts %s", (version) => {
+  it.each(["22.13.0", "22.13.1", "22.99.0", "23.0.0", "26.4.0"])("accepts %s", (version) => {
     expect(supportedNodeVersion(version)).toBe(true);
   });
 });

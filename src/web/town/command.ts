@@ -79,7 +79,7 @@ export function option(label: string, action: () => void, disabled = false): HTM
 export function showHeroCommands(layer: HTMLElement, name: string, at: [number, number], on: {
   talk: () => void; status: () => void; follow: () => void; terminal?: () => void; watch?: () => void; closed: () => void;
   working: boolean; plan?: (text: string) => void; interrupt?: () => void; compact?: () => void; farewell?: () => void;
-  equip?: (layer: HTMLElement, at: [number, number], dismiss: () => void) => void;
+  equip?: (layer: HTMLElement, at: [number, number], dismiss: () => void) => void; review?: () => void;
 }) {
   const box = element("div", "command-window");
   box.setAttribute("role", "dialog");
@@ -102,6 +102,7 @@ export function showHeroCommands(layer: HTMLElement, name: string, at: [number, 
     () => { dismiss(); on.compact?.(); }, dismiss));
   list.append(option(tr("はなす", "Talk"), choose(on.talk)), option(tr("ようすを みる", "Status"), choose(on.status)),
     option(tr("ついていく", "Follow"), choose(on.follow)),
+    option(tr("かんてい", "Review"), choose(on.review ?? (() => undefined)), !on.review),
     option(tr("そうび", "Equip"), () => on.equip?.(layer, at, dismiss), unavailable),
     option(tr("さくせん", "Tactics"), () => showPlans(layer, hero, (text) => { dismiss(); on.plan?.(text); }, dismiss), unavailable),
     interrupt, compact,

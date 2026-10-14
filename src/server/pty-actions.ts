@@ -49,6 +49,15 @@ export function deliver(session: Session, text: string): void {
   enterSoon(session);
 }
 
+export function say(session: Session, text: string, changed: (message: PendingMessage) => void, steer = false): boolean {
+  if (session.info.exited || session.ended || session.departing || session.interrupting) throw new Error(tr("この勇者は いま はなせない", "This hero cannot talk now"));
+  if (steer && session.asking) throw new Error(tr("さきに へんじを して", "Answer your hero first"));
+  const delivered = session.waiting || steer;
+  if (delivered) deliver(session, text);
+  else { session.texts.push(text); changed(pending(session)); }
+  return delivered;
+}
+
 export function observe(session: Session, event: AgentEvent, at: number,
   changed: (message: PendingMessage) => void, flushEquipment?: (sendHeldText: boolean) => void): void {
   const asking = askingAfterEvent(event);

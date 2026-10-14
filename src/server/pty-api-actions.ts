@@ -3,9 +3,9 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { MAX_EVENT_TEXT_LENGTH, type AgentEvent } from "../core/events";
 import { equipmentInput, type AgentEquipment } from "../core/equipment";
 import { AGENTS } from "./agents";
-import { act, deliver, parseSessionAction, pending } from "./pty-actions";
+import { act, parseSessionAction, say } from "./pty-actions";
 import { requestEquipment } from "./pty-equipment";
-import type { EquippedMessage, PendingMessage, Session } from "./pty-session";
+import type { EquippedMessage, PendingMessage, Session, TerminalSession } from "./pty-session";
 import { ACTION_BODY_LIMIT, readJsonBody } from "./http-body";
 
 function json(response: ServerResponse, status: number, value: unknown): void {
@@ -14,7 +14,8 @@ function json(response: ServerResponse, status: number, value: unknown): void {
 
 export async function handlePtyAction(request: IncomingMessage, response: ServerResponse, path: string, session: Session,
   master: AgentEquipment, changed: (message: PendingMessage) => void, equipped: (message: EquippedMessage) => void,
-  recordEvent: (event: AgentEvent) => void): Promise<boolean> {
+  recordEvent: (event: AgentEvent) => void,
+  requested?: (session: TerminalSession, text: string, hero?: string) => void): Promise<boolean> {
   const body = await readJsonBody(request, response, ACTION_BODY_LIMIT);
   if (!body.ok) return false;
   try {
@@ -50,9 +51,8 @@ export async function handlePtyAction(request: IncomingMessage, response: Server
     if (steer && session.asking) {
       json(response, 409, { error: tr("勇者が あなたの へんじを まっています。さきに こたえてください", "Your hero awaits your answer. Answer first") }); return false;
     }
-    const delivered = session.waiting || steer;
-    if (delivered) deliver(session, text);
-    else { session.texts.push(text); changed(pending(session)); }
+    requested?.(session.info, text, session.agentId);
+    const delivered = say(session, text, changed, steer);
     json(response, 200, { delivered });
   } catch (error) {
     json(response, 400, { error: error instanceof SyntaxError ? tr("会話またはコマンドの内容が正しくありません", "Invalid talk or command")

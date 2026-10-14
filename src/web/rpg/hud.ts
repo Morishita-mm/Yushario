@@ -4,6 +4,8 @@ import type { AgentEvent } from "../../core/events";
 import { narrate, stats } from "../../core/story";
 import { compactRow, element, statusCard } from "./status-card";
 import { initNameEditor } from "./names";
+import { renderPartyList } from "../town/party-list";
+import { townNameForKey } from "../../core/town-ledger";
 
 export type Permission = { id: string; tool: string; summary: string; content: string; omitted: number; expiresAt: number; agent?: string; helper?: string };
 type Decision = "allow" | "deny" | "terminal";
@@ -30,6 +32,8 @@ export class Status {
     private readonly commands: (id: string) => void,
     private readonly equipment: (terminal?: string) => string[],
     private readonly counted: (n: number) => void,
+    private readonly townName: (key: string) => string = (key) => townNameForKey(key, []),
+    private readonly review?: (id: string) => void,
   ) {
     this.rename = initNameEditor(() => this.detailed, namesChanged);
     const close = () => this.closeDetails();
@@ -58,7 +62,7 @@ export class Status {
   }
 
   private signature(agent: RoomAgent, now: number, name: string, permission?: Permission, detailed = false): string {
-    return JSON.stringify([name, agent.activity, agent.target, moods(agent, now), stats(agent, now),
+    return JSON.stringify([name, agent.branch, agent.activity, agent.target, moods(agent, now), stats(agent, now),
       agent.tasks, agent.helpers, agent.terminal, permission, agent.log, this.equipment(agent.terminal),
       detailed ? Math.max(0, Math.floor((now - agent.since) / 1000)) : undefined]);
   }
@@ -88,16 +92,12 @@ export class Status {
     const chosen = agents.find((agent) => agent.id === selected) ?? agents[0];
     this.counted(agents.length);
     const waiting = (id: string) => [...this.permissions.values()].some((item) => (item.agent ?? "default") === id);
-    const signature = JSON.stringify([chosen?.id, agents.map((agent) => [agent.id, names.get(agent.id) ?? agent.name, agent.project,
+    const signature = JSON.stringify([chosen?.id, agents.map((agent) => [agent.id, names.get(agent.id) ?? agent.name, agent.project, this.townName(agent.project ?? agent.name), agent.branch,
       agent.activity, agent.target, stats(agent, now), waiting(agent.id)])]);
     if (signature !== this.listSignature) {
       this.listSignature = signature;
-      const towns = new Map<string, RoomAgent[]>();
-      for (const agent of agents) towns.set(agent.project ?? agent.name, [...(towns.get(agent.project ?? agent.name) ?? []), agent]);
-      this.list.replaceChildren(...[...towns].sort(([a], [b]) => a.localeCompare(b)).flatMap(([town, members]) => [
-        element("h3", "party-town", tr(`${town}（${members.length}人）`, `${town} (${members.length} heroes)`)),
-        ...members.map((agent) => compactRow(agent, now, names.get(agent.id) ?? agent.name, agent === chosen, waiting(agent.id), () => this.commands(agent.id))),
-      ]));
+      renderPartyList(this.list, agents, (agent) => compactRow(agent, now, names.get(agent.id) ?? agent.name,
+        agent === chosen, waiting(agent.id), () => this.commands(agent.id)), this.townName);
     }
     if (agents.length) cards.push(this.list);
     const chosenPermission = [...this.permissions.values()].find((item) => (item.agent ?? "default") === chosen?.id);
@@ -116,7 +116,7 @@ export class Status {
       if (permission.id === chosenPermission?.id) continue;
       const agent = room.agents.get(id), name = names.get(id) ?? agent?.name ?? id;
       const project = agent?.project ?? agent?.name;
-      cards.push(this.permissionBlock(permission, project === undefined ? name : `${name} — ${project}`, agent?.terminal));
+      cards.push(this.permissionBlock(permission, project === undefined ? name : `${name} — ${this.townName(project)}`, agent?.terminal));
     }
     if (!cards.length) cards.push(element("p", "empty window", tr("まだ だれも いない ようだ…", "No heroes here yet…")));
     if (cards.length !== this.root.children.length || cards.some((card, index) => this.root.children[index] !== card)) this.root.replaceChildren(...cards);
@@ -129,7 +129,7 @@ export class Status {
 
   private card(agent: RoomAgent, now: number, name: string, permission?: Permission, detailed = false): HTMLElement {
     return statusCard(agent, moods(agent, now), permission && this.permissionBlock(permission, undefined, agent.terminal), now, name, detailed,
-      () => this.select(agent.id), this.openTerminal, this.equipment(agent.terminal));
+      () => this.select(agent.id), this.openTerminal, this.equipment(agent.terminal), this.review && (() => this.review!(agent.id)));
   }
 
   private permissionBlock(permission: Permission, heading?: string, terminal?: string): HTMLElement {

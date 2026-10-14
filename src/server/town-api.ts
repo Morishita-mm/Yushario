@@ -1,6 +1,6 @@
 import { setLanguage, tr } from "./language";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { activateTown, archiveTowns, registerTown, validSettings, type TownRecord, type TownTheme } from "../core/town-ledger";
+import { activateTown, archiveTowns, registerTown, townKey, validSettings, type TownRecord, type TownTheme } from "../core/town-ledger";
 import { namedHero, normalizeHeroName, type HeroNames } from "../core/names";
 import { isClaudeSessionId } from "../core/roster";
 import { readNames, readSettings, readTowns, validTheme, writeNames, writeSettings, writeTowns } from "./town-data";
@@ -15,7 +15,7 @@ function json(response: ServerResponse, status: number, value: unknown): void {
 export class TownLedger {
   towns = readTowns();
   names = readNames();
-  private settings = readSettings();
+  private settings = { saveConversation: false, ...readSettings() };
   private activityDirty = false;
 
   constructor(private readonly changed: (towns: TownRecord[]) => void,
@@ -29,12 +29,14 @@ export class TownLedger {
     this.changed(towns);
   }
 
-  register(name: string, path: string, now: number): void {
-    this.save(registerTown(this.towns, name, path, now));
+  get saveConversation(): boolean { return this.settings.saveConversation === true; }
+
+  register(name: string, path: string, now: number, key?: string, parent?: string): void {
+    this.save(registerTown(this.towns, name, path, now, key, parent));
   }
 
   observe(name: string, now: number): void {
-    const town = this.towns.find((town) => town.name === name);
+    const town = this.towns.find((town) => townKey(town) === name);
     if (!town) return;
     if (town.archivedAt !== undefined) {
       this.save(activateTown(this.towns, name, now));
@@ -87,7 +89,7 @@ export class TownLedger {
     if (patch) {
       try { name = decodeURIComponent(url.pathname.slice("/api/towns/".length)); }
       catch { json(response, 400, { error: tr("町の名前が正しくありません", "Invalid town name") }); return; }
-      if (!this.towns.some((town) => town.name === name)) {
+      if (!this.towns.some((town) => townKey(town) === name)) {
         json(response, 404, { error: tr("その町が見つかりません", "Town not found") });
         return;
       }
@@ -119,10 +121,11 @@ export class TownLedger {
           json(response, 400, { error: tr("町をしまうまでの日数は 0〜365 の整数、おとは all・follow・off で指定してください", "Use 0–365 whole days, sound all/follow/off, and language auto/ja/en") });
           return;
         }
-        if (input.archiveAfterDays !== this.settings.archiveAfterDays || input.sound !== this.settings.sound || input.language !== this.settings.language) {
-          writeSettings(input);
-          this.settings = input;
-          setLanguage(input.language);
+        const next = { ...input, saveConversation: input.saveConversation ?? this.settings.saveConversation };
+        if (next.archiveAfterDays !== this.settings.archiveAfterDays || next.sound !== this.settings.sound || next.language !== this.settings.language || next.saveConversation !== this.settings.saveConversation) {
+          writeSettings(next);
+          this.settings = next;
+          setLanguage(next.language);
           this.changed(this.towns);
         }
         json(response, 200, this.settings);
@@ -131,7 +134,7 @@ export class TownLedger {
           json(response, 400, { error: tr("町のすがた・ピンどめ・しまった町を戻す設定が正しくありません", "Invalid town look, pin, or restore setting") });
           return;
         }
-        const town = this.towns.find((town) => town.name === name)!;
+        const town = this.towns.find((town) => townKey(town) === name)!;
         if ((input.theme !== undefined && input.theme !== town.theme)
           || (input.pinned !== undefined && input.pinned !== town.pinned)
           || (input.archived === false && town.archivedAt !== undefined)) {
@@ -141,7 +144,7 @@ export class TownLedger {
           if (input.archived === false) delete updated.archivedAt;
           this.save(this.towns.map((item) => item === town ? updated : item));
         }
-        json(response, 200, this.towns.find((town) => town.name === name));
+        json(response, 200, this.towns.find((town) => townKey(town) === name));
       }
     } catch (error) {
       console.error("Town save failed:", error instanceof Error ? error.message : String(error));

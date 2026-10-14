@@ -24,7 +24,7 @@ export const FIGHTS: Record<Theme, Fight[]> = {
     { x: 640, y: 170, name: "t21-build", level: 5, variant: 4, monster: "monster-ghost", target: "npm run build", party: [], fx: "curse", done: true },
   ],
 };
-for (const fights of Object.values(FIGHTS)) for (const fight of fights) { fight.id = fight.name; fight.demo = true; fight.damage = { hero: 23, enemy: 12 }; }
+for (const fights of Object.values(FIGHTS)) for (const fight of fights) { fight.id = fight.name; fight.branch = "yushario/map"; fight.demo = true; fight.damage = { hero: 23, enemy: 12 }; }
 
 export const PROJECTS: Project[] = [
   { repo: "agent-character", theme: "village", heroes: 18, fighting: 7, unread: 5, calling: true },
@@ -59,7 +59,7 @@ export function initTown(art: Sheets, theme?: TownTheme): void {
   walkers.length = equippedWalkers.length = 0;
   const positions = [[480,370], [680,250], theme === "village" ? [810,420] : [700,424]];
   [CALLER, ...TOWN_REPORTS].forEach((hero, i) => { [hero.x, hero.y] = positions[i]; });
-  walkers.push(...["t23-lint", "t4-api", "t6-gesture", "t9-fixes", "t13-auth", "t14-db", "t17-ci"].map((name, i) => makeWalker(art, name, name, i % 5, i, theme)));
+  walkers.push(...["t23-lint", "t4-api", "t6-gesture", "t9-fixes", "t13-auth", "t14-db", "t17-ci"].map((name, i) => ({ ...makeWalker(art, name, name, i % 5, i, theme), branch: i % 2 ? "main" : "yushario/map" })));
   equippedWalkers.push(...[tr("そうびなし", "None"), tr("たんけん", "Dagger"), tr("はがね", "Steel"), tr("でんせつ", "Legend")].map((name, i) => ({
     ...makeWalker(art, name, name, 0, i, theme), x: theme === "village" ? 330 + i * 110 : [330,390,570,640][i], y: 424, paused: true, weaponTier: i,
   })));

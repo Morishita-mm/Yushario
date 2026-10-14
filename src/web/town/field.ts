@@ -10,7 +10,7 @@ import { plate } from "./world";
 export const FIELD_W = 960;
 export const FIELD_H = 540;
 
-export type Fight = EquipmentTiers & { success?: boolean; id?: string; x: number; y: number; name: string; variant: number; monster: string; target: string; party: string[]; fx: string; done?: boolean; level: number; demo?: boolean; counter?: boolean; damage?: { hero: number; enemy: number } };
+export type Fight = EquipmentTiers & { success?: boolean; id?: string; branch?: string; x: number; y: number; name: string; variant: number; monster: string; target: string; party: string[]; fx: string; done?: boolean; level: number; demo?: boolean; counter?: boolean; damage?: { hero: number; enemy: number } };
 
 // A place's title plate: the project (town) name large and gold, the place small under it.
 export function placeTitle(ctx: CanvasRenderingContext2D, place: string, x: number, y: number, town?: string): void {
@@ -68,6 +68,7 @@ function battle(ctx: CanvasRenderingContext2D, art: Sheets, fight: Fight, t: num
   label(ctx, fight.target, mx, y + 14, "#ffe7a3");
   if (!enemyTurn && heroFrame === "wind-up" && effects.charging) label(ctx, tr("ちからを ためている…", "Charging…"), x, y - 76, "#ffe066", 10);
   label(ctx, `${fight.name} Lv${fight.level}`, x - 6, y + 28);
+  if (fight.branch) label(ctx, `⑂ ${fight.branch}`, x - 6, y + 40, "#9fd3ff", 8);
   weaponBesideLabel(ctx, art, fight.weaponTier, t, `${fight.name} Lv${fight.level}`, x - 6, y + 28);
 }
 
@@ -83,6 +84,7 @@ function victory(ctx: CanvasRenderingContext2D, art: Sheets, fight: Fight, t: nu
   }
   label(ctx, read ? tr("かくにん ずみ", "Seen") : tr("しょうり！", "Victory!"), cx, fight.y + 14, read ? "#c9c3dc" : "#ffe066");
   label(ctx, `${fight.name} Lv${fight.level}`, fight.x - 6, fight.y + 28);
+  if (fight.branch) label(ctx, `⑂ ${fight.branch}`, fight.x - 6, fight.y + 40, "#9fd3ff", 8);
   weaponBesideLabel(ctx, art, fight.weaponTier, t, `${fight.name} Lv${fight.level}`, fight.x - 6, fight.y + 28);
 }
 

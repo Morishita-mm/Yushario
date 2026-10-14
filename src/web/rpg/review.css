@@ -1,0 +1,28 @@
+.report-window.review-window { position: fixed; margin: 0; padding: 14px; box-sizing: border-box; max-width: none; max-height: none; display: flex; flex-direction: column; gap: 10px; background: rgba(15, 20, 35, .97); }
+.review-window:not([open]) { display: none; }
+.review-window::backdrop { background: #0006; }
+.review-heading { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.review-heading h3 { flex: 1; margin: 0; min-width: 150px; }
+.review-heading button { font-size: 13px; padding: 4px 6px; }
+.review-content { min-height: 0; flex: 1; display: flex; flex-direction: column; }
+.review-toolbar { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+.review-info { color: #ffe066; overflow-wrap: anywhere; }
+.review-status { margin: 0 0 8px; }
+.review-columns { display: grid; grid-template-columns: minmax(160px, 29%) minmax(0, 1fr); gap: 10px; min-height: 0; flex: 1; }
+.review-files, .review-diff { overflow: auto; min-width: 0; border: 1px solid #637089; }
+.review-file { padding: 8px; border-bottom: 1px solid #637089; }
+.review-file.selected { background: #34445b; }
+.review-file-select { display: block; text-align: left; width: 100%; overflow-wrap: anywhere; background: transparent; border: 0; color: #f4f4f4; padding: 0; }
+.review-numstat { display: inline-block; color: #9bcea9; font-size: 12px; }
+.file-open { display: inline-block; margin-left: 8px; font-size: 12px; color: #f9c22b; text-decoration: underline; cursor: pointer; }
+.review-diff .hint { padding: 10px; }
+.diff-lines { margin: 0; font: 12px/1.6 ui-monospace, Menlo, monospace; width: max-content; min-width: 100%; }
+.diff-line { display: flex; min-height: 19px; }
+.diff-line.add { background: #17452f; color: #baf2c9; }
+.diff-line.remove { background: #59282e; color: #ffc0bb; }
+.diff-line.meta { color: #9eb9df; }
+.diff-number { display: inline-block; width: 42px; padding: 0 5px; text-align: right; color: #a5b0c0; border-right: 1px solid #63708966; flex-shrink: 0; user-select: none; }
+.diff-text { white-space: pre; padding: 0 8px; }
+.report-review { display: flex; gap: 10px; align-items: center; margin-top: 8px; }
+.reviewed-mark { color: #b0d9be; font-size: 12px; }
+@media (max-width: 760px) { .review-columns { grid-template-columns: minmax(140px, 35%) minmax(0, 1fr); } }

@@ -59,7 +59,7 @@ describe("bounded turn aggregation", () => {
     attachReports(talk, turns);
     recordTurn(turns, { state: "working", hook: "PostToolUse", tool: "Edit", target: "late.ts" }, 999);
     attachReports(talk, turns);
-    expect(talk[0].report).toMatchObject({ tools: 1000, files: ["late.ts"], kind: "chest" });
+    expect(talk[0].report).toMatchObject({ tools: 1000, files: ["late.ts"], kind: "scroll" });
     recordTurn(turns, { state: "working", hook: "PostToolUse", tool: "Edit", target: "too-old.ts" }, 1);
     expect(turns.updates.size).toBe(0);
     expect(turns.marks).toHaveLength(TURN_MARK_LIMIT);

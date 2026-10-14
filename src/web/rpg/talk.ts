@@ -5,10 +5,13 @@ import { renderTalk, talkParts } from "./talk-text";
 import { createReportCard } from "./report-card";
 import { markReportRead, reportRead } from "./read-reports";
 import { CLAUDE_SETUP_GUIDANCE, initArrival } from "./arrival";
+import { initTalkQuest } from "./talk-quest";
+import { sessionFolder } from "./file-open";
+import { reportReviewed } from "./review-window";
 
 // The talk and terminal windows cover the map in the same place, so switching between them keeps the layout.
 export function coverMap(dialog: HTMLElement): void {
-  const rect = document.querySelector(".map-stage")!.getBoundingClientRect();
+  const rect = document.querySelector(".map-stage, .stage")!.getBoundingClientRect();
   dialog.style.left = `${Math.max(8, rect.left)}px`;
   dialog.style.top = `${Math.max(8, Math.min(rect.top, innerHeight - 320))}px`;
   dialog.style.width = `${Math.min(rect.width, innerWidth - 16)}px`;
@@ -17,9 +20,11 @@ export function coverMap(dialog: HTMLElement): void {
 
 // One page-local conversation window. Talk itself always comes from Room/replay.
 export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id: string) => string | undefined,
-  openTerminal: (terminal: string) => void, arrivingHero: (terminal: string) => RoomAgent | undefined, art: Sheets) {
+  openTerminal: (terminal: string) => void, arrivingHero: (terminal: string) => RoomAgent | undefined, art: Sheets,
+  review?: (id: string, at: number) => void) {
   const dialog = document.querySelector<HTMLDialogElement>("#talk-dialog")!;
   const title = document.querySelector<HTMLElement>("#talk-title")!;
+  const questHeading = initTalkQuest(dialog);
   const history = document.querySelector<HTMLElement>("#talk-history")!;
   const form = document.querySelector<HTMLFormElement>("#talk-form")!;
   const input = document.querySelector<HTMLTextAreaElement>("#talk-input")!;
@@ -34,6 +39,12 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
   const token = new URLSearchParams(location.search).get("token") ?? "";
   const pending = new Map<string, string[]>(), sending = new Set<string>(), interrupting = new Set<string>();
   const expanded = new Set<number>();
+  const folders = new Map<string, string | undefined>();
+  function loadFolder(id: string): void {
+    if (folders.has(id)) return;
+    folders.set(id, undefined);
+    void sessionFolder(id).then((cwd) => { folders.set(id, cwd); signature = ""; update(); }).catch(() => undefined);
+  }
   let selected: { hero: string } | { terminal: string } | undefined;
   let signature = "", texts: string[] = [], setupGuidance = false;
   let latestAt: number | undefined, latestText: string | undefined;
@@ -133,10 +144,11 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
       }
       else {
         foreign.hidden = true; send.disabled = sending.has(selected.terminal);
-        arrival.update(); renderPending(selected.terminal); return;
+        arrival.update(); questHeading.update(selected.terminal); renderPending(selected.terminal); return;
       }
     }
     const agent = hero(selected.hero);
+    questHeading.update(agent?.terminal, agent?.project);
     if (!agent) {
       form.hidden = true; foreign.hidden = true; terminal.disabled = true;
       renderPending(undefined); status.textContent = tr("この勇者は たびだちました。会話は ここまでです。", "This hero has set off. Our talk ends here."); return;
@@ -149,7 +161,8 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
     const needsSetup = setupGuidance && !talk.length;
     terminal.classList.toggle("terminal-attention", needsSetup);
     terminal.textContent = needsSetup ? tr("▶ ターミナルで せっていを たしかめる", "▶ Check terminal setup") : tr("▶ ターミナル", "▶ Terminal");
-    const nextSignature = JSON.stringify([heroName, agent.terminal, talk.map(({ at, from, report }) => [at, from, report])]);
+    if (agent.terminal) loadFolder(agent.terminal);
+    const nextSignature = JSON.stringify([heroName, questHeading.title(agent.terminal), agent.terminal, talk.map(({ at, from, report }) => [at, from, report, reportReviewed(agent.id, at), questHeading.reportTitle(agent.id, at)])]);
     if (nextSignature === signature && talk.every((entry, i) => entry.text === texts[i])) return;
     signature = nextSignature; texts = talk.map((entry) => entry.text);
     const reply = [...talk].reverse().find((entry) => entry.from === "hero");
@@ -172,11 +185,15 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
     for (const entry of talk) {
       if (entry.from === "you") {
         const row = document.createElement("div"); row.className = "talk-line you";
-        const speaker = document.createElement("span"); speaker.className = "talk-speaker"; speaker.textContent = tr("あなた「", 'You: "');
+        const speaker = document.createElement("span"); speaker.className = "talk-speaker"; speaker.textContent = entry.commander ? tr(`しき ${entry.commander}から「`, `From commander ${entry.commander}: "`) : tr("あなた「", 'You: "');
         const body = document.createElement("span"); body.className = "talk-body"; renderTalk(body, talkParts(entry.text));
         row.append(speaker, body, document.createTextNode(tr("」", '"'))); history.append(row); continue;
       }
-      const card = createReportCard(entry, heroName, art);
+      const card = createReportCard(entry, heroName, art, agent.terminal && review ? {
+        open: () => { close(); review(agent.id, entry.at); }, reviewed: reportReviewed(agent.id, entry.at), session: agent.terminal,
+      } : undefined, agent.terminal ? folders.get(agent.terminal) : undefined);
+      const questTitle = questHeading.reportTitle(agent.id, entry.at);
+      if (questTitle) { const label = document.createElement("p"); label.className = "report-quest-title"; label.textContent = questTitle; card.row.prepend(label); }
       card.row.classList.toggle("unread", !reportRead(agent.id, entry.at));
       const bodyLength = card.renderBody(expanded.has(entry.at), entry === reply ? shown : Infinity);
       if (entry === reply) { latest = card; length = bodyLength; }
@@ -245,11 +262,14 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
     if (claude || selected && "terminal" in selected) terminal.focus();
     else if (terminalId() && at === undefined) input.focus(); else history.focus({ preventScroll: true });
   }
-  return { open: (id: string, at?: number) => openConversation({ hero: id }, at),
+  return { draft: (session: string, text: string) => {
+      const agent = arrivingHero(session); openConversation(agent ? { hero: agent.id } : { terminal: session });
+      input.value = [input.value, text].filter(Boolean).join("\n\n").slice(0, 8000); saveDraft(); input.focus();
+    }, open: (id: string, at?: number) => openConversation({ hero: id }, at),
     openSession: (id: string, recall = false, preset?: string) => openConversation({ terminal: id }, undefined, !recall && preset === "claude"),
     attention: (id: string) => { arrival.attention(id, true); update(); },
     clearAttention: (id: string) => arrival.attention(id, false),
-    update, tick, setPending, resetPending, sendText, close,
+    update, tick, setPending, resetPending, sendText, close, setQuestControls: questHeading.setup,
     pendingCount: (id: string) => pending.get(id)?.length ?? 0,
     notice: (text: string) => { status.textContent = text; },
     interrupting: (id: string, active: boolean) => { if (active) interrupting.add(id); else interrupting.delete(id); } };

@@ -34,7 +34,7 @@ export class HeroTravel {
         this.walkers.push(walker);
       }
       if (hero.agent.terminal && this.arriving.delete(hero.agent.terminal)) returnWalker(this.art, walker);
-      walker.name = hero.name;
+      walker.name = hero.name; walker.branch = hero.agent.branch;
       walker.party = hero.party.map((job) => `party-${job}`);
       if (gear) walker.weaponTier = gear(hero.agent.terminal).weaponTier;
     }

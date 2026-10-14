@@ -63,7 +63,7 @@ function toolFailed(response) {
     || (typeof response.exitCode === "number" && response.exitCode !== 0);
 }
 
-// Tool input leaves the adapter only as short local-display targets (docs/OBSERVATION.md):
+// Tool targets stay short. Completed Bash commands also go to the local check matcher:
 // file basenames, the first plain words of a command, a URL's host, a subagent type.
 function commandHead(command) {
   const segments = command.split(/&&|\|\||;|\||\n/).map((part) => part.trim().split(/\s+/));
@@ -156,6 +156,7 @@ async function toEvent(hook) {
     if (typeof hook.tool_name === "string") event.tool = hook.tool_name.slice(0, 200);
     const target = text(toolTarget(hook.tool_name, hook.tool_input));
     if (target) event.target = target;
+    if (hook.tool_name === "Bash" && name !== "PreToolUse" && typeof hook.tool_input?.command === "string") event.command = hook.tool_input.command.slice(0, 8000);
     if (name === "PostToolUse" && toolFailed(hook.tool_response)) event.state = "error";
     if (name === "PostToolUseFailure" && hook.is_interrupt === true) event.state = "idle";
   }
@@ -172,7 +173,7 @@ async function toEvent(hook) {
   // Only these two conversation bodies go to the local relay/display, never files or external services.
   const body = name === "UserPromptSubmit" ? hook.prompt : name === "Stop" ? hook.last_assistant_message : undefined;
   if (typeof body === "string") event.text = body.slice(0, 8000);
-  // Notification/tool output bodies remain private; tool input only as `target` above.
+  // Notification/tool outputs remain private; only a completed command's first 200 chars may be saved as evidence.
   event.detail = {
     idle: name === "Notification" ? "Awaiting prompt" : name === "SessionEnd" ? "Session ended"
       : name === "PostToolUseFailure" ? "Interrupted" : "Session started",

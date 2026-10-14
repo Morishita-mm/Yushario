@@ -16,7 +16,7 @@ const FX = { slime: "claw", golem: "rocks", ghost: "curse", dragon: "fire" };
 export function fights(art: Sheets, heroes: TownHero[], now: number, gear: (terminal?: string) => EquipmentTiers = () => ({})): Fight[] {
   const slots = battleSlots(art, (heroes.find((hero) => hero.monster)?.place ?? "meadow") as Theme);
   return heroes.filter((hero) => hero.monster).slice(0, slots.length).map((hero, i) => ({
-    id: hero.id, x: slots[i][0], y: slots[i][1], name: hero.name, variant: heroVariant(hero.id),
+    id: hero.id, branch: hero.agent.branch, x: slots[i][0], y: slots[i][1], name: hero.name, variant: heroVariant(hero.id),
     monster: `monster-${hero.monster}`, target: hero.agent.target ?? MONSTER_NAMES[hero.monster!],
     party: hero.party.map((job) => `party-${job}`), fx: FX[hero.monster!], level: stats(hero.agent, now).level,
     counter: hero.agent.failures.some((at) => now >= at && now - at < 2000),

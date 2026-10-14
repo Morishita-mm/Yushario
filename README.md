@@ -9,7 +9,7 @@
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
-  <img src="https://img.shields.io/badge/node-%E2%89%A522.12-339933.svg" alt="Node ≥ 22.12" />
+  <img src="https://img.shields.io/badge/node-%E2%89%A522.13-339933.svg" alt="Node ≥ 22.13" />
   <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey.svg" alt="macOS | Linux" />
 </p>
 
@@ -60,7 +60,7 @@ Hooks are attached only to agents launched from Yushario. Your personal agent se
 
 ## Quick start
 
-Requires Node.js 22.12+, macOS or Linux, and at least one agent CLI installed and logged in.
+Requires Node.js 22.13+, macOS or Linux, and at least one agent CLI installed and logged in.
 
 ```sh
 npx yushario
@@ -83,7 +83,7 @@ Run `npx yushario --help` for the port and other options.
 ## Privacy and security
 
 - Runs only on `127.0.0.1`, protected by a random token for each launch. **Don't expose it through a public proxy or tunnel** — terminals run with your user's permissions.
-- Conversations, reports and terminal output stay in memory and are gone when Yushario stops. Towns and settings are kept in `~/.config/agent-character/`.
+- Quest titles, states and report summaries persist locally in `~/.config/agent-character/yushario.db`. Request and reply bodies are saved only with **Keep conversations too** (off by default); the first request line is always kept as the title. Terminal output stays in memory. Towns and preferences remain in local JSON files. Delete quest records in Settings.
 
 ## Development
 

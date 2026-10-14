@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { activateTown, archiveTowns, DAY_MS, registerTown, storedSettings, validSettings, type TownRecord } from "./town-ledger";
+import { activateTown, archiveTowns, DAY_MS, registerTown, storedSettings, townKey, townLabel, townNameForKey, validSettings, type TownRecord } from "./town-ledger";
 
 const now = 100 * DAY_MS;
 function town(overrides: Partial<TownRecord> = {}): TownRecord {
@@ -16,6 +16,16 @@ describe("town settings", () => {
     }
   });
 
+  it("accepts explicit conversation opt-in without opting legacy settings in", () => {
+    const legacy = { archiveAfterDays: 30, sound: "all", language: "ja" };
+    expect(storedSettings(legacy)?.saveConversation ?? false).toBe(false);
+    for (const saveConversation of [false, true]) {
+      const input = { ...legacy, saveConversation };
+      expect(validSettings(input)).toBe(true);
+      expect(storedSettings(input)?.saveConversation).toBe(saveConversation);
+    }
+    for (const saveConversation of ["true", 1, null, []]) expect(validSettings({ ...legacy, saveConversation })).toBe(false);
+  });
   it("accepts all three modes and integer days in range for saves and stored files", () => {
     for (const sound of ["all", "follow", "off"]) {
       for (const archiveAfterDays of [0, 30, 365]) {
@@ -66,6 +76,34 @@ describe("town ledger", () => {
     expect(original).toEqual([]);
   });
 
+  it("separates equal names by key and shares a key across worktree directories", () => {
+    const a = registerTown([], "app", "/client/app", now, "/client/app/.git", "client");
+    const both = registerTown(a, "app", "/personal/app", now, "/personal/app/.git", "personal");
+    expect(both.map((record) => townLabel(record, both))).toEqual(["app（client）", "app（personal）"]);
+    const shared = registerTown(both, "app", "/tmp/worktree", now + 1, "/client/app/.git", "client");
+    expect(shared).toHaveLength(2);
+    expect(shared[0].path).toBe("/tmp/worktree");
+    expect(shared[1]).toBe(both[1]);
+    expect(activateTown(shared, "/personal/app/.git", now + 2)[1].lastActiveAt).toBe(now + 2);
+    expect(townKey(town())).toBe("repo");
+    expect(townLabel(town(), [town()])).toBe("repo");
+  });
+  it("resolves archived names and never falls back to displaying a canonical path", () => {
+    const records = [town({ key: "/client/app/.git", name: "app", parent: "client", archivedAt: 1 }),
+      town({ key: "/personal/app/.git", name: "app", parent: "personal" })];
+    expect(townNameForKey("/client/app/.git", records)).toBe("app（client）");
+    expect(townNameForKey("/unknown/repo/.git", records)).toBe("repo");
+    expect(townNameForKey("/unknown/folder", records)).toBe("folder");
+    expect(townNameForKey("legacy-name", records)).toBe("legacy-name");
+  });
+  it("repairs an unresolved legacy name when its directory is registered again", () => {
+    const legacy = town({ name: "app", theme: "snow", archivedAt: 1 });
+    const repaired = registerTown([legacy], "app", "/client/app", now, "/client/app/.git", "client");
+    expect(repaired).toHaveLength(1);
+    expect(repaired[0]).toMatchObject({ key: "/client/app/.git", theme: "snow", lastActiveAt: now });
+    expect(repaired[0].archivedAt).toBeUndefined();
+    expect(legacy.key).toBeUndefined();
+  });
   it("rejects an empty name without changing the existing ledger", () => {
     const original = [town()];
     expect(() => registerTown(original, "", "/", now)).toThrow("Invalid town name");

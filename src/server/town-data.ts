@@ -7,6 +7,7 @@ import { validHeroNames, type HeroNames } from "../core/names";
 import { AGENTS, PRESETS, type Preset } from "./agents";
 import { isEquipmentId, parseEquipmentMaster, resolveEquipmentMaster, type EquipmentMaster } from "../core/equipment";
 import { dataDirectory as directory } from "./startup";
+import { storedProjectIdentity } from "./project";
 export type StoredRosterEntry = RosterEntry & { preset?: Preset };
 
 export function validTheme(input: unknown): input is TownTheme {
@@ -20,12 +21,13 @@ function validTowns(input: unknown): input is TownRecord[] {
     if (!town || typeof town !== "object" || Array.isArray(town)) return false;
     const value = town as Record<string, unknown>;
     const timestamp = (input: unknown): boolean => typeof input === "number" && Number.isFinite(input) && input >= 0;
-    if (typeof value.name !== "string" || !value.name || names.has(value.name)
+    if (typeof value.name !== "string" || !value.name || names.has(String(value.key ?? value.name))
       || typeof value.path !== "string" || !isAbsolute(value.path)
       || !timestamp(value.firstSeenAt) || !timestamp(value.lastActiveAt) || typeof value.pinned !== "boolean"
       || (value.theme !== undefined && !validTheme(value.theme))
       || (value.archivedAt !== undefined && !timestamp(value.archivedAt))) return false;
-    names.add(value.name);
+    if (value.key !== undefined && (typeof value.key !== "string" || !value.key)) return false;
+    names.add(String(value.key ?? value.name));
     return true;
   });
 }
@@ -45,7 +47,15 @@ export function readTowns(): TownRecord[] {
   try {
     const input = read("towns.json");
     if (!validTowns(input)) throw new Error("Invalid town records");
-    return input;
+    const migrated = new Map<string, TownRecord>();
+    for (const town of input) {
+      const project = town.key ? undefined : storedProjectIdentity(town.path);
+      const next = project ? { ...town, key: project.key, name: project.name, parent: project.parent } : town;
+      migrated.set(next.key ?? next.name, next);
+    }
+    const towns = [...migrated.values()];
+    if (JSON.stringify(towns) !== JSON.stringify(input)) writeTowns(towns);
+    return towns;
   } catch (error) { quarantine("towns.json", error); return []; }
 }
 

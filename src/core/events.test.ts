@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MAX_EVENT_METADATA_LENGTH, MAX_EVENT_TEXT_LENGTH, parseAgentEvent, truncateEventString, type AgentState } from "./events";
+import { MAX_EVENT_METADATA_LENGTH, MAX_EVENT_TEXT_LENGTH, MAX_PROJECT_KEY_LENGTH, parseAgentEvent, truncateEventString, type AgentState } from "./events";
 
 const states: AgentState[] = ["idle", "thinking", "working", "waiting_input", "success", "error"];
 
@@ -24,13 +24,14 @@ describe("parseAgentEvent", () => {
   });
 
   it.each(["detail", "source", "tool", "agent", "name", "hook", "target", "terminal", "project"] as const)("validates optional %s metadata", (field) => {
-    for (const text of ["", "x".repeat(MAX_EVENT_METADATA_LENGTH)]) {
+    const limit = field === "project" ? MAX_PROJECT_KEY_LENGTH : MAX_EVENT_METADATA_LENGTH;
+    for (const text of ["", "x".repeat(limit)]) {
       expect(parseAgentEvent({ state: "working", [field]: text })).toEqual({
         ok: true, event: { state: "working", [field]: text },
       });
     }
-    expect(parseAgentEvent({ state: "working", [field]: "x".repeat(MAX_EVENT_METADATA_LENGTH + 1) })).toEqual({
-      ok: true, event: { state: "working", [field]: "x".repeat(MAX_EVENT_METADATA_LENGTH) },
+    expect(parseAgentEvent({ state: "working", [field]: "x".repeat(limit + 1) })).toEqual({
+      ok: true, event: { state: "working", [field]: "x".repeat(limit) },
     });
     for (const invalid of [null, 42, false, {}, []]) {
       const result = parseAgentEvent({ state: "working", [field]: invalid });

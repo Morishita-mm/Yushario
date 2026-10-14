@@ -1,6 +1,6 @@
 import { serverLanguage, tr } from "./language";
 import { writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node-pty";
 import { AGENTS, agentExecutables, type Preset } from "./agents";
@@ -9,13 +9,14 @@ import { equipmentArgs, type AgentEquipment, type Equipment } from "../core/equi
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
 // Keep user configuration, but not server secrets or inherited child-session markers.
-const serverOnlyEnvironment = ["AGENT_CHARACTER_TOKEN", "CLAUDE_CODE_CHILD_SESSION", "CLAUDECODE"];
+const serverOnlyEnvironment = ["AGENT_CHARACTER_TOKEN", "AGENT_CHARACTER_AGENT_TOKEN", "CLAUDE_CODE_CHILD_SESSION", "CLAUDECODE"];
 
 // Both shells and Claude's hook runner interpret this command; quote absolute paths safely.
 function quote(value: string): string { return `'${value.replaceAll("'", "'\\''")}'`; }
 
 export function writeClaudeSettings(port: number, temporary: string): string {
   const settings = join(temporary, "claude-settings.json");
+  writeFileSync(join(temporary, "yushario"), `#!/bin/sh\nexec ${quote(process.execPath)} ${quote(join(root, "scripts/yushario.mjs"))} "$@"\n`, { mode: 0o700 });
   const command = `${quote(process.execPath)} ${quote(join(root, "adapters/claude-code/hook.mjs"))}`;
   const hooks = Object.fromEntries([
     "SessionStart", "SessionEnd", "UserPromptSubmit", "PreToolUse", "PostToolUse", "PostToolUseFailure",
@@ -31,7 +32,7 @@ export function writeClaudeSettings(port: number, temporary: string): string {
 }
 
 export function launchPty(preset: Preset, cwd: string, id: string, port: number, settings: string,
-  equipment: Equipment, master: AgentEquipment, project: string, resume?: string) {
+  equipment: Equipment, master: AgentEquipment, project: string, resume?: string, agentToken?: string) {
   const agent = AGENTS[preset];
   if (resume !== undefined && (!agent.resume || !isClaudeSessionId(resume))) throw new Error(tr("再開する勇者の ID が正しくありません", "Invalid hero ID for recall"));
   const program = agent.command;
@@ -44,6 +45,9 @@ export function launchPty(preset: Preset, cwd: string, id: string, port: number,
   env.AGENT_CHARACTER_URL = `http://127.0.0.1:${port}/event`;
   env.AGENT_CHARACTER_SESSION = id;
   env.AGENT_CHARACTER_PROJECT = project;
+  if (agentToken) env.AGENT_CHARACTER_AGENT_TOKEN = agentToken;
+  env.AGENT_CHARACTER_QUEST_TOOL = join(root, "scripts/yushario.mjs");
+  env.PATH = `${dirname(settings)}:${env.PATH ?? ""}`;
   try { return spawn(path, args, { name: "xterm-256color", cols: 80, rows: 24, cwd, env }); }
   catch { throw new Error(tr(`${agent.label} を起動できませんでした。インストールとフォルダの権限を確認してください`, `Could not launch ${agent.label}. Check installation and folder permissions`)); }
 }

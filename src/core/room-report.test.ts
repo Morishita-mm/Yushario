@@ -33,7 +33,7 @@ describe("Room talk reports", () => {
     },
   );
 
-  it.each(["Edit", "MultiEdit", "Write", "NotebookEdit"])("returns a chest for %s and deduplicates edited files", (name) => {
+  it.each(["Edit", "MultiEdit", "Write", "NotebookEdit"])("returns an untested scroll for %s and deduplicates edited files", (name) => {
     const room = new Room();
     prompt(room);
     tool(room, "Read", "untouched.ts", 20);
@@ -41,7 +41,7 @@ describe("Room talk reports", () => {
     tool(room, name, "a.ts", 40);
     tool(room, name, "b.ts", 50);
     stop(room);
-    expect(reportOf(room)).toMatchObject({ kind: "chest", files: ["a.ts", "b.ts"], tools: 4 });
+    expect(reportOf(room)).toMatchObject({ kind: "scroll", files: ["a.ts", "b.ts"], tools: 4 });
   });
 
   it("does not claim failed, interrupted or unfinished edits as changed files", () => {
@@ -154,7 +154,7 @@ describe("Room talk reports", () => {
     prompt(room, 50);
     tool(room, "Read", "second.ts", 60);
     stop(room, 70);
-    expect(first).toMatchObject({ kind: "chest", files: ["first.ts"], tools: 1, startedAt: 10, endedAt: 30 });
+    expect(first).toMatchObject({ kind: "scroll", files: ["first.ts"], tools: 1, startedAt: 10, endedAt: 30 });
     expect(reportOf(room)).toMatchObject({ kind: "scroll", files: [], tools: 1, startedAt: 50, endedAt: 70 });
   });
 
@@ -166,7 +166,7 @@ describe("Room talk reports", () => {
     room.apply(e({ agent: "s2", hook: "Stop", text: "done" }), 30);
     stop(room, 40);
     expect(room.agents.get("s2")!.talk.at(-1)!.report).toMatchObject({ kind: "talk", tools: 0, startedAt: 11, endedAt: 30 });
-    expect(reportOf(room)).toMatchObject({ kind: "chest", files: ["a.ts"], tools: 1 });
+    expect(reportOf(room)).toMatchObject({ kind: "scroll", files: ["a.ts"], tools: 1 });
   });
 
   it.each(["SessionEnd", "SessionStart"])("discards an unfinished round on %s", (hook) => {

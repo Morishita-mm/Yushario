@@ -18,7 +18,7 @@ describe("Room report event-time ordering (R1)", () => {
     expect(report).toMatchObject({ kind: "scroll", files: [], tools: 1 });
     room.apply(e({ hook: "PostToolUse", tool: "Edit", target: "a.ts" }), 21);
     expect(reportAt(room, 30)).toBe(report);
-    expect(report).toMatchObject({ kind: "chest", files: ["a.ts"], tools: 1, startedAt: 10, endedAt: 30 });
+    expect(report).toMatchObject({ kind: "scroll", files: ["a.ts"], tools: 1, startedAt: 10, endedAt: 30 });
   });
 
   it("R1.2: new Prompt(50), Pre/Read(60), old Prompt(10), Stop(70) preserves the new round", () => {
@@ -58,7 +58,7 @@ describe("Room report event-time ordering (R1)", () => {
     prompt(room, 10, 0.2);
     expect(agent.talk.map((entry) => [entry.from, entry.at])).toEqual([["you", 10], ["hero", 30]]);
     expect(reportAt(room, 30)).toMatchObject({
-      kind: hook === "StopFailure" ? "scroll" : "chest", files: ["a.ts"], tools: 1, startedAt: 10, endedAt: 30, mp: { start: 0.8, end: 0.4 },
+      kind: "scroll", files: ["a.ts"], tools: 1, startedAt: 10, endedAt: 30, mp: { start: 0.8, end: 0.4 },
     });
     expect(agent.context).toBe(0.6);
     expect(stop(room, 40).talk.at(-1)).not.toHaveProperty("report");
@@ -99,7 +99,7 @@ describe("Room report event-time ordering (R1)", () => {
     room.apply(e({ hook: "PreToolUse", tool: "Edit", target: "a.ts" }), 20);
     room.apply(e({ hook: "PostToolUse", tool: "Edit", target: "a.ts" }), 21);
     stop(room, 70);
-    expect(reportAt(room, 30)).toMatchObject({ kind: "chest", files: ["a.ts"], tools: 1, startedAt: 10, endedAt: 30 });
+    expect(reportAt(room, 30)).toMatchObject({ kind: "scroll", files: ["a.ts"], tools: 1, startedAt: 10, endedAt: 30 });
     expect(reportAt(room, 70)).toMatchObject({ kind: "scroll", tools: 1, startedAt: 50, endedAt: 70 });
   });
 
@@ -110,7 +110,7 @@ describe("Room report event-time ordering (R1)", () => {
     room.apply(e({ hook: "PostToolUse", tool: "Edit", target: "a.ts" }), 21);
     prompt(room, 10);
     stop(room, 30);
-    expect(reportAt(room, 30)).toMatchObject({ kind: "chest", files: ["a.ts"], tools: 1 });
+    expect(reportAt(room, 30)).toMatchObject({ kind: "scroll", files: ["a.ts"], tools: 1 });
   });
 
   it("respects a textless Stop arriving before its prompt", () => {

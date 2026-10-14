@@ -2,13 +2,13 @@ import { tr } from "../language";
 import { sessionRequest, type Session } from "../terminal";
 
 // Managing a terminal is separate from launching a hero. No session ends on window close.
-export function initTerminals(name: (id: string) => string | undefined, open: (id: string) => void): void {
+export function initTerminals(name: (id: string) => string | undefined, open: (id: string) => void, townName: (key: string) => string): void {
   const dialog = document.querySelector<HTMLDialogElement>("#terminals-dialog")!;
   const list = document.querySelector<HTMLElement>("#terminals-list")!;
   const status = document.querySelector<HTMLElement>("#terminals-status")!;
   let request = 0, deleting = false;
   const close = () => { request++; dialog.close(); };
-  const label = (session: Session) => `${name(session.id) ?? session.project} / ${session.preset} / ${session.id}`;
+  const label = (session: Session) => `${name(session.id) ?? townName(session.project)} / ${session.preset} / ${session.id}`;
   function render(sessions: Session[]): void {
     list.replaceChildren();
     for (const ended of [false, true]) {

@@ -1,4 +1,5 @@
 import { tr } from "../language";
+import { questBoardHotspot } from "../town/quest-board";
 import type { TownTheme } from "../town/themes";
 import type { HeroPlace, TownHero } from "../../core/town";
 import { FIELD_EXITS } from "../town/field";
@@ -12,7 +13,7 @@ import { FIELD_NAMES } from "./navigation";
 
 export function localHotspots(art: Sheets, place: HeroPlace, heroes: TownHero[], walkers: Walker[], gateMenu: boolean,
   go: (place: HeroPlace, focused?: string) => void,
-  commands: (id: string, x: number, y: number, watch?: () => void) => void, openGate: () => void, priest: () => void, theme?: TownTheme) {
+  commands: (id: string, x: number, y: number, watch?: () => void) => void, openGate: () => void, priest: () => void, theme?: TownTheme, board: () => void = () => undefined) {
   if (place === "inn") {
     const room = art.entry("bg-inn").inn!, slots = innSlots(art), [dx, dy, w, h] = room.hit;
     const sleepers = heroes.filter((hero) => hero.place === "inn").slice(0, slots.length);
@@ -28,7 +29,7 @@ export function localHotspots(art: Sheets, place: HeroPlace, heroes: TownHero[],
     }), { ...room.exit, text: tr("▼ そとへ", "▼ Exit"), act: () => go("town") }];
   }
   if (place === "town") {
-    const spots = [
+    const spots = [questBoardHotspot(art, theme, board),
       { ...townSpots(art, theme).inn, act: () => go("inn"), text: undefined as string | undefined },
       { ...townSpots(art, theme).church, act: () => go("church"), text: undefined as string | undefined },
     ];
