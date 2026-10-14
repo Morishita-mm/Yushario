@@ -5,13 +5,14 @@ import { narrate, stats } from "../../core/story";
 import { compactRow, element, statusCard } from "./status-card";
 import { initNameEditor } from "./names";
 
-export type Permission = { id: string; tool: string; summary: string; agent?: string };
+export type Permission = { id: string; tool: string; summary: string; content: string; omitted: number; expiresAt: number; agent?: string; helper?: string };
 type Decision = "allow" | "deny" | "terminal";
 
 // Page-local selection, status size and permission responses.
 export class Status {
   readonly permissions = new Map<string, Permission>();
   private readonly signatures = new Map<string, string>();
+  private readonly permissionBlocks = new Map<string, { signature: string; block: HTMLElement }>();
   private readonly dialog = document.querySelector<HTMLDialogElement>("#strength-dialog")!;
   private readonly details = document.querySelector<HTMLElement>("#strength-content")!;
   private readonly list = element("div", "party-list");
@@ -80,6 +81,8 @@ export class Status {
   render(room: Room, now: number, selected: string | undefined, names: Map<string, string>, project?: string): void {
     this.renderDetails(room, now, names);
     const cards: HTMLElement[] = [];
+    for (const [id, permission] of this.permissions) if (permission.expiresAt <= now) this.permissions.delete(id);
+    for (const id of this.permissionBlocks.keys()) if (!this.permissions.has(id)) this.permissionBlocks.delete(id);
     // Inside a town only its heroes; on the world map everyone, grouped by town.
     const agents = [...room.agents.values()].filter((agent) => project === undefined || (agent.project ?? agent.name) === project);
     const chosen = agents.find((agent) => agent.id === selected) ?? agents[0];
@@ -97,8 +100,9 @@ export class Status {
       ]));
     }
     if (agents.length) cards.push(this.list);
+    const chosenPermission = [...this.permissions.values()].find((item) => (item.agent ?? "default") === chosen?.id);
     if (chosen) {
-      const permission = [...this.permissions.values()].find((item) => (item.agent ?? "default") === chosen.id);
+      const permission = chosenPermission;
       const name = names.get(chosen.id) ?? chosen.name;
       const signature = this.signature(chosen, now, name, permission);
       let card = this.root.querySelector<HTMLElement>(`[data-agent="${CSS.escape(chosen.id)}"]`);
@@ -109,13 +113,17 @@ export class Status {
     }
     for (const permission of this.permissions.values()) {
       const id = permission.agent ?? "default";
-      if (id === chosen?.id) continue;
+      if (permission.id === chosenPermission?.id) continue;
       const agent = room.agents.get(id), name = names.get(id) ?? agent?.name ?? id;
       const project = agent?.project ?? agent?.name;
       cards.push(this.permissionBlock(permission, project === undefined ? name : `${name} — ${project}`, agent?.terminal));
     }
     if (!cards.length) cards.push(element("p", "empty window", tr("まだ だれも いない ようだ…", "No heroes here yet…")));
     if (cards.length !== this.root.children.length || cards.some((card, index) => this.root.children[index] !== card)) this.root.replaceChildren(...cards);
+    for (const timer of this.root.querySelectorAll<HTMLElement>(".permission-time")) {
+      const seconds = Math.max(0, Math.ceil((Number(timer.dataset.expires) - now) / 1000));
+      timer.textContent = tr(`のこり ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`, `Time left ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`);
+    }
     for (const id of this.signatures.keys()) if (!room.agents.has(id)) this.signatures.delete(id);
   }
 
@@ -125,19 +133,29 @@ export class Status {
   }
 
   private permissionBlock(permission: Permission, heading?: string, terminal?: string): HTMLElement {
-    const block = element("div", "permission");
+    const signature = JSON.stringify([permission, heading, terminal]);
+    const cached = this.permissionBlocks.get(permission.id);
+    if (cached?.signature === signature) return cached.block;
+    const block = element("div", "permission"); block.dataset.permission = permission.id;
     if (heading) block.append(element("h3", "section", heading));
-    block.append(element("p", undefined, tr(`「${permission.summary}」\nを おこなっても よいですか？`, `Allow "${permission.summary}"?`)));
+    if (permission.helper) block.append(element("p", "hint", tr(`なかま：${permission.helper}`, `Ally: ${permission.helper}`)));
+    block.append(element("p", undefined, tr(`${permission.tool}を おこなっても よいですか？`, `Allow ${permission.tool}?`)),
+      element("pre", "permission-content", permission.content));
+    if (permission.omitted) block.append(element("p", "hint", tr(`…（のこり ${permission.omitted}文字は ターミナルで）`, `… (${permission.omitted} more characters in the terminal)`)));
+    const timer = element("p", "permission-time"); timer.dataset.expires = String(permission.expiresAt); block.append(timer);
     const actions = element("div", "actions");
     for (const [label, decision] of [[tr("はい", "Yes"), "allow"], [tr("いいえ", "No"), "deny"], [tr("ターミナルで こたえる", "Answer in terminal"), "terminal"]] as const) {
       const button = element("button", undefined, `▶ ${label}`); button.type = "button";
+      button.disabled = decision === "allow" && permission.omitted > 0;
       button.addEventListener("click", (event) => {
         event.stopPropagation(); this.respond(permission.id, decision);
         if (decision === "terminal" && terminal) this.openTerminal(terminal);
       });
       actions.append(button);
     }
-    block.append(actions); return block;
+    block.append(actions);
+    this.permissionBlocks.set(permission.id, { signature, block });
+    return block;
   }
 }
 

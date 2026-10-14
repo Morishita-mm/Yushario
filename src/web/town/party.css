@@ -18,6 +18,8 @@
 .compact-bars .bar { grid-template-columns: 17px 1fr; gap: 3px; font-size: 10px; margin: 0; }
 .compact-bars .track { height: 5px; }
 .compact-bars .value { display: none; }
+.compact-bars .unknown .label::after { content: "？"; }
+.bar.unknown .track { background: #777; }
 .compact-bars { display: grid; gap: 3px; }
 .empty { white-space: pre-line; font-size: 15px; margin: 0; }
 .hero { font-size: 14px; cursor: pointer; }
@@ -43,3 +45,6 @@
 .log .failed { color: #ff9a9a; }
 .permission { margin-top: 10px; padding: 8px; border: 2px solid #ffe066; background: #292236; }
 .permission p { white-space: pre-line; overflow-wrap: anywhere; margin: 0; }
+.permission-content { max-height: 160px; overflow-y: auto; white-space: pre-wrap; overflow-wrap: anywhere; font: 12px/1.5 monospace; margin: 6px 0; padding: 6px; background: #0a0a1a; }
+.permission .permission-time { color: #ffe066; font-variant-numeric: tabular-nums; }
+.permission button:disabled { opacity: 0.4; cursor: not-allowed; }

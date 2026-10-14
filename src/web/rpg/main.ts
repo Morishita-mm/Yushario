@@ -85,7 +85,7 @@ const actions = initHeroActions((id) => room.agents.get(id), talk,
 
 const notices = initNotices(document.querySelector<HTMLElement>("#herald")!, (notice) => {
   if (notice.hero) sideTabs.show("party");
-  scene.visitNotice(notice.repo, notice.hero, notice.at);
+  scene.visitNotice(notice.repo, notice.hero, notice.kind === "report" ? notice.at : undefined);
 }, (n) => sideTabs.count("herald", n));
 
 function parse(input: unknown, at: unknown): { event: AgentEvent; at: number } | undefined {
@@ -136,9 +136,11 @@ function live(event: AgentEvent, at: number, audible: boolean): void {
 }
 
 function permission(value: Record<string, unknown>): Permission | undefined {
-  if (typeof value.id !== "string" || typeof value.tool !== "string" || typeof value.summary !== "string") return;
-  return { id: value.id, tool: value.tool, summary: value.summary,
-    ...(typeof value.agent === "string" ? { agent: value.agent } : {}) };
+  if (typeof value.id !== "string" || typeof value.tool !== "string" || typeof value.summary !== "string"
+    || typeof value.content !== "string" || typeof value.omitted !== "number" || typeof value.expiresAt !== "number") return;
+  return { id: value.id, tool: value.tool, summary: value.summary, content: value.content, omitted: value.omitted, expiresAt: value.expiresAt,
+    ...(typeof value.agent === "string" ? { agent: value.agent } : {}),
+    ...(typeof value.helper === "string" ? { helper: value.helper } : {}) };
 }
 
 function connect(): void {

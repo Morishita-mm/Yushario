@@ -13,6 +13,8 @@
 .notice .icon { grid-row: span 2; font-family: system-ui, "Apple Color Emoji", sans-serif; }
 .notice .ago { color: #8a86a0; font-size: 11px; }
 .notice.permission .text, .notice.call .text { color: #ffe7a3; }
+.notice.down .text { color: #ff9a9a; }
+.herald-other { margin: 16px 0 4px; border-top: 1px dashed #6e6a8a; padding-top: 8px; font-size: 14px; font-weight: normal; color: #ffe066; }
 .report-layer { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.45); }
 .report-layer[hidden] { display: none; }
 .report-window {

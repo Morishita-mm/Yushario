@@ -16,7 +16,7 @@ import { interiorHotspots } from "./mock-interior";
 import { drawTown, townSpots } from "../town/town";
 import { FIGHTS, PROJECTS, farewell, recall, ROSTER, SLEEPERS, PRAYERS, TOWN_REPORTS, townHeroes, walkers, equippedWalkers, townReports, CALLER, walkTown, initTown, heroPlace } from "./mock-data";
 import { notices } from "./mock-notices";
-import { renderHerald, showTownList, showThemeChooser, type Notice } from "../town/herald";
+import { renderHerald, noticesInTown, showTownList, showThemeChooser, type Notice } from "../town/herald";
 import { drawWorld, markers, plate, regionName, sleeping, type Project } from "../town/world";
 import { Sheets } from "../town/sheets";
 import { drawNavigation } from "../town/navigation";
@@ -48,7 +48,6 @@ let mark: { id: string; place: Place; at?: number } | undefined;
 const herald = document.querySelector<HTMLElement>("#herald")!;
 const party = document.querySelector<HTMLElement>("#party")!;
 const sideTabs = initSideTabs();
-
 // Entering a town; a town whose kind is not chosen yet asks first.
 function enter(project: Project, place: Place = "town"): void {
   if (!project.theme) {
@@ -61,9 +60,10 @@ function enter(project: Project, place: Place = "town"): void {
 }
 
 let picked: string | undefined; // The mock hero chosen in the ゆうしゃ tab.
-// Like the app: inside a town only its notices; the ゆうしゃ tab lists the mock town's heroes.
+// Like the app: urgent news crosses town borders, but the heroes list stays local.
 function refreshHerald(): void {
-  const list = notices().filter((notice) => current.place === "world" || notice.repo === town.repo);
+  const localTown = current.place === "world" ? undefined : town.repo;
+  const list = noticesInTown(notices(), localTown);
   sideTabs.count("herald", list.length);
   sideTabs.count("party", renderMockParty(party, town.repo, mark?.id ?? picked, (name, place) => { picked = name; mark = { id: name, place }; go(byId(place)); }));
   renderHerald(herald, list, (notice: Notice) => {
@@ -72,7 +72,7 @@ function refreshHerald(): void {
     const place = notice.hero ? heroPlace(notice.hero) : undefined;
     mark = notice.hero && place ? { id: notice.hero, place } : undefined;
     if (project) enter(project, place);
-  });
+  }, localTown);
 }
 const read = new Set<string>();
 let report: string | undefined; // name of the agent whose report is open

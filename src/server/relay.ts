@@ -2,13 +2,14 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { createServer } from "node:http";
 import { WebSocket, WebSocketServer } from "ws";
 import { parseAgentEvent, type AgentEvent } from "../core/events";
+import { EVENT_HISTORY_LIMIT, historyDiscardIndex, type RecordedEvent } from "../core/event-history";
 import { DAY_MS } from "../core/town-ledger";
 import { namedHero } from "../core/names";
 import { TownLedger } from "./town-api";
 import { serveStatic } from "./static";
 import { createPtyServer } from "./pty";
 import { AGENTS } from "./agents";
-import { PermissionWaiter, permissionOutput, permissionSummary } from "./permissions";
+import { PermissionWaiter, PERMISSION_TIMEOUT_MS, permissionOutput, permissionSummary } from "./permissions";
 import { allowedHost } from "../core/local-request";
 import { EVENT_BODY_LIMIT, readJsonBody } from "./http-body";
 import { listenAvailable, openBrowser, prepareDataDirectory, startupOptions } from "./startup";
@@ -30,8 +31,7 @@ const development = process.env.NODE_ENV === "development";
 const token = development && process.env.AGENT_CHARACTER_TOKEN
   ? process.env.AGENT_CHARACTER_TOKEN : randomBytes(32).toString("hex");
 // Recent events let a newly opened room rebuild who is present and what they are doing.
-const HISTORY_LIMIT = 2000;
-const history: { event: AgentEvent; at: number }[] = [];
+const history: RecordedEvent[] = [];
 // A resumed conversation has a new terminal; never replay late hooks from its old one.
 const endedTerminals = new Set<string>();
 const ledger = new TownLedger((towns) => broadcast({ type: "towns", towns }),
@@ -49,7 +49,7 @@ function record(event: AgentEvent): boolean {
     catch (error) { console.error("Town activity save failed:", error); }
   }
   history.push({ event, at });
-  if (history.length > HISTORY_LIMIT) history.shift();
+  if (history.length > EVENT_HISTORY_LIMIT) history.splice(historyDiscardIndex(history), 1);
   broadcast({ type: "event", event, at });
   pty.observe(event, at);
   return true;
@@ -110,19 +110,19 @@ const server = createServer(async (request, response) => {
   if (request.url === "/hooks/permission") {
     const summary = permissionSummary(input);
     if (!summary) { response.writeHead(400).end(); return; }
-    const permission = { type: "permission" as const, id: randomUUID(), ...summary };
-    record({ state: "waiting_input", source: "claude-code", hook: "PermissionRequest", tool: summary.tool,
+    const permission = { type: "permission" as const, id: randomUUID(), expiresAt: Date.now() + PERMISSION_TIMEOUT_MS, ...summary };
+    record({ state: "waiting_input", source: "claude-code", hook: "PermissionRequest", tool: summary.tool, detail: summary.summary.slice(0, 200),
       ...(summary.agent ? { agent: summary.agent } : {}), ...(summary.name ? { name: summary.name } : {}),
       ...(summary.helper ? { subagent: { id: summary.helper } } : {}) });
     const connected = [...sockets.clients].some((client) => client.readyState === WebSocket.OPEN);
     const waiting = permissions.wait(permission, connected);
-    if (connected) broadcast(permission);
+    if (permissions.pending.some((item) => item.id === permission.id)) broadcast(permission);
     const disconnected = (): void => { permissions.decide(permission.id, "terminal"); };
     response.once("close", disconnected);
     const decision = await waiting;
     response.off("close", disconnected);
     broadcast({ type: "permission-resolved", id: permission.id });
-    if (decision !== "terminal" && summary.agent && !summary.helper) pty.answered(summary.agent);
+    if (decision !== "terminal" && summary.agent && !permissions.pending.some((item) => item.agent === summary.agent)) pty.answered(summary.agent);
     if (!response.destroyed) response.writeHead(200, { "Content-Type": "application/json" })
       .end(JSON.stringify(permissionOutput(decision)));
     return;
@@ -187,7 +187,7 @@ sockets.on("connection", (client) => {
   for (const message of pty.pending()) client.send(JSON.stringify(message));
   // These are snapshots too, not fresh requests that should ring on reconnect.
   for (const message of pty.attention()) client.send(JSON.stringify({ ...message, live: false }));
-  if (permissions.current) client.send(JSON.stringify({ ...permissions.current, live: false }));
+  for (const permission of permissions.pending) client.send(JSON.stringify({ ...permission, live: false }));
   client.on("message", (data, binary) => {
     if (binary) return;
     try {

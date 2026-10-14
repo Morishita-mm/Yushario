@@ -58,7 +58,7 @@ describe("Room report event-time ordering (R1)", () => {
     prompt(room, 10, 0.2);
     expect(agent.talk.map((entry) => [entry.from, entry.at])).toEqual([["you", 10], ["hero", 30]]);
     expect(reportAt(room, 30)).toMatchObject({
-      kind: "chest", files: ["a.ts"], tools: 1, startedAt: 10, endedAt: 30, mp: { start: 0.8, end: 0.4 },
+      kind: hook === "StopFailure" ? "scroll" : "chest", files: ["a.ts"], tools: 1, startedAt: 10, endedAt: 30, mp: { start: 0.8, end: 0.4 },
     });
     expect(agent.context).toBe(0.6);
     expect(stop(room, 40).talk.at(-1)).not.toHaveProperty("report");
@@ -86,7 +86,7 @@ describe("Room report event-time ordering (R1)", () => {
     room.apply(e({ hook: "PostToolUse", tool: "Write", target: "helper.ts", subagent: { id: "h1" } }), 27);
     stop(room, 70);
     expect(reportAt(room, 40)).toBe(first);
-    expect(first).toMatchObject({ kind: "chest", files: ["a.ts"], tools: 3, tests: { passed: 1, failed: 1 }, failures: 1 });
+    expect(first).toMatchObject({ kind: "scroll", files: ["a.ts"], tools: 3, tests: { passed: 1, failed: 1, last: "failed" }, failures: 1 });
     expect(reportAt(room, 70)).toMatchObject({ kind: "scroll", files: [], tools: 1, failures: 0, startedAt: 50 });
   });
 

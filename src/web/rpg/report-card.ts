@@ -24,6 +24,8 @@ export function duration(ms: number): string {
 function reportHeadline(entry: Reply): string {
   const report = entry.report;
   if (!report) return tr("へんじが とどいた", "A reply arrived");
+  if (report.stopFailure) return tr("とちゅうで たおれた…", "Went down partway…");
+  if (report.tests.last === "failed") return tr(`ファイル ${report.files.length}つを かえた。テストは しっぱい`, `Changed ${report.files.length} files. Tests failed`);
   if (report.kind === "chest") return tr(`しょうり！ ファイル ${report.files.length}つを なおした`, `Victory! Files fixed: ${report.files.length}`);
   return report.kind === "scroll" ? tr("しらべて もどってきた", "Returned from exploring") : tr("はなしかけてきた", "Came to talk");
 }
@@ -54,7 +56,7 @@ export function createReportCard(entry: Reply, name: string, art: Sheets) {
     const mp = report.mp && start !== end ? tr(` · MP ${start} → ${end}（${start >= end ? "−" : "+"}${Math.abs(start - end)}）`, ` · MP ${start} → ${end} (${start >= end ? "−" : "+"}${Math.abs(start - end)})`) : "";
     // Only what actually happened: a plain conversation shows no tally line at all.
     const facts = [
-      report.tests.passed + report.tests.failed ? tr(`テスト ○${report.tests.passed} ×${report.tests.failed}`, `Tests ○${report.tests.passed} ×${report.tests.failed}`) : "",
+      report.tests.passed + report.tests.failed ? tr(`テストの じっこう ○${report.tests.passed} ×${report.tests.failed}`, `Test runs ○${report.tests.passed} ×${report.tests.failed}`) : "",
       report.failures ? tr(`しっぱい ${report.failures}`, `Failures ${report.failures}`) : "",
       report.tools ? tr(`ツール ${report.tools}`, `Tools ${report.tools}`) : "",
     ].filter(Boolean).join(" · ");

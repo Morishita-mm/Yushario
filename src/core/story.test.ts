@@ -48,6 +48,18 @@ describe("story", () => {
     expect(narrate({ ...event, detail: "Compaction cancelled" }, before)).not.toContain("かいふく");
   });
 
+  it("keeps MP unknown until context is observed, including a real zero remaining", () => {
+    const room = new Room();
+    const agent = room.apply(e({ hook: "SessionStart", state: "idle" }), 0)!;
+    expect(stats(agent, 0).mp).toBeUndefined();
+    room.apply(e({ hook: "PostToolUse", tool: "Read" }), 1);
+    expect(stats(agent, 1).mp).toBeUndefined();
+    room.apply(e({ context: 1 }), 2);
+    expect(stats(agent, 2).mp).toBe(0);
+    room.apply(e({ context: 0 }), 3);
+    expect(stats(agent, 3).mp).toBe(1);
+  });
+
   it("keeps damage numbers stable for the same event", () => {
     const hit = e({ hook: "PostToolUse", tool: "Edit", ts: 1234 });
     expect(damage(hit)).toBe(damage({ ...hit }));

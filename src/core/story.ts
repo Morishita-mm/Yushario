@@ -23,10 +23,10 @@ export function jobOf(subagentType: string | undefined): Job {
     default: return "mage";
   }
 }
-export interface Stats { level: number; hp: number; mp: number }
+export interface Stats { level: number; hp: number; mp: number | undefined }
 export function stats(agent: RoomAgent, now: number): Stats {
   const recentFailures = agent.failures.filter((at) => at <= now && now - at < MOOD_RULES.struggleWindowMs).length;
-  return { level: 1 + Math.floor((agent.wins + agent.quests * 5) / 10), hp: Math.max(0.1, 1 - recentFailures / 5), mp: 1 - (agent.context ?? 0) };
+  return { level: 1 + Math.floor((agent.wins + agent.quests * 5) / 10), hp: Math.max(0.1, 1 - recentFailures / 5), mp: agent.context === undefined ? undefined : 1 - agent.context };
 }
 export function damage(event: AgentEvent): number { return 3 + Math.abs(Math.round(event.ts ?? 0)) % 37; }
 function quoted(text: string | undefined, fallback: string, language: Language): string {

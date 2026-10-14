@@ -5,9 +5,13 @@ import type { Sheets } from "./sheets";
 
 // The herald (でんれい): everything that needs you, across all projects, most urgent first.
 // With many projects you don't browse towns; you work down this list.
-export interface Notice { kind: "permission" | "call" | "new" | "struggle" | "report"; repo: string; text: string; ago: string; hero?: string; at?: number }
+export interface Notice { kind: "permission" | "call" | "down" | "new" | "struggle" | "report"; repo: string; text: string; ago: string; hero?: string; at?: number; id?: string }
+export const NOTICE_ORDER: Notice["kind"][] = ["permission", "call", "down", "new", "struggle", "report"];
+export function noticesInTown(list: Notice[], town?: string): Notice[] {
+  return list.filter((notice) => town === undefined || notice.repo === town || ["permission", "call", "down"].includes(notice.kind));
+}
 
-const ICONS: Record<Notice["kind"], string> = { permission: "🔑", call: "❗", new: "🏗", struggle: "💦", report: "📜" };
+const ICONS: Record<Notice["kind"], string> = { permission: "🔑", call: "❗", down: "⚠", new: "🏗", struggle: "💦", report: "📜" };
 
 function element<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
@@ -17,12 +21,19 @@ function element<K extends keyof HTMLElementTagNameMap>(tag: K, className?: stri
 }
 
 // Grouped by town, most urgent town first (the list arrives sorted); each heading counts the kinds.
-export function renderHerald(root: HTMLElement, list: Notice[], onPick: (notice: Notice) => void): void {
+export function renderHerald(root: HTMLElement, list: Notice[], onPick: (notice: Notice) => void, town?: string): void {
   const existing = [...root.querySelectorAll<HTMLButtonElement>(".notice")];
   const headings = [...root.querySelectorAll<HTMLElement>(".herald-town")];
   const towns = new Map<string, Notice[]>();
   for (const notice of list) towns.set(notice.repo, [...(towns.get(notice.repo) ?? []), notice]);
-  const nodes = [...towns].flatMap(([repo, notices]) => {
+  const groups = [...towns];
+  const local = town === undefined ? groups : groups.filter(([repo]) => repo === town);
+  const other = town === undefined ? [] : groups.filter(([repo]) => repo !== town);
+  const otherHeading = root.querySelector<HTMLElement>(".herald-other") ?? element("h2", "herald-other", tr("ほかの町", "Other towns"));
+  const nodes = [...local.flatMap(group), ...(other.length ? [otherHeading, ...other.flatMap(group)] : [])];
+  if (root.children.length !== nodes.length || nodes.some((node, index) => root.children[index] !== node)) root.replaceChildren(...nodes);
+
+  function group([repo, notices]: [string, Notice[]]): HTMLElement[] {
     const heading = headings.find((item) => item.dataset.town === repo) ?? element("h3", "herald-town");
     heading.dataset.town = repo;
     const counts = (Object.keys(ICONS) as Notice["kind"][]).map((kind) => [kind, notices.filter((n) => n.kind === kind).length] as const)
@@ -30,11 +41,10 @@ export function renderHerald(root: HTMLElement, list: Notice[], onPick: (notice:
     const text = `${repo || tr("（町なし）", "(No town)")}  ${counts}`;
     if (heading.textContent !== text) heading.textContent = text;
     return [heading, ...items(notices)];
-  });
-  if (root.children.length !== nodes.length || nodes.some((node, index) => root.children[index] !== node)) root.replaceChildren(...nodes);
+  }
 
   function items(notices: Notice[]): HTMLButtonElement[] { return notices.map((notice) => {
-    const key = JSON.stringify([notice.kind, notice.repo, notice.hero, notice.at, notice.text]);
+    const key = JSON.stringify([notice.kind, notice.repo, notice.hero, notice.at, notice.text, notice.id]);
     const button = existing.find((item) => item.dataset.notice === key) ?? element("button", `notice ${notice.kind}`);
     button.type = "button"; button.dataset.notice = key;
     button.setAttribute("aria-label", notice.text);

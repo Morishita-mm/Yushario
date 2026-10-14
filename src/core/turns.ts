@@ -4,7 +4,8 @@ import type { AgentEvent } from "./events";
 export type TalkReport = {
   kind: "chest" | "scroll" | "talk";
   files: string[];
-  tests: { passed: number; failed: number };
+  tests: { passed: number; failed: number; last?: "passed" | "failed" };
+  stopFailure?: boolean;
   failures: number;
   tools: number;
   startedAt: number;
@@ -77,6 +78,7 @@ function applyMark(cursor: Cursor, mark: Mark): { stopped: boolean; report?: Tal
       const tool = mark.tool;
       report.tools += tool.tools; report.failures += tool.failures;
       report.tests.passed += tool.passed; report.tests.failed += tool.failed;
+      if (tool.passed || tool.failed) report.tests.last = tool.failed ? "failed" : "passed";
       if (tool.file && report.files.length < TURN_FILE_LIMIT && !report.files.includes(tool.file)) report.files.push(tool.file);
     }
   }
@@ -87,7 +89,9 @@ function applyMark(cursor: Cursor, mark: Mark): { stopped: boolean; report?: Tal
   if (!active) return { stopped: true };
   const report = copyReport(active.report);
   report.endedAt = at;
-  report.kind = report.files.length ? "chest" : report.tools ? "scroll" : "talk";
+  if (hook === "StopFailure") report.stopFailure = true;
+  report.kind = report.stopFailure || report.tests.last === "failed" ? "scroll"
+    : report.files.length ? "chest" : report.tools ? "scroll" : "talk";
   if (active.mpStart !== undefined && cursor.context !== undefined) report.mp = { start: active.mpStart, end: 1 - cursor.context };
   return { stopped: true, report };
 }
@@ -132,6 +136,7 @@ export function attachReports(talk: TalkEntry[], turns: Turns): void {
     else if (entry.report) {
       delete entry.report.waitedMs;
       delete entry.report.mp;
+      delete entry.report.stopFailure;
       Object.assign(entry.report, report);
     } else entry.report = report;
   }

@@ -90,7 +90,7 @@ describe("Room talk reports", () => {
     room.apply(e({ hook: "PostToolUseFailure", tool: "Bash", target: "npm test", state: "idle" }), 41);
     const agent = room.apply(e({ hook: "StopFailure", text: "実行できません", state: "error" }), 50)!;
     expect(agent.talk.at(-1)).toEqual({ at: 50, from: "hero", text: "実行できません", report: {
-      kind: "scroll", files: [], tools: 3, tests: { passed: 0, failed: 1 }, failures: 2, startedAt: 10, endedAt: 50,
+      kind: "scroll", stopFailure: true, files: [], tools: 3, tests: { passed: 0, failed: 1, last: "failed" }, failures: 2, startedAt: 10, endedAt: 50,
     } });
     expect(stop(room, 60).talk.at(-1)).not.toHaveProperty("report");
   });

@@ -29,6 +29,14 @@ export interface RoomTask { id: string; subject?: string; status: Exclude<TaskSt
 export interface Helper { id: string; type?: string; activity: Activity; target?: string }
 export interface LogEntry { at: number; activity: Activity; target?: string; outcome?: "ok" | "failed" }
 
+export type DownState = { at: number; active: boolean };
+// Only a new main request clears a fall. Other progress, reading a report and
+// elapsed time do not; late hooks cannot undo a newer request/fall.
+export function downAfterEvent(current: DownState | undefined, event: AgentEvent, at: number): DownState | undefined {
+  if (event.subagent || !["UserPromptSubmit", "StopFailure"].includes(event.hook ?? "") || at < (current?.at ?? -Infinity)) return current;
+  return { at, active: event.hook === "StopFailure" };
+}
+
 export interface RoomAgent {
   id: string;
   name: string;
@@ -40,6 +48,7 @@ export interface RoomAgent {
   running: boolean; // A tool started and has not finished yet.
   lastEventAt: number;
   context?: number;
+  down?: DownState;
   failures: number[];
   edits: number[];
   wins: number; // Tools that finished successfully, for the whole session.
@@ -79,6 +88,7 @@ export class Room {
     if (event.terminal) agent.terminal = event.terminal;
     if (event.project) agent.project = event.project;
     agent.lastEventAt = Math.max(agent.lastEventAt, at);
+    agent.down = downAfterEvent(agent.down, event, at);
     if (!event.subagent) {
       if (event.context !== undefined && at >= agent.contextAt) {
         agent.context = event.context;

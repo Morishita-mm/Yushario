@@ -25,14 +25,14 @@ export function element<K extends keyof HTMLElementTagNameMap>(tag: K, className
   return node;
 }
 
-function bar(label: string, value: number, color: string): HTMLElement {
-  const row = element("div", "bar");
+function bar(label: string, value: number | undefined, color: string): HTMLElement {
+  const row = element("div", value === undefined ? "bar unknown" : "bar");
   const track = element("span", "track");
   const fill = element("span", "fill");
-  fill.style.width = `${Math.round(Math.max(0, Math.min(1, value)) * 100)}%`;
-  fill.style.background = color;
+  fill.style.width = value === undefined ? "100%" : `${Math.round(Math.max(0, Math.min(1, value)) * 100)}%`;
+  fill.style.background = value === undefined ? "#777" : color;
   track.append(fill);
-  row.append(element("span", "label", label), track, element("span", "value", `${Math.round(value * 100)}`));
+  row.append(element("span", "label", label), track, element("span", "value", value === undefined ? "？" : `${Math.round(value * 100)}`));
   return row;
 }
 function levelLabel(level: number): HTMLElement {
@@ -47,7 +47,7 @@ export function compactRow(agent: RoomAgent, now: number, name: string, selected
   row.classList.toggle("selected", selected); row.classList.toggle("waiting", waiting || agent.activity === "ask");
   row.setAttribute("aria-pressed", String(selected));
   const doing = DOING[agent.activity](agent.target ?? "");
-  row.title = `${name} · Lv ${level} · HP ${Math.round(hp * 100)} · MP ${Math.round(mp * 100)} · ${doing}`;
+  row.title = `${name} · Lv ${level} · HP ${Math.round(hp * 100)} · MP ${mp === undefined ? "？" : Math.round(mp * 100)} · ${doing}`;
   row.setAttribute("aria-label", row.title);
   row.append(element("span", "compact-name", `${waiting ? "！ " : ""}${name}`), levelLabel(level));
   const bars = element("span", "compact-bars"); bars.append(bar("HP", hp, hpColor(hp)), bar("MP", mp, "#62b8ff"));
@@ -88,7 +88,7 @@ export function statusCard(agent: RoomAgent, agentMoods: Mood[], permission: HTM
     if (detailed) card.append(element("p", "section", tr("きぶん", "Mood")));
     card.append(chips);
   }
-  if (mp <= 0.1) card.append(element("p", "hint", tr("MPが のこりわずか！", "MP is running low!")));
+  if (mp !== undefined && mp <= 0.1) card.append(element("p", "hint", tr("MPが のこりわずか！", "MP is running low!")));
   if (detailed || agent.helpers.length) {
     const party = element("ul", "party");
     for (const helper of agent.helpers) {
