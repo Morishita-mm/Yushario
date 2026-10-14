@@ -16,10 +16,11 @@ for (const [i, theme] of themes.entries()) {
 }
 for (const [n, label] of [[705, 'chest-received'], [764, 'chest-before-open'], [765, 'chest-open'], [855, 'chest-readable'], [944, 'chest-end'],
   [660, 'level-up'], [1035, 'reveal-start'], [1050, 'reveal-mid'], [1305, 'flash-1'], [1306, 'flash-2'], [1307, 'flash-3'],
-  [1308, 'flash-end'], [1323, 'wipe-mid'], [1341, 'wipe-end'], [1365, 'cta-on'], [1484, 'last']]) samples.push([n, label]);
-// All requested corrections every 0.1s, plus town/walk and earlier shared battle cameras.
-for (const [start, end] of [[0, 465], [585, 645], [660, 1485]])
-  for (let frame = start; frame < end; frame += 3) samples.push([frame, `fix-f${String(frame).padStart(4, '0')}`]);
+  [1308, 'flash-end'], [1323, 'wipe-mid'], [1341, 'wipe-end'], [1365, 'cta-on'],
+  [1397, 'tagline-before'], [1398, 'tagline-on'], [1399, 'tagline-held'], [1484, 'last']]) samples.push([n, label]);
+// Every 0.1s of the whole trailer, including the reshot church/inn interiors.
+for (let frame = 0; frame < duration * 30; frame += 3)
+  samples.push([frame, `fix-f${String(frame).padStart(4, '0')}`]);
 const checks = [];
 for (const lang of ['ja', 'en']) for (const ratio of ['16x9', '1x1']) {
   const name = `source-${lang}-${ratio}`, file = join(root, `${name}.mp4`), dir = join(root, 'qa', name);

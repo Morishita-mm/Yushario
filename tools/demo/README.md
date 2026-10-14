@@ -4,7 +4,8 @@ Development-only tools for the final **49.5-second, 30fps** trailer: Japanese/En
 
 ## Inputs
 
-- `recordings/report/`: the real six-file repair and test report.
+- `recordings/report/`: the original Japanese six-file repair and test report.
+- `recordings/report-en/`: the separately recorded English request/reply, used only for the English treasure scene; six file edits, one successful test run, thirteen tools.
 - `recordings/party/`: a real four-profession Claude battle and the two existing pi sessions.
 - `recordings/rest/`: compaction and more than ten minutes of recorded inactivity.
 - `pv/shots.mjs`: the final cut schedule and effect anchors.
@@ -24,7 +25,21 @@ The first request requires **four Agent calls in one assistant response**: Explo
 
 The recorder validates real starts/stops, overlap, read-only helper tools, one successful test execution and a final Stop. It exits Claude, checks its descendants, stops the relay, removes the temporary directory, and writes `.art-work/pv/party-recording/cleanup.json`. Inspect the output before replacing fixtures. Keep only the battle prefix through the four-helper dispatch and its final verification Stop; anonymize all IDs/paths consistently, preserve the existing two pi sessions with neutral aliases, and retain the recording manifest. The camera only replays these fixtures and never launches agents.
 
+## Optional: deliberately re-record the English report
+
+`node tools/demo/pv/record-report-en.mjs <new-evidence-directory>` launches **one real Claude Code PTY and one Explore helper**; run only with explicit approval, never as part of normal filming. Like the party recorder, it uses 8879 and temporary project/data/config folders, copies authentication only, checks process cleanup, and never writes normal user settings. It keeps the exact approved English tiny-quest request. The helper's actually executed (`PostToolUse`) tools must be read-only; a denied attempt is recorded, not silently removed. Six real file-tool events and a separately recognizable successful test event are needed for the app's genuine chest; compound shell edits may be real work but are not observable as file edits by the app.
+
+Review and anonymize the events through the final Stop, retain the manifest and original receipt intervals, and place only the reviewed fixture in `recordings/report-en/`. Do not rewrite requests, replies or results. The adopted first take includes a helper `Bash ls -la` attempt blocked by the project hook (no corresponding execution); its final reply describes that denial. The full recorded English reply remains in the fixture; the PV clips at the measured end of its first paragraph without editing the text. Japanese and party recordings stay unchanged. Raw PTY evidence, rejected takes and cleanup evidence remain under ignored `.art-work/pv/`.
+
 ## 1. Capture the silent sources
+
+Before replacing the v6 delivery, preserve both existing directories (never overwrite an existing backup):
+
+```sh
+test ! -e .art-work/pv/v6-backup && mkdir .art-work/pv/v6-backup && mv .art-work/pv/final .art-work/pv/video .art-work/pv/v6-backup/
+```
+
+Then capture:
 
 ```sh
 npm run build
@@ -33,9 +48,11 @@ node --import tsx tools/demo/pv/verify.mjs .art-work/pv/video
 node tools/demo/pv/frames.mjs .art-work/pv/video
 ```
 
-Capture uses port **8878**, a random token, and a temporary `/tmp/yushario-pv-*` data directory. It refuses to use another port when occupied and closes its own browser page/server and deletes its temporary data on completion or failure. It never uses your normal data directory or port 8790. Check `video/cleanup.json` after capture.
+Capture uses port **8878**, a random token, and a temporary `/tmp/yushario-pv-*` data directory. It refuses to use another port when occupied and closes its own browser page/server and deletes its temporary data on completion or failure. It never uses your normal data directory or port 8790. Check `video/cleanup.json` after capture. Each variant explicitly saves temporary settings with `language: "en"` or `"ja"` (never `"auto"`), with app sound off. The filming iframe inherits the token-bearing page URL so the genuine language initialization reads these settings; capture asserts `<html lang>`. Report UI, place/theme matching, level-up selection and measured text bounds are checked in the selected language. The English treasure shot uses `report-en/`; Japanese uses the unchanged `report/`. No recorded reply is translated or rewritten by the camera.
 
-The five town appearances form **one continuous 7.5-second walk**, with no cuts, fades, clock seeks, or camera changes between themes. Capture waits once off-camera for an actual east-lane walk, then uses the real appearance chooser every 1.5 seconds and saves only into temporary data; it never assigns a Walker position, path or direction. Verification checks all 225 frames across theme boundaries, unchanged positions at each chooser action, monotonic clocks, fixed crop, and opaque head/sword/foot pixels plus name bounds with at least 24px margin. The world map shows five towns across all five regions, while the town has four distinct real sessions. All town/introduction feet are checked against the actual village road graph and fountain clearance. S14 (31.5–33.5s) holds the hero's back with “Not alone”; S15 (33.5–34.5s) shows the dragon with “When the going gets tough”; S16 (34.5–35.5s) pulls continuously from that exact dragon crop to the full party with “Face it together”, and S17 holds that wide crop until 37.5s. The dragon remains visible throughout the pullback; the hero plus thief, priest, warrior and mage fit after it and throughout S17/S20/S23. No explanatory footnotes remain. The ending logo wipes left-to-right on its six-pixel source grid from 43.6–44.7s, with nearest-neighbor sampling; the tagline appears only after completion. For the wide battle shots it photographs the genuine canvas just before the bottom HUD is drawn, retaining the feet and ground underneath; the app still draws its HUD unchanged. The treasure sequence clicks the actual unread report badge and captures the actual report DOM, clipped at the measured end of its first sentence without editing text. The report remains six files, one successful test run, zero failed test runs, and thirteen tools—not six test runs. The boss sequence does not invent a victory.
+The five town appearances form **one continuous 7.5-second walk**, with no cuts, fades, clock seeks, or camera changes between themes. Capture waits once off-camera for an actual east-lane walk, then uses the real appearance chooser every 1.5 seconds and saves only into temporary data; it never assigns a Walker position, path or direction. Verification checks all 225 frames across theme boundaries, unchanged positions at each chooser action, monotonic clocks, fixed crop, and opaque head/sword/foot pixels plus name bounds with at least 24px margin. The world map shows five towns across all five regions, while the town has four distinct real sessions. All town/introduction feet are checked against the actual village road graph and fountain clearance. S14 (31.5–33.5s) holds the hero's back with “Not alone”; S15 (33.5–34.5s) shows the dragon with “When the going gets tough”; S16 (34.5–35.5s) pulls continuously from that exact dragon crop to the full party with “Face it together”, and S17 holds that wide crop until 37.5s. The dragon remains visible throughout the pullback; the hero plus thief, priest, warrior and mage fit after it and throughout S17/S20/S23. No explanatory footnotes remain. The ending logo wipes left-to-right on its six-pixel source grid from 43.6–44.7s, with nearest-neighbor sampling; the tagline pops in at **46.6s (frame 1398)**, when the closing melody’s third phrase (`titleEase`) begins, and remains absent through frame 1397. The complete logo holds alone from 44.7–46.6s; the wipe, music and other cuts are unchanged. For the wide battle shots it photographs the genuine canvas just before the bottom HUD is drawn, retaining the feet and ground underneath; the app still draws its HUD unchanged. The treasure sequence clicks the actual unread report badge and captures the actual report DOM, clipped at the measured end of its first paragraph without editing text. Both genuine reports have six files, one successful test run, zero failed test runs, and thirteen tools—not six test runs; verification derives the English tally from its own recorded events. The boss sequence does not invent a victory.
+
+The reshoot camera uses the current canvas accessibility label instead of the removed `#place-name` DOM element, and fixes the filming-only map area at 1920×1080 despite the responsive app layout. It measures top-of-map place titles separately from hero labels (the two can share a name). Town/interior crops retain the new title plates, the church priest and the inn's six complete bed sprites; verification checks all 120 interior frames per variant without changing the recorded one-person occupancy or the actor safety margin.
 
 The level-up strip is the genuine notification DOM line, not a recreated caption. Capture measures that line with a DOM Range, disables wrapping and fits it to the viewport before cropping; source verification checks its text and actual bounds in both aspect ratios.
 
@@ -70,7 +87,9 @@ node tools/demo/pv/audio.mjs
 node tools/demo/pv/final.mjs
 node tools/demo/pv/audio-qa.mjs
 swift tools/demo/pv/boards.swift
-# README GIFs
+# Seven UI groups at matching frames; requires the preserved v6-backup/final/
+swift tools/demo/pv/compare.swift
+# README GIFs: regenerate from the completed English-screen 16:9
 ffmpeg -y -ss 7.6 -t 7.4 -i .art-work/pv/final/pv-en-16x9.mp4 -vf "fps=12,scale=720:-1:flags=neighbor,split[a][b];[a]palettegen=max_colors=128:stats_mode=diff[p];[b][p]paletteuse=dither=none:diff_mode=rectangle" docs/images/town.gif
 ffmpeg -y -ss 36.6 -t 7 -i .art-work/pv/final/pv-en-16x9.mp4 -vf "fps=12,scale=720:-1:flags=neighbor,split[a][b];[a]palettegen=max_colors=128:stats_mode=diff[p];[b][p]paletteuse=dither=none:diff_mode=rectangle" docs/images/party.gif
 ```
@@ -86,9 +105,9 @@ ffmpeg -y -ss 36.6 -t 7 -i .art-work/pv/final/pv-en-16x9.mp4 -vf "fps=12,scale=7
 .art-work/pv/final/pv-en-1x1.mp4
 ```
 
-It checks duration, frame count, codec/streams, unchanged packets/PCM, loudness, effect synchronization, and report-sign visibility; it extracts **2,108 labeled frame samples from the completed sound videos**, including **1,800 samples every 0.1 seconds** across 0–15.5s, 19.5–21.5s and 22–49.5s (the `fix-fNNNN.png` files). This includes the entire opening, two-line reward caption, every frame-sampled transition after 31.5s, sword contacts, pixel-aligned logo wipe and tagline in all four variants. `audio-qa` independently compares planned/rendered notes and checks pitch, gaps, mono, DC, safety, and effect synchronization. Proofs stay under `.art-work/pv/`.
+It checks duration, frame count, codec/streams, unchanged packets/PCM, loudness, effect synchronization, report-sign visibility, and the encoded tagline band on every frame from 43.6s through the end (absent before 1398, visible from 1398); it extracts **2,300 labeled frame samples from the completed sound videos**, including **1,980 samples every 0.1 seconds** across the entire 0–49.5s trailer (the `fix-fNNNN.png` files). This includes the entire opening, two-line reward caption, every frame-sampled transition after 31.5s, sword contacts, pixel-aligned logo wipe and tagline in all four variants. `audio-qa` independently compares planned/rendered notes and checks pitch, gaps, mono, DC, safety, and effect synchronization. Proofs stay under `.art-work/pv/`.
 
-Inspect the completed-video frames in `final/qa/` and the generated overview/0.1-second review sheets for all four variants, including square framing, town transitions, 6–8s fountain clearance, the full dragon-to-five-person pullback, all four professions, reports, sword contacts and title wipe; listen to the final videos before publication. Numeric checks are not listening approval. Expected soundtrack loudness is approximately **−15.87 LUFS / −2.26 dBTP**; no animation/UI changes belong in these tools.
+Inspect the completed-video frames in `final/qa/` and the generated overview/0.1-second review sheets for all four variants, including the `qa-interiors-*` sheets (15.5–19.5s), `final/qa/comparison/` v6/current sheets (`town`, `church`, `inn`, `report`, `level`, `party`, `logo`, 32 same-time samples per variant, including frames 1397/1398), square framing, town transitions, 6–8s fountain clearance, the full dragon-to-five-person pullback, all four professions, reports, sword contacts and title wipe; listen to the final videos before publication. Numeric checks are not listening approval. Expected soundtrack loudness is approximately **−15.87 LUFS / −2.26 dBTP**; no animation/UI changes belong in these tools.
 
 ```sh
 npm run typecheck

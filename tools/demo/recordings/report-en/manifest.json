@@ -1,0 +1,76 @@
+{
+  "claudeVersion": "2.1.299 (Claude Code)",
+  "sessions": [
+    {
+      "id": "demo-report-en-2",
+      "preset": "claude",
+      "cwd": "/demo/tiny-quest",
+      "project": "tiny-quest",
+      "weapon": "legend"
+    }
+  ],
+  "prompt": "Working only inside this demo folder, fix three small bugs and make the tests pass. Call exactly one Explore agent to inspect quest.mjs, pack.mjs, health.mjs and their three .test.mjs files read-only. Change the subtraction to addition in the three functions, and add one test to each test file: reward and slots with zero extra, and heal with the 100 cap. Finally run npm test once and check the result. No network, commits, other folders, or extra subagents. Report briefly in English.",
+  "reply": "I fixed the three bugs and added the three tests. `npm test` ran once: 6 tests, 6 passed, 0 failed.\n\n- **Fixes:** each function now adds instead of subtracting. `reward` returns `coins + bonus`, `slots` returns `items + extra`, and `heal` returns `Math.min(100, hp + potion)`.\n- **New tests:**\n  - `reward(4,0) === 4`\n  - `slots(3,0) === 3`\n  - `heal(100,50) === 100`, which checks the 100 cap\n\nI used one Explore agent to read the files without changing them. A hook blocked its shell commands, so it read the files with the Read tool instead. Everything stayed inside the demo folder, with no network use, commits or other subagents.",
+  "report": {
+    "kind": "chest",
+    "files": [
+      "quest.mjs",
+      "pack.mjs",
+      "health.mjs",
+      "quest.test.mjs",
+      "pack.test.mjs",
+      "health.test.mjs"
+    ],
+    "tests": {
+      "passed": 1,
+      "failed": 0
+    },
+    "tools": 13,
+    "failures": 0,
+    "startedAt": 1791956097525,
+    "endedAt": 1791956124589,
+    "mp": {
+      "start": 0.90784,
+      "end": 0.88445
+    }
+  },
+  "helpers": [
+    {
+      "type": "Explore",
+      "executedTools": [
+        "Read",
+        "Read",
+        "Read",
+        "Read",
+        "Read",
+        "Read",
+        "Read",
+        "SubagentHandback"
+      ]
+    }
+  ],
+  "testEvidence": {
+    "command": "npm test 2>&1 | tail -15",
+    "successfulTestHooks": 1,
+    "failedTestHooks": 0,
+    "reportedTests": 6,
+    "reportedPassed": 6,
+    "reportedFailed": 0,
+    "evidence": "Command is visible in the recorded PTY; PostToolUse confirms completion; final Stop reports six passes. Full tool-result transcript was removed during failed-assertion cleanup."
+  },
+  "blockedHelperAttempt": {
+    "hook": "PreToolUse",
+    "tool": "Bash",
+    "target": "ls -la",
+    "executed": false,
+    "note": "Read-only project hook denied this attempt; there is no corresponding helper Bash PostToolUse. The final unedited reply records the denial."
+  },
+  "retained": {
+    "firstEvent": 0,
+    "lastEvent": 51,
+    "omitted": "Only the cleanup SessionEnd after the final Stop",
+    "handback": "Retained real internal UserPromptSubmit so original turn boundaries and report aggregates are preserved"
+  },
+  "anonymization": "Temporary paths and session/terminal/helper IDs neutralized, including the same helper ID in the handback envelope; request, replies, tools, results, timestamps and receipt intervals otherwise unchanged",
+  "adoption": "First take adopted after explicit coordinator review; second take used a compound shell edit unobservable as a chest and is not used"
+}

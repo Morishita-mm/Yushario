@@ -1,5 +1,5 @@
 // Replay recorded events without connecting a PTY or sending agent input.
-export function boot(url, sessions, towns) {
+export function boot(url, sessions, towns, settings) {
   window.__pvBase = 1800000000000; window.__pvMs = 0; window.__pvMotion = 43000;
   Date.now = () => __pvBase + __pvMs;
   Object.defineProperty(performance, 'now', { value: () => __pvMotion });
@@ -25,7 +25,7 @@ export function boot(url, sessions, towns) {
     if (address.pathname === '/api/sessions') return Promise.resolve(Response.json(sessions));
     if (address.pathname === '/api/names') return Promise.resolve(Response.json({}));
     if (address.pathname === '/api/towns') return Promise.resolve(Response.json(towns));
-    if (address.pathname === '/api/settings') return Promise.resolve(Response.json({ archiveAfterDays: 30, startupCwd: '/demo/tiny-quest' }));
+    if (address.pathname === '/api/settings') return Promise.resolve(Response.json(settings));
     if (address.pathname.startsWith('/api/')) address.searchParams.set('token', new URL(url).searchParams.get('token'));
     return nativeFetch(address, options);
   };

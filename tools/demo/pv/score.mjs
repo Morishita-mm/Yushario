@@ -1,8 +1,8 @@
 // Adopted B score. Data only; [MIDI, quarter-note beats], 0 = rest.
 // Original accompaniment and connecting phrases; Beethoven's public-domain melody.
 import { score as frontScore } from './front-score.mjs';
-// Editorial v3 metadata changed; all seven sound anchors and every score note stay fixed.
-export const cueHash = '0503041ec3dcc7b647a1f7dc4c6d853e2e394d3c741036f93a56005ff17a255a';
+// Tagline timing note updated; all seven sound anchors and every score note stay fixed.
+export const cueHash = 'c85bc884c8183cbc4a1f47bcf130d1f7c23f110a3077a1d445aa435f2467179c';
 export const duration = 49.5;
 // Straight octave/fifth bass. The scores below, not a generative music system.
 const pulse = root => [root,root+7,root+12,root+7,root,root+7,root+12,root+7].map(n=>[n,.5]);

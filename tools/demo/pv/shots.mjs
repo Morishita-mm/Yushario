@@ -48,7 +48,7 @@ export const cues = {
     { id: 'chest-open', kind: 'chest-open', time: 25.5, frame: 765, note: 'Actual unread map badge click opens the report dialog; no invented lid animation.' },
     { id: 'party-reveal', kind: 'party-reveal', time: 34.5, frame: 1035, note: 'Uninterrupted pullback from dragon to hero plus four professions; not a new subagent event.' },
     { id: 'title-flash', kind: 'flash', time: 43.5, frame: 1305, note: 'Single 3-frame editorial flash; dragon is not defeated.' },
-    { id: 'title-enter', kind: 'title-jingle', time: 43.6, frame: 1308, note: 'Left-to-right pixel-aligned logo wipe starts after flash; tagline follows completion at 44.7s; not a victory cue.' },
+    { id: 'title-enter', kind: 'title-jingle', time: 43.6, frame: 1308, note: 'Left-to-right pixel-aligned logo wipe starts after flash and completes at 44.7s; tagline appears at 46.6s (frame 1398, titleEase); not a victory cue.' },
   ].sort((a, b) => a.frame - b.frame),
 };
 if (shots.reduce((n, s) => n + s.seconds * 30, 0) !== duration * 30) throw Error('Non-integral frame schedule');

@@ -4,15 +4,20 @@ export async function installCamera(html, init, width, language) {
   const frame = document.createElement('iframe'); frame.id = 'pv2-app';
   // A fixed wide app canvas keeps real party coordinates identical in both aspect ratios.
   frame.style.cssText = 'position:fixed;left:0;top:0;width:1920px;height:1080px;border:0';
-  frame.srcdoc = html.replace('<head>', `<head><script>${init}<\/script>`); document.body.append(frame);
-  await new Promise(r => frame.onload = r);
+  document.body.append(frame);
+  const loaded = new Promise(r => frame.onload = r);
+  // document.open inherits the filming page URL (including its settings token), unlike srcdoc.
+  frame.contentDocument.open();
+  frame.contentDocument.write(html.replace('<head>', `<head><script>${init}<\/script>`));
+  frame.contentDocument.close();
+  await loaded;
   const w = frame.contentWindow, d = frame.contentDocument;
   for (let i = 0; i < 200 && !w.__pvDeliver; i++) await new Promise(r => setTimeout(r, 50));
   if (!w.__pvDeliver) throw Error('PV2 real app not ready');
   d.querySelector('#title-screen button')?.click();
   const css = d.createElement('style');
   css.textContent = `body{overflow:hidden;background:#0d0b14}body>header,.map-nav,.sidebar,.first-step,#following,.messages{display:none!important}
-    .quest{display:block;padding:0}.stage{width:100%;padding:0}.map-stage{height:1080px}`;
+    .quest{display:block;padding:0}.stage{width:100%;padding:0}.map-area{flex:none;width:1920px;height:1080px;container-type:normal}.map-stage{width:1920px;height:1080px}`;
   d.head.append(css); await d.fonts.ready;
   const output = document.createElement('canvas'); output.width = width; output.height = 1080;
   output.style.cssText = `position:absolute;left:0;top:0;width:${width}px;height:1080px;z-index:1`; document.body.append(output);
@@ -68,8 +73,9 @@ export async function installCamera(html, init, width, language) {
       const left = (width - title.width * scale) / 2, top = square ? 170 : 92;
       if (revealed) ctx.drawImage(title, 0, 0, revealed, title.height, left, top, revealed * scale, title.height * scale);
       const tagline = [ja ? '退屈な仕事を冒険に' : 'Turn dull work into adventure'];
-      if (progress === 1) words(tagline, width / 2, square ? 675 : 785, square ? (ja ? 64 : 54) : 78);
-      titles.push({ frame: Math.round(shot.start * 30 + f), revealed, scale, tagline: progress === 1, smoothing: ctx.imageSmoothingEnabled });
+      const frame = Math.round(shot.start * 30 + f), showTagline = frame >= 1398; // 46.6s: titleEase begins.
+      if (showTagline) words(tagline, width / 2, square ? 675 : 785, square ? (ja ? 64 : 54) : 78);
+      titles.push({ frame, revealed, scale, tagline: showTagline, smoothing: ctx.imageSmoothingEnabled });
       // Only one editorial flash; three 30fps frames, no repetitive flicker.
       if (k === 'title' && f < 3) { ctx.fillStyle = `rgba(255,255,255,${[0.30, 0.15, 0.05][f]})`; ctx.fillRect(0, 0, width, 1080); }
     } else if (k !== 'black') {
@@ -77,7 +83,7 @@ export async function installCamera(html, init, width, language) {
         const s = 0.92 + p * 0.08, sw = source.width * s, sh = source.height * s;
         fit(source, [(source.width - sw) / 2, (source.height - sh) / 2, sw, sh], [0, 30, width, 970]);
       } else if (k === 'town') {
-        const r = square ? [640, 200, 1280, 780] : [0, 200, 1920, 780];
+        const r = square ? [640, 0, 1280, 1080] : [0, 0, 1920, 1080];
         fit(source, r, [0, 50, width, 915]);
       } else if (k === 'heroes') {
         words([ja ? 'あなたのエージェントが' : 'Your agent'], width / 2, 165, square ? 76 : 100);
@@ -92,13 +98,13 @@ export async function installCamera(html, init, width, language) {
         const hero = w.__pvLabels['quiet-quest'];
         if (w.__pvWalking && hero) {
           // Fixed camera for the entire continuous walk; changing the theme never reframes it.
-          fit(source, square ? [720, 100, 1200, 950] : [0, 0, 1920, 1080], [0, 45, width, 950]);
+          fit(source, square ? [720, 0, 1200, 1080] : [0, 0, 1920, 1080], [0, 45, width, 950]);
         } else fit(source, square ? [390, 0, 1200, 1080] : [0, 0, 1920, 1080], [0, 45, width, 950]);
       } else if (k === 'church' || k === 'inn') {
         const prayer = k === 'church';
         words([ja ? (prayer ? '祈りを捧げて' : 'ひと息つこう') : (prayer ? 'A moment of prayer' : 'Take a breather')], width / 2, 115, square ? 60 : 82);
-        const crop = prayer ? (square ? [500, 150, 920, 820] : [380, 120, 1160, 850])
-          : (square ? [180, 160, 1080, 820] : [180, 120, 1320, 850]);
+        // The new backdrops place the framed title at y=8 and the inn beds at y=76.
+        const crop = square ? (prayer ? [380, 0, 1160, 1080] : [180, 0, 1560, 1080]) : [0, 0, 1920, 1080];
         fit(source, crop, [20, 185, width - 40, 800]);
       } else if (k === 'level') {
         fit(source, full, [30, 125, width - 60, 725]);
@@ -146,7 +152,7 @@ export async function installCamera(html, init, width, language) {
       if (!state.world) {
         const b = d.querySelector(`.compact-hero[data-hero="${state.id}"]`);
         if (!b) throw Error('Missing recorded hero: ' + state.id); b.click();
-        menu('ついていく');
+        menu(ja ? 'ついていく' : 'Follow');
       }
       w.__pvMotion = motionBase - 800; await tick(); await new Promise(r => setTimeout(r, 80)); await tick();
       if (shot.kind === 'town') {
@@ -161,7 +167,7 @@ export async function installCamera(html, init, width, language) {
     },
     noticeArea() {
       const root = d.querySelector('#messages'), lines = root.textContent.split('\n');
-      const index = lines.findLastIndex(t => t.includes('レベル3'));
+      const index = lines.findLastIndex(t => t.includes(ja ? 'レベル3' : 'reached level 3!'));
       if (index < 0) throw Error('No genuine Lv2→3 notification');
       noticeStyle = d.createElement('style');
       noticeStyle.textContent = `#messages{display:block!important;position:fixed!important;left:0;top:0;width:${width}px;height:500px;margin:0;padding:0;z-index:999;background:#0d0b14;font-size:${square ? 40 : 48}px;line-height:72px;letter-spacing:0;text-align:center;white-space:pre;color:#ffe066}`;
@@ -196,12 +202,13 @@ export async function installCamera(html, init, width, language) {
           w.__pvDeliver({ type: 'event', event: row.event, at: w.__pvBase + receipt + row.at - state.anchor }); delivered.add(i);
         }
         await tick(); draw(shot, f);
-        if (view && ['town', 'heroes', 'biome', 'back', 'challenge', 'reveal', 'party', 'hero-hit', 'return'].includes(shot.kind)) {
+        if (view && ['town', 'heroes', 'biome', 'church', 'inn', 'back', 'challenge', 'reveal', 'party', 'hero-hit', 'return'].includes(shot.kind)) {
           const { crop: r, destination: b } = view;
           const project = bounds => bounds.map((v, i) => b[i % 2] + (v - r[i % 2]) * b[2 + i % 2] / r[2 + i % 2]);
           const actors = w.__pvActors.map(actor => ({ ...actor, output: project(actor.bounds) }));
           const name = w.__pvWalking ? w.__pvLabels['quiet-quest'] : undefined;
           framing.push({ frame: Math.round(shot.start * 30 + f), kind: shot.kind, ...view, actors,
+            placeLabels: Object.entries(w.__pvPlaceLabels).map(([text, label]) => ({ text, output: project(label.bounds) })),
             name: name ? project(name.bounds) : undefined,
             introduction: shot.kind === 'heroes' ? ['Claude Code', 'Claude Code (2)'].map(name => ({ name, bounds: project(w.__pvLabels[name].bounds) })) : undefined,
             townHeroes: ['town', 'heroes'].includes(shot.kind) ? ['Claude Code', 'pi', 'pi (2)', 'Claude Code (2)'].map(name => ({
@@ -212,9 +219,9 @@ export async function installCamera(html, init, width, language) {
       }
       return result;
     },
-    proof() { return { place: d.querySelector('#place-name').textContent, canvas: [w.world.width, w.world.height],
+    proof() { return { place: w.world.getAttribute('aria-label')?.split(ja ? '。' : '. ')[0], canvas: [w.world.width, w.world.height],
       labels: w.world.getAttribute('aria-label'), heroes: [...d.querySelectorAll('.compact-hero')].map(b => b.innerText),
-      level: d.querySelector('#messages').textContent.split('\n').findLast(t => t.includes('レベル3')), noticeProof, age: w.__pvMs - receipt, framing, clocks, titles }; },
+      level: d.querySelector('#messages').textContent.split('\n').findLast(t => t.includes(ja ? 'レベル3' : 'reached level 3!')), noticeProof, age: w.__pvMs - receipt, framing, clocks, titles }; },
     textChecks: () => [...textChecks.values()],
   };
   return 'Orca PV2 camera ready';

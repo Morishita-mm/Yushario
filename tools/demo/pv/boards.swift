@@ -10,8 +10,10 @@ func load(_ path: String) throws -> NSImage {
     return NSImage(cgImage: rep.cgImage!, size: NSSize(width: rep.pixelsWide, height: rep.pixelsHigh))
 }
 func words(_ text: String, _ x: CGFloat, _ y: CGFloat, _ w: CGFloat, _ h: CGFloat, _ size: CGFloat) {
-    (text as NSString).draw(in: CGRect(x: x, y: h-y-size*1.6, width: w, height: size*1.6), withAttributes: [
-        .font: NSFont.boldSystemFont(ofSize: size), .foregroundColor: gold])
+    var fitted = size
+    while fitted > 9 && (text as NSString).size(withAttributes: [.font: NSFont.boldSystemFont(ofSize: fitted)]).width > w { fitted -= 1 }
+    (text as NSString).draw(in: CGRect(x: x, y: h-y-fitted*1.6, width: w, height: fitted*1.6), withAttributes: [
+        .font: NSFont.boldSystemFont(ofSize: fitted), .foregroundColor: gold])
 }
 func sheet(_ title: String, _ labels: [String], _ images: [NSImage], _ square: Bool, _ filename: String, _ columns: Int = 3) throws {
     let dense = filename.hasPrefix("fix-")
@@ -56,6 +58,8 @@ for record in info {
     }
     let boundaries = ["port", "snow", "desert", "volcano"].flatMap { theme in ["before", "start", "theme-held", "after"].map { "biome-\(theme)-\($0)" } }
     try sheet("\(variant) / town continuity", labels(boundaries), try boundaries.map { try load(path($0)) }, square, "qa-walk-\(variant).png", 4)
+    let interiors = [465, 480, 495, 510, 522, 525, 540, 555, 570, 582].map { String(format: "fix-f%04d", $0) }
+    try sheet("\(variant) / current church and inn", labels(interiors), try interiors.map { try load(path($0)) }, square, "qa-interiors-\(variant).png", 5)
     let rewards = ["chest-received", "chest-before-open", "chest-open", "chest-readable", "chest-end", "level-up"]
     try sheet("\(variant) / actual report", labels(rewards), try rewards.map { try load(path($0)) }, square, "qa-rewards-\(variant).png")
     let attacks = (1...5).flatMap { n in ["before", "contact", "after"].map { "hit-\(n)-\($0)" } }
@@ -68,7 +72,8 @@ for record in info {
         try sheet("\(variant) / 0.1s corrected scenes / \(offset/25+1)", labels(names), try names.map { try load(path($0)) }, square,
             "fix-\(variant)-\(offset/25+1).png", 5)
     }
-    let ending = ["flash-1", "flash-2", "flash-3", "flash-end", "wipe-mid", "wipe-end", "cta-on", "last"]
+    let ending = ["flash-1", "flash-2", "flash-3", "flash-end", "wipe-mid", "wipe-end", "cta-on",
+        "tagline-before", "tagline-on", "tagline-held", "last"]
     try sheet("\(variant) / title continuity", labels(ending), try ending.map { try load(path($0)) }, square, "qa-title-\(variant).png")
 }
 print("Review sheets refreshed from all four completed sound videos including every 0.1s across the corrected scenes.")

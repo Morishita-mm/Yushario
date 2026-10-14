@@ -3,14 +3,20 @@ import { readFileSync } from 'node:fs';
 const read = path => readFileSync(new URL(`../recordings/${path}`, import.meta.url), 'utf8');
 const rows = path => read(path).trim().split('\n').map(JSON.parse);
 export const main = rows('report/main.jsonl'), party = rows('party/main.jsonl');
+export const reportEn = rows('report-en/main.jsonl');
 export const pi = rows('party/pi-1.jsonl'), townPi = rows('party/pi-2.jsonl');
 export const demo = rows('rest/events.jsonl').filter(r => r.event);
 export const sessions = [...JSON.parse(read('report/manifest.json')).sessions,
+  ...JSON.parse(read('report-en/manifest.json')).sessions,
   ...JSON.parse(read('party/manifest.json')).sessions, JSON.parse(read('rest/manifest.json'))];
 export const inactivity = JSON.parse(read('rest/dozing.json'));
 const prefix = (source, end) => source.slice(0, end + 1).filter(r => r.event).map(({ event, at }) => ({ event, at }));
 const hero = source => source[0].event.agent;
-export const names = Object.fromEntries([[hero(party), 'Claude Code'], [hero(main), 'Claude Code (2)'],
+const englishStop = reportEn.findLastIndex(r => r.event.hook === 'Stop');
+if (englishStop < 0) throw Error('Missing genuine English final report');
+export const englishChest = { events: prefix(reportEn, englishStop), id: hero(reportEn),
+  anchor: reportEn[englishStop].at, live: [], origin: [['report-en/main', englishStop]] };
+export const names = Object.fromEntries([[hero(party), 'Claude Code'], [hero(main), 'Claude Code (2)'], [hero(reportEn), 'Claude Code (2)'],
   [hero(pi), 'pi'], [hero(townPi), 'pi (2)']]);
 const M = (end, live = []) => ({ events: prefix(main, end), id: hero(main), follow: true,
   origin: [['v2/main', end]], live: live.map(i => main[i]), anchor: main[live.at(-1) ?? end].at });

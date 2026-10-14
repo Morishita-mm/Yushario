@@ -83,10 +83,17 @@ for (const version of cues.variants) {
   const edgeLog = ffmpeg(['-ss', '28.5', '-i', file, '-vf',
     `crop=20:750:${v.width === 1080 ? 1024 : 1810}:225,signalstats,metadata=print`, '-frames:v', '1', '-f', 'null', '-']);
   const borderMax = +(edgeLog.match(/lavfi\.signalstats\.YMAX=(\d+)/)?.[1] ?? 0); assert.ok(borderMax >= 210);
+  // Inspect the actual encoded tagline band, below the logo and after the opening flash.
+  const titleLog = ffmpeg(['-i', file, '-vf',
+    `select='between(n,1308,1484)',crop=iw:150:0:${v.width === 1080 ? 580 : 680},signalstats,metadata=print`, '-an', '-f', 'null', '-']);
+  const taglineChecks = [...titleLog.matchAll(/lavfi\.signalstats\.YMAX=(\d+)/g)].map((m, i) => ({ frame: 1308 + i, max: +m[1] }));
+  assert.equal(taglineChecks.length, 177);
+  for (const row of taglineChecks) assert.ok(row.frame < 1398 ? row.max < 100 : row.max > 200,
+    `${name}: encoded tagline visibility is wrong at f${row.frame}`);
   writeFileSync(join(output, `${name}.ffprobe.json`), JSON.stringify(info, null, 2) + '\n');
   records.push({ name, file, seconds: 49.5, fps: '30/1', frames: 1485, width: v.width, height: v.height,
     audioStreams: 1, audioStart: +a.start_time, videoStart: +v.start_time, bytes: +info.format.size, sha256: sha(file),
-    nativeReportBorderYMax: borderMax, videoPacketHash: videoHash, audioPacketHash: audioHash, pcmHash,
+    nativeReportBorderYMax: borderMax, taglineChecks, videoPacketHash: videoHash, audioPacketHash: audioHash, pcmHash,
     lufs: +measure.input_i, truePeak: +measure.input_tp, loudnessRange: +measure.input_lra, stats: sample,
     channelDc: channels, monoDelta, decodedSeconds: pcm.length / 96000, tail, sync, extractions: samples });
   console.log(`${name}: B packets/PCM unchanged, ${measure.input_i} LUFS / ${measure.input_tp} dBTP, seven SE anchors = 0 samples.`);

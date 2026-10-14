@@ -15,7 +15,7 @@ export function enableTownWrites(url) {
     }
     return guarded(resource, options);
   };
-  window.__pvTownWrites = []; window.__pvLabels = {};
+  window.__pvTownWrites = []; window.__pvLabels = {}; window.__pvPlaceLabels = {};
   localStorage.removeItem('yushario-read-reports'); // Only the isolated film origin, before app initialization.
   Math.random = () => 0.88; // A repeatable natural walking route, not a fabricated agent state.
   const proto = CanvasRenderingContext2D.prototype, fillText = proto.fillText, fillRect = proto.fillRect;
@@ -30,13 +30,13 @@ export function enableTownWrites(url) {
       Math.max(...corners.map(p => p.x)), Math.max(...corners.map(p => p.y))];
   };
   proto.setTransform = function(...args) {
-    if (this.canvas.id === 'world') { window.__pvSignDraws = []; window.__pvActors = []; window.__pvLabels = {}; window.__pvBattleDrawn = false; }
+    if (this.canvas.id === 'world') { window.__pvSignDraws = []; window.__pvActors = []; window.__pvLabels = {}; window.__pvPlaceLabels = {}; window.__pvBattleDrawn = false; }
     return setTransform.apply(this, args);
   };
   proto.drawImage = function(...args) {
     const image = args[0], sheet = image?.src?.match(/\/([^/]+)\.png$/)?.[1] ?? sheets.get(image);
     if (sheet?.startsWith('hero-') && this.canvas.id !== 'world') sheets.set(this.canvas, sheet);
-    if (this.canvas.id === 'world' && /^(hero-|party-|monster-|ui-weapons$)/.test(sheet) && args.length === 9) {
+    if (this.canvas.id === 'world' && /^(hero-|party-|monster-|ui-weapons$|church-priest$)/.test(sheet) && args.length === 9) {
       // Measure genuine opaque sprite pixels (including sword/feet), not a guessed walker radius.
       let frames = extents.get(image); if (!frames) { frames = new Map(); extents.set(image, frames); }
       const key = args.slice(1, 5).join(','); let extent = frames.get(key);
@@ -63,9 +63,10 @@ export function enableTownWrites(url) {
     return drawImage.apply(this, args);
   };
   proto.fillText = function(text, x, y, ...rest) {
+    // Place titles now repeat the project name above y=60; do not overwrite hero labels.
     if (this.canvas.id === 'world') {
-      const measure = this.measureText(text);
-      window.__pvLabels[text] = { x, y, motion: window.__pvMotion,
+      const measure = this.measureText(text), labels = y > 60 ? window.__pvLabels : window.__pvPlaceLabels;
+      labels[text] = { x, y, motion: window.__pvMotion,
         bounds: bounds(this.getTransform(), x - measure.actualBoundingBoxLeft - 2, y - measure.actualBoundingBoxAscent - 2,
           measure.actualBoundingBoxLeft + measure.actualBoundingBoxRight + 4, measure.actualBoundingBoxAscent + measure.actualBoundingBoxDescent + 4) };
     }
@@ -93,8 +94,9 @@ export async function extendCamera(width, language) {
   const frame = document.querySelector('#pv2-app'), output = document.querySelector('body > canvas');
   const ctx = output.getContext('2d'), square = width === 1080, ja = language === 'ja';
   const themes = ['village', 'port', 'snow', 'desert', 'volcano'];
-  const captions = ['草原の村', '海辺の港町', '雪国の町', '砂漠のオアシス', '火山の町'];
-  let walkingMotion = 0, walkingAge = 0, treasureMotion = 0, themeIndex = -1, treasureImage, treasureCrop, treasureProof, unreadBefore;
+  const captions = ja ? ['草原の村', '海辺の港町', '雪国の町', '砂漠のオアシス', '火山の町']
+    : ['Meadow Village', 'Seaside Port', 'Snow Town', 'Desert Oasis', 'Volcano Town'];
+  let walkingMotion = 0, walkingAge = 0, treasureMotion = 0, themeIndex = -1, treasureImage, treasureCrop, treasureProof, unreadBefore, treasureId;
   const continuity = [], positions = [], signFrames = [];
   const tick = async () => { w.__pvTick(); w.__pvTick(); await new Promise(r => setTimeout(r, 0)); };
   const position = name => { const p = w.__pvLabels[name]; if (!p) throw Error('Missing actual hero label: ' + name); return { x: p.x, y: p.y - 13 }; };
@@ -147,6 +149,7 @@ export async function extendCamera(width, language) {
         continuity[0].motion = walkingMotion;
       }
       if (shot.kind === 'treasure') {
+        treasureId = shot.state.id;
         for (let i = 0; i < 8; i++) { w.__pvMotion += 100; await tick(); }
         // base.frames must start at this clock, not move backwards during badge capture.
         treasureMotion = w.__pvMotion;
@@ -180,9 +183,10 @@ export async function extendCamera(width, language) {
         const el = d.createElement('div'); el.id = id; el.textContent = text; d.body.append(el);
       }
       const history = d.querySelector('#talk-history'); history.scrollTop = card.offsetTop - history.offsetTop;
-      // Clip at the measured end of the genuine first sentence; leave the stored/DOM text intact.
+      // Clip at the measured end of the genuine first paragraph; leave the stored/DOM text intact.
       const body = card.querySelector('.talk-body'), text = body.querySelector('span').firstChild;
-      const range = d.createRange(); range.setStart(text, 0); range.setEnd(text, text.textContent.indexOf('\n'));
+      const range = d.createRange(), newline = text.textContent.indexOf('\n');
+      range.setStart(text, 0); range.setEnd(text, newline < 0 ? text.length : newline);
       const conclusionBounds = range.getBoundingClientRect();
       const conclusionHeight = Math.ceil(conclusionBounds.bottom - body.getBoundingClientRect().top + 4);
       body.style.setProperty('height', `${conclusionHeight}px`, 'important');
@@ -193,8 +197,13 @@ export async function extendCamera(width, language) {
       treasureProof = { unreadBefore, realBadgeClicked: true, dialogOpen: true, card: card.innerText,
         files: [...card.querySelectorAll('.report-files li')].map(el => el.textContent),
         tests: card.querySelector('.report-tally p').textContent, firstLine: card.querySelector('.talk-body').innerText.split('\n')[0],
+        ui: ['.talk-heading h3', '.report-headline', '.report-time', '.report-tally p'].map(selector => {
+          const el = selector.startsWith('.talk-heading') ? d.querySelector(selector) : card.querySelector(selector);
+          const range = d.createRange(); range.selectNodeContents(el);
+          return { text: el.textContent, textBounds: range.getBoundingClientRect().toJSON(), box: el.getBoundingClientRect().toJSON() };
+        }),
         conclusionBounds: conclusionBounds.toJSON(), conclusionHeight, bodyTextIntact: body.textContent === text.textContent,
-        read: JSON.parse(w.localStorage.getItem('yushario-read-reports')).filter(([id]) => id === '1672e701-61d6-4358-b2b6-c365b580b900'),
+        read: JSON.parse(w.localStorage.getItem('yushario-read-reports')).filter(([id]) => id === treasureId),
         bounds: card.getBoundingClientRect().toJSON(), bodyBounds: card.querySelector('.talk-body').getBoundingClientRect().toJSON(),
         capture: { viewport: [innerWidth, innerHeight], iframe: frame.getBoundingClientRect().toJSON() } };
       return treasureProof;
@@ -205,7 +214,8 @@ export async function extendCamera(width, language) {
       const sx = treasureImage.width / viewport[0], sy = treasureImage.height / viewport[1];
       treasureCrop = [iframe.x * sx, iframe.y * sy, iframe.width * sx, iframe.height * sy];
       // Orca's first native screenshot can place a half-size page in a full-size PNG.
-      // Detect the actual rendered extent against the known empty page background; crop pixels only.
+      // Reject that first compositor frame and let film take another native screenshot;
+      // enlarging half-resolution pixels would blur Japanese text relative to v6.
       const probe = document.createElement('canvas'); probe.width = treasureImage.width; probe.height = treasureImage.height;
       const pixels = probe.getContext('2d', { willReadFrequently: true }); pixels.drawImage(treasureImage, 0, 0);
       const rgba = pixels.getImageData(0, 0, probe.width, probe.height).data;
@@ -216,11 +226,12 @@ export async function extendCamera(width, language) {
         if (Math.max(...background.map((value, channel) => Math.abs(rgba[i + channel] - value))) > 24) right = x;
       }
       const extent = right + 1;
-      if (extent < treasureCrop[2] * 0.75 && extent > treasureCrop[2] * 0.45) { treasureCrop[2] /= 2; treasureCrop[3] /= 2; }
+      if (extent < treasureCrop[2] * 0.75 && extent > treasureCrop[2] * 0.45) return false;
       treasureProof.capture.pixels = [treasureImage.width, treasureImage.height];
       treasureProof.capture.contentRight = extent;
       treasureProof.capture.crop = treasureCrop;
       output.hidden = false;
+      return true;
     },
     async frames(shot, start, count) {
       const result = [];
@@ -262,7 +273,8 @@ export async function extendCamera(width, language) {
           }
         }
         signFrames.push({ frame: Math.round(shot.start * 30 + f), kind: shot.kind,
-          place: d.querySelector('#place-name').textContent, labels: w.world.getAttribute('aria-label'), draws: w.__pvSignDraws });
+          place: w.world.getAttribute('aria-label')?.split(ja ? '。' : '. ')[0], labels: w.world.getAttribute('aria-label'),
+          canvasText: [...Object.keys(w.__pvPlaceLabels), ...Object.keys(w.__pvLabels)], draws: w.__pvSignDraws });
       }
       return result;
     },

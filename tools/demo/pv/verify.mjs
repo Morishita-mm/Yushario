@@ -7,7 +7,7 @@ import { townView } from '../../../src/core/town.ts';
 import { nearestRoadPoint } from '../../../src/core/walking.ts';
 import { equipmentTiers, battlePresentation, recentBattleSuccess } from '../../../src/core/battle-presentation.ts';
 import { shots, sessions, duration, themes, cues } from './shots.mjs';
-import { main, party, pi, townPi, demo as D, inactivity } from './sources.mjs';
+import { main, party, pi, townPi, demo as D, inactivity, reportEn, englishChest } from './sources.mjs';
 const [M, C, P, P2] = [main, party, pi, townPi].map(rows => rows.filter(r => r.event));
 const root = process.argv[2] ?? '.art-work/pv/video';
 const originals = new Set([...M, ...C, ...P, ...P2, ...D].map(({ event, at }) => JSON.stringify({ event, at })));
@@ -55,9 +55,27 @@ for (const shot of shots) {
   states.push({ cut: shot.number, kind: shot.kind, place: hero.place, monster: hero.monster, helpers: hero.party.length,
     level: stats(hero.agent, now).level, origin: shot.state.origin });
 }
+assert.deepEqual(reportEn.filter(r => r.event.hook === 'SubagentStart').map(r => r.event.subagent.type), ['Explore']);
+assert.equal(reportEn.filter(r => r.event.hook === 'SubagentStop').length, 1);
+assert.ok(reportEn.filter(r => r.event.subagent && r.event.hook === 'PostToolUse')
+  .every(r => ['Read', 'Glob', 'Grep', 'SubagentHandback', 'ToolSearch'].includes(r.event.tool)), 'English helper executed a non-read-only tool');
+const englishRoom = new Room();
+for (const row of englishChest.events) englishRoom.apply(row.event, row.at);
+const englishReply = englishRoom.agents.get(englishChest.id).talk.at(-1);
+assert.equal(englishReply.text, reportEn.findLast(r => r.event.hook === 'Stop').event.text);
+assert.equal(englishReply.report.kind, 'chest'); assert.equal(englishReply.report.files.length, 6);
+assert.deepEqual(englishReply.report.tests, { passed: 1, failed: 0 });
+assert.ok(!/[ぁ-んァ-ヶ一-龯]/u.test(englishReply.text), 'Recorded English reply contains Japanese');
 const measured = [];
 for (const lang of ['ja', 'en']) for (const ratio of ['16x9', '1x1']) {
   const variant = `source-${lang}-${ratio}`, proof = JSON.parse(readFileSync(`${root}/${variant}.proof.json`, 'utf8'));
+  assert.equal(proof.settings.language, lang); assert.equal(proof.screenLanguage, lang);
+  const capturedText = proof.scenes.at(-1).after.signFrames.flatMap(f => f.canvasText);
+  if (lang === 'en') {
+    assert.ok(capturedText.every(text => !/[ぁ-んァ-ヶ一-龯]/u.test(text)), 'Japanese product text on English canvas');
+    for (const text of ['WORLD MAP', 'INN', 'CHURCH', 'LIBRARY', 'ITEM SHOP', 'PRIEST'])
+      assert.ok(capturedText.includes(text), `Missing English label: ${text}`);
+  }
   const walk = proof.scenes.find(s => s.kind === 'walk').after;
   assert.deepEqual(walk.continuity.map(c => c.theme), themes); assert.equal(walk.positions.length, 225);
   for (const [i, change] of walk.continuity.entries()) {
@@ -140,29 +158,64 @@ for (const lang of ['ja', 'en']) for (const ratio of ['16x9', '1x1']) {
     assert.ok(actors.every(a => visible(a, frame)), `Party cropped at f${frame.frame}`);
     assert.ok(actors.every(a => frame.destination[1] + frame.destination[3] - a.output[3] >= 50), 'Party feet have no room below');
   }
-  const framingSummary = { townFrames: towns.length, introductionFrames: introductions.length, partyFrames: parties.length,
+  // New one-piece interiors and title plates must fit, without relaxing actor margins.
+  const interiors = framing.filter(f => ['church', 'inn'].includes(f.kind));
+  assert.equal(interiors.length, 120);
+  for (const frame of interiors) {
+    const heroes = frame.actors.filter(a => a.sheet.startsWith('hero-'));
+    assert.equal(heroes.length, 1, 'Interior must retain the one genuinely recorded hero');
+    assert.equal(heroes[0].sheet, frame.kind === 'inn' ? 'hero-sleep-bed-interior' : 'hero-pray');
+    assert.ok(frame.actors.every(a => visible(a, frame)), `Interior actor cropped at f${frame.frame}`);
+    if (frame.kind === 'church') assert.equal(frame.actors.filter(a => a.sheet === 'church-priest').length, 1);
+  }
+  const places = framing.filter(f => ['town', 'church', 'inn'].includes(f.kind)
+    || (f.kind === 'biome' && f.frame >= 240 && f.frame < 465));
+  assert.equal(places.length, 405);
+  for (const frame of places) {
+    assert.equal(frame.placeLabels.length, 2, 'Missing actual two-line place title');
+    assert.ok(frame.placeLabels.every(p => margin(p.output, frame) >= 0), `Place title cropped at f${frame.frame}`);
+  }
+  const framingSummary = { townFrames: towns.length, interiorFrames: interiors.length, placeTitleFrames: places.length,
+    introductionFrames: introductions.length, partyFrames: parties.length,
+    interiorMinMargin: Math.min(...interiors.flatMap(f => f.actors.map(a => margin(a.output, f)))),
+    placeTitleMinMargin: Math.min(...places.flatMap(f => f.placeLabels.map(p => margin(p.output, f)))),
     townMinMargin: Math.min(...towns.flatMap(f => [...f.actors.map(a => margin(a.output, f)), margin(f.name, f)])),
     partyMinFootRoom: Math.min(...parties.flatMap(f => f.actors.filter(a => a.sheet.includes('back')).map(a => f.destination[1] + f.destination[3] - a.output[3]))) };
   const titles = proof.scenes.at(-1).after.titles;
   assert.equal(titles.length, 180);
   for (const [i, title] of titles.entries()) {
     assert.equal(title.smoothing, false); assert.equal(title.revealed % 6, 0);
-    assert.equal(title.tagline, title.frame >= 1341);
+    assert.equal(title.frame, 1305 + i);
+    assert.equal(title.tagline, title.frame >= 1398);
     if (i) assert.ok(title.revealed >= titles[i - 1].revealed, 'Logo wipe reverses');
   }
   assert.equal(titles[0].revealed, 0); assert.equal(titles[36].revealed, 684);
+  assert.equal(titles.find(t => t.tagline).frame, 1398, 'Tagline must pop in at 46.6s, not logo completion');
   assert.ok(proof.textChecks.every(({ line }) => !/実記録|実際の報告|recordings|report enlarged/.test(line)));
   const notice = proof.scenes.find(s => s.kind === 'level').after.noticeProof;
-  assert.match(notice.text, /レベル3に あがった！/);
+  assert.match(notice.text, lang === 'ja' ? /レベル3に あがった！/ : /reached level 3!/);
   assert.ok(notice.bounds[0] >= 0 && notice.bounds[2] <= proof.width && notice.bounds[3] < 1080,
     'Genuine level-up DOM line is outside the captured screenshot');
   const treasure = proof.scenes.find(s => s.kind === 'treasure').after.treasure;
   assert.equal(treasure.unreadBefore, true); assert.equal(treasure.realBadgeClicked, true); assert.equal(treasure.dialogOpen, true);
-  assert.equal(treasure.files.length, 6); assert.match(treasure.tests, /テスト ○1 ×0/);
-  assert.equal(treasure.firstLine, M.findLast(r => r.event.hook === 'Stop').event.text.split('\n')[0]);
+  assert.equal(treasure.files.length, 6); assert.match(treasure.tests, lang === 'ja' ? /テスト ○1 ×0/ : /Tests ○1 ×0/);
+  assert.match(treasure.card, lang === 'ja' ? /しょうり！ ファイル 6つを なおした/ : /Victory! Files fixed: 6/);
+  const expectedText = lang === 'ja' ? M.findLast(r => r.event.hook === 'Stop').event.text : englishReply.text;
+  assert.equal(treasure.firstLine, expectedText.split('\n')[0]);
+  if (lang === 'en') {
+    assert.deepEqual(treasure.files, englishReply.report.files);
+    assert.ok(treasure.tests.includes(`Tools ${englishReply.report.tools}`), 'English tool tally differs from real recording');
+    assert.ok(!/[ぁ-んァ-ヶ一-龯]/u.test(treasure.card), 'Japanese in English report/reply');
+    assert.deepEqual(proof.scenes.find(s => s.kind === 'treasure').origins, englishChest.origin);
+  }
   assert.ok(treasure.read.some(([, at]) => at === 1800013000000), 'Displayed result was not marked read');
   assert.ok(treasure.bounds.bottom < 995 && treasure.bodyBounds.bottom < 995, 'Report outside readable area');
   assert.equal(treasure.bodyTextIntact, true);
+  for (const { text, textBounds: b, box } of treasure.ui) {
+    if (lang === 'en') assert.ok(!/[ぁ-んァ-ヶ一-龯]/u.test(text), 'Japanese report UI');
+    assert.ok(box.width > 0 && b.left >= box.left - 1 && b.right <= box.right + 1 && b.bottom <= box.bottom + 1,
+      `Report UI overflows its box: ${text}`);
+  }
   assert.ok(treasure.bodyBounds.bottom >= treasure.conclusionBounds.bottom && treasure.bodyBounds.bottom - treasure.conclusionBounds.bottom <= 5,
     'Report must show the entire conclusion without the following detail heading');
   measured.push({ variant, framing: framingSummary, changes: walk.continuity, positions: walk.positions, townSteps,
@@ -170,5 +223,6 @@ for (const lang of ['ja', 'en']) for (const ratio of ['16x9', '1x1']) {
 }
 for (const c of cues.effects) assert.equal(c.frame / 30, c.time);
 writeFileSync(`${root}/source-proof.json`, JSON.stringify({ duration, fps: 30, originalPacketsIntact: true,
-  compactionMs: post.at - pre.at, inactivityMs: inactivity.inactiveMs, appCodeChanged: false, states, measured }, null, 2) + '\n');
-console.log('Original packets/core, five mapped towns, four genuine town heroes, 225 continuous walking frames, 60 introduction frames, 120 uninterrupted dragon-to-party frames, 120 uncropped five-person party frames and 180 pixel-wipe/title frames and genuine report verified in each of four variants.');
+  compactionMs: post.at - pre.at, inactivityMs: inactivity.inactiveMs, appCodeChanged: false,
+  englishReport: { reply: englishReply.text, report: englishReply.report, executedHelperToolsReadOnly: true }, states, measured }, null, 2) + '\n');
+console.log('Original packets/core, five mapped towns, four genuine town heroes, 225 continuous walking frames, 60 introduction frames, 120 uninterrupted dragon-to-party frames, 120 uncropped five-person party frames, 120 current-interior frames, 405 place-title frames, 180 pixel-wipe/title frames and genuine report verified in each of four variants.');

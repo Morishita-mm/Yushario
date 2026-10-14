@@ -7,7 +7,7 @@ import { once } from 'node:events';
 import { boot } from './boot.mjs';
 import { cameraSource, extendCamera, enableTownWrites } from './stage.mjs';
 import { shots, sessions, names, contactTimes, duration, cues } from './shots.mjs';
-import { townSpecs } from './sources.mjs';
+import { townSpecs, englishChest } from './sources.mjs';
 const [destination, ...options] = process.argv.slice(2);
 const variants = ['source-ja-16x9', 'source-en-16x9', 'source-ja-1x1', 'source-en-1x1'];
 if (!destination || options.some(a => a !== '--stills-only' && !variants.includes(a))) throw Error('Usage: film <output-dir> [variant] [--stills-only]');
@@ -43,19 +43,25 @@ try {
     if (server.exitCode !== null) throw Error('PV relay exited'); await new Promise(r => setTimeout(r, 100));
   }
   if (!url) throw Error('PV relay startup timeout');
-  page = cli('tab', 'create', '--url', new URL('/logo/title.png', url).href).browserPageId;
+  page = cli('tab', 'create', '--url', new URL(`/logo/title.png?token=${token}`, url).href).browserPageId;
   cli('snapshot', '--page', page);
   const evaluate = expression => {
     const r = cli('eval', '--page', page, '--expression', expression).result;
     try { return JSON.parse(r); } catch { return r; }
   };
   const source = (await fetch(url).then(r => r.text())).replace('<head>', `<head><base href="${url}">`);
-  const init = `window.__pvOriginalFetch=fetch.bind(window);(${boot.toString()})(${JSON.stringify(url)},${JSON.stringify(sessions)},${JSON.stringify(towns)});(${enableTownWrites.toString()})(${JSON.stringify(url)})`;
   const selected = options.filter(a => variants.includes(a));
   for (const variant of selected.length ? selected : variants) {
     const [, language, ratio] = variant.split('-'), width = ratio === '1x1' ? 1080 : 1920;
+    const settings = { archiveAfterDays: 30, sound: 'off', language };
+    const saved = await fetch(new URL(`/api/settings?token=${token}`, url), { method: 'PUT',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(settings) });
+    if (!saved.ok) throw Error(`Temporary language settings: ${saved.status}`);
+    const init = `window.__pvOriginalFetch=fetch.bind(window);(${boot.toString()})(${JSON.stringify(url)},${JSON.stringify(sessions)},${JSON.stringify(towns)},${JSON.stringify(settings)});(${enableTownWrites.toString()})(${JSON.stringify(url)})`;
     cli('exec', '--page', page, '--command', `set viewport ${width} 1080`);
     evaluate(`${cameraSource}(${JSON.stringify(source)},${JSON.stringify(init)},${width},${JSON.stringify(language)})`);
+    const screenLanguage = evaluate(`document.querySelector('#pv2-app').contentDocument.documentElement.lang`);
+    if (screenLanguage !== language) throw Error(`Wrong app language: ${screenLanguage} / ${language}`);
     evaluate(`(${extendCamera.toString()})(${width},${JSON.stringify(language)})`);
     evaluate(`document.querySelector('#pv2-app').contentWindow.__pvDeliver({type:'names',names:${JSON.stringify(names)}})`);
     const directory = join(output, 'stills', variant); mkdirSync(directory, { recursive: true }); const proof = [];
@@ -67,6 +73,7 @@ try {
     }
     for (const original of shots) {
       const shot = structuredClone(original);
+      if (language === 'en' && shot.kind === 'treasure') shot.state = structuredClone(englishChest);
       if (shot.state) shot.state.towns = towns.map(town => ({ ...town,
         theme: town.name === 'quiet-quest' && shot.kind !== 'world' ? 'village' : town.theme }));
       const before = evaluate(`pv2.prepare(${JSON.stringify(shot)})`);
@@ -80,8 +87,12 @@ try {
         const start = encoder ? i : representative;
         if (shot.kind === 'treasure' && (start === 60 || !encoder)) {
           evaluate('pv2.openTreasure()'); cli('snapshot', '--page', page);
-          const screenshot = cli('screenshot', '--page', page).data;
-          evaluate(`pv2.setTreasure(${JSON.stringify(screenshot)})`);
+          let fullResolution = false;
+          for (let attempt = 0; attempt < 3 && !fullResolution; attempt++) {
+            const screenshot = cli('screenshot', '--page', page).data;
+            fullResolution = evaluate(`pv2.setTreasure(${JSON.stringify(screenshot)})`);
+          }
+          if (!fullResolution) throw Error('Native report screenshot stayed half-size');
         }
         const frames = evaluate(`pv2.frames(${JSON.stringify(shot)},${start},${Math.min(10, total - i)})`);
         for (const [j, image] of frames.entries()) {
@@ -95,7 +106,7 @@ try {
       console.log(`${variant} S${String(shot.number).padStart(2, '0')} captured`);
     }
     if (encoder) { const exit = once(encoder, 'exit'); encoder.stdin.end(); const [code] = await exit; encoder = undefined; if (code) throw Error(`ffmpeg ${code}`); }
-    writeFileSync(join(output, `${variant}.proof.json`), JSON.stringify({ variant, width, height: 1080, seconds: duration,
+    writeFileSync(join(output, `${variant}.proof.json`), JSON.stringify({ variant, settings, screenLanguage, width, height: 1080, seconds: duration,
       fps: 30, audio: false, contactTimes, scenes: proof, textChecks: evaluate('pv2.textChecks()'),
       note: 'Real app/core and original event packets; continuous natural Walker; actual theme UI/PATCH in temporary home; actual unread badge click/native report DOM screenshot; no new agents or invented results.' }, null, 2) + '\n');
   }
