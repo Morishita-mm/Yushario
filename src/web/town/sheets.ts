@@ -15,8 +15,13 @@ export class Sheets {
     const entries: Entry[] = await (await fetch("/art/manifest.json", { cache: "no-store" })).json();
     await Promise.all(entries.map(async (entry) => {
       const image = new Image();
+      // Wait for load, not decode(): decode() can stay pending in a background tab, which kept the room from connecting.
+      const loaded = new Promise<void>((resolve, reject) => {
+        image.onload = () => resolve();
+        image.onerror = () => reject(new Error(`Could not load /art/${entry.id}.png`));
+      });
       image.src = `/art/${entry.id}.png`;
-      await image.decode();
+      await loaded;
       this.entries.set(entry.id, entry);
       this.images.set(entry.id, image);
     }));
