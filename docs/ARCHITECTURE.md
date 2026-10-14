@@ -36,6 +36,7 @@ Node の1プロセスが `127.0.0.1` で build 済みの web と API・WebSocket
 | `src/core/room.ts` | 勇者・仲間・クエスト・行動ログ・会話の状態と、直近の流れから様子を計算 | events, activity, turns |
 | `src/core/turns.ts` | 進行中の往復の累計、最後のテスト結果と異常終了、直近256イベント内の遅着補正、許可待ちを除いた所要時間、報告の付与 | events, activity |
 | `src/core/event-history.ts` | 2000件の履歴から、勇者ごとの件数と保護するイベントに基づいて捨てる順を決める | events |
+| `src/core/terminal-modes.ts` | 端末の出力の切り捨てた部分で有効になったモード（別画面・マウス・貼り付け等）を覚え、開き直した時に先に送る | なし |
 | `src/core/local-request.ts` | 実際の待受ポートに対する Host の判定 | なし |
 | `src/core/story.ts` | 語り、Lv・HP・MP、仲間の職業、活動ごとのモンスター | events, activity, room |
 | `src/core/town.ts` | Room をプロジェクト別の町・安定した表示名・勇者の居場所へ変換 | room, story |
@@ -117,7 +118,7 @@ Notification は実際の入力要求だけ waiting_input。pi の整理失敗�
 - npm パッケージの allowlist は `dist/`・`lib/`・Claudeフック・bin・`LICENSE`・`NOTICE`。ライセンスと通知はブラウザ配布用の `dist/` にもコピーする。アダプタはパッケージの絶対パスから読み込み、ソース・テスト・作業用ファイル・利用者データを同梱しない。
 - HTTP・WS Upgrade の入口で Host を `127.0.0.1:<実ポート>`／`localhost:<実ポート>` に限定する。Vite proxy は Host を転送先へ変更する。WS `/ws`・`/pty` と `/api/*` はトークンと自分自身の Origin を検査する。WS は Origin 必須、HTTP API の Origin 無しリクエストはトークンで許可する。開発時だけローカルの別ポートも許可する。
 - フックの `POST /event`・`/hooks/permission` はトークン不要。ブラウザ由来の外部 Origin は拒否する。本文の上限は1MiB、端末作成・町の設定は4KiB、端末操作は64KiB（UTF-8バイト、超過は413）。Claude の command フック stdin も1MiBで、超過時は無言で正常終了する。
-- PTY はブラウザ切断では止めない。明示的な終了・CLI の終了・server の停止で終わる。最大16セッション、各出力の直近256KBを保持する。
+- PTY はブラウザ切断では止めない。明示的な終了・CLI の終了・server の停止で終わる。最大16セッション、各出力の直近256KBを保持する。切り捨てた部分で有効になった端末のモード（pi の別画面・マウスなど）は覚えておき、開き直した時に先に送る。
 - 起動時に検査した CLI の絶対パスを保持し、別の作業ディレクトリでも同じパスを起動する。子プロセスに `AGENT_CHARACTER_URL`・`AGENT_CHARACTER_SESSION`・`AGENT_CHARACTER_PROJECT` を渡す。Claude フックは渡された project を使い、外部起動でその値が無い時だけ git から調べる。transcript_path が無い Stop は再試行しない。server のトークンや親の入れ子セッション判定用変数は渡さない。
 - イベント全体2000件・会話・報告・預かり・端末出力はメモリのみ。履歴があふれた時は、最も多く持つ勇者の古いイベントから捨てる。活動中の勇者の最初のイベントと最後の本体の UserPromptSubmit は保護し、SessionEnd 済みの勇者は保護しない。サーバーを再起動すると消える。往復は進行中だけ累積し、遅着補正用のイベントは直近256件まで（それ以前への遅着は集計しない）。ファイル名は往復ごと最大256件、ツール・テスト・失敗の累計は切り捨てない。完了した札は通常の新イベントで数え直さず、直近範囲への遅着時だけ補正する。
 - 町・設定・名前・再開用のめいぼは `AGENT_CHARACTER_HOME`（既定 `~/.config/agent-character`）の JSON に保存する。町の最終活動時刻はメモリで更新し5秒おきと終了時にまとめて保存、時刻だけの変更では台帳を配信しない。登録・すがた・ピン・しまう／戻すはすぐ保存・配信する。本文は保存せず、一時ファイルから置き換える。壊れたファイルは `.broken` に退避する。

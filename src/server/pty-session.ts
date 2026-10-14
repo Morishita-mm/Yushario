@@ -5,6 +5,7 @@ import type { WebSocket } from "ws";
 
 import { PRESETS, type Preset } from "./agents";
 import type { Equipment } from "../core/equipment";
+import { updateModes, type TerminalModes } from "../core/terminal-modes";
 export { PRESETS, type Preset } from "./agents";
 export const SESSION_LIMIT = 16;
 export const OUTPUT_LIMIT = 256 * 1024;
@@ -15,7 +16,7 @@ export type TerminalSession = {
 } & Equipment;
 
 export type Session = {
-  info: TerminalSession; terminal: IPty; output: Buffer; clients: Set<WebSocket>; stop: () => void;
+  info: TerminalSession; terminal: IPty; output: Buffer; modes: TerminalModes; clients: Set<WebSocket>; stop: () => void;
   waiting: boolean; eventAt: number; texts: string[]; enter?: ReturnType<typeof setTimeout>;
   interrupted: boolean; interrupting: boolean; departing: boolean; ended?: boolean;
   asking: boolean; askedAt: number; // A permission/question prompt that a typed Enter would answer.
@@ -44,7 +45,8 @@ export function dimensions(cols: unknown, rows: unknown): { cols: number; rows: 
 
 // On overflow, drop the partial first line (which may contain a split ANSI sequence).
 // If there is no newline, keep the byte limit and skip a partial UTF-8 character.
-export function appendOutput(previous: Buffer, data: string): Buffer {
+// Modes set in the dropped part are kept in `modes` so a new window can restore them.
+export function appendOutput(previous: Buffer, data: string, modes?: TerminalModes): Buffer {
   const bytes = Buffer.concat([previous, Buffer.from(data)]);
   let start = Math.max(0, bytes.length - OUTPUT_LIMIT);
   if (start > 0) {
@@ -52,5 +54,6 @@ export function appendOutput(previous: Buffer, data: string): Buffer {
     if (newline !== -1) start = newline + 1;
   }
   while (start < bytes.length && (bytes[start] & 0xc0) === 0x80) start++;
+  if (modes && start > 0) updateModes(modes, bytes.subarray(0, start).toString("utf8"));
   return Buffer.from(bytes.subarray(start));
 }

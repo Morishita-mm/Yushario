@@ -8,6 +8,7 @@ import type { AgentEvent } from "../core/events";
 import { equipmentInput } from "../core/equipment";
 import { WebSocket, WebSocketServer } from "ws";
 import { appendOutput, dimensions, SESSION_LIMIT, sessionInput, type EquippedMessage, type PendingMessage, type Session, type TerminalSession } from "./pty-session";
+import { modePrefix } from "../core/terminal-modes";
 import { clearPending, observe as observeSession, pending } from "./pty-actions";
 import { flushEquipment } from "./pty-equipment";
 import { handlePtyAction } from "./pty-api-actions";
@@ -120,13 +121,13 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
     const finished = new Promise<void>((resolve) => { finish = resolve; });
     const session: Session = {
       info: { id, preset, cwd, project, createdAt: Date.now(), ...selectedEquipment }, terminal,
-      output: Buffer.alloc(0), clients: new Set(), stop, waiting: false, eventAt: -Infinity, texts: [],
+      output: Buffer.alloc(0), modes: new Map(), clients: new Set(), stop, waiting: false, eventAt: -Infinity, texts: [],
       interrupted: false, interrupting: false, departing: false, asking: false, askedAt: -Infinity, agentId: resume,
       hasPrompt: Boolean(resume), name: basename(cwd), finished, finish,
     };
     sessions.set(id, session);
     const output = (data: string): void => {
-      session.output = appendOutput(session.output, data);
+      session.output = appendOutput(session.output, data, session.modes);
       if (!session.attention && !session.agentId && !session.info.exited && AGENTS[preset].hero && hasTrustPrompt(session.output.toString("utf8").slice(-8192))) {
         session.attention = true;
         attentionChanged({ type: "attention", terminal: id, reason: "trust" });
@@ -224,7 +225,7 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
     const session = sessions.get(url.searchParams.get("session") ?? "");
     if (!session) { client.close(1008, tr("そのターミナルが見つかりません", "Terminal not found")); return; }
     // Replay is queued before any live output (all callbacks run on the same event loop).
-    if (session.output.length) client.send(session.output.toString("utf8"));
+    if (session.output.length) client.send(modePrefix(session.modes) + session.output.toString("utf8"));
     if (session.info.exited) { client.close(1000, tr("終了しました", "Ended")); return; }
     session.clients.add(client);
     const size = dimensions(Number(url.searchParams.get("cols")), Number(url.searchParams.get("rows")));
