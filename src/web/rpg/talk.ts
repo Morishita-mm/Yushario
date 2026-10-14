@@ -84,7 +84,7 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
   }
   next.addEventListener("click", skipTyping);
   history.addEventListener("click", (event) => {
-    if ((event.target as HTMLElement).closest("button")) return;
+    if ((event.target as HTMLElement).closest("button, a")) return;
     history.focus({ preventScroll: true }); skipTyping();
   });
   function markVisible(): void {

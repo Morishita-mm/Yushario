@@ -1,6 +1,8 @@
 import { clock, tr } from "../language";
 import type { RoomAgent, TalkReport } from "../../core/room";
-import { renderTalk, talkParts, talkPreview } from "./talk-text";
+import { parseMarkdown } from "../../core/markdown";
+import { markdownPreview } from "../../core/markdown-preview";
+import { renderMarkdown } from "./markdown";
 
 import type { Sheets } from "../town/sheets";
 
@@ -68,8 +70,8 @@ export function createReportCard(entry: Reply, name: string, art: Sheets) {
   more.type = "button"; more.className = "report-more";
   more.setAttribute("aria-expanded", "false");
   row.append(body, more);
-  const parts = talkParts(entry.text), preview = talkPreview(parts);
-  let view: ReturnType<typeof renderTalk> | undefined, isExpanded: boolean | undefined;
+  const blocks = parseMarkdown(entry.text), preview = markdownPreview(blocks);
+  let view: ReturnType<typeof renderMarkdown> | undefined, isExpanded: boolean | undefined;
   function show(shown: number): void {
     if (!view) return;
     view.show(shown);
@@ -77,7 +79,7 @@ export function createReportCard(entry: Reply, name: string, art: Sheets) {
   }
   function renderBody(expanded: boolean, shown = Infinity): number {
     if (!view || expanded !== isExpanded) {
-      view = renderTalk(body, expanded ? parts : preview.parts, shown);
+      view = renderMarkdown(body, expanded ? blocks : preview.blocks, shown);
       isExpanded = expanded;
       more.textContent = expanded ? tr("▲ たたむ", "▲ Less") : tr("▼ つづき", "▼ More");
       more.setAttribute("aria-expanded", String(expanded));

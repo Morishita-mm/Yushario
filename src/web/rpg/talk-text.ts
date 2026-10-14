@@ -14,23 +14,6 @@ export function talkParts(text: string): Part[] {
   return parts;
 }
 
-// Only the first preview and whether more text follows are needed.
-export function talkPreview(parts: Part[]): { parts: Part[]; more: boolean } {
-  const preview: Part[] = [];
-  let count = 0, lines = 0;
-  for (const part of parts) {
-    for (const char of part.text) {
-      if (count >= 420 || lines >= 8) return { parts: preview, more: true };
-      let run = preview[preview.length - 1];
-      if (!run || run.code !== part.code) { run = { code: part.code, text: "" }; preview.push(run); }
-      run.text += char;
-      count++;
-      if (char === "\n") lines++;
-    }
-  }
-  return { parts: preview, more: false };
-}
-
 export function renderTalk(root: HTMLElement, parts: Part[], shown = Infinity) {
   root.replaceChildren();
   const runs = parts.map((part) => {

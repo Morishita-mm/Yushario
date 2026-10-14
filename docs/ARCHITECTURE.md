@@ -38,6 +38,7 @@ Node の1プロセスが `127.0.0.1` で build 済みの web と API・WebSocket
 | `src/core/event-history.ts` | 2000件の履歴から、勇者ごとの件数と保護するイベントに基づいて捨てる順を決める | events |
 | `src/core/terminal-modes.ts` | 端末の出力の切り捨てた部分で有効になったモード（別画面・マウス・貼り付け等）を覚え、開き直した時に先に送る | なし |
 | `src/core/local-request.ts` | 実際の待受ポートに対する Host の判定 | なし |
+| `src/core/markdown.ts`, `markdown-inline.ts`, `markdown-preview.ts` | 勇者の返事の限定マークダウン解釈、安全なリンクの判定、見える文字数とブロック単位のプレビュー | core の型・関数のみ |
 | `src/core/story.ts` | 語り、Lv・HP・MP、仲間の職業、活動ごとのモンスター | events, activity, room |
 | `src/core/town.ts` | Room をプロジェクト別の町・安定した表示名・勇者の居場所へ変換 | room, story |
 | `src/core/town-ledger.ts` | 町・設定の型、町の登録・活動更新・自動でしまう判定 | なし |
@@ -127,7 +128,7 @@ Notification は実際の入力要求だけ waiting_input。pi の整理失敗�
 
 ## PoC でやらないこと
 
-- ハーネス本体、アプリ自身の LLM 呼び出し、ツール出力・会話本文の解析
+- ハーネス本体、アプリ自身の LLM 呼び出し、ツール出力・会話本文の意味の解析（返事のマークダウン表示だけは行う）
 - デスクトップ常駐・透過ウィンドウ、スマホ対応、インターネット経由の利用、ユーザー認証
 - 任意の起動コマンド、許可の自動承認、作業中へのフック経由の割り込み
 - 会話・報告・行動ログの永続化、過去のハーネス履歴の取り込み、ワークツリーの作成
