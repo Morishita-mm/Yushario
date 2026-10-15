@@ -63,4 +63,4 @@
 /* Gold buttons keep dark text on hover; the shared window hover would turn it gold on gold. */
 .quest-window.report-window button.primary:hover:not(:disabled), .quest-window.report-window button.primary:focus-visible { color: #1a1d2b; background: #fff0a8; border-color: #fff0a8; }
 .quest-window .quest-close { position: absolute; top: 8px; right: 10px; font-size: 20px; line-height: 1; padding: 4px 10px; }
-.quest-create-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.quest-create-actions { display: flex; flex-direction: column; align-items: center; gap: 8px; }

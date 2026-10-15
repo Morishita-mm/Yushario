@@ -59,7 +59,7 @@ export function renderQuestList(root: HTMLElement, quests: Quest[], townName: (k
     button.title = questStateLabel(quest.state); button.append(top, meta); button.onclick = () => pick(quest); row.append(button, marks);
     if (remove) {
       const del = document.createElement("button"); del.type = "button"; del.className = "quest-row-delete"; del.dataset.focus = `delete:${quest.id}`;
-      del.textContent = tr("× 消す", "× Delete"); del.setAttribute("aria-label", tr(`「${quest.title}」を 消す`, `Delete "${quest.title}"`));
+      del.textContent = tr("🗑 消す", "🗑 Delete"); del.setAttribute("aria-label", tr(`「${quest.title}」を 消す`, `Delete "${quest.title}"`));
       del.onclick = () => remove(quest); row.append(del);
     }
     return row;
