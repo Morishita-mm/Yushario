@@ -98,6 +98,9 @@ export class QuestLedger {
     if (!quest || quest.town !== session.project) throw new Error(tr("この町の クエストを えらんで", "Choose a quest in this town"));
     const member = this.member(session.id);
     this.join(id, session, member?.quest === id ? member.role : "implement", member?.quest === id ? member.note : "", undefined, hero, at);
+    // A new owner has not been told anything yet; the old owner's work state must not carry over.
+    const now = this.db.summary(id)!;
+    if (quest.session !== session.id && (now.state === "active" || now.state === "waiting") && !this.waiting.get(session.id)) this.patch(id, { state: "open" }, at);
     this.db.add({ quest: id, kind: "assigned", title: tr("勇者が ついた", "Hero assigned"), at, session: session.id, hero, result: { cwd: session.cwd } });
     this.setWorktree(id, { path: session.cwd, branch: session.branch }, at);
   }

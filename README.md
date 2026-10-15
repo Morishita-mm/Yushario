@@ -72,7 +72,7 @@ npx yushario
 
 Your browser opens the town. Choose **Embark**, pick your project folder as the destination, and start an agent. Then click your hero. You can run it from any folder; the folder you start from is offered first.
 
-**Embark → Talk (request) → report → Review & Checks → Done.** A town is a project, a hero is a CLI session, and a quest is work that stays after the hero leaves. Read the report, inspect the git diff in Review, check the acceptance evidence in Checks, then mark the quest Done when you accept the work. HP reflects recent failures, MP is context left, and Lv counts completed work—not code quality. Hooks and the pi extension are attached automatically when you launch from Yushario.
+**Write a quest → assign a hero → send the request → read the report and changes → accept (or ask for fixes).** A town is a project, a hero is a CLI session, and a quest is work that stays after the hero leaves. The quest card always shows the next thing to do. Read the report, look at the git changes in Review, check the acceptance checks, then accept the work—or ask the hero for fixes and it works again. HP reflects recent failures, MP is context left, and Lv counts completed work—not code quality. Hooks and the pi extension are attached automatically when you launch from Yushario.
 
 Until the first npm release, run from a checkout:
 

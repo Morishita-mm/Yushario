@@ -33,5 +33,5 @@ export async function handleChecksRequest(request: IncomingMessage, response: Se
       quests.checks.remove(quest.id, decodeURIComponent(parts[5])); quests.checksChanged(); response.writeHead(204).end(); return true;
     }
     response.writeHead(405).end(); return true;
-  } catch { json(400, { error: tr("ためすことを よめない", "Cannot read checks") }); return true; }
+  } catch { json(400, { error: tr("合格条件を よめない", "Cannot read acceptance checks") }); return true; }
 }

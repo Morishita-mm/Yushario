@@ -93,7 +93,7 @@ export class QuestParty {
     this.quests.submittedText(session, text);
     const at = Date.now(), hero = this.quests.member(session)?.hero;
     const title = from ? tr(`しき ${this.label(from)}から`, `From commander ${this.label(from)}`)
-      : kind === "handoff" ? tr("ひきつぎの 巻物", "Handoff scroll") : tr("あなたから", "From you");
+      : kind === "handoff" ? tr("引き継ぎのメモ（巻物）", "Handoff note (scroll)") : tr("あなたから", "From you");
     this.quests.addEvent(quest, { kind, title, at, session, hero, text });
     const request = { detail: from ? this.label(from) : undefined, text };
     if (hero) this.record({ state: "idle", hook: "PartyRequest", terminal: session, agent: hero, ...request });

@@ -11,7 +11,7 @@ export function handoffScroll(quest: QuestDetail, checks: ScrollCheck[], languag
   return [
     `${ja ? "クエスト" : "Quest"}: ${quest.title}`,
     `${ja ? "目的" : "Purpose"}: ${quest.purpose}`,
-    `${ja ? "ためすこと" : "Checks"}:\n${checks.map((check) => `${marks[check.mark] ?? check.mark} ${check.title}`).join("\n") || "—"}`,
+    `${ja ? "合格条件" : "Acceptance checks"}:\n${checks.map((check) => `${marks[check.mark] ?? check.mark} ${check.title}`).join("\n") || "—"}`,
     `${ja ? "変えたファイル" : "Changed files"}:\n${files.join("\n") || "—"}`,
     `${ja ? "拠点" : "Base"}: ${quest.worktreePath ?? "—"}\nbranch: ${quest.worktreeBranch ?? "—"}`,
     `${ja ? "最後の報告" : "Last report"}: ${last ? reportTitle(last.report, language) : "—"}`,

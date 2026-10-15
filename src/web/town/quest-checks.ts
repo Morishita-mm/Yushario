@@ -9,13 +9,13 @@ export async function checksRequest(path: string, method = "GET", body?: unknown
   const response = await fetch(`/api/quests/${path}${path.includes("?") ? "&" : "?"}token=${encodeURIComponent(token)}`, {
     method, cache: "no-store", ...(body ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {}),
   });
-  if (!response.ok) { const data = await response.json().catch(() => ({})); throw new Error(data.error ?? tr("ためすことを よめない", "Cannot read checks")); }
+  if (!response.ok) { const data = await response.json().catch(() => ({})); throw new Error(data.error ?? tr("合格条件を よめない", "Cannot read acceptance checks")); }
   return response.status === 204 ? { checks: [] } : response.json();
 }
 export async function confirmChecksDone(quest: Quest): Promise<boolean> {
   const data = quest.id.startsWith("mock-") ? quest : await checksRequest(`${encodeURIComponent(quest.id)}/checks`);
   const missing = (data.checks ?? []).filter((check) => checkMark(check.evidence, data.fingerprint) !== "passed");
-  return !missing.length || confirm(tr("ごうかくしていない ためすことが ある。採る？", "Some checks have not passed. Take this quest?"));
+  return !missing.length || confirm(tr("まだ ごうかくしていない 合格条件が ある。受け取る？", "Some acceptance checks have not passed. Accept anyway?"));
 }
 export function questChecks(quest: Quest): HTMLElement {
   const box = document.createElement("section"); box.className = "quest-checks";
@@ -23,7 +23,7 @@ export function questChecks(quest: Quest): HTMLElement {
   const mock = quest.id.startsWith("mock-");
   function render(): void {
     box.replaceChildren();
-    const heading = document.createElement("h4"); heading.textContent = tr("ためすこと", "Checks"); box.append(heading);
+    const heading = document.createElement("h4"); heading.textContent = tr("合格条件", "Acceptance checks"); box.append(heading);
     if (!data.fingerprint) { const unknown = document.createElement("p"); unknown.className = "hint"; unknown.textContent = tr("じょうたい ふめい", "State unknown"); box.append(unknown); }
     for (const check of data.checks) {
       const row = document.createElement("div"); row.className = "quest-check-row";
@@ -41,7 +41,7 @@ export function questChecks(quest: Quest): HTMLElement {
     for (const [text, input] of [[tr("名前", "Name"), name], [tr("コマンドの形", "Command shape"), command]] as const) {
       const label = document.createElement("label"); label.append(document.createTextNode(text), input); form.append(label);
     }
-    const add = document.createElement("button"); add.type = "submit"; add.textContent = tr("＋ ためすことを 足す", "＋ Add check"); form.append(add);
+    const add = document.createElement("button"); add.type = "submit"; add.textContent = tr("＋ 合格条件を 足す", "＋ Add acceptance check"); form.append(add);
     form.onsubmit = (event) => { event.preventDefault(); add.disabled = true;
       void change("POST", undefined, { name: name.value.trim(), command: command.value.trim() }).catch((error: Error) => { status.textContent = error.message; add.disabled = false; });
     }; box.append(form);

@@ -37,7 +37,7 @@ export function partyEditFiles(event: AgentEvent): string[] {
 export function outsideRole(member: PartyMember | undefined, files: string[]): boolean { return Boolean(member && !member.writer && files.length); }
 export function partyEventTitle(kind: string, title: string, language: Language): string {
   const ja = language === "ja";
-  if (kind === "handoff") return ja ? "ひきつぎの 巻物" : "Handoff scroll";
+  if (kind === "handoff") return ja ? "引き継ぎのメモ（巻物）" : "Handoff note (scroll)";
   if (kind === "command") {
     const name = /^しき (.*)から$/.exec(title)?.[1] ?? /^From commander (.*)$/.exec(title)?.[1];
     if (name) return ja ? `しき ${name}から` : `From commander ${name}`;

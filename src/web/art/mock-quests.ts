@@ -18,13 +18,19 @@ export function initMockQuests(projects: Project[], layer: HTMLElement, report: 
     events: [{ id: i, quest: `mock-${i}`, at: now - i * 60000, kind: "request", title: tr("町の バグを なおす", "Fix the town's bugs") }] }));
   function open(quest: QuestDetail): void {
     const box = windowBox(layer, quest.title, () => undefined);
-    box.append(questCard(quest, "", async (patch) => { Object.assign(quest, patch); }, () => undefined, report,
-      async () => { quests = quests.filter((item) => item.id !== quest.id); box.close(); layer.hidden = true; }, undefined, undefined, previews.section(quest), {
+    const close = () => { box.close(); layer.hidden = true; };
+    box.append(questCard(quest, {
+      heroName: (id) => id ?? "", save: async (patch) => { Object.assign(quest, patch); }, remove: async () => { quests = quests.filter((item) => item.id !== quest.id); close(); },
+      talk: report, focusHero: () => undefined, townHeroes: () => [{ session: "party-0", name: tr("アレン", "Allen"), busy: false }],
+      preview: previews.section(quest),
+      party: {
         talk: report, review: report, embark: () => undefined,
         mock: (["implement", "review", "command"] as const).map((role, i) => ({ quest: quest.id, session: `party-${i}`, hero: `party-${i}`,
           name: [tr("アレン", "Allen"), tr("ミラ", "Mira"), tr("ルカ", "Luca")][i], role, note: "", writer: i === 0, active: true, canTalk: i !== 2, joinedAt: now + i,
           sessionInfo: { id: `party-${i}`, preset: ["claude", "pi", "shell"][i], cwd: "/tmp/town-base", branch: "quest/town", project: quest.town, createdAt: now } })),
-      }, () => { box.close(); layer.hidden = true; mockReview(quest.title); }));
+      },
+      review: () => { close(); mockReview(quest.title); },
+    }));
   }
   return (town?: string) => {
     const list = quests.filter((quest) => town === undefined || quest.town === town);

@@ -1,7 +1,7 @@
-import type { Quest, QuestBinding, QuestDetail, QuestReportLink } from "../../core/quests";
+import { questTitle, type Quest, type QuestBinding, type QuestDetail, type QuestReportLink } from "../../core/quests";
 import type { RoomAgent } from "../../core/room";
 import { tr } from "../language";
-import { questCard } from "../town/quest-card";
+import { questCard, type TownHero } from "../town/quest-card";
 import { questStateLabel, renderQuestList } from "../town/quest-list";
 import { coverMap } from "./talk";
 import type { Project } from "../town/world";
@@ -21,7 +21,7 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
   hero: (id: string) => RoomAgent | undefined, name: (id: string) => string | undefined,
   select: (id: string) => void, talk: (id: string, at?: number) => void, counted: (count: number) => void,
   embark: (quest: Quest) => void, townName: (key: string) => string, preview?: (quest: Quest) => HTMLElement, terminal?: (session: string) => void,
-  draft?: (session: string, text: string) => void) {
+  draft?: (session: string, text: string) => void, heroesIn: (town: string) => RoomAgent[] = () => []) {
   const root = document.querySelector<HTMLElement>("#quests")!;
   const dialog = document.createElement("dialog"); dialog.className = "report-window quest-window";
   const heading = document.createElement("h3"), content = document.createElement("div"), close = document.createElement("button");
@@ -41,40 +41,65 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
   const heroLabel = (quest: Quest) => quest.hero ? name(quest.hero) ?? hero(quest.hero)?.name ?? quest.hero : "";
   function show(title: string): void { heading.textContent = title; coverMap(dialog); if (!dialog.open) dialog.showModal(); }
   const editing = () => Boolean(content.querySelector('[data-dirty="true"]')) || content.contains(document.activeElement);
+  // Heroes now in a town, for choosing who takes a quest.
+  const townHeroes = (key: string): TownHero[] => heroesIn(key).filter((agent) => agent.terminal)
+    .map((agent) => ({ session: agent.terminal!, name: name(agent.id) ?? agent.name, busy: agent.activity !== "idle" && agent.activity !== "rest" }));
+  const sendRequest = async (id: string, session: string, text: string): Promise<boolean> =>
+    Boolean((await questRequest(`/${encodeURIComponent(id)}/send`, "POST", { session, text }))?.delivered);
+  function reviewQuest(quest: Quest): void {
+    dialog.close();
+    const session = quest.session, id = quest.hero;
+    if (id && session && hero(id)) openReview(name(id) ?? hero(id)?.name ?? id, session, (text) => text && draft ? draft(session, text) : talk(id), () => terminal?.(session));
+    else openReview(quest.title, { quest: quest.id }, undefined, undefined);
+  }
   async function open(id: string, refresh = false): Promise<void> {
     selected = id; const version = ++generation;
     const quest: QuestDetail = await questRequest(`/${encodeURIComponent(id)}`);
     if (version !== generation || refresh && (!dialog.open || editing())) return;
     shown = { title: quest.title, purpose: quest.purpose, state: quest.state };
-    content.replaceChildren(questCard(quest, heroLabel(quest), async (patch) => {
+    const session = quest.session;
+    content.replaceChildren(questCard(quest, {
+      heroName: (id) => id ? name(id) ?? hero(id)?.name ?? id : "",
+      save: async (patch) => {
         if (patch.state) {
           const latest: QuestDetail = await questRequest(`/${encodeURIComponent(id)}`);
           if (latest.state !== quest.state && !confirm(tr(`この クエストは いま「${questStateLabel(latest.state)}」に なっている。「${questStateLabel(patch.state)}」に かえる？`,
             `This quest is now "${questStateLabel(latest.state)}". Change it to "${questStateLabel(patch.state)}"?`))) throw new Error(tr("ほぞんを やめた", "Save cancelled"));
         }
         const { adoption, ...fields } = patch;
-        // "Done" goes through adopt, so the server records which state was accepted.
+        // Accepting goes through adopt, so the server records which state was accepted.
         const edits = adoption ? { ...fields, state: undefined } : fields;
         if (edits.title !== undefined || edits.purpose !== undefined || edits.state !== undefined) await questRequest(`/${id}`, "PATCH", edits);
         if (adoption) await questRequest(`/${encodeURIComponent(id)}/adopt`, "POST", { ...(adoption.reason.trim() ? { reason: adoption.reason } : {}), ...(adoption.pr.trim() ? { pr: adoption.pr } : {}) });
         if (shown) shown = { ...shown, ...fields };
         if (adoption) await open(id); // Show the accepted record at once.
       },
-      () => { if (quest.hero && hero(quest.hero)) { dialog.close(); select(quest.hero); } },
-      (id, at) => { if (hero(id)) { dialog.close(); talk(id, at); } },
-      async () => { await questRequest(`/${id}`, "DELETE"); dialog.close(); },
-      () => { dialog.close(); embark(quest); },
-      async () => {
+      remove: async () => { await questRequest(`/${id}`, "DELETE"); dialog.close(); },
+      talk: (id, at) => { if (hero(id)) { dialog.close(); talk(id, at); } },
+      focusHero: () => { if (quest.hero && hero(quest.hero)) { dialog.close(); select(quest.hero); } },
+      townHeroes: () => townHeroes(quest.town),
+      assign: async (chosen) => { await questRequest(`/${encodeURIComponent(id)}/assign`, "POST", { session: chosen }); await open(id); },
+      send: session ? async (text, checks) => {
+        for (const check of checks) await questRequest(`/${encodeURIComponent(id)}/checks`, "POST", check);
+        return sendRequest(id, session, text);
+      } : undefined,
+      terminal: session ? () => { dialog.close(); terminal?.(session); } : undefined,
+      embark: () => { dialog.close(); embark(quest); },
+      fold: async () => {
         if (!quest.worktreePath) return;
         const info = await worktreeRequest<BaseInfo>("GET", quest.worktreePath);
         await worktreeRequest("DELETE", info.root, { path: quest.worktreePath });
         await questRequest(`/${id}/base`, "DELETE"); await open(id);
-      }, preview?.(quest), {
+      },
+      preview: preview?.(quest),
+      party: {
         talk: (id, session) => { dialog.close(); if (hero(id)) talk(id); else terminal?.(session); },
         review: (id, session) => { dialog.close(); openReview(name(id) ?? hero(id)?.name ?? id, hero(id) ? session : { quest: quest.id },
           hero(id) ? (text) => text && draft ? draft(session, text) : talk(id) : undefined, hero(id) ? () => terminal?.(session) : undefined); },
         embark: () => { dialog.close(); embark(quest); },
-      }, () => { dialog.close(); openReview(quest.title, { quest: quest.id }, undefined, undefined); }));
+      },
+      review: () => reviewQuest(quest),
+    }));
     show(quest.title);
   }
   // A draft is kept, but the person is told the quest changed underneath it.
@@ -87,23 +112,53 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
     reload.onclick = () => { if (id) void open(id); };
     notice.append(" ", reload); content.querySelector(".quest-card")?.prepend(notice);
   }
+  // One window for steps 1–3: write the request, choose who takes it, and send it.
   function create(session?: string, townKey = town()): void {
     selected = undefined; ++generation;
-    const form = document.createElement("form"), input = document.createElement("input"), purpose = document.createElement("textarea"), towns = document.createElement("select"), status = document.createElement("p");
+    const form = document.createElement("form"), request = document.createElement("textarea"), towns = document.createElement("select"), status = document.createElement("p");
     for (const project of projects()) towns.append(new Option(project.label ?? project.repo, project.repo));
     if (townKey) towns.value = townKey;
-    input.required = true; input.maxLength = 200; purpose.maxLength = 2000;
-    for (const [text, field] of [[tr("町", "Town"), towns], [tr("題", "Title"), input], [tr("目的", "Purpose"), purpose]] as const) {
-      const label = document.createElement("label"); label.append(document.createTextNode(text), field); form.append(label);
-    }
-    const submit = document.createElement("button"); submit.type = "submit"; submit.textContent = tr("▶ つくる", "▶ Create"); form.append(submit, status);
-    form.onsubmit = (event) => { event.preventDefault(); submit.disabled = true;
-      void questRequest("", "POST", { town: towns.value, title: input.value.trim(), purpose: purpose.value }).then(async (quest: Quest) => {
-        if (session) await questRequest(`/${quest.id}/assign`, "POST", { session });
-        await open(quest.id);
-      }).catch((error: Error) => { status.textContent = error.message; submit.disabled = false; });
+    request.required = true; request.maxLength = 2000; request.rows = 4;
+    request.placeholder = tr("例：ログイン画面の エラー文を やさしくして。テストも 足して。", "e.g. Make the login error messages friendlier and add a test.");
+    const who = document.createElement("fieldset"), primary = document.createElement("button"), only = document.createElement("button");
+    let choice = session ?? "";
+    const label = (text: string, field: HTMLElement) => { const node = document.createElement("label"); node.append(document.createTextNode(text), field); return node; };
+    const option = (value: string, text: string) => {
+      const node = document.createElement("label"), radio = document.createElement("input"); radio.type = "radio"; radio.name = "quest-who"; radio.value = value;
+      radio.checked = value === choice; radio.onchange = () => { choice = value; update(); }; node.append(radio, document.createTextNode(` ${text}`)); return node;
     };
-    content.replaceChildren(form); show(tr("あたらしい クエスト", "New quest")); input.focus();
+    function heroes(): void {
+      const list = townHeroes(towns.value);
+      if (!list.some((item) => item.session === choice) && choice !== "embark") choice = list.find((item) => !item.busy)?.session ?? "";
+      who.replaceChildren(Object.assign(document.createElement("legend"), { textContent: tr("任せる勇者", "Who takes it") }),
+        ...list.map((item) => option(item.session, tr(`町にいる勇者：${item.name}（${item.busy ? "作業中" : "手があいている"}）`, `Hero in town: ${item.name} (${item.busy ? "working" : "free"})`))),
+        option("embark", tr("新しく出陣させる", "Embark a new hero")), option("", tr("まだ決めない", "Decide later")));
+      update();
+    }
+    function update(): void {
+      primary.textContent = choice === "embark" ? tr("▶ 作って出陣させる", "▶ Create and embark") : choice ? tr("▶ 作って依頼する", "▶ Create and send") : tr("▶ 作る", "▶ Create");
+      only.hidden = !choice;
+    }
+    towns.onchange = heroes;
+    primary.type = "submit"; primary.className = "primary"; only.type = "button"; only.textContent = tr("作るだけ", "Create only");
+    form.append(label(tr("町", "Town"), towns), label(tr("依頼（1行目が クエストの名前になる）", "Request (the first line names the quest)"), request), who, primary, only, status);
+    async function make(send: boolean): Promise<void> {
+      const text = request.value.trim();
+      if (!text) { request.reportValidity(); return; }
+      primary.disabled = only.disabled = true;
+      try {
+        const quest: Quest = await questRequest("", "POST", { town: towns.value, title: questTitle(text), purpose: text });
+        if (choice === "embark" && send) { dialog.close(); embark(quest); return; }
+        if (choice && choice !== "embark") {
+          await questRequest(`/${quest.id}/assign`, "POST", { session: choice });
+          if (send) status.textContent = await sendRequest(quest.id, choice, text) ? tr("依頼を 届けた", "Request delivered") : tr("依頼を あずけた。勇者の 手が あいたら 届く", "Request held until the hero is free");
+        }
+        await open(quest.id);
+      } catch (error) { status.textContent = error instanceof Error ? error.message : String(error); primary.disabled = only.disabled = false; }
+    }
+    form.onsubmit = (event) => { event.preventDefault(); void make(true); };
+    only.onclick = () => void make(false);
+    heroes(); content.replaceChildren(form); show(tr("新しいクエスト", "New quest")); request.focus();
   }
   function choose(session: string, townKey: string): void {
     selected = undefined; ++generation;

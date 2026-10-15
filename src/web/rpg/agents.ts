@@ -4,7 +4,7 @@ export type AgentInfo = { id: string; label: string; hero: boolean; resume: bool
   equipWeapon: boolean; equipAccessory: boolean };
 
 export function codexNotice(): string {
-  return tr("Codex 0.162.1：/hooks で Yushario のフックを たしかめ、最初の依頼は ターミナルから。許可も ターミナルで こたえる。道具の成否・ためすことの証拠・MPは 取れません。",
+  return tr("Codex 0.162.1：/hooks で Yushario のフックを たしかめ、最初の依頼は ターミナルから。許可も ターミナルで こたえる。道具の成否・合格条件の証拠・MPは 取れません。",
     "Codex 0.162.1: review Yushario hooks in /hooks; send the first request in the terminal. Answer approvals there too. Tool results, check evidence and MP are unavailable.");
 }
 

@@ -73,6 +73,7 @@ Yushario と勇者は同じ OS 利用者で動く。悪意ある同一利用者�
 | `src/core/town-ledger.ts` | 町の鍵・表示名・設定の型、町の登録・活動更新・自動でしまう判定 | なし |
 | `src/core/checks.ts` | ためすこと・拠点つき証拠と指紋の型、保存拠点／書き換える役の選択、単純コマンド1つの照合と拠点での実行の確認、不明な試行、最新の証拠と今の指紋による5つの印、package.json の候補 | events, activity |
 | `src/core/decisions.ts` | 鑑定の判断（みとめる／なおしが いる）と うけとった記録の型と検査（PR は https だけ）、選んだ差分の行からの修正依頼の下書き | checks, review-base |
+| `src/core/quest-stage.ts` | 保存した状態と担当から、人の流れの段階（任せる・指示を送る・作業中・返事待ち・報告を見る・おわり）、誰の番か、何回目か、前の担当を読む | quests |
 | `src/core/quests.ts` | 永続クエスト・出来事・結び付きの型、セッションごとの判断待ちを優先する状態の判定、依頼の題と保存する本文の選択、一覧の順 | events, session-actions, turns, town-ledger |
 | `src/core/party.ts`, `party-scroll.ts` | 役割・合言葉の形式・権限の純粋な判定、紹介文と台帳の事実だけの巻物 | core の型・関数のみ |
 | `src/core/names.ts`, `roster.ts` | 名前・めいぼの型と入力の判定、件数制限 | core の型・関数のみ |
@@ -110,7 +111,7 @@ Yushario と勇者は同じ OS 利用者で動く。悪意ある同一利用者�
 | `src/web/rpg/quests.ts`, `quest-settings.ts`, `talk-quest.ts` | クエストのタブと札、題・目的・ためすことの未保存入力とフォーカスの維持、見出しで名前を付けた窓と表示中のresizeでの位置更新、会話からの選び直し、本文保存と記録削除の設定 | core, web/town, HTTP/WS |
 | `src/web/town/quest-party.ts`, `quest-handoff.ts`, `quest-party.css`, `src/web/rpg/party-notices.ts` | 本体・モック共通のパーティー・紹介文の下書き・巻物、でんれいの仲間の確認と役割外の変更。確認窓は見出しで名前を付け、表示中だけresizeで位置更新し、閉じる時に監視を外す | core, DOM, HTTP/WS |
 | `src/web/town/quest-checks.ts`, `check-marks.ts`, `checks.css` | 本体・モック共通のためすこと、札・一覧・報告の印と見出しで名前を付けた証拠の窓、done の確認 | core, DOM, HTTP |
-| `src/web/town/quest-list.ts`, `quest-card.ts`, `quest-board.ts` | 本体・モック共通のクエスト一覧・札・掲示板の入口。札は状況・次の一手・主な操作を上に出し、編集・追加・パーティー・全出来事は開いた状態を保つ折り畳みにする。一覧更新は操作中の新規／クエストID／条件ID／町の折り畳みへフォーカスを戻し、削除時だけ隣接項目へ移す | core の型・関数, DOM, art data |
+| `src/web/town/quest-list.ts`, `quest-card.ts`, `quest-board.ts` | 本体・モック共通のクエスト一覧・札・掲示板の入口。一覧は「あなたの番／勇者が作業中／おわった」に分け、札は6段階の帯と「次にやること」を上に出す。編集・追加・パーティー・全出来事は開いた状態を保つ折り畳みにする（段階22）。一覧更新は操作中の新規／クエストID／条件ID／町の折り畳みへフォーカスを戻し、削除時だけ隣接項目へ移す | core の型・関数, DOM, art data |
 | `src/web/rpg/preview.ts`, `src/web/town/quest-preview.ts`, `preview-controls.ts`, `preview-tabs.ts`, `preview.css` | 本体・モック共通のプレビュー区画、名前付きの別タブ、エラーの一覧と会話への下書き。町のプレビューとエラーの窓は見出しで名前を付ける | core, DOM, HTTP |
 | `public/preview-link.js` | opener があるページだけ、URL・題・先頭20件（各500文字）のエラーを配信元 origin へ postMessage | ブラウザ標準 API のみ |
 | `src/web/town/*` | データを引数で受け取る共有描画。ワールド・5種の町・宿屋・フィールド・戦闘、絵の読み込みと歩行。地図のラベルは描画時だけ160px以内で省略し、コマンドは親と窓自身のサイズ変更時に範囲内へ置き直す | core の型, DOM/Canvas, public/art |

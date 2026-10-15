@@ -1,10 +1,16 @@
 #quests { border: 3px solid #fff; border-radius: 6px; padding: 12px; color: #eee; background: #0a0a1a; overflow: auto; min-height: 0; flex: 1; }
 #quests[hidden] { display: none; }
 .quest-row { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 12px; text-align: left; margin: 4px 0; padding: 9px; font: inherit; color: #eee; background: #19182c; border: 1px solid #777; }
-.quest-row-title { grid-column: 1 / -1; color: #ffe066; overflow-wrap: anywhere; }
-.quest-row-pick > span { min-width: 0; overflow-wrap: anywhere; }
-.quest-row-pick > small { color: #b9b1cc; white-space: nowrap; }
-.quest-row .branch-name { color: #b9b1cc; }
+.quest-row-pick { display: grid; gap: 3px; min-width: 0; text-align: left; }
+.quest-row-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-width: 0; }
+.quest-row-title { color: #ffe066; min-width: 0; overflow-wrap: anywhere; }
+.quest-row-meta { color: #b9b1cc; overflow-wrap: anywhere; }
+.quest-chip { flex: none; font-size: 12px; padding: 0 6px; border: 1px solid currentColor; white-space: nowrap; }
+.quest-chip.you, .quest-group.you { color: #ff8a5c; }
+.quest-chip.work, .quest-group.work { color: #7fb5ff; }
+.quest-chip.end { color: #8fd6a4; }
+.quest-group { font-size: 14px; font-weight: normal; margin: 12px 0 4px; }
+#quests details[data-finished] > summary { cursor: pointer; color: #b9b1cc; margin-top: 12px; }
 .quest-new { margin-bottom: 8px; }
 #quests button, .quest-window button { font: inherit; color: #eee; background: #19182c; border: 1px solid #777; padding: 7px 10px; cursor: pointer; }
 #quests button:hover, .quest-window button:hover { border-color: #ffe066; color: #ffe066; }
@@ -20,13 +26,32 @@
 .talk-quest > span { flex: 1 1 12em; min-width: 0; overflow-wrap: anywhere; }
 .talk-quest > button { flex: none; white-space: nowrap; }
 .report-quest-title { color: #ffe066; font-size: 13px; margin: 0 0 5px; overflow-wrap: anywhere; }
-.quest-summary { display: grid; gap: 8px; }
-.quest-summary p { margin: 0; }
-.quest-state { color: #ffe066; }
-.quest-purpose { white-space: pre-wrap; }
-.quest-owner { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
-.quest-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.quest-summary .quest-event { margin-top: 0; }
+.quest-card { display: grid; gap: 12px; }
+.quest-card p { margin: 0; }
+.quest-track { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 3px; }
+.quest-track li { font-size: 12px; text-align: center; padding: 4px 2px; border-top: 3px solid #3a3550; color: #9a98ad; overflow-wrap: anywhere; }
+.quest-track li.done { border-color: #8fd6a4; color: #cfe9d6; }
+.quest-track li.now { border-color: #ffe066; color: #ffe066; }
+.quest-next { border: 2px solid #ff8a5c; padding: 12px; display: grid; gap: 10px; background: #1a1830; }
+.quest-next.work { border-color: #7fb5ff; }
+.quest-next.end { border-color: #8fd6a4; }
+.quest-next-label { font-size: 12px; color: #ff8a5c; letter-spacing: .08em; }
+.quest-next.work .quest-next-label { color: #7fb5ff; }
+.quest-next.end .quest-next-label { color: #8fd6a4; }
+.quest-next-what { font-size: 17px; }
+.quest-next-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.quest-window button.primary, #quests button.primary { background: #ffe066; color: #1a1d2b; border-color: #ffe066; }
+.quest-window button.primary:hover { color: #1a1d2b; background: #fff0a8; }
+.quest-pick { display: grid; gap: 6px; }
+.quest-pick label, .quest-window fieldset label:has(input[type="radio"]) { display: flex; gap: 8px; align-items: center; }
+.quest-pick input, .quest-window input[type="radio"], .quest-window input[type="checkbox"] { width: auto; }
+.quest-accept { display: grid; gap: 8px; }
+.quest-facts { display: grid; grid-template-columns: 7em minmax(0, 1fr); gap: 6px 12px; margin: 0; font-size: 14px; }
+.quest-facts dt { color: #9a98ad; }
+.quest-facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.quest-accepted { display: grid; gap: 4px; }
+.quest-window fieldset { border: 1px solid #605776; display: grid; gap: 6px; }
 .quest-fold { border-top: 1px solid #605776; margin-top: 10px; padding-top: 8px; }
 .quest-fold > summary { cursor: pointer; color: #f9c22b; padding: 4px 0; }
 .quest-fold[open] > summary { margin-bottom: 8px; }
+.quest-window [hidden], #quests [hidden] { display: none !important; }

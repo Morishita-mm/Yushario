@@ -59,10 +59,10 @@ export function questHandoff(quest: QuestDetail, members: PartyHero[], sessions:
         ...(recipient.value === "new" ? { preset: kind.value, cwd: cwd.value } : { session: recipient.value }) });
       drafts.delete(quest.id); root.closest<HTMLElement>(".quest-party")!.dataset.dirty = "true";
       // Delivered means typed into the terminal, not that the hero has started the work.
-      status.textContent = result.delivered ? tr("巻物を とどけた。読みはじめたかは 勇者の ようすで たしかめて", "Scroll delivered. Watch the hero to see that it starts.")
-        : tr("巻物を あずけた。いまの 作業が おわったら とどく", "Scroll held. It will be delivered when the hero finishes its current work.");
+      status.textContent = result.delivered ? tr("引き継ぎのメモを 届けた。読みはじめたかは 勇者の ようすで たしかめて", "Handoff note delivered. Watch the hero to see that it starts.")
+        : tr("引き継ぎのメモを あずけた。いまの 作業が おわったら 届く", "Handoff note held. It will be delivered when the hero finishes its current work.");
     }));
-  root.append(partyField(tr("巻物 · 下書き", "Scroll · Draft"), draft), summary, append,
+  root.append(partyField(tr("引き継ぎのメモ（巻物）· 下書き", "Handoff note (scroll) · Draft"), draft), summary, append,
     partyField(tr("わたす 勇者", "Recipient"), recipient), launch,
     partyField(tr("かきかえる役を うつす", "Transfer writing role"), writer), pass);
   update();

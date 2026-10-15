@@ -64,7 +64,7 @@ describe("ledger-only handoff", () => {
     }
   });
   it("does not invent absent replies, files, or a summary", () => {
-    expect(handoffScroll({ ...quest, events: [] }, [], "en")).toBe("Quest: A title\n\nPurpose: A purpose\n\nChecks:\n—\n\nChanged files:\n—\n\nBase: /tmp/base\nbranch: quest/one\n\nLast report: —");
+    expect(handoffScroll({ ...quest, events: [] }, [], "en")).toBe("Quest: A title\n\nPurpose: A purpose\n\nAcceptance checks:\n—\n\nChanged files:\n—\n\nBase: /tmp/base\nbranch: quest/one\n\nLast report: —");
   });
 });
 describe("visible commander requests", () => {
