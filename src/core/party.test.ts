@@ -48,6 +48,7 @@ describe("party authority", () => {
       const draft = roleIntroduction({ ...member, role }, language);
       expect(draft).toContain(member.note);
       if (role === "command") expect(draft).toContain("yushario quest read");
+      else expect(draft).toContain(language === "ja" ? "自分で 送る 必要は ありません" : "do not need to send it");
     }
     expect(summaryRequest("ja")).toContain("目的・きめたこと・のこり・注意");
     expect(summaryRequest("en")).toContain("decisions");

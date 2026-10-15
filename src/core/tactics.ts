@@ -90,15 +90,15 @@ export function fixRequest(findings: readonly { name: string; text: string }[], 
 export function researchRequest(request: string, note: string, language: Language): string {
   const ja = language === "ja";
   return [
-    ja ? "【作戦：調べてから】担当が 作業を 始める 前に、次の 依頼に ついて 調べて、分かった ことを 報告してください。ファイルは 書きかえないでください。"
-      : "[Tactic: research first] Before the owner starts, research the request below and report what you find. Do not change any files.",
+    ja ? "【作戦：調べてから】担当が 作業を 始める 前に、次の 依頼に ついて 調べて、分かった ことを 報告してください。ファイルは 書きかえないでください。報告は Yushario が まとめて 担当に 届けます。自分で 送る 必要は ありません。"
+      : "[Tactic: research first] Before the owner starts, research the request below and report what you find. Do not change any files. Yushario passes your report to the owner; you do not need to send it yourself.",
     ...(note ? [`${ja ? "見てほしい 観点" : "Focus"}: ${note}`] : []),
     `${ja ? "依頼" : "Request"}:\n${request}`,
   ].join("\n\n");
 }
 export function researchedRequest(request: string, reports: readonly { name: string; text: string }[], language: Language): string {
   const ja = language === "ja";
-  return [request, ja ? "--- 調べる役の 報告 ---" : "--- Research reports ---", ...reports.map((report) => `■ ${report.name}\n${report.text.trim()}`)].join("\n\n");
+  return [request, ja ? "--- 調べる役の 報告（これを もとに 進めてください） ---" : "--- Research reports (build on these) ---", ...reports.map((report) => `■ ${report.name}\n${report.text.trim()}`)].join("\n\n");
 }
 export function relayToCommander(name: string, report: string, language: Language): string {
   return language === "ja" ? `【作戦：全部任せた】${name}から 報告が 届きました。\n\n${report.trim()}` : `[Tactic: leave it all] ${name} reported:\n\n${report.trim()}`;

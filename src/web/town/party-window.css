@@ -86,3 +86,5 @@
 .pw-commands h4 { grid-column: 1 / -1; margin: 0 0 4px; font-weight: normal; color: #ffe066; }
 .pw-message { display: grid; gap: 8px; }
 .pw-message:empty { display: none; }
+.pw-tip { margin: 0; color: #ffe066; font-size: 13px; line-height: 1.6; }
+.pw-tip[hidden] { display: none; }

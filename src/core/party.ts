@@ -26,10 +26,14 @@ export function roleIntroduction(member: Pick<PartyMember, "role" | "note" | "wr
   const ja = language === "ja", role = roleLabel(member.role, language);
   const text = ja ? `あなたは このクエストの ${role}役です。${member.writer ? "ファイルを かきかえる役です。" : "ファイルは かきかえず、気づいたことを ほうこくしてください。"}`
     : `You are this quest's ${role.toLowerCase()} hero. ${member.writer ? "You hold the writing role." : "Do not change files; report your findings."}`;
+  // Helpers cannot message other heroes: say where the report goes so they do not look for a way to pass it on.
+  const route = member.writer || member.role === "command" ? "" : ja
+    ? "\nあなたの 報告は Yushario が 受け取り、頼んだ人に 届けます（作戦に よっては 担当にも 届けます）。ほかの 勇者に 自分で 送る 必要は ありません。"
+    : "\nYushario passes your report to whoever asked (and to the owner when the tactic says so). You do not need to send it to other heroes yourself.";
   const tool = member.role !== "command" ? "" : ja
     ? "\n管理の道具: yushario quest read --json / note --text '…' / send --session <id> --text '…' / invite --session <id> --role review / review\n新しい仲間: invite --preset <kind> --cwd <path> --role <role>。仲間と役割は 人の はいを まちます。done には できません。道具の場所は $AGENT_CHARACTER_QUEST_TOOL。"
     : "\nTools: yushario quest read --json / note --text '…' / send --session <id> --text '…' / invite --session <id> --role review / review\nNew hero: invite --preset <kind> --cwd <path> --role <role>. Invitations and role changes await human approval. You cannot mark done. Tool path: $AGENT_CHARACTER_QUEST_TOOL.";
-  return text + (member.note ? `\n${member.note}` : "") + tool;
+  return text + route + (member.note ? `\n${member.note}` : "") + tool;
 }
 export function partyEditFiles(event: AgentEvent): string[] {
   return event.hook === "PostToolUse" && event.state !== "error" && event.tool && event.target && toolActivity(event.tool, event.target) === "edit" ? [event.target] : [];

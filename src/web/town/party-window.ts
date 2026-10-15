@@ -167,13 +167,17 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
   // Ask for help: what to ask and the message. While forming it waits for the set-off; while work runs it goes now.
   function help(session: string): void {
     let role: PartyRole = forming.asks.get(session)?.role ?? "research", edited = forming.asks.has(session);
-    const chips = el("div", "pw-chips"), text = el("textarea"); text.rows = 6; text.maxLength = 8000;
+    const chips = el("div", "pw-chips"), text = el("textarea"), tip = el("p", "pw-tip"); text.rows = 6; text.maxLength = 8000;
+    // Helpers cannot pass their report to the owner themselves; the research-first tactic does it.
+    const showTip = () => { tip.hidden = role !== "research" || tactics.current()?.tactic === "research";
+      tip.textContent = tr("調べた 結果を 担当に 渡したい 時は、作戦を「調べてから」に する。報告が そろうと Yushario が 担当に 届ける。", "To hand the findings to the owner, choose the Research first tactic: Yushario passes the reports on."); };
     const draftText = () => `${roleIntroduction({ role, note: "", writer: false }, language)}\n\n${tr("頼みたいこと：", "What I need:")}`;
     text.value = forming.asks.get(session)?.text ?? draftText(); text.oninput = () => { edited = true; };
     for (const value of HELP_ROLES) {
       const chip = command(roleLabel(value, language), () => {
         role = value; chips.querySelectorAll("button").forEach((item) => item.setAttribute("aria-pressed", String(item === chip)));
         if (!edited) text.value = draftText();
+        showTip();
       }); chip.setAttribute("aria-pressed", String(value === role)); chips.append(chip);
     }
     const send = command(gathering ? tr(`▶ ${nameOf(session)}に 頼む（出発の 時に 送る）`, `▶ Ask ${nameOf(session)} (sent when you set off)`) : tr(`▶ ${nameOf(session)}に いま 頼む`, `▶ Ask ${nameOf(session)} now`), () => void (async () => {
@@ -187,7 +191,8 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
       say(result.delivered ? tr(`${nameOf(session)}に 頼んだ。`, `Asked ${nameOf(session)}.`) : tr(`${nameOf(session)}は 作業中。手が あいたら 届く。`, `${nameOf(session)} is busy; it will arrive when the hero is free.`));
     })().catch((error: Error) => { send.disabled = false; fail(error); }), true);
     commands.hidden = true;
-    showMessage(el("p", "pw-step", tr("1 何を 頼む？", "1 What should they do?")), chips, el("p", "pw-step", tr("2 伝える文（送る前に 直せる）", "2 The message (edit before sending)")), text, send);
+    showTip();
+    showMessage(el("p", "pw-step", tr("1 何を 頼む？", "1 What should they do?")), chips, tip, el("p", "pw-step", tr("2 伝える文（送る前に 直せる）", "2 The message (edit before sending)")), text, send);
     text.focus();
   }
   // Change the owner. While forming nothing is sent: the new owner gets the handoff note with the request at set-off.
