@@ -36,7 +36,9 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
   const close = () => { exit(); changed(); };
   const head = el("div", "pw-head"); head.append(title, command(tr("とじる", "Close"), close));
   const party = el("section", "pw-box"), town = el("section", "pw-box"), commands = el("section", "pw-box pw-commands"), message = el("section", "pw-box pw-message");
-  const columns = el("div", "pw-rows"); columns.append(party, town);
+  // Party, then heroes in town, then party members who left (below everyone who is here).
+  const away = el("section", "pw-box pw-away");
+  const columns = el("div", "pw-rows"); columns.append(party, town, away);
   // The tactic box is filled once the helpers below exist.
   const tacticSlot = el("div");
   const pending = request === undefined ? undefined : el("section", "pw-box pw-request"), draft = el("textarea");
@@ -45,6 +47,8 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
   dialog.addEventListener("keydown", (event) => event.stopPropagation());
   const prefix = `quests/${encodeURIComponent(quest.id)}`, mock = controls?.mock;
   let members: PartyHero[] = mock ?? [], sessions: Session[] = [], agents: AgentInfo[] = [];
+  // Departed heroes that can be recalled: the roster keeps their gear and CLI.
+  let roster: { sessionId: string; name?: string; preset?: string; weapon?: string; accessory?: string }[] = [];
   const owner = () => members.find((member) => member.writer);
   const canTalk = (session: Session) => mock ? true : agents.some((agent) => agent.id === session.preset && agent.hero);
   // The town's own name for a hero first, so the same hero reads the same everywhere. Never a raw session id;
@@ -75,7 +79,8 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
   tacticSlot.replaceWith(tactics.root);
   async function reload(): Promise<void> {
     if (mock) { render(); return; }
-    [members, sessions, agents] = await Promise.all([partyRequest(`${prefix}/party`), partyRequest("sessions"), partyRequest("agents")]);
+    [members, sessions, agents, roster] = await Promise.all([partyRequest(`${prefix}/party`), partyRequest("sessions"), partyRequest("agents"),
+      partyRequest("roster").catch(() => [])]);
     await tactics.load(); render();
   }
   // A card per hero, like a party screen: picture, name, role, CLI, model and effort, MP and state.
@@ -109,11 +114,9 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
     add.classList.add("pw-card", "pw-add"); add.append(el("span", "pw-plus", "＋"), el("span", undefined, tr("仲間を 足す", "Add a hero")));
     slots.append(add);
     party.replaceChildren(el("h4", undefined, tr(`いまの パーティー（${present.length}）`, `The party (${present.length})`)), slots);
-    if (gone.length) {
-      const away = el("div", "pw-cards small pw-gone");
-      for (const member of gone) away.append(card(member.session, member.sessionInfo?.preset, memberBadge(member), member.writer, tr("去った（よびもどせる）", "Left (can be recalled)"), () => chooseMember(member), true));
-      party.append(el("h4", undefined, tr(`町を 去った 仲間（${gone.length}）`, `Party members who left (${gone.length})`)), away);
-    }
+    away.hidden = !gone.length;
+    away.replaceChildren(el("h4", undefined, tr(`町を 去った 仲間（${gone.length}）`, `Party members who left (${gone.length})`)));
+    for (const member of gone) away.append(goneRow(member));
     const free = sessions.filter((session) => session.project === quest.town && !session.exited && !members.some((member) => member.session === session.id));
     const row = el("div", "pw-cards small");
     for (const session of free) {
@@ -135,6 +138,26 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
     const title = el("h4"); title.append(heading);
     commands.replaceChildren(title, ...buttons, command(tr("やめる", "Cancel"), () => { commands.hidden = true; guide(); }));
     buttons[0]?.focus();
+  }
+  // A departed member is one line: name, HP, MP, model and effort. No picture.
+  function goneRow(member: PartyHero): HTMLButtonElement {
+    const entry = roster.find((item) => item.sessionId === member.hero), info = controls?.heroInfo?.(member.session) ?? {};
+    const value = (n?: number) => n === undefined ? "？" : String(Math.round(n * 100));
+    const gear = entry ? controls?.savedGear?.(entry.preset, entry) : info.gear;
+    const row = command(`${entry?.name ?? nameOf(member.session)} · HP ${value(info.hp)} · MP ${value(info.mp)} · ${gear ?? tr("モデル・effort 不明", "Model and effort unknown")}`, () => chooseGone(member, entry));
+    row.classList.add("pw-gone-row"); return row;
+  }
+  function chooseGone(member: PartyHero, entry: { sessionId: string; name?: string } | undefined): void {
+    const name = entry?.name ?? nameOf(member.session);
+    const buttons = [command(tr("パーティーから 外す", "Remove from the party"), () => leave(member))];
+    if (entry) buttons.unshift(command(tr("よびもどす", "Recall"), () => {
+      if (mock) return;
+      void partyRequest(`roster/${encodeURIComponent(entry.sessionId)}/recall`, "POST").then(reload)
+        .then(() => say(tr(`${name}を よびもどした。町に 着くと 元の 役（${memberBadge(member)}）で パーティーに 戻る。`, `Recalled ${name}. It rejoins as ${memberBadge(member)} when it reaches town.`))).catch(fail);
+    }, true));
+    showCommands(name, ...buttons);
+    say(entry ? tr("よびもどすと、前の 会話の 続きから 再開して、元の 役で パーティーに 戻る。", "Recalling resumes its last conversation and it rejoins in its old role.")
+      : tr("この 勇者は よびもどせない（めいぼに ない。話しかける 前に 去ったか、続きから 再開できない CLI）。", "This hero cannot be recalled (not in the roster: it left before any request, or its CLI cannot resume)."));
   }
   function chooseMember(member: PartyHero): void {
     const hero = member.hero ?? member.session, buttons = [

@@ -42,7 +42,11 @@ export function initEquipment(hero: (id: string) => RoomAgent | undefined, name:
   // "opus · high"; anything the app cannot know (default gear, or changed inside the CLI) is "unknown".
   function brief(terminal?: string): string {
     const session = terminal ? sessions.get(terminal) : undefined;
-    const { model, effort } = session ? gearSummary(session, master[session.preset]) : {};
+    return briefGear(session?.preset, session ?? {});
+  }
+  // The same line from saved gear, for a hero whose terminal is gone (kept in the roster).
+  function briefGear(preset: string | undefined, gear: Equipment): string {
+    const { model, effort } = preset ? gearSummary(gear, master[preset]) : {};
     if (!model && !effort) return tr("モデル・effort 不明", "Model and effort unknown");
     return `${model ?? tr("モデル 不明", "model unknown")} · ${effort ?? tr("effort 不明", "effort unknown")}`;
   }
@@ -123,5 +127,5 @@ export function initEquipment(hero: (id: string) => RoomAgent | undefined, name:
     }
     render();
   }
-  return { refresh, remember, describe, brief, tiers, changed, setPending, open, reset: () => { pending = new Set(); } };
+  return { refresh, remember, describe, brief, briefGear, tiers, changed, setPending, open, reset: () => { pending = new Set(); } };
 }
