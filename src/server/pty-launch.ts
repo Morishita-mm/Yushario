@@ -58,6 +58,7 @@ export function launchPty(preset: Preset, cwd: string, id: string, port: number,
   env.AGENT_CHARACTER_PROJECT = project;
   if (agentToken) env.AGENT_CHARACTER_AGENT_TOKEN = agentToken;
   env.AGENT_CHARACTER_QUEST_TOOL = join(root, "scripts/yushario.mjs");
+  env.AGENT_CHARACTER_QUEST_SKILL = join(root, "skills/yushario-party/SKILL.md");
   env.PATH = `${dirname(settings)}:${env.PATH ?? ""}`;
   try { return spawn(path, args, { name: "xterm-256color", cols: 80, rows: 24, cwd, env }); }
   catch { throw new Error(tr(`${agent.label} を起動できませんでした。インストールとフォルダの権限を確認してください`, `Could not launch ${agent.label}. Check installation and folder permissions`)); }

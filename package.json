@@ -9,7 +9,7 @@
   "author": "Morishita-mm",
   "license": "MIT",
   "bin": { "yushario": "scripts/yushario.mjs" },
-  "files": ["dist/", "lib/", "adapters/claude-code/hook.mjs", "scripts/yushario.mjs", "LICENSE", "NOTICE"],
+  "files": ["dist/", "lib/", "adapters/claude-code/hook.mjs", "scripts/yushario.mjs", "skills/", "LICENSE", "NOTICE"],
   "type": "module",
   "engines": {
     "node": ">=22.13.0"
