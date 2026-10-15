@@ -14,15 +14,11 @@ if (!destination || options.some(a => a !== '--stills-only' && !variants.include
 const output = resolve(destination), home = mkdtempSync('/tmp/yushario-pv-');
 mkdirSync(output, { recursive: true });
 writeFileSync(join(output, 'cues.json'), JSON.stringify(cues, null, 2) + '\n');
-const towns = townSpecs.map(([name, theme]) => {
+let towns = townSpecs.map(([name, theme]) => {
   const path = join(home, 'projects', name); mkdirSync(path, { recursive: true });
   return { name, path, theme, pinned: false, firstSeenAt: 1800000000000, lastActiveAt: 1800000000000 };
 });
 writeFileSync(join(home, 'towns.json'), JSON.stringify(towns));
-writeFileSync(join(output, 'presentation-map.json'), JSON.stringify({ towns, scenes: shots.filter(s => s.state).map(s => ({
-  number: s.number, kind: s.kind, aliases: s.state.projectAliases, receiptShift: s.state.receiptShift,
-  origin: s.state.origin, note: 'Only approved project aliases and receipt translations; IDs, hooks, text and results unchanged',
-})) }, null, 2) + '\n');
 const token = randomBytes(24).toString('hex'), port = 8878;
 const executable = process.env.ORCA_CLI_COMMAND ?? (process.env.ORCA_DEV_REPO_ROOT ? 'orca-dev' : 'orca');
 const cli = (...args) => {
@@ -43,6 +39,12 @@ try {
     if (server.exitCode !== null) throw Error('PV relay exited'); await new Promise(r => setTimeout(r, 100));
   }
   if (!url) throw Error('PV relay startup timeout');
+  // Stage 14 migrates the filming aliases to real temporary-folder town keys.
+  towns = await fetch(new URL(`/api/towns?token=${token}`, url)).then(r => r.json());
+  writeFileSync(join(output, 'presentation-map.json'), JSON.stringify({ towns, scenes: shots.filter(s => s.state).map(s => ({
+    number: s.number, kind: s.kind, aliases: s.state.projectAliases, receiptShift: s.state.receiptShift,
+    origin: s.state.origin, note: 'Approved aliases resolve to temporary town keys; IDs, hooks, text and results unchanged',
+  })) }, null, 2) + '\n');
   page = cli('tab', 'create', '--url', new URL(`/logo/title.png?token=${token}`, url).href).browserPageId;
   cli('snapshot', '--page', page);
   const evaluate = expression => {

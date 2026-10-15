@@ -144,8 +144,13 @@ export async function installCamera(html, init, width, language) {
       d.querySelector('#following-stop')?.click(); d.querySelector('#world-back').click();
       if (shot.kind === 'town') w.__pvDeliver({ type: 'replay', events: [] });
       const offset = w.__pvBase + receipt - state.anchor;
+      const eventForTown = event => {
+        const alias = state.projectAliases?.[event.agent], name = alias ?? event.project;
+        const town = state.towns?.find(t => t.name === name);
+        return { ...event, project: town?.key ?? name, ...(alias ? { name: alias } : {}) };
+      };
       w.__pvDeliver({ type: 'replay', events: state.events.map(row => ({
-        event: state.projectAliases?.[row.event.agent] ? { ...row.event, project: state.projectAliases[row.event.agent], name: state.projectAliases[row.event.agent] } : row.event,
+        event: eventForTown(row.event),
         at: row.at + offset + (state.receiptShift?.[row.event.agent] ?? 0),
       })) });
       await tick();
@@ -160,7 +165,7 @@ export async function installCamera(html, init, width, language) {
         motionBase = w.__pvMotion + 1000 / 30;
       }
       if (shot.kind === 'level') {
-        w.__pvDeliver({ type: 'event', event: state.live[0].event, at: w.__pvBase + receipt }); delivered.add(0);
+        w.__pvDeliver({ type: 'event', event: eventForTown(state.live[0].event), at: w.__pvBase + receipt }); delivered.add(0);
         for (let i = 0; i < 60; i++) await tick();
       }
       return this.proof();
@@ -199,7 +204,9 @@ export async function installCamera(html, init, width, language) {
         w.__pvMs = receipt + age; w.__pvMotion = nextMotion;
         clocks.push({ frame: Math.round(shot.start * 30 + f), motion: nextMotion });
         for (const [i, row] of (state?.live ?? []).entries()) if (!delivered.has(i) && row.at - state.anchor <= age) {
-          w.__pvDeliver({ type: 'event', event: row.event, at: w.__pvBase + receipt + row.at - state.anchor }); delivered.add(i);
+          const town = state.towns?.find(t => t.name === row.event.project);
+          w.__pvDeliver({ type: 'event', event: { ...row.event, project: town?.key ?? row.event.project },
+            at: w.__pvBase + receipt + row.at - state.anchor }); delivered.add(i);
         }
         await tick(); draw(shot, f);
         if (view && ['town', 'heroes', 'biome', 'church', 'inn', 'back', 'challenge', 'reveal', 'party', 'hero-hit', 'return'].includes(shot.kind)) {

@@ -1,6 +1,6 @@
 // Mux the adopted B AAC without re-encoding; inspect all completed files.
 import assert from 'node:assert/strict';
-import { mkdirSync, readFileSync, writeFileSync, renameSync, copyFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync, unlinkSync, linkSync, rmSync, copyFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -77,8 +77,12 @@ for (const version of cues.variants) {
   ffmpeg(['-i', file, '-vf', `select='${frames.map(n => `eq(n,${n})`).join('+')}'`, '-vsync', '0', join(dir, '%03d.png')]);
   for (const [i, n] of frames.entries()) {
     const paths = samples.filter(s => s.frame === n).map(s => join(output, s.file));
-    renameSync(join(dir, `${String(i + 1).padStart(3, '0')}.png`), paths[0]);
-    for (const path of paths.slice(1)) copyFileSync(paths[0], path);
+    const extracted = join(dir, `${String(i + 1).padStart(3, '0')}.png`);
+    const silent = join(videoRoot, sourceSamples.find(s => s.frame === n).file);
+    assert.equal(sha(extracted), sha(silent), 'Completed-video pixels differ from verified silent frames');
+    // Keep every QA path without storing identical pixels twice on the filming disk.
+    unlinkSync(extracted);
+    for (const path of paths) { rmSync(path, { force: true }); linkSync(silent, path); }
   }
   const edgeLog = ffmpeg(['-ss', '28.5', '-i', file, '-vf',
     `crop=20:750:${v.width === 1080 ? 1024 : 1810}:225,signalstats,metadata=print`, '-frames:v', '1', '-f', 'null', '-']);

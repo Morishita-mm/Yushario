@@ -1,5 +1,5 @@
 // Extract exact integer frames from completed silent MP4s, not source roughs.
-import { mkdirSync, writeFileSync, renameSync, copyFileSync, readFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync, renameSync, linkSync, rmSync, readFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -42,7 +42,9 @@ for (const lang of ['ja', 'en']) for (const ratio of ['16x9', '1x1']) {
   for (const [i, n] of frames.entries()) {
     const labels = samples.filter(([frame]) => frame === n).map(([, label]) => label);
     const target = join(dir, `${labels[0]}.png`); renameSync(join(dir, `${String(i + 1).padStart(3, '0')}.png`), target);
-    for (const label of labels.slice(1)) copyFileSync(target, join(dir, `${label}.png`));
+    for (const label of labels.slice(1)) {
+      const path = join(dir, `${label}.png`); rmSync(path, { force: true }); linkSync(target, path);
+    }
   }
   checks.push({ name, seconds: duration, width: v.width, height: v.height, fps: v.r_frame_rate, frames: +v.nb_frames,
     audioStreams: 0, nativeReportBorderYMax: borderMax, bytes: +info.format.size, sha256: createHash('sha256').update(readFileSync(file)).digest('hex'),

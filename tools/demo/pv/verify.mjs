@@ -2,6 +2,8 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { Room, moods } from '../../../src/core/room.ts';
+import { parseMarkdown } from '../../../src/core/markdown.ts';
+import { markdownInlineText } from '../../../src/core/markdown-inline.ts';
 import { stats } from '../../../src/core/story.ts';
 import { townView } from '../../../src/core/town.ts';
 import { nearestRoadPoint } from '../../../src/core/walking.ts';
@@ -10,6 +12,7 @@ import { shots, sessions, duration, themes, cues } from './shots.mjs';
 import { main, party, pi, townPi, demo as D, inactivity, reportEn, englishChest } from './sources.mjs';
 const [M, C, P, P2] = [main, party, pi, townPi].map(rows => rows.filter(r => r.event));
 const root = process.argv[2] ?? '.art-work/pv/video';
+const mappedTowns = JSON.parse(readFileSync(`${root}/presentation-map.json`, 'utf8')).towns;
 const originals = new Set([...M, ...C, ...P, ...P2, ...D].map(({ event, at }) => JSON.stringify({ event, at })));
 const master = JSON.parse(readFileSync('src/server/equipment.json', 'utf8'));
 const townArt = JSON.parse(readFileSync('public/art/manifest.json')).find(s => s.id === 'bld-inn').town;
@@ -49,7 +52,7 @@ for (const shot of shots) {
   }
   if (shot.kind === 'treasure') {
     const reply = hero.agent.talk.at(-1); assert.equal(reply.report.kind, 'chest'); assert.equal(reply.report.files.length, 6);
-    assert.deepEqual(reply.report.tests, { passed: 1, failed: 0 }); assert.equal(reply.report.tools, 13);
+    assert.deepEqual(reply.report.tests, { passed: 1, failed: 0, last: 'passed' }); assert.equal(reply.report.tools, 13);
     assert.equal(reply.text, M.findLast(r => r.event.hook === 'Stop').event.text);
   }
   states.push({ cut: shot.number, kind: shot.kind, place: hero.place, monster: hero.monster, helpers: hero.party.length,
@@ -64,7 +67,7 @@ for (const row of englishChest.events) englishRoom.apply(row.event, row.at);
 const englishReply = englishRoom.agents.get(englishChest.id).talk.at(-1);
 assert.equal(englishReply.text, reportEn.findLast(r => r.event.hook === 'Stop').event.text);
 assert.equal(englishReply.report.kind, 'chest'); assert.equal(englishReply.report.files.length, 6);
-assert.deepEqual(englishReply.report.tests, { passed: 1, failed: 0 });
+assert.deepEqual(englishReply.report.tests, { passed: 1, failed: 0, last: 'passed' });
 assert.ok(!/[ぁ-んァ-ヶ一-龯]/u.test(englishReply.text), 'Recorded English reply contains Japanese');
 const measured = [];
 for (const lang of ['ja', 'en']) for (const ratio of ['16x9', '1x1']) {
@@ -80,6 +83,8 @@ for (const lang of ['ja', 'en']) for (const ratio of ['16x9', '1x1']) {
   assert.deepEqual(walk.continuity.map(c => c.theme), themes); assert.equal(walk.positions.length, 225);
   for (const [i, change] of walk.continuity.entries()) {
     assert.equal(change.persisted.theme, change.theme); assert.equal(change.frame, 240 + i * 45);
+    assert.equal(change.persisted.key, mappedTowns.find(t => t.name === 'quiet-quest').key);
+    assert.ok(change.persisted.key.startsWith('/private/tmp/yushario-pv-') || change.persisted.key.startsWith('/tmp/yushario-pv-'));
     assert.equal(change.transition, 'continuous walk / fixed camera / native theme change');
     assert.deepEqual(change.before, change.after, 'Theme changes move the hero');
   }
@@ -198,10 +203,12 @@ for (const lang of ['ja', 'en']) for (const ratio of ['16x9', '1x1']) {
     'Genuine level-up DOM line is outside the captured screenshot');
   const treasure = proof.scenes.find(s => s.kind === 'treasure').after.treasure;
   assert.equal(treasure.unreadBefore, true); assert.equal(treasure.realBadgeClicked, true); assert.equal(treasure.dialogOpen, true);
-  assert.equal(treasure.files.length, 6); assert.match(treasure.tests, lang === 'ja' ? /テスト ○1 ×0/ : /Tests ○1 ×0/);
+  assert.equal(treasure.files.length, 6); assert.match(treasure.tests, lang === 'ja' ? /テストの じっこう ○1 ×0/ : /Test runs ○1 ×0/);
   assert.match(treasure.card, lang === 'ja' ? /しょうり！ ファイル 6つを なおした/ : /Victory! Files fixed: 6/);
   const expectedText = lang === 'ja' ? M.findLast(r => r.event.hook === 'Stop').event.text : englishReply.text;
-  assert.equal(treasure.firstLine, expectedText.split('\n')[0]);
+  const firstParagraph = parseMarkdown(expectedText)[0];
+  assert.equal(firstParagraph.type, 'paragraph');
+  assert.equal(treasure.firstLine, markdownInlineText(firstParagraph.children));
   if (lang === 'en') {
     assert.deepEqual(treasure.files, englishReply.report.files);
     assert.ok(treasure.tests.includes(`Tools ${englishReply.report.tools}`), 'English tool tally differs from real recording');
@@ -216,6 +223,8 @@ for (const lang of ['ja', 'en']) for (const ratio of ['16x9', '1x1']) {
     assert.ok(box.width > 0 && b.left >= box.left - 1 && b.right <= box.right + 1 && b.bottom <= box.bottom + 1,
       `Report UI overflows its box: ${text}`);
   }
+  assert.ok(treasure.conclusionBounds.left >= treasure.bodyBounds.left && treasure.conclusionBounds.right <= treasure.bodyBounds.right,
+    'Rendered Markdown conclusion overflows horizontally');
   assert.ok(treasure.bodyBounds.bottom >= treasure.conclusionBounds.bottom && treasure.bodyBounds.bottom - treasure.conclusionBounds.bottom <= 5,
     'Report must show the entire conclusion without the following detail heading');
   measured.push({ variant, framing: framingSummary, changes: walk.continuity, positions: walk.positions, townSteps,

@@ -176,7 +176,7 @@ export async function extendCamera(width, language) {
         dialog::backdrop{background:rgba(0,0,0,.25)}.talk-heading h3{font-size:28px!important}.talk-heading button,#talk-form,#talk-status,#talk-foreign,.talk-pages,.talk-window>footer{display:none!important}
         #talk-history{overflow:hidden!important}.talk-line.you,.report-card:not(.chest){display:none!important}.report-card.chest{padding:22px!important;margin:6px 0!important}.report-headline{font-size:${square ? 32 : 40}px!important}
         .report-time{font-size:22px!important}.report-files{column-count:2;font-size:${square ? 29 : 32}px!important;line-height:1.4!important;padding-left:28px!important;margin:14px 0!important}.report-tally p{font-size:${square ? 29 : 34}px!important;padding:10px 0!important}
-        .talk-body{font-size:${square ? 29 : 34}px!important;line-height:1.5!important;overflow:hidden!important}.report-more{display:none!important}
+        .talk-body{font-size:${square ? 29 : 34}px!important;line-height:1.5!important;overflow:hidden!important}.talk-body code{font-size:1em!important;line-height:inherit!important}.report-more{display:none!important}
         #pv4-chest-heading{position:fixed;top:0;left:0;width:${width}px;padding:55px 0 40px;background:#0d0b14;color:#ffe066;text-align:center;font:800 ${square ? 64 : 82}px/1.4 system-ui;z-index:999}`;
       d.head.append(css);
       for (const [id, text] of [['pv4-chest-heading', ja ? '開けてみよう' : 'See what awaits']]) {
@@ -184,25 +184,27 @@ export async function extendCamera(width, language) {
       }
       const history = d.querySelector('#talk-history'); history.scrollTop = card.offsetTop - history.offsetTop;
       // Clip at the measured end of the genuine first paragraph; leave the stored/DOM text intact.
-      const body = card.querySelector('.talk-body'), text = body.querySelector('span').firstChild;
-      const range = d.createRange(), newline = text.textContent.indexOf('\n');
-      range.setStart(text, 0); range.setEnd(text, newline < 0 ? text.length : newline);
-      const conclusionBounds = range.getBoundingClientRect();
+      const body = card.querySelector('.talk-body'), paragraph = body.querySelector(':scope > p');
+      if (!paragraph) throw Error('Missing genuine Markdown conclusion paragraph');
+      const bodyText = body.textContent, range = d.createRange();
+      range.selectNodeContents(paragraph);
+      let conclusionBounds = range.getBoundingClientRect();
       const conclusionHeight = Math.ceil(conclusionBounds.bottom - body.getBoundingClientRect().top + 4);
       body.style.setProperty('height', `${conclusionHeight}px`, 'important');
       body.style.setProperty('max-height', `${conclusionHeight}px`, 'important');
       output.hidden = true; await tick();
       // Wait for two real outer-document compositor frames, not the replay iframe's queued clock.
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      conclusionBounds = range.getBoundingClientRect(); // Clipping can change the history scroll position.
       treasureProof = { unreadBefore, realBadgeClicked: true, dialogOpen: true, card: card.innerText,
         files: [...card.querySelectorAll('.report-files li')].map(el => el.textContent),
-        tests: card.querySelector('.report-tally p').textContent, firstLine: card.querySelector('.talk-body').innerText.split('\n')[0],
+        tests: card.querySelector('.report-tally p').textContent, firstLine: paragraph.textContent,
         ui: ['.talk-heading h3', '.report-headline', '.report-time', '.report-tally p'].map(selector => {
           const el = selector.startsWith('.talk-heading') ? d.querySelector(selector) : card.querySelector(selector);
           const range = d.createRange(); range.selectNodeContents(el);
           return { text: el.textContent, textBounds: range.getBoundingClientRect().toJSON(), box: el.getBoundingClientRect().toJSON() };
         }),
-        conclusionBounds: conclusionBounds.toJSON(), conclusionHeight, bodyTextIntact: body.textContent === text.textContent,
+        conclusionBounds: conclusionBounds.toJSON(), conclusionHeight, bodyTextIntact: body.textContent === bodyText,
         read: JSON.parse(w.localStorage.getItem('yushario-read-reports')).filter(([id]) => id === treasureId),
         bounds: card.getBoundingClientRect().toJSON(), bodyBounds: card.querySelector('.talk-body').getBoundingClientRect().toJSON(),
         capture: { viewport: [innerWidth, innerHeight], iframe: frame.getBoundingClientRect().toJSON() } };

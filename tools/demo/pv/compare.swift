@@ -1,10 +1,10 @@
-// Same-frame language comparisons extracted directly from preserved v6 and current sound MP4s.
+// Same-frame reshoot comparisons extracted directly from preserved v7 and current sound MP4s.
 import AppKit
 import Foundation
 let root = URL(fileURLWithPath: ".art-work/pv")
 let output = root.appendingPathComponent("final/qa/comparison")
 try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
-let old = root.appendingPathComponent("v6-backup/final")
+let old = root.appendingPathComponent("v7-backup/final")
 let new = root.appendingPathComponent("final")
 // Seven UI groups, including all town themes and the unchanged exact tagline boundary.
 let groups: [(String, [Int])] = [
@@ -18,7 +18,7 @@ let frames = groups.flatMap { $0.1 }.sorted()
 for variant in ["pv-ja-16x9", "pv-en-16x9", "pv-ja-1x1", "pv-en-1x1"] {
     let square = variant.hasSuffix("1x1")
     var directories: [URL] = []
-    for (side, base) in [("v6", old), ("current", new)] {
+    for (side, base) in [("v7", old), ("current", new)] {
         let directory = output.appendingPathComponent("frames/\(variant)/\(side)")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let process = Process()
@@ -44,8 +44,8 @@ for variant in ["pv-ja-16x9", "pv-en-16x9", "pv-ja-1x1", "pv-en-1x1"] {
                 .font: NSFont.boldSystemFont(ofSize: 20), .foregroundColor: NSColor.white])
         }
         text("\(variant) / \(group) / exact completed-video frames", gap, 12)
-        text("BEFORE / v6 / Japanese app", gap, 52)
-        text(variant.contains("-en-") ? "AFTER / English app" : "AFTER / Japanese app", cw + gap * 2, 52)
+        text("BEFORE / v7 / \(variant.contains("-en-") ? "English" : "Japanese") app", gap, 52)
+        text("AFTER / current / \(variant.contains("-en-") ? "English" : "Japanese") app", cw + gap * 2, 52)
         for (row, frame) in numbers.enumerated() {
             let file = String(format: "%03d.png", frames.firstIndex(of: frame)! + 1)
             let y = 104 + CGFloat(row) * (ch + 42)
@@ -61,4 +61,4 @@ for variant in ["pv-ja-16x9", "pv-en-16x9", "pv-ja-1x1", "pv-en-1x1"] {
         try rep.representation(using: .png, properties: [:])!.write(to: output.appendingPathComponent("\(variant)-\(group).png"))
     }
 }
-print("28 comparison sheets: preserved v6 left, explicit-language app right; 32 identical timestamps per variant in seven UI groups.")
+print("28 comparison sheets: preserved v7 left, current app right; 32 identical timestamps per variant in seven UI groups.")
