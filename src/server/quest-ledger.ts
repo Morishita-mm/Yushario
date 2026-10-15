@@ -135,7 +135,7 @@ export class QuestLedger {
   }
   // Records exactly which base state was accepted, then marks the quest done. Not a merge.
   adopt(id: string, result: ReviewResult | undefined, decision: QuestDecision, at = Date.now()): Quest {
-    if (!this.addEvent(id, { kind: "adopted", at, title: tr("うけとった", "Accepted"), result, decision })) throw new Error(tr("クエストが みつからない", "Quest not found"));
+    if (!this.addEvent(id, { kind: "adopted", at, title: tr("採用した", "Adopted"), result, decision })) throw new Error(tr("クエストが みつからない", "Quest not found"));
     return this.patch(id, { state: "done" }, at);
   }
   requested(session: TerminalSession, text: string, at = Date.now(), hero?: string): void {

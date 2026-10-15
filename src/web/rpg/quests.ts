@@ -176,7 +176,11 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
     const list = quests.filter((quest) => town() === undefined || quest.town === town()); counted(list.length);
     const next = JSON.stringify([list, list.map((quest) => label(quest.town)), list.map(heroLabel), list.map(ownerHere), Math.floor(Date.now() / 60_000)]);
     if (signature === next) return; signature = next;
-    renderQuestList(root, list, label, heroLabel, (quest) => { void open(quest.id); }, () => create(), Date.now(), ownerHere);
+    renderQuestList(root, list, label, heroLabel, (quest) => { void open(quest.id); }, () => create(), Date.now(), ownerHere, (quest) => {
+      if (!confirm(tr(`「${quest.title}」の きろくを けす？`, `Delete the records of "${quest.title}"?`))) return;
+      void questRequest(`/${encodeURIComponent(quest.id)}`, "DELETE").then(() => { if (selected === quest.id) dialog.close(); })
+        .catch((error: Error) => { alert(error.message); });
+    });
   }
   function set(data: { quests: Quest[]; bindings: QuestBinding[]; reports?: QuestReportLink[] }): void {
     quests = data.quests; bindings = data.bindings; signature = ""; render();

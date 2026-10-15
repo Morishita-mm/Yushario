@@ -15,7 +15,7 @@ export async function checksRequest(path: string, method = "GET", body?: unknown
 export async function confirmChecksDone(quest: Quest): Promise<boolean> {
   const data = quest.id.startsWith("mock-") ? quest : await checksRequest(`${encodeURIComponent(quest.id)}/checks`);
   const missing = (data.checks ?? []).filter((check) => checkMark(check.evidence, data.fingerprint) !== "passed");
-  return !missing.length || confirm(tr("まだ ごうかくしていない 合格条件が ある。受け取る？", "Some acceptance checks have not passed. Accept anyway?"));
+  return !missing.length || confirm(tr("まだ ごうかくしていない 合格条件が ある。採用する？", "Some acceptance checks have not passed. Adopt anyway?"));
 }
 export function questChecks(quest: Quest): HTMLElement {
   const box = document.createElement("section"); box.className = "quest-checks";

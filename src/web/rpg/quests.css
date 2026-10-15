@@ -55,3 +55,6 @@
 .quest-fold > summary { cursor: pointer; color: #f9c22b; padding: 4px 0; }
 .quest-fold[open] > summary { margin-bottom: 8px; }
 .quest-window [hidden], #quests [hidden] { display: none !important; }
+.quest-card-head { display: flex; justify-content: flex-end; }
+.quest-window .quest-card-head button, #quests .quest-row-delete { font-size: 12px; padding: 3px 8px; color: #ffb3a0; }
+#quests .quest-row-delete { justify-self: end; margin-top: 4px; }

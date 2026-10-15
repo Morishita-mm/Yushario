@@ -30,7 +30,7 @@ export type QuestCardActions = {
 };
 const STEP_NAMES: Record<typeof QUEST_STEPS[number], () => string> = {
   write: () => tr("依頼", "Request"), assign: () => tr("任せる", "Assign"), send: () => tr("指示", "Send"),
-  work: () => tr("作業", "Work"), review: () => tr("報告を見る", "Review"), accept: () => tr("受け取る", "Accept"),
+  work: () => tr("作業", "Work"), review: () => tr("報告を見る", "Review"), accept: () => tr("採用する", "Adopt"),
 };
 const element = <K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] => {
   const node = document.createElement(tag); if (className) node.className = className; if (text !== undefined) node.textContent = text; return node;
@@ -47,17 +47,19 @@ export function questCard(quest: QuestDetail, actions: QuestCardActions): HTMLEl
   // The six steps, then the one thing to do now. Editing and history stay folded below.
   const track = element("ol", "quest-track"), at = stepIndex(stage);
   QUEST_STEPS.forEach((step, index) => track.append(element("li", index < at ? "done" : index === at ? "now" : "", `${index + 1} ${STEP_NAMES[step]()}`)));
-  box.append(track, nextMove(quest, stage, who, actions, status, edit), status, facts(quest, stage, actions));
+  // Deleting is common, so it sits at the top instead of inside a fold.
+  const head = element("div", "quest-card-head");
+  head.append(button(tr("× クエストを消す", "× Delete quest"), () => {
+    if (!confirm(tr("この クエストの きろくを けす？", "Delete this quest's records?"))) return;
+    void actions.remove().catch((error: Error) => { status.textContent = error.message; });
+  }));
+  box.append(head, track, nextMove(quest, stage, who, actions, status, edit), status, facts(quest, stage, actions));
 
-  const editing = foldable(quest.id, "edit", tr("依頼と目的を書きかえる・けす", "Edit the request, purpose or state · delete"));
+  const editing = foldable(quest.id, "edit", tr("依頼と目的を書きかえる", "Edit the request, purpose or state"));
   editing.append(edit.form);
   if (actions.fold && quest.worktreePath) editing.append(button(tr("▶ 作業する場所を たたむ（worktree）", "▶ Fold the worktree"), () => {
     if (!confirm(tr("作業する場所（worktree）を たたむ？ branch は のこる。", "Fold this worktree? Its branch stays."))) return;
     void actions.fold!().catch((error: Error) => { status.textContent = error.message; });
-  }));
-  editing.append(button(tr("▶ この クエストを けす", "▶ Delete this quest"), () => {
-    if (!confirm(tr("この クエストの きろくを けす？", "Delete this quest's records?"))) return;
-    void actions.remove().catch((error: Error) => { status.textContent = error.message; });
   }));
   const tools = foldable(quest.id, "tools", tr("合格条件を足す・プレビューをつなぐ", "Add acceptance checks · connect a preview"));
   tools.append(questChecks(quest)); if (actions.preview) tools.append(actions.preview);
@@ -126,19 +128,35 @@ function nextMove(quest: QuestDetail, stage: QuestStage, who: string, actions: Q
     if (quest.hero) row.append(button(tr("▶ 答えに行く（話す窓）", "▶ Answer (talk window)"), talk, true));
     if (actions.terminal) row.append(button(tr("ターミナルを見る", "Open the terminal"), actions.terminal));
   } else if (stage === "review") {
-    what.textContent = tr("報告が届いた。変更を見て、受け取るか決めよう。", "A report arrived. Look at the changes, then decide whether to accept them.");
+    what.textContent = tr("報告が届いた。変更を見て、採用するか決めよう。", "A report arrived. Look at the changes, then decide whether to adopt them.");
     const latest = quest.events.find((event) => event.kind === "report");
     if (latest) box.append(eventRow(latest, actions.talk));
     if (quest.checks?.length) box.append(checkMarks(quest.checks, quest.fingerprint, true));
-    const accept = element("div", "quest-accept"); accept.hidden = true;
+    // Adopting and asking for another try each open their own small form under the buttons.
+    const accept = element("div", "quest-accept"), retry = element("div", "quest-accept"); accept.hidden = retry.hidden = true;
+    const toggle = (shown: HTMLElement, other: HTMLElement, focus: HTMLElement) => { other.hidden = true; shown.hidden = !shown.hidden; if (!shown.hidden) focus.focus(); };
     if (actions.review) row.append(button(tr("▶ 変更を見る（かんてい）", "▶ Look at the changes (review)"), actions.review, true));
-    row.append(button(tr("受け取る", "Accept"), () => { accept.hidden = !accept.hidden; if (!accept.hidden) edit.reason.focus(); }));
-    if (quest.hero) row.append(button(tr("なおしてもらう（話す窓）", "Ask for fixes (talk window)"), talk));
+    if (quest.hero) row.append(button(tr("報告を受ける", "Read the report"), () => actions.talk(quest.hero!, latest?.at)));
+    row.append(button(tr("採用する", "Adopt"), () => toggle(accept, retry, edit.reason)));
     edit.adoption.hidden = false;
-    accept.append(edit.adoption, button(tr("▶ この版を 受け取る", "▶ Accept this state"), () => void edit.accept()));
-    box.append(row, accept); return box;
+    accept.append(edit.adoption, button(tr("▶ この版を 採用する", "▶ Adopt this state"), () => void edit.accept()));
+    if (actions.send) {
+      const text = element("textarea"); text.rows = 3; text.maxLength = 8000;
+      text.placeholder = tr("例：エラー文が まだ かたい。もっと やさしく して。", "e.g. The error text is still stiff. Make it friendlier.");
+      text.oninput = () => { box.dataset.dirty = "true"; };
+      row.append(button(tr("やり直してもらう", "Ask for another try"), () => toggle(retry, accept, text)));
+      retry.append(element("p", "hint", tr(`${who}への 新しい指示。送ると もう一度 作業する。`, `A new request for ${who}. Sending it starts another round.`)), text,
+        button(tr("▶ この指示を送る", "▶ Send this request"), () => {
+          if (!text.value.trim()) { text.focus(); return; }
+          void actions.send!(text.value, []).then((delivered) => {
+            delete box.dataset.dirty; retry.hidden = true;
+            status.textContent = delivered ? tr("指示を 届けた", "Request delivered") : tr("指示を あずけた。勇者の 手が あいたら 届く", "Request held. It will be delivered when the hero is free.");
+          }).catch(fail);
+        }, true));
+    }
+    box.append(row, accept, retry); return box;
   } else if (stage === "done") {
-    what.textContent = tr("✓ 受け取った", "✓ Accepted");
+    what.textContent = tr("✓ 採用した", "✓ Adopted");
     const accepted = quest.events.find((event) => event.kind === "adopted");
     if (accepted) box.append(acceptedView(accepted));
   } else what.textContent = tr("やめた クエスト", "Dropped quest");
@@ -175,7 +193,7 @@ function editForm(quest: QuestDetail, actions: QuestCardActions, status: HTMLEle
   const adoption = element("fieldset"), reason = element("textarea"), pr = element("input");
   reason.maxLength = 500; reason.rows = 2; pr.type = "url"; pr.maxLength = 500; pr.placeholder = "https://";
   adoption.oninput = () => { adoption.dataset.dirty = "true"; };
-  adoption.append(element("legend", undefined, tr("受け取る 記録（main への 取りこみ では ない）", "Acceptance record (not a merge into main)")));
+  adoption.append(element("legend", undefined, tr("採用の 記録（main への 取りこみ では ない）", "Adoption record (not a merge into main)")));
   for (const [text, input] of [[tr("理由（なくても よい）", "Reason (optional)"), reason], [tr("PR の URL（なくても よい）", "PR URL (optional)"), pr]] as const) {
     const label = element("label"); label.append(document.createTextNode(text), input); adoption.append(label);
   }
@@ -217,7 +235,7 @@ function eventRow(event: QuestEvent, talk: (hero: string, at?: number) => void):
     : event.kind === "assigned" ? tr("勇者に 任せた", "Hero assigned")
     : event.kind === "reviewed" ? tr("変更を 見た（かんてい）", "Opened the changes (review)")
     : event.kind === "verdict" ? event.decision?.verdict === "approved" ? tr("鑑定：みとめた", "Review: approved") : tr("鑑定：なおしが いる", "Review: changes needed")
-    : event.kind === "adopted" ? tr("受け取った", "Accepted")
+    : event.kind === "adopted" ? tr("採用した", "Adopted")
     : event.kind === "report" ? reportTitle(event.report, language) : partyEventTitle(event.kind, event.title, language);
   const text = `${clock(event.at, true)} · ${headline}`;
   if (event.kind === "report" && event.hero) row.append(button(text, () => talk(event.hero!, event.at)));
@@ -236,13 +254,13 @@ function eventRow(event: QuestEvent, talk: (hero: string, at?: number) => void):
 }
 function acceptedView(event: QuestEvent): HTMLElement {
   const box = element("section", "quest-accepted");
-  box.append(element("p", undefined, `${tr("受け取った 版", "Accepted state")}: ${event.result?.branch ?? "—"} · HEAD ${event.result?.head ?? "—"}${event.decision?.changes ? "" : tr(" · じょうたい ふめい", " · State unknown")}`));
+  box.append(element("p", undefined, `${tr("採用した 版", "Adopted state")}: ${event.result?.branch ?? "—"} · HEAD ${event.result?.head ?? "—"}${event.decision?.changes ? "" : tr(" · じょうたい ふめい", " · State unknown")}`));
   const marks = event.decision?.checks ?? [];
   if (marks.length) box.append(element("p", "hint", marks.map((check) => `${check.name}: ${checkMarkLabel(check.mark)}`).join(" · ")));
   if (event.decision?.reason) box.append(element("p", undefined, event.decision.reason));
   if (event.decision?.pr) {
     const link = element("a", undefined, `PR: ${event.decision.pr}`); link.href = event.decision.pr; link.target = "_blank"; link.rel = "noopener noreferrer"; box.append(link);
   }
-  box.append(element("p", "hint", tr("受け取った ＝ main への 取りこみ では ない。取りこみは PR で。", "Accepted is not merged into main. Merge through your PR.")));
+  box.append(element("p", "hint", tr("採用した ＝ main への 取りこみ では ない。取りこみは PR で。", "Adopted is not merged into main. Merge through your PR.")));
   return box;
 }

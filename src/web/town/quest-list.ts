@@ -3,13 +3,13 @@ import { questStage, yourTurn, type QuestStage } from "../../core/quest-stage";
 import { ago, tr } from "../language";
 import { checkMarks } from "./check-marks";
 // Saved states, as statuses. The list and card lead with the stage (what to do next) instead.
-export const questStateLabel = (state: QuestState): string => ({ open: tr("準備中", "Getting ready"), active: tr("作業中", "Working"), waiting: tr("返事を待っている", "Waiting for you"), review: tr("報告が届いた", "Report arrived"), done: tr("受け取った", "Accepted"), dropped: tr("やめた", "Dropped") })[state];
+export const questStateLabel = (state: QuestState): string => ({ open: tr("準備中", "Getting ready"), active: tr("作業中", "Working"), waiting: tr("返事を待っている", "Waiting for you"), review: tr("報告が届いた", "Report arrived"), done: tr("採用した", "Adopted"), dropped: tr("やめた", "Dropped") })[state];
 export const questStateMark = (state: QuestState): string => ({ open: "◇", active: "⚔", waiting: "❗", review: "📜", done: "✓", dropped: "―" })[state];
-export const questStageLabel = (stage: QuestStage): string => ({ assign: tr("任せる人を決める", "Choose a hero"), send: tr("指示を送る", "Send the request"), work: tr("作業中", "Working"), waiting: tr("返事を待っている", "Waiting for you"), review: tr("報告を見る", "Read the report"), done: tr("受け取った", "Accepted"), dropped: tr("やめた", "Dropped") })[stage];
+export const questStageLabel = (stage: QuestStage): string => ({ assign: tr("任せる人を決める", "Choose a hero"), send: tr("指示を送る", "Send the request"), work: tr("作業中", "Working"), waiting: tr("返事を待っている", "Waiting for you"), review: tr("報告を見る", "Read the report"), done: tr("採用した", "Adopted"), dropped: tr("やめた", "Dropped") })[stage];
 const STAGE_MARK: Record<QuestStage, string> = { assign: "◇", send: "✉", work: "⚔", waiting: "❗", review: "📜", done: "✓", dropped: "―" };
 export function renderQuestList(root: HTMLElement, quests: Quest[], townName: (key: string) => string,
   heroName: (quest: Quest) => string, pick: (quest: Quest) => void, create: () => void, now: number,
-  ownerHere: (quest: Quest) => boolean = () => true): void {
+  ownerHere: (quest: Quest) => boolean = () => true, remove?: (quest: Quest) => void): void {
   const controls = [...root.querySelectorAll<HTMLElement>("[data-focus]")];
   const focused = controls.find((item) => item === document.activeElement)?.dataset.focus;
   const position = controls.findIndex((item) => item.dataset.focus === focused);
@@ -56,6 +56,12 @@ export function renderQuestList(root: HTMLElement, quests: Quest[], townName: (k
     meta.textContent = [who || tr("まだ 誰にも任せていない", "Not assigned yet"), tr(`町：${townName(quest.town)}`, `Town: ${townName(quest.town)}`), quest.worktreeBranch ? `⑂ ${quest.worktreeBranch}` : "", ago(now - quest.updatedAt)].filter(Boolean).join(" · ");
     const marks = checkMarks(quest.checks, quest.fingerprint);
     [...marks.querySelectorAll<HTMLElement>(".check-mark")].forEach((item, index) => { item.dataset.focus = `check:${quest.id}:${quest.checks![index].id}`; });
-    button.title = questStateLabel(quest.state); button.append(top, meta); button.onclick = () => pick(quest); row.append(button, marks); return row;
+    button.title = questStateLabel(quest.state); button.append(top, meta); button.onclick = () => pick(quest); row.append(button, marks);
+    if (remove) {
+      const del = document.createElement("button"); del.type = "button"; del.className = "quest-row-delete"; del.dataset.focus = `delete:${quest.id}`;
+      del.textContent = tr("× 消す", "× Delete"); del.setAttribute("aria-label", tr(`「${quest.title}」を 消す`, `Delete "${quest.title}"`));
+      del.onclick = () => remove(quest); row.append(del);
+    }
+    return row;
   }
 }
