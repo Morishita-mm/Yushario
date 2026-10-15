@@ -72,8 +72,10 @@ export function initPreview(tell: (session: string, text: string) => void) {
   }
   function openTown(value: Scope): void {
     const dialog = document.createElement("dialog"); dialog.className = "report-window preview-window";
+    const title = document.createElement("h3"); title.textContent = tr("町の プレビュー", "Town preview");
+    title.id = `town-preview-title-${crypto.randomUUID()}`; dialog.setAttribute("aria-labelledby", title.id);
     const close = document.createElement("button"); close.type = "button"; close.textContent = tr("▶ とじる", "▶ Close"); close.onclick = () => dialog.close();
-    dialog.append(mount(value, true), close); dialog.addEventListener("close", () => dialog.remove(), { once: true });
+    dialog.append(title, mount(value, true), close); dialog.addEventListener("close", () => dialog.remove(), { once: true });
     dialog.addEventListener("keydown", (event) => event.stopPropagation()); document.body.append(dialog); dialog.showModal(); paint();
   }
   window.addEventListener("message", (event) => {

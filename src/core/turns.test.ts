@@ -22,8 +22,10 @@ describe("bounded turn aggregation", () => {
   it("does not count a test whose command shape hides its result", () => {
     const turns = emptyTurns();
     recordTurn(turns, { state: "thinking", hook: "UserPromptSubmit" }, 0);
-    recordTurn(turns, { state: "working", hook: "PostToolUse", tool: "Bash", target: "npm test || true" }, 1);
-    recordTurn(turns, { state: "error", hook: "PostToolUseFailure", tool: "Bash", target: "true; npm test" }, 2);
+    recordTurn(turns, { state: "working", hook: "PostToolUse", tool: "Bash", target: "npm test", command: "npm test || true" }, 1);
+    recordTurn(turns, { state: "error", hook: "PostToolUseFailure", tool: "Bash", target: "npm test", command: "true; npm test" }, 2);
+    // Replayed events carry no command, only the server's flag.
+    recordTurn(turns, { state: "working", hook: "PostToolUse", tool: "Bash", target: "npm test", uncertain: true }, 2.5);
     recordTurn(turns, { state: "working", hook: "PostToolUse", tool: "Bash", target: "npm test" }, 3);
     recordTurn(turns, { state: "success", hook: "Stop" }, 4);
     const talk: TalkEntry[] = [{ at: 4, from: "hero", text: "done" }];

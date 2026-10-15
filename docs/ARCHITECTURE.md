@@ -99,16 +99,18 @@ Yushario と勇者は同じ OS 利用者で動く。悪意ある同一利用者�
 | `src/web/rpg/main.ts`, `relay-message.ts` | ページの起動、名前付きの replay・ライブ更新・WS 受信。イベントと許可の受信値の読み取りを分ける。WS 切断時の読み取り API の403を通常の切断と区別し、新しい URL を案内 | core, web/rpg, DOM, WS |
 | `src/web/rpg/report-links.ts` | 開いた会話の返事だけ報告の所属を遅延取得、最近200件のページ内保持。題は現在のクエスト一覧から読む | core の型, DOM, HTTP |
 | `src/web/rpg/interrupt-status.ts` | RoomAgent.stopRequestedAt と現在時刻から、停止の確認待ち／30秒後の未確認案内を札と会話へ共通表示 | core の型, language |
+| `src/web/town/side-tabs.ts` | 本体・モック共通のサイドバー。選択タブだけ Tab 順序に入れ、左右矢印・Home・End で選択とフォーカスを移す | DOM, language |
+| `src/web/town/command.ts` | 本体・モック共通の勇者コマンド・確認と、見出しで名前を付けたモックのめいぼ | DOM, language |
 | `src/web/town/battle-commands.ts` | 本体・モック共通の戦闘コマンド。選択中の作戦の送信全文を常に表示し、focus・mouseenter・矢印カーソルから更新 | DOM, command, language |
 | `src/web/town/herald.ts`, `src/web/rpg/scene.ts`, `scene-drawing.ts`, `map-hotspots.ts`, `navigation.ts` | Scene の入力・移動と、町／室内／フィールドの描画・地図の当たり判定を分担。既存の町一覧・設定の窓は native dialog でフォーカス移動・復帰。眠る町・しまった町は通常のボタンからも開く（町一覧はモックも共通） | core, DOM, web/town |
 | `src/web/rpg/review-window.ts`, `review.css`, `file-open.ts` | 鑑定の窓、長い題の折り返しと比較元ラベルの幅の維持、報告の鑑定済み印、ブラウザのエディタ選択とファイルを開くリンク（モックも同じ窓） | core, DOM, HTTP |
 | `src/web/rpg/expedition.ts` | 出陣・端末の窓。出陣直後はパス欄へフォーカスし、読込後にその欄を隠す時だけ種類／行き先へ移す | core の型, DOM, HTTP, terminal |
 | `src/web/rpg/expedition-bases.ts`, `worktrees.css`, `src/web/town/party-list.ts` | 出陣の拠点・新しい branch／path の下書き・同じ場所の警告、勇者を拠点ごとにまとめる共通一覧 | core, DOM, HTTP |
-| `src/web/rpg/quests.ts`, `quest-settings.ts`, `talk-quest.ts` | クエストのタブと札、題・目的・ためすことの未保存入力とフォーカスの維持、会話からの選び直し、本文保存と記録削除の設定 | core, web/town, HTTP/WS |
-| `src/web/town/quest-party.ts`, `quest-handoff.ts`, `quest-party.css`, `src/web/rpg/party-notices.ts` | 本体・モック共通のパーティー・紹介文の下書き・巻物、でんれいの仲間の確認と役割外の変更 | core, DOM, HTTP/WS |
-| `src/web/town/quest-checks.ts`, `check-marks.ts`, `checks.css` | 本体・モック共通のためすこと、札・一覧・報告の印と証拠、done の確認 | core, DOM, HTTP |
+| `src/web/rpg/quests.ts`, `quest-settings.ts`, `talk-quest.ts` | クエストのタブと札、題・目的・ためすことの未保存入力とフォーカスの維持、見出しで名前を付けた窓と表示中のresizeでの位置更新、会話からの選び直し、本文保存と記録削除の設定 | core, web/town, HTTP/WS |
+| `src/web/town/quest-party.ts`, `quest-handoff.ts`, `quest-party.css`, `src/web/rpg/party-notices.ts` | 本体・モック共通のパーティー・紹介文の下書き・巻物、でんれいの仲間の確認と役割外の変更。確認窓は見出しで名前を付け、表示中だけresizeで位置更新し、閉じる時に監視を外す | core, DOM, HTTP/WS |
+| `src/web/town/quest-checks.ts`, `check-marks.ts`, `checks.css` | 本体・モック共通のためすこと、札・一覧・報告の印と見出しで名前を付けた証拠の窓、done の確認 | core, DOM, HTTP |
 | `src/web/town/quest-list.ts`, `quest-card.ts`, `quest-board.ts` | 本体・モック共通のクエスト一覧・札・掲示板の入口。一覧更新は操作中の新規／クエストID／条件ID／町の折り畳みへフォーカスを戻し、削除時だけ隣接項目へ移す | core の型・関数, DOM, art data |
-| `src/web/rpg/preview.ts`, `src/web/town/quest-preview.ts`, `preview-controls.ts`, `preview-tabs.ts`, `preview.css` | 本体・モック共通のプレビュー区画、名前付きの別タブ、エラーの一覧と会話への下書き | core, DOM, HTTP |
+| `src/web/rpg/preview.ts`, `src/web/town/quest-preview.ts`, `preview-controls.ts`, `preview-tabs.ts`, `preview.css` | 本体・モック共通のプレビュー区画、名前付きの別タブ、エラーの一覧と会話への下書き。町のプレビューとエラーの窓は見出しで名前を付ける | core, DOM, HTTP |
 | `public/preview-link.js` | opener があるページだけ、URL・題・先頭20件（各500文字）のエラーを配信元 origin へ postMessage | ブラウザ標準 API のみ |
 | `src/web/town/*` | データを引数で受け取る共有描画。ワールド・5種の町・宿屋・フィールド・戦闘、絵の読み込みと歩行。地図のラベルは描画時だけ160px以内で省略し、コマンドは親と窓自身のサイズ変更時に範囲内へ置き直す | core の型, DOM/Canvas, public/art |
 | `src/web/town/battle.ts` | 本体・モック共通の戦闘フォーカス。上の小窓の名前を内幅（武器の分を除く）で末尾省略 | core の型, DOM/Canvas, art data |
@@ -205,6 +207,12 @@ Codex の PostToolUse は成否不明として扱い、成功数・報告のテ�
 戦闘の `Focus.status[].name` は完全な名前を渡し、`drawFocus` の描画時だけ省略する。HTTP／WS の API 形式は変えない。
 画面専用の選択・開閉・下書きは各画面の中に置き、汎用ストアやイベントバスは作らない。
 
+| web 内の既存 API | 契約 |
+|---|---|
+| `initSideTabs().show(tab)` | パネル・`aria-selected`・`tabIndex` をそろえる。クリックと左右矢印・Home・End が同じ選択処理を使い、キー操作時だけフォーカスも移す |
+| `initQuests(...)`, `pickPartyNotice(...)` | 開いている窓のresizeで既存の `coverMap` を再実行する。内容のDOMを作り直さず、入力・フォーカス・スクロールを保つ。仲間の確認窓はcloseでresize監視を外す |
+| `checkMarks(...)`, `previewControls(...)`, `showRoster(...)` とクエスト・仲間・町プレビューの窓 | 名前の無かったdialogは見出しに一意のIDを付け、`aria-labelledby` で参照する。HTTP・WS の形式は変えない |
+
 ## 寿命・保存・セキュリティ
 
 - server は `127.0.0.1` のみ。起動ごとにランダムなトークンを作り、URL に表示する。token ファイルは読まず・書かず、残っていても使わない。開発時だけ明示的な `AGENT_CHARACTER_TOKEN` 指定を許す。ブラウザを自動で開く（`--no-open` で無効）。既定8790／`--port`／`PORT` から、使用中なら次の空きポートを実際に bind して使う。
@@ -237,6 +245,7 @@ Codex の PostToolUse は成否不明として扱い、成功数・報告のテ�
 - 鑑定は `execFile` の git 読み取りだけ（シェルを通さない）。外部 diff・textconv・色を無効にし、各コマンドは5秒、出力は1MiBまで。未追跡の内容は選んだ時だけ読み、バイナリ・1MiB超は本文を返さない。絶対パス・`..`・外向きのシンボリックリンクを拒否し、差分の本文は保存しない。編集後の最後のテストが成功した報告だけ宝箱、未実行・失敗は巻物。見出しは core の `reportTitle` を画面と台帳で共有する。
 - エディタ（なし＝パスをコピー／VS Code／Cursor）と報告の鑑定済み印（勇者IDと時刻、直近200件）は localStorage。ファイルを開く操作は URL／クリップボードだけで、サーバーに開く API はない。
 - プレビューの名前・URL は同じ SQLite の `quest_previews` 表（表と索引は移行3で作成、既存 quests 列は変えない）。クエスト削除時は FK CASCADE、町／全記録の削除時は町用の結び付きも削除する。端末の候補は最大20件・未完行8KiBのメモリだけ、ページの知らせ・エラー・下書きはブラウザのメモリだけ。表示中の区画の URL／候補は2秒ごとに読む。通知は `window.open` が返したそのクエスト／町のタブ（閉じていない WindowProxy）と `event.source` が一致し、結び付け済み URL と同じ origin・同じ origin の通知内 URL の時だけ受ける。タブの参照はメモリだけで、結び付き／クエストを消した時に捨て、外部へ送らず、下書きを自動送信しない。クエストの下書きの宛先は生存中で会話対応の `writerSession`、使えなければ人が生存中のパーティーから会話対応の勇者を選ぶ。終了した端末は候補に出さない。選択はページ内だけで、保存済みの writer・役割・DB の形を変えず、自動配送もしない。実装役の有無では入口を消さない。
+- サイドバーの選択タブは既存のlocalStorageキーだけを使い、矢印移動用の保存は足さない。窓の見出しIDはDOMの寿命だけ。クエスト・仲間の窓のresizeは同じDOMの寸法だけを更新し、未保存入力・フォーカス・スクロールを保存先へ送らない。
 - 一覧のフォーカス・町ごとの折り畳み・スクロール位置と、出陣の読込中のフォーカスは DOM 内だけで引き継ぎ、DB・設定・localStorage に足さない。認可切れの案内もページ内だけで、古い合言葉の再利用・保存はしない。
 - 既読は勇者IDと時刻だけをブラウザに保存する。会話の下書きはページ内だけ。クエスト札の未保存の題・目的・ためすことも開いている札のDOMだけに持ち、背景の更新や遅い初回読み取りで消さない。閉じると破棄し、保存・追加を選ぶまでAPIへ送らない。各 CLI 自身の履歴保存は別。
 

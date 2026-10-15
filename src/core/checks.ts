@@ -57,6 +57,8 @@ function commandWords(command: string): { parts: string[][]; certain: boolean } 
   finishPart();
   for (const part of parts) {
     while (/^[A-Za-z_][A-Za-z0-9_]*=/.test(part[0] ?? "")) part.shift();
+    // exit/exec and friends can end the shell with status 0 before a later `&& npm test` runs.
+    if (part.some((word) => /^(exit|exec|return|logout|kill|trap|eval|source|\.|set|shopt|alias|builtin|command)$/.test(word))) certain = false;
     if (!part.length || /^(if|then|else|elif|fi|for|while|until|do|done|case|esac|function|select|!|time)$/.test(part[0])) {
       certain = false;
       part.shift(); // May identify an unknown attempt, never infer a branch ran.

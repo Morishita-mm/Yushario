@@ -68,7 +68,7 @@ describe("commands and check candidates", () => {
     expect(commandMatchesCheck("echo 'unterminated && npm test", "npm test")).toBe(false);
     expect(commandMatchesCheck("npm test", "npm test && npm run build")).toBe(false);
   });
-  it.each(['npm test || true', 'true || npm test', 'npm test; echo', 'npm test | tee x', '(npm test)', '$(npm test)', '`npm test`', 'npm test &', 'npm test\necho x', 'if npm test; then true; fi', 'npm test &&'])
+  it.each(['npm test || true', 'true || npm test', 'npm test; echo', 'npm test | tee x', '(npm test)', '$(npm test)', '`npm test`', 'npm test &', 'npm test\necho x', 'if npm test; then true; fi', 'npm test &&', 'exit 0 && npm test', 'exec true && npm test', 'set -e && npm test'])
   ("never certifies compound success OR failure: %s", (command) => {
     expect(commandMatchesCheck(command, 'npm test')).toBe(false);
     expect(certainCheckCommand(command)).toBe(false);

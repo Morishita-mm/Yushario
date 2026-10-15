@@ -51,7 +51,8 @@ function toolMark(event: AgentEvent): Tool {
   const activity = toolActivity(event.tool!, event.target);
   if (failed) mark.failures = 1;
   // `npm test || true` exits 0 whatever the tests did: only a certain command shape counts as a test result.
-  const certain = activity === "test" && (event.tool !== "Bash" || certainCheckCommand(event.command ?? event.target ?? ""));
+  const certain = activity === "test" && !event.uncertain
+    && (event.tool !== "Bash" || event.command === undefined || certainCheckCommand(event.command));
   if (certain && failed) mark.failed = 1;
   else if (certain && event.hook === "PostToolUse") mark.passed = 1;
   if (activity === "edit" && event.hook === "PostToolUse" && !failed && event.target) mark.file = event.target;

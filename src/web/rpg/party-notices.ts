@@ -22,6 +22,10 @@ export function pickPartyNotice(notice: Notice, openQuest: (id: string) => Promi
   if (!invitation && !warning) return true;
   const dialog = document.createElement("dialog"); dialog.className = "report-window party-confirmation";
   const heading = document.createElement("h3"); heading.textContent = notice.text;
+  heading.id = `party-notice-title-${crypto.randomUUID()}`; dialog.setAttribute("aria-labelledby", heading.id);
+  const resize = () => { if (dialog.open) coverMap(dialog); };
+  window.addEventListener("resize", resize);
+  dialog.addEventListener("close", () => { window.removeEventListener("resize", resize); dialog.remove(); }, { once: true });
   const status = document.createElement("p"); status.setAttribute("role", "status"); dialog.append(heading, status);
   const close = () => { dialog.close(); dialog.remove(); };
   const run = (action: () => Promise<void>) => { void action().catch((error: Error) => { status.textContent = error.message; }); };

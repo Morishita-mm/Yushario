@@ -15,6 +15,7 @@ import { handlePartyRequest } from "./party-api";
 import { handleAgentQuest } from "./party-agent-api";
 import { handleChecksRequest } from "./checks-api";
 import { observeChecks, refreshCheckFingerprint } from "./checks";
+import { certainCheckCommand } from "../core/checks";
 import { serveStatic } from "./static";
 import { handleReview } from "./review";
 import { handleWorktrees } from "./worktrees";
@@ -48,7 +49,9 @@ const ledger = new TownLedger((towns) => broadcast({ type: "towns", towns }),
 const quests = new QuestLedger((message) => { broadcast(message); party.prune(new Set(message.quests.map((quest) => quest.id))); }, () => ledger.saveConversation);
 
 function record(event: AgentEvent): boolean {
-  const { command, ...observed } = event; event = observed;
+  const { command, uncertain: _claimed, ...observed } = event;
+  // The full command is not replayed; keep only whether its shape hides a test result.
+  event = command !== undefined && !certainCheckCommand(command) ? { ...observed, uncertain: true } : observed;
   if (event.terminal && event.hook !== "SessionEnd" && !pty.agentSession(event.terminal)?.active) return false;
   // Hooks run concurrently, so order by the hook's own clock when it is plausible.
   const now = Date.now();

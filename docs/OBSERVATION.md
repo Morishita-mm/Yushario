@@ -193,6 +193,6 @@ interface AgentEvent {
 
 - Codex のツール出力・画面・transcript からの成否や MP の推測
 - 町のレイアウト編集
-- キャラ同士の会話・やりとりの演出、効果音・BGM
+- キャラ同士の会話・やりとりの演出、BGM（通知の効果音は README の「Notification sounds」のとおり実装済み）
 - 勇者の表情の描き分け（Live2D 表示・Decider は廃止）
 - 行動ログ全体の保存（仕事の台帳と、選んだ人の会話本文は段階14以降の保存対象）

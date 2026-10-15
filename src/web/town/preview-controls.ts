@@ -21,6 +21,7 @@ export function previewControls(key: string, links: PreviewLink[], pages: Map<st
       event.stopPropagation();
       const dialog = document.createElement("dialog"); dialog.className = "report-window preview-window";
       const title = document.createElement("h3"); title.textContent = page.title || link.name || tr("プレビュー", "Preview");
+      title.id = `preview-errors-title-${crypto.randomUUID()}`; dialog.setAttribute("aria-labelledby", title.id);
       const url = document.createElement("p"); url.textContent = page.url;
       const list = document.createElement("ol");
       for (const error of page.errors) { const item = document.createElement("li"); item.textContent = error; list.append(item); }

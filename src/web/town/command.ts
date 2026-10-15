@@ -175,7 +175,8 @@ export function showRoster(layer: HTMLElement, roster: Departed[], onRecall: (na
   layer.classList.remove("menu-layer");
   const box = element("div", "report-window");
   box.setAttribute("role", "dialog");
-  box.append(element("h3", undefined, tr(`ぼうけんしゃの めいぼ（${roster.length}）`, `Adventurers' roster (${roster.length})`)));
+  const title = element("h3", undefined, tr(`ぼうけんしゃの めいぼ（${roster.length}）`, `Adventurers' roster (${roster.length})`));
+  title.id = `roster-title-${crypto.randomUUID()}`; box.setAttribute("aria-labelledby", title.id); box.append(title);
   if (!roster.length) box.append(element("p", "who", tr("まだ だれも たびだって いません。", "No one has set off yet.")));
   for (const d of roster) {
     const row = element("div", "roster-row");

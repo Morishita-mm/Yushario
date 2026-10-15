@@ -24,9 +24,11 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
   const root = document.querySelector<HTMLElement>("#quests")!;
   const dialog = document.createElement("dialog"); dialog.className = "report-window quest-window";
   const heading = document.createElement("h3"), content = document.createElement("div"), close = document.createElement("button");
+  heading.id = `quest-title-${crypto.randomUUID()}`; dialog.setAttribute("aria-labelledby", heading.id);
   close.type = "button"; close.textContent = tr("▶ とじる", "▶ Close"); close.onclick = () => dialog.close();
   dialog.append(heading, content, close); document.body.append(dialog);
   dialog.addEventListener("keydown", (event) => event.stopPropagation());
+  window.addEventListener("resize", () => { if (dialog.open) coverMap(dialog); });
   dialog.addEventListener("click", (event) => { if (event.target === dialog) {
     const rect = dialog.getBoundingClientRect();
     if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) dialog.close();

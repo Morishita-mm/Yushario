@@ -16,6 +16,7 @@ export function evidenceView(evidence?: CheckEvidence): HTMLElement {
 function openEvidence(check: QuestCheck): void {
   const dialog = document.createElement("dialog"); dialog.className = "check-evidence-window";
   const title = document.createElement("h3"); title.textContent = check.name;
+  title.id = `check-evidence-title-${crypto.randomUUID()}`; dialog.setAttribute("aria-labelledby", title.id);
   const close = document.createElement("button"); close.type = "button"; close.textContent = tr("▶ とじる", "▶ Close"); close.onclick = () => dialog.close();
   dialog.append(title, evidenceView(check.evidence), close); document.body.append(dialog);
   dialog.addEventListener("keydown", (event) => event.stopPropagation());

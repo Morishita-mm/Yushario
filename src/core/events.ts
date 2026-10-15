@@ -23,6 +23,7 @@ export interface AgentEvent {
   hook?: string; // Harness hook name, e.g. "PreToolUse".
   target?: string; // What the activity is about: file basename, command head, domain…
   command?: string; // Completed command input, transient until check matching; never replayed.
+  uncertain?: boolean; // Set by the server, never by hooks: the command shape hides whether its test ran or passed.
   subagent?: { id: string; type?: string };
   task?: { id: string; subject?: string; status: TaskStatus };
 }
