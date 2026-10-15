@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseAgentEvent } from "./events";
-import { checkBasePath, checkCandidates, checkMark, certainCheckCommand, commandMatchesCheck, evidenceChecks, latestCheckEvidence, validQuestCheck, type CheckEvidence } from "./checks";
+import { checkBasePath, checkCandidates, checkMark, certainCheckCommand, commandMatchesCheck, ranAtBase, evidenceChecks, latestCheckEvidence, validQuestCheck, type CheckEvidence } from "./checks";
 
 const fingerprint = { head: "abc", changes: "123", base: "/work/base" };
 const evidence: CheckEvidence = { command: "npm test", passed: true, at: 10, session: "terminal", base: fingerprint.base, checks: ["test"], fingerprint };
@@ -51,7 +51,8 @@ describe("commands and check candidates", () => {
     expect(parseAgentEvent({ state: "working", command: 12 }).ok).toBe(false);
   });
   it("matches simple command words at the command head, not a regexp", () => {
-    expect(commandMatchesCheck("cd app && npm   run build -- --mode production", "npm run build")).toBe(true);
+    expect(commandMatchesCheck("npm   run build -- --mode production", "npm run build")).toBe(true);
+    expect(commandMatchesCheck("cd app && npm run build", "npm run build")).toBe(false);
     expect(commandMatchesCheck("npm run build", "npm run lint")).toBe(false);
     expect(commandMatchesCheck("npm test", "")).toBe(false);
     expect(commandMatchesCheck("echo abc", "a.*")).toBe(false);
@@ -68,7 +69,7 @@ describe("commands and check candidates", () => {
     expect(commandMatchesCheck("echo 'unterminated && npm test", "npm test")).toBe(false);
     expect(commandMatchesCheck("npm test", "npm test && npm run build")).toBe(false);
   });
-  it.each(['npm test || true', 'true || npm test', 'npm test; echo', 'npm test | tee x', '(npm test)', '$(npm test)', '`npm test`', 'npm test &', 'npm test\necho x', 'if npm test; then true; fi', 'npm test &&', 'exit 0 && npm test', 'exec true && npm test', 'set -e && npm test'])
+  it.each(['npm test || true', 'true || npm test', 'npm test; echo', 'npm test | tee x', '(npm test)', '$(npm test)', '`npm test`', 'npm test &', 'npm test\necho x', 'if npm test; then true; fi', 'npm test &&', 'exit 0 && npm test', 'exec true && npm test', 'set -e && npm test', 'a && npm test', 'npm test && b', 'cd /elsewhere && npm test', 'npm test && cp changed.txt value.txt'])
   ("never certifies compound success OR failure: %s", (command) => {
     expect(commandMatchesCheck(command, 'npm test')).toBe(false);
     expect(certainCheckCommand(command)).toBe(false);
@@ -78,8 +79,8 @@ describe("commands and check candidates", () => {
       expect(checkMark({ ...evidence, passed: certainCheckCommand(command) ? hook === 'PostToolUse' : undefined }, fingerprint)).toBe('unknown');
     }
   });
-  it.each(['npm test', 'a && npm test', 'npm test && b', 'a && npm test && b', "npm test -- '|| ; | & ( ) $(x) `x`'"])
-  ('certifies only the command or an AND-only sequence: %s', (command) => {
+  it.each(['npm test', 'CI=1 npm test', "npm test -- '|| ; | & ( ) $(x) `x`'"])
+  ('certifies only one plain command: %s', (command) => {
     expect(commandMatchesCheck(command, 'npm test')).toBe(true);
     expect(certainCheckCommand(command)).toBe(true);
     for (const passed of [true, false]) expect(checkMark({ ...evidence, passed }, fingerprint)).toBe(passed ? 'passed' : 'failed');
@@ -87,6 +88,12 @@ describe("commands and check candidates", () => {
   it.each(['echo "npm test || true"', "echo '(npm test)'", "echo '$(npm test)'", "echo '`npm test`'"])
   ('does not count commands inside quotes: %s', (command) => {
     expect(evidenceChecks({ state: 'working', hook: 'PostToolUse', tool: 'Bash', command }, [{ id: 'test', name: 'Test', command: 'npm test' }])).toBeUndefined();
+  });
+  it("certifies a run only in the hero's base folder", () => {
+    expect(ranAtBase("app", "/work/app")).toBe(true);
+    expect(ranAtBase(undefined, "/work/app")).toBe(true);
+    expect(ranAtBase("other", "/work/app")).toBe(false);
+    expect(ranAtBase("src", "/work/app")).toBe(false);
   });
   it("only collects finished command tools and either explicit checks or classified tests", () => {
     const checks = [{ id: "build", name: "Build", command: "npm run build" }];

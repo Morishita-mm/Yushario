@@ -15,7 +15,7 @@ import { handlePartyRequest } from "./party-api";
 import { handleAgentQuest } from "./party-agent-api";
 import { handleChecksRequest } from "./checks-api";
 import { observeChecks, refreshCheckFingerprint } from "./checks";
-import { certainCheckCommand } from "../core/checks";
+import { certainCheckCommand, ranAtBase } from "../core/checks";
 import { serveStatic } from "./static";
 import { handleReview } from "./review";
 import { handleWorktrees } from "./worktrees";
@@ -50,13 +50,13 @@ const quests = new QuestLedger((message) => { broadcast(message); party.prune(ne
 
 function record(event: AgentEvent): boolean {
   const { command, uncertain: _claimed, ...observed } = event;
-  // The full command is not replayed; keep only whether its shape hides a test result.
-  event = command !== undefined && !certainCheckCommand(command) ? { ...observed, uncertain: true } : observed;
+  const session = event.terminal ? pty.getSession(event.terminal) : undefined;
+  // The full command is not replayed; keep only whether its shape or folder hides a test result.
+  event = command !== undefined && (!certainCheckCommand(command) || session && !ranAtBase(event.name, session.cwd)) ? { ...observed, uncertain: true } : observed;
   if (event.terminal && event.hook !== "SessionEnd" && !pty.agentSession(event.terminal)?.active) return false;
   // Hooks run concurrently, so order by the hook's own clock when it is plausible.
   const now = Date.now();
   const at = event.ts !== undefined && Math.abs(event.ts - now) < 60_000 ? event.ts : now;
-  const session = event.terminal ? pty.getSession(event.terminal) : undefined;
   if (session) {
     event = { ...event, project: session.project, branch: session.branch ?? "" };
     try { if (quests.observe(session, event, at, (id) => !pty.getSession(id) || Boolean(pty.getSession(id)?.exited)) === false) return false; } catch (error) { console.error("Quest save failed:", error); }

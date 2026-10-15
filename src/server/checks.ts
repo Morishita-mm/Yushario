@@ -2,7 +2,7 @@ import { gitBuffer as git } from "./git";
 import { createHash } from "node:crypto";
 import { lstat, open, readFile, realpath } from "node:fs/promises";
 import { join, relative } from "node:path";
-import { checkBasePath, checkCandidates, checkCommand, certainCheckCommand, evidenceChecks, type WorkFingerprint } from "../core/checks";
+import { checkBasePath, checkCandidates, checkCommand, certainCheckCommand, evidenceChecks, ranAtBase, type WorkFingerprint } from "../core/checks";
 import { safeReviewPath } from "../core/review";
 import { truncateEventString, type AgentEvent } from "../core/events";
 import type { QuestLedger } from "./quest-ledger";
@@ -87,7 +87,7 @@ export function observeChecks(quests: QuestLedger, session: TerminalSession, eve
   }
   const matches = evidenceChecks(event, quests.checks.conditions(quest.id)), command = checkCommand(event);
   if (!matches || !command) return;
-  const evidence = { command: truncateEventString(command, 200), passed: certainCheckCommand(command) ? event.hook === "PostToolUse" && event.state !== "error" : undefined,
+  const evidence = { command: truncateEventString(command, 200), passed: certainCheckCommand(command) && ranAtBase(event.name, session.cwd) ? event.hook === "PostToolUse" && event.state !== "error" : undefined,
     at, session: session.id, hero: event.agent, base: session.cwd, checks: matches };
   // The event and evidence are recorded synchronously BEFORE starting any Git read.
   const id = quests.checks.record(quest.id, evidence);

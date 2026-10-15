@@ -2,7 +2,7 @@ import type { Quest, QuestBinding, QuestDetail, QuestReportLink } from "../../co
 import type { RoomAgent } from "../../core/room";
 import { tr } from "../language";
 import { questCard } from "../town/quest-card";
-import { renderQuestList } from "../town/quest-list";
+import { questStateLabel, renderQuestList } from "../town/quest-list";
 import { coverMap } from "./talk";
 import type { Project } from "../town/world";
 import { worktreeRequest, type BaseInfo } from "./expedition-bases";
@@ -34,6 +34,7 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
     if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) dialog.close();
   } });
   let quests: Quest[] = [], bindings: QuestBinding[] = [], signature = "", selected: string | undefined;
+  let shown: Pick<Quest, "title" | "purpose" | "state"> | undefined; // What the open card shows, after its own saves.
   let generation = 0;
   const label = townName;
   const heroLabel = (quest: Quest) => quest.hero ? name(quest.hero) ?? hero(quest.hero)?.name ?? quest.hero : "";
@@ -43,7 +44,16 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
     selected = id; const version = ++generation;
     const quest: QuestDetail = await questRequest(`/${encodeURIComponent(id)}`);
     if (version !== generation || refresh && (!dialog.open || editing())) return;
-    content.replaceChildren(questCard(quest, heroLabel(quest), async (patch) => { await questRequest(`/${id}`, "PATCH", patch); },
+    shown = { title: quest.title, purpose: quest.purpose, state: quest.state };
+    content.replaceChildren(questCard(quest, heroLabel(quest), async (patch) => {
+        if (patch.state) {
+          const latest: QuestDetail = await questRequest(`/${encodeURIComponent(id)}`);
+          if (latest.state !== quest.state && !confirm(tr(`この クエストは いま「${questStateLabel(latest.state)}」に なっている。「${questStateLabel(patch.state)}」に かえる？`,
+            `This quest is now "${questStateLabel(latest.state)}". Change it to "${questStateLabel(patch.state)}"?`))) throw new Error(tr("ほぞんを やめた", "Save cancelled"));
+        }
+        await questRequest(`/${id}`, "PATCH", patch);
+        if (shown) shown = { ...shown, ...patch };
+      },
       () => { if (quest.hero && hero(quest.hero)) { dialog.close(); select(quest.hero); } },
       (id, at) => { if (hero(id)) { dialog.close(); talk(id, at); } },
       async () => { await questRequest(`/${id}`, "DELETE"); dialog.close(); },
@@ -60,6 +70,16 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
         embark: () => { dialog.close(); embark(quest); },
       }, () => { dialog.close(); openReview(quest.title, { quest: quest.id }, undefined, undefined); }));
     show(quest.title);
+  }
+  // A draft is kept, but the person is told the quest changed underneath it.
+  function staleNotice(): void {
+    if (content.querySelector(".quest-stale")) return;
+    const id = selected, notice = document.createElement("p"), reload = document.createElement("button");
+    notice.className = "hint quest-stale"; notice.setAttribute("role", "status");
+    notice.textContent = tr("あたらしい 知らせが ある。ほぞんすると かきかえた所だけ のこる。", "This quest has changed. Saving keeps only the fields you edited.");
+    reload.type = "button"; reload.textContent = tr("▶ さいしんに する（かきかけは きえる）", "▶ Reload (discards your draft)");
+    reload.onclick = () => { if (id) void open(id); };
+    notice.append(" ", reload); content.querySelector(".quest-card")?.prepend(notice);
   }
   function create(session?: string, townKey = town()): void {
     selected = undefined; ++generation;
@@ -98,6 +118,10 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
     if (selected && dialog.open) {
       if (!quests.some((quest) => quest.id === selected)) dialog.close();
       else if (!editing()) void open(selected, true);
+      else {
+        const now = quests.find((quest) => quest.id === selected);
+        if (now && shown && (now.title !== shown.title || now.purpose !== shown.purpose || now.state !== shown.state)) staleNotice();
+      }
     }
   }
   return { set, render, choose, open,

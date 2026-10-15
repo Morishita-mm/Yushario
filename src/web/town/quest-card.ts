@@ -6,7 +6,7 @@ import { evidenceView } from "./check-marks";
 import { questParty, type PartyControls } from "./quest-party";
 import { partyEventTitle } from "../../core/party";
 export function questCard(quest: QuestDetail, heroName: string,
-  save: (patch: { title: string; purpose: string; state: QuestState }) => Promise<void>,
+  save: (patch: { title?: string; purpose?: string; state?: QuestState }) => Promise<void>,
   focus: () => void, report: (hero: string, at: number) => void, remove: () => Promise<void>,
   embark?: () => void, fold?: () => Promise<void>, preview?: HTMLElement, party?: PartyControls, review?: () => void): HTMLElement {
   const box = document.createElement("div"); box.className = "quest-card";
@@ -25,7 +25,12 @@ export function questCard(quest: QuestDetail, heroName: string,
     event.preventDefault(); submit.disabled = true;
     void (async () => {
       if (state.value === "done" && !await confirmChecksDone(quest)) return;
-      await save({ title: title.value.trim(), purpose: purpose.value, state: state.value as QuestState });
+      // Send only what the person changed, so a newer state is never overwritten by the form's copy.
+      const patch: { title?: string; purpose?: string; state?: QuestState } = {};
+      if (title.value.trim() !== quest.title) patch.title = title.value.trim();
+      if (purpose.value !== quest.purpose) patch.purpose = purpose.value;
+      if (state.value !== quest.state) patch.state = state.value as QuestState;
+      if (Object.keys(patch).length) await save(patch);
       delete form.dataset.dirty;
       status.textContent = tr("のこした！", "Saved!");
     })()

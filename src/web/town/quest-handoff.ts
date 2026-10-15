@@ -50,9 +50,17 @@ export function questHandoff(quest: QuestDetail, members: PartyHero[], sessions:
   const owner = members.find((member) => member.writer) ?? members.find((member) => member.session === quest.session);
   summary.disabled = !owner?.active || !owner.canTalk;
   const pass = partyButton(tr("▶ わたす", "▶ Pass scroll"), () => run(async () => {
-      if (!controls?.mock) await partyRequest(`${prefix}/handoff`, "POST", { text: draft.value, writer: writer.checked,
+      // The ledger only records the role; it never stops the old writer, so a busy one is named first.
+      const writing = members.find((member) => member.writer);
+      if (writer.checked && writing && writing.session !== recipient.value && writing.active && writing.waiting === false
+        && !confirm(tr(`いまの かきかえる役（${writing.name}）は まだ 作業中。とめずに 役だけ うつす？`,
+          `The current writer (${writing.name}) is still working. Move the role without stopping them?`))) return;
+      const result: { delivered?: boolean } = controls?.mock ? { delivered: true } : await partyRequest(`${prefix}/handoff`, "POST", { text: draft.value, writer: writer.checked,
         ...(recipient.value === "new" ? { preset: kind.value, cwd: cwd.value } : { session: recipient.value }) });
-      drafts.delete(quest.id); root.closest<HTMLElement>(".quest-party")!.dataset.dirty = "true"; status.textContent = tr("巻物を わたした！", "Scroll passed!");
+      drafts.delete(quest.id); root.closest<HTMLElement>(".quest-party")!.dataset.dirty = "true";
+      // Delivered means typed into the terminal, not that the hero has started the work.
+      status.textContent = result.delivered ? tr("巻物を とどけた。読みはじめたかは 勇者の ようすで たしかめて", "Scroll delivered. Watch the hero to see that it starts.")
+        : tr("巻物を あずけた。いまの 作業が おわったら とどく", "Scroll held. It will be delivered when the hero finishes its current work.");
     }));
   root.append(partyField(tr("巻物 · 下書き", "Scroll · Draft"), draft), summary, append,
     partyField(tr("わたす 勇者", "Recipient"), recipient), launch,

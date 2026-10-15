@@ -158,7 +158,7 @@ Codex の PostToolUse は成否不明として扱い、成功数・報告のテ�
 - `stats(agent, now)`、`narrate(event)`、`battleMonster(activity)` が RPG の見せ方を求める。
 - `townView(room, now, previousNames)` が町・勇者と安定した表示名を返す。
 - `registerTown` / `activateTown` / `archiveTowns` は入力の町一覧と時刻から新しい一覧を返す。`townKey` は内部の鍵、`townLabel` / `townNameForKey` は表示名を返し、未解決の鍵も実パスを見出しにしない。
-- `checkBasePath` は保存拠点を優先し、無い時だけ同じ町の生存中の書き換える役を選ぶ。`commandMatchesCheck` / `certainCheckCommand` は単純コマンドか `&&` だけの列に限って成否を使う。引用の中の別コマンド・コメント・別名のscriptを拾わない。`evidenceChecks` が複雑な構文内に見つけた試行は成否不明（`CheckEvidence.passed` なし）とし、走ったとは推測しない。`latestCheckEvidence` / `checkMark` は最新の証拠と今の指紋から `unrun`・`passed`・`failed`・`stale`・`unknown` を決め、指紋不明・拠点不明・別拠点を合格にしない。
+- `checkBasePath` は保存拠点を優先し、無い時だけ同じ町の生存中の書き換える役を選ぶ。`commandMatchesCheck` / `certainCheckCommand` は単純コマンド1つに限って成否を使い、`&&` の列も不明にする。`ranAtBase` はフックのフォルダ名が拠点と違う実行を不明にする。引用の中の別コマンド・コメント・別名のscriptを拾わない。`evidenceChecks` が複雑な構文内に見つけた試行は成否不明（`CheckEvidence.passed` なし）とし、走ったとは推測しない。`latestCheckEvidence` / `checkMark` は最新の証拠と今の指紋から `unrun`・`passed`・`failed`・`stale`・`unknown` を決め、指紋不明・拠点不明・別拠点を合格にしない。
 - `staleSessionEnd(event, at, latestAt)` は終了より新しい知らせの有無を判断し、Room・画面入口・台帳の破棄前に共有する。`rememberPermissionSound` は許可音の既知IDを最近256件に保つ。
 - `agentTokenBytes` は固定長の合言葉の形式を調べ、`agentAuthorized` は一致・生存・所属・役割から操作の権限を決める。比較そのものは server の `crypto.timingSafeEqual`。`handoffScroll` は台帳の値を並べるだけで要約しない。
 - `questStateForParty(state, waiting)` はメンバーの判断待ちを畳み込み、1人でも待つなら waiting、ただし人が決めた done・dropped を保つ。

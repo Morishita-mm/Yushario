@@ -27,6 +27,8 @@ export function checkBasePath(quest: { town: string; worktreePath?: string }, wr
 }
 // A deliberately small recognizer, not a shell parser. Unsafe syntax can only
 // identify an UNKNOWN attempt; it never certifies either success or failure.
+// Only one plain command is certain: `cd x && npm test` tests elsewhere and
+// `npm test && cp a b` changes the code after the test passed.
 function commandWords(command: string): { parts: string[][]; certain: boolean } {
   const parts: string[][] = [], words: string[] = [];
   let word = "", quote = "", started = false, certain = true, afterAnd = false;
@@ -64,12 +66,18 @@ function commandWords(command: string): { parts: string[][]; certain: boolean } 
       part.shift(); // May identify an unknown attempt, never infer a branch ran.
     }
   }
-  return { parts, certain: certain && parts.length > 0 };
+  return { parts, certain: certain && parts.length === 1 };
 }
 function matches(words: string[], needle: string[]): boolean {
   return needle.length > 0 && needle.every((word, index) => words[index] === word);
 }
 export function certainCheckCommand(command: string): boolean { return commandWords(command).certain; }
+// Claude Code keeps a `cd` between Bash calls; its hooks report that folder's name.
+// A run in another folder never certifies the hero's base.
+export function ranAtBase(name: string | undefined, cwd: string): boolean {
+  const base = cwd.split(/[\\/]/).filter(Boolean).pop();
+  return name === undefined || base === undefined || name === base;
+}
 export function commandMatchesCheck(command: string, shape: string): boolean {
   const needle = commandWords(shape), parsed = commandWords(command);
   return needle.certain && needle.parts.length === 1 && parsed.certain
