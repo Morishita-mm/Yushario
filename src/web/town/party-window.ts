@@ -61,6 +61,8 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
   };
   const showMessage = (...nodes: HTMLElement[]) => { message.replaceChildren(...nodes); popup.hidden = false; };
   const say = (text: string, ...extra: HTMLElement[]) => { commands.hidden = true; showMessage(el("p", undefined, text), ...extra); };
+  // A note under the commands just shown; unlike say, it keeps the commands.
+  const explain = (text: string) => showMessage(el("p", undefined, text));
   // A hint that must not cover the window (where to pick a hero, what a tactic does) goes on the hint line.
   const hint = (text: string) => { guideLine.textContent = text; };
   const fail = (error: Error) => say(error.message);
@@ -136,7 +138,7 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
         .then(() => say(tr(`${name}を よびもどした。町に 着くと 元の 役（${memberBadge(member)}）で パーティーに 戻る。`, `Recalled ${name}. It rejoins as ${memberBadge(member)} when it reaches town.`))).catch(fail);
     }, true));
     showCommands(name, ...buttons);
-    say(entry ? tr("よびもどすと、前の 会話の 続きから 再開して、元の 役で パーティーに 戻る。", "Recalling resumes its last conversation and it rejoins in its old role.")
+    explain(entry ? tr("よびもどすと、前の 会話の 続きから 再開して、元の 役で パーティーに 戻る。", "Recalling resumes its last conversation and it rejoins in its old role.")
       : tr("この 勇者は よびもどせない（めいぼに ない。話しかける 前に 去ったか、続きから 再開できない CLI）。", "This hero cannot be recalled (not in the roster: it left before any request, or its CLI cannot resume)."));
   }
   function chooseMember(member: PartyHero): void {
@@ -159,7 +161,7 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
       showCommands(nameOf(session.id), command(tr("担当にする", "Make the owner"), () => {
         if (!mock) void partyRequest(`${prefix}/assign`, "POST", { session: session.id }).then(reload).then(guide).catch(fail);
       }, true), command(tr("手伝ってもらう", "Ask for help"), () => help(session.id)));
-      say(tr("まだ 担当が いない。担当にする：この勇者が 依頼を 受ける（まだ 何も 送らない）。", "No owner yet. Make the owner: this hero takes the request (nothing is sent yet)."));
+      explain(tr("まだ 担当が いない。担当にする：この勇者が 依頼を 受ける（まだ 何も 送らない）。", "No owner yet. Make the owner: this hero takes the request (nothing is sent yet)."));
       return;
     }
     showCommands(nameOf(session.id), command(tr("手伝ってもらう", "Ask for help"), () => help(session.id), true), command(tr("担当を 交代する", "Make the owner"), () => swap(session.id)));
