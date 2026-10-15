@@ -153,14 +153,29 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
       update();
     }
     function update(): void {
-      primary.textContent = choice === "embark" ? tr("▶ 作って出陣させる", "▶ Create and embark") : choice ? tr("▶ 作って依頼する", "▶ Create and send") : tr("▶ 作る", "▶ Create");
+      primary.textContent = choice === "embark" ? tr("作って出陣させる", "Create and embark") : choice ? tr("作って依頼する", "Create and send") : tr("作る", "Create");
       team.textContent = choice === "embark" ? tr("作ってパーティーを編成する", "Create and form the party") : tr("作ってパーティーに依頼する", "Create and ask the party");
       only.hidden = !choice;
+      if (only.hidden && pick === only) select(primary);
     }
     towns.onchange = heroes;
-    primary.type = "submit"; primary.className = "primary"; only.type = "button"; only.textContent = tr("作るだけ", "Create only");
+    primary.type = "submit"; only.type = "button"; only.textContent = tr("作るだけ", "Create only");
     team.type = "button";
     const choices = document.createElement("div"); choices.className = "quest-create-actions"; choices.append(primary, team, only);
+    // A command menu: the chosen line (by pointer or ↑↓) alone carries the ▶ and the highlight.
+    let pick = primary;
+    function select(button: HTMLButtonElement): void {
+      pick = button;
+      for (const item of [primary, team, only]) item.setAttribute("aria-current", String(item === button));
+    }
+    for (const item of [primary, team, only]) { item.addEventListener("pointerenter", () => select(item)); item.addEventListener("focus", () => select(item)); }
+    choices.addEventListener("keydown", (event) => {
+      if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+      const shown = [primary, team, only].filter((item) => !item.hidden), at = shown.indexOf(pick);
+      const next = shown[(at + (event.key === "ArrowDown" ? 1 : shown.length - 1)) % shown.length];
+      event.preventDefault(); select(next); next.focus();
+    });
+    select(primary);
     form.append(label(tr("町", "Town"), towns), label(tr("依頼（1行目が クエストの名前になる）", "Request (the first line names the quest)"), request), who, choices, status);
     async function make(send: boolean, formParty = false): Promise<void> {
       const text = request.value.trim();
