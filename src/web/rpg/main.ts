@@ -99,7 +99,7 @@ const status = new Status(
   namesChanged,
   (id) => scene.select(id, true),
   equipment.describe,
-  (n) => sideTabs.count("party", n), scene.townName, reviewHero, equipment.brief,
+  (n) => sideTabs.count("party", n), scene.townName, reviewHero, equipment.brief, (id) => talk.open(id),
 );
 function namesChanged(names: Record<string, string>): void {
   scene.savedNames.clear();

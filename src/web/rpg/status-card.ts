@@ -7,7 +7,7 @@ import { heroAccent } from "../town/appearance";
 import { interruptStatus } from "./interrupt-status";
 import { codexNotice } from "./agents";
 
-const DOING: Record<Activity, (target: string) => string> = {
+export const DOING: Record<Activity, (target: string) => string> = {
   idle: () => tr("まちで ひとやすみしている", "Resting in town"), think: () => tr("たきびの まえで かんがえている", "Thinking by the fire"),
   read: (t) => tr(`としょかんで ${t || "まどうしょ"}を よんでいる`, `Reading ${t || "a spellbook"}`), search: () => tr("しょこを さがしまわっている", "Searching the archives"),
   edit: (t) => tr(`${t || "まもの"}と たたかっている`, `Battling ${t || "a monster"}`), test: (t) => tr(`しれんの ゴーレムと たたかっている ${t}`, `Battling the Golem ${t}`),

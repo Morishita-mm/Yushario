@@ -5,6 +5,9 @@ import { narrate, stats } from "../../core/story";
 import { compactRow, element, statusCard } from "./status-card";
 import { initNameEditor } from "./names";
 import { renderPartyList } from "../town/party-list";
+import { filterHeroes, stateCounts } from "../../core/hero-search";
+import { heroSearch } from "./hero-search";
+import { heroBrief } from "./hero-brief";
 import { townNameForKey } from "../../core/town-ledger";
 import { interruptStatus } from "./interrupt-status";
 
@@ -20,6 +23,8 @@ export class Status {
   private readonly details = document.querySelector<HTMLElement>("#strength-content")!;
   private readonly list = element("div", "party-list");
   private listSignature = "";
+  private last: Parameters<Status["render"]> | undefined;
+  private readonly search = heroSearch(() => { this.listSignature = ""; if (this.last) this.render(...this.last); });
   private detailed: string | undefined;
   private detailSignature = "";
   private readonly rename: ReturnType<typeof initNameEditor>;
@@ -36,6 +41,7 @@ export class Status {
     private readonly townName: (key: string) => string = (key) => townNameForKey(key, []),
     private readonly review?: (id: string) => void,
     private readonly gear?: (terminal?: string) => string,
+    private readonly talk?: (id: string) => void,
   ) {
     this.rename = initNameEditor(() => this.detailed, namesChanged);
     const close = () => this.closeDetails();
@@ -85,34 +91,31 @@ export class Status {
   }
 
   render(room: Room, now: number, selected: string | undefined, names: Map<string, string>, project?: string): void {
+    this.last = [room, now, selected, names, project];
     this.renderDetails(room, now, names);
     const cards: HTMLElement[] = [];
     for (const [id, permission] of this.permissions) if (permission.expiresAt <= now) this.permissions.delete(id);
     for (const id of this.permissionBlocks.keys()) if (!this.permissions.has(id)) this.permissionBlocks.delete(id);
-    // Inside a town only its heroes; on the world map everyone, grouped by town.
-    const agents = [...room.agents.values()].filter((agent) => project === undefined || (agent.project ?? agent.name) === project);
-    const chosen = agents.find((agent) => agent.id === selected) ?? agents[0];
-    this.counted(agents.length);
     const waiting = (id: string) => [...this.permissions.values()].some((item) => (item.agent ?? "default") === id);
-    const signature = JSON.stringify([chosen?.id, agents.map((agent) => [agent.id, names.get(agent.id) ?? agent.name, agent.project, this.townName(agent.project ?? agent.name), agent.branch,
-      agent.activity, agent.target, interruptStatus(agent, now), stats(agent, now), waiting(agent.id), this.gear?.(agent.terminal)])]);
+    // One filter for a town and the world map: the town chip (inside a town), words, and state.
+    const everyone = [...room.agents.values()].map((agent) => ({ agent, id: agent.id, town: agent.project ?? agent.name, name: names.get(agent.id) ?? agent.name,
+      townName: this.townName(agent.project ?? agent.name), branch: agent.branch, activity: agent.activity, waiting: waiting(agent.id) }));
+    const filter = this.search.filter(project), agents = filterHeroes(everyone, filter).map((hero) => hero.agent);
+    this.search.render(project, project === undefined ? undefined : this.townName(project), stateCounts(everyone, filter));
+    this.counted(filterHeroes(everyone, { town: filter.town, query: "", state: "all" }).length);
+    const chosen = agents.find((agent) => agent.id === selected) ?? agents[0];
+    const chosenPermission = [...this.permissions.values()].find((item) => (item.agent ?? "default") === chosen?.id);
+    const signature = JSON.stringify([chosen && this.signature(chosen, now, names.get(chosen.id) ?? chosen.name, chosenPermission), Math.floor(now / 60_000),
+      agents.map((agent) => [agent.id, names.get(agent.id) ?? agent.name, agent.project, this.townName(agent.project ?? agent.name), agent.branch,
+        agent.activity, agent.target, interruptStatus(agent, now), stats(agent, now), waiting(agent.id), this.gear?.(agent.terminal)])]);
     if (signature !== this.listSignature) {
       this.listSignature = signature;
       renderPartyList(this.list, agents, (agent) => compactRow(agent, now, names.get(agent.id) ?? agent.name,
-        agent === chosen, waiting(agent.id), () => this.commands(agent.id), this.gear?.(agent.terminal)), this.townName);
+        agent === chosen, waiting(agent.id), () => this.commands(agent.id), this.gear?.(agent.terminal)), this.townName,
+        (agent) => agent === chosen ? this.brief(agent, now, names, chosenPermission, room) : undefined);
+      if (!agents.length) this.list.append(element("p", "hint", everyone.length ? tr("見つからない。言葉や 町の札を 変えてみて", "No match. Try other words or remove the town chip") : tr("まだ だれも いない ようだ…", "No heroes here yet…")));
     }
-    if (agents.length) cards.push(this.list);
-    const chosenPermission = [...this.permissions.values()].find((item) => (item.agent ?? "default") === chosen?.id);
-    if (chosen) {
-      const permission = chosenPermission;
-      const name = names.get(chosen.id) ?? chosen.name;
-      const signature = this.signature(chosen, now, name, permission);
-      let card = this.root.querySelector<HTMLElement>(`[data-agent="${CSS.escape(chosen.id)}"]`);
-      if (!card || this.signatures.get(chosen.id) !== signature) {
-        card = this.card(chosen, now, name, permission); this.signatures.set(chosen.id, signature);
-      }
-      cards.push(card);
-    }
+    cards.push(this.search.root, this.list);
     for (const permission of this.permissions.values()) {
       const id = permission.agent ?? "default";
       if (permission.id === chosenPermission?.id) continue;
@@ -120,7 +123,7 @@ export class Status {
       const project = agent?.project ?? agent?.name;
       cards.push(this.permissionBlock(permission, project === undefined ? name : `${name} — ${this.townName(project)}`, agent?.terminal));
     }
-    if (!cards.length) cards.push(element("p", "empty window", tr("まだ だれも いない ようだ…", "No heroes here yet…")));
+
     if (cards.length !== this.root.children.length || cards.some((card, index) => this.root.children[index] !== card)) this.root.replaceChildren(...cards);
     for (const timer of this.root.querySelectorAll<HTMLElement>(".permission-time")) {
       const seconds = Math.max(0, Math.ceil((Number(timer.dataset.expires) - now) / 1000));
@@ -129,6 +132,15 @@ export class Status {
     for (const id of this.signatures.keys()) if (!room.agents.has(id)) this.signatures.delete(id);
   }
 
+  // The chosen hero, opened under its row: what it is doing, gear, a permission prompt, and actions.
+  private brief(agent: RoomAgent, now: number, names: Map<string, string>, permission: Permission | undefined, room: Room): HTMLElement {
+    return heroBrief(agent, now, this.gear?.(agent.terminal), permission && this.permissionBlock(permission, undefined, agent.terminal), {
+      talk: this.talk && agent.terminal ? () => this.talk!(agent.id) : undefined,
+      terminal: agent.terminal ? () => this.openTerminal(agent.terminal!) : undefined,
+      review: this.review && agent.terminal ? () => this.review!(agent.id) : undefined,
+      details: () => this.openDetails(room, Date.now(), agent.id, names),
+    });
+  }
   private card(agent: RoomAgent, now: number, name: string, permission?: Permission, detailed = false): HTMLElement {
     return statusCard(agent, moods(agent, now), permission && this.permissionBlock(permission, undefined, agent.terminal), now, name, detailed,
       () => this.select(agent.id), this.openTerminal, this.equipment(agent.terminal), this.review && (() => this.review!(agent.id)));

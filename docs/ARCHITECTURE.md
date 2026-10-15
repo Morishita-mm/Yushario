@@ -75,6 +75,7 @@ Yushario と勇者は同じ OS 利用者で動く。悪意ある同一利用者�
 | `src/core/decisions.ts` | 鑑定の判断（みとめる／なおしが いる）と うけとった記録の型と検査（PR は https だけ）、選んだ差分の行からの修正依頼の下書き | checks, review-base |
 | `src/core/quest-stage.ts` | 保存した状態と担当から、人の流れの段階（任せる・指示を送る・作業中・返事待ち・報告を見る・おわり）、誰の番か、何回目か、前の担当を読む | quests |
 | `src/core/tactics.ts` | パーティーの作戦（命令に従え・レビューし合え・調べてから・全部任せた）の編成の合否と作戦の中・外、レビューの判定の読み取り、作戦が送る文 | party |
+| `src/core/hero-search.ts` | ゆうしゃタブの絞り込み（町の札・言葉・状態）と状態ごとの数。町の中とワールドマップで共通 | activity |
 | `src/core/quests.ts` | 永続クエスト・出来事・結び付きの型、セッションごとの判断待ちを優先する状態の判定、依頼の題と保存する本文の選択、一覧の順 | events, session-actions, turns, town-ledger |
 | `src/core/party.ts`, `party-scroll.ts` | 役割・合言葉の形式・権限の純粋な判定、紹介文と台帳の事実だけの巻物 | core の型・関数のみ |
 | `src/core/names.ts`, `roster.ts` | 名前・めいぼの型と入力の判定、件数制限 | core の型・関数のみ |

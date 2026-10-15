@@ -49,3 +49,19 @@
 .permission .permission-time { color: #ffe066; font-variant-numeric: tabular-nums; }
 .permission button:disabled { opacity: 0.4; cursor: not-allowed; }
 .compact-gear { grid-column: 1 / -1; font-size: 11px; color: #9fd6ff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Hero search (stage 25): words, a removable town chip and state chips above the list. */
+.hero-search { display: grid; gap: 6px; margin-bottom: 8px; }
+.hero-search input { font: inherit; font-size: 13px; width: 100%; box-sizing: border-box; color: #fff; background: #0a0a1a; border: 1px solid #6e6a8a; border-radius: 4px; padding: 6px 8px; }
+.hero-search input:focus-visible { outline: 2px solid #ffe066; outline-offset: 1px; }
+.hero-search-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.hero-search-chips button { font: inherit; font-size: 12px; color: #ddd; background: #0a0a1a; border: 1px solid #6e6a8a; border-radius: 4px; padding: 2px 8px; cursor: pointer; }
+.hero-search-chips button[aria-pressed="true"] { color: #1a1d2b; background: #ffe066; border-color: #ffe066; }
+.hero-search-town { color: #9fd6ff !important; border-color: #4d9be6 !important; }
+.hero-search-town.off { color: #b9b1cc !important; border-style: dashed !important; border-color: #6e6a8a !important; }
+/* The chosen hero, opened under its row. */
+.hero-brief { display: grid; gap: 4px; margin: -2px 0 6px; padding: 8px 10px; border: 2px solid #ffe066; border-top: 0; border-radius: 0 0 4px 4px; background: #15132a; font-size: 13px; }
+.hero-brief p { margin: 0; overflow-wrap: anywhere; }
+.hero-brief-gear { color: #9fd6ff; font-size: 12px; }
+.hero-brief .actions { display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.hero-brief .actions button { font: inherit; font-size: 13px; color: #fff; background: transparent; border: 0; padding: 2px 0; cursor: pointer; }
+.hero-brief .actions button:hover, .hero-brief .actions button:focus-visible { color: #ffe066; }

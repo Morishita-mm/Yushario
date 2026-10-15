@@ -7,12 +7,14 @@ function element<K extends keyof HTMLElementTagNameMap>(tag: K, className: strin
   const node = document.createElement(tag); node.className = className; node.textContent = text; return node;
 }
 
+// `expand`: the chosen hero opens in place, right under its row.
 export function renderPartyList(root: HTMLElement, agents: RoomAgent[], row: (agent: RoomAgent) => HTMLElement,
-  townName: (town: string) => string = (town) => townNameForKey(town, [])): void {
+  townName: (town: string) => string = (town) => townNameForKey(town, []), expand: (agent: RoomAgent) => HTMLElement | undefined = () => undefined): void {
+  const rows = (members: RoomAgent[]) => members.flatMap((member) => { const open = expand(member); return open ? [row(member), open] : [row(member)]; });
   const grouped = root.dataset.bases === "true";
   const toggle = element("button", "party-base-toggle", tr("拠点ごとに まとめる", "Group by base")); toggle.type = "button";
   toggle.setAttribute("aria-pressed", String(grouped));
-  toggle.onclick = () => { root.dataset.bases = String(!grouped); renderPartyList(root, agents, row, townName); };
+  toggle.onclick = () => { root.dataset.bases = String(!grouped); renderPartyList(root, agents, row, townName, expand); };
   const towns = new Map<string, RoomAgent[]>();
   for (const agent of agents) {
     const town = agent.project ?? agent.name;
@@ -21,7 +23,7 @@ export function renderPartyList(root: HTMLElement, agents: RoomAgent[], row: (ag
   root.replaceChildren(toggle);
   for (const [town, members] of [...towns].sort(([a], [b]) => a.localeCompare(b))) {
     root.append(element("h3", "party-town", tr(`${townName(town)}（${members.length}人）`, `${townName(town)} (${members.length} ${members.length === 1 ? "hero" : "heroes"})`)));
-    if (!grouped) { root.append(...members.map(row)); continue; }
+    if (!grouped) { root.append(...rows(members)); continue; }
     const bases = new Map<string, RoomAgent[]>();
     for (const member of members) {
       const branch = member.branch || tr("拠点 ふめい", "Unknown base");
@@ -29,7 +31,7 @@ export function renderPartyList(root: HTMLElement, agents: RoomAgent[], row: (ag
     }
     for (const [branch, heroes] of [...bases].sort(([a], [b]) => a.localeCompare(b))) {
       const heading = element("h4", "party-base", ""); heading.append(iconLabel("branch", `${branch} (${heroes.length})`));
-      root.append(heading, ...heroes.map(row));
+      root.append(heading, ...rows(heroes));
     }
   }
 }
