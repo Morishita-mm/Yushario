@@ -15,6 +15,8 @@ export class QuestTactics {
   private readonly chosen = new Map<string, Tactic>();
   private readonly runs = new Map<string, Run>();
   private readonly ownPrompts = new Set<string>(); // Owner prompts this tactic sent, not the person.
+  // What the person wrote for a helper while forming the party; added to that helper's first tactic message.
+  private readonly notes = new Map<string, Map<string, string>>();
   constructor(private readonly party: QuestParty) {}
 
   tactic(quest: string): Tactic {
@@ -51,13 +53,21 @@ export class QuestTactics {
     const run: Run = { kind: "research", round: 1, waiting: new Set(), replies: new Map(), request };
     this.runs.set(quest, run);
     for (const session of fit.inside) {
-      const note = this.party.quests.member(session)?.note ?? "";
+      const note = this.takeNote(quest, session) ?? this.party.quests.member(session)?.note ?? "";
       try { this.party.send(quest, session, researchRequest(request, note, serverLanguage()), "tactic"); run.waiting.add(session); } catch { /* skip */ }
     }
     if (!run.waiting.size) this.stop(quest, tr("調べる役に 頼めなかった", "could not ask any researcher"), at);
     return this.status(quest);
   }
-  forgetQuest(quest: string): void { this.chosen.delete(quest); this.runs.delete(quest); }
+  forgetQuest(quest: string): void { this.chosen.delete(quest); this.runs.delete(quest); this.notes.delete(quest); }
+  setNotes(quest: string, notes: Record<string, string>): void {
+    const kept = this.notes.get(quest) ?? new Map<string, string>();
+    for (const [session, text] of Object.entries(notes)) if (this.party.quests.member(session)?.quest === quest) kept.set(session, text);
+    this.notes.set(quest, kept);
+  }
+  private takeNote(quest: string, session: string): string | undefined {
+    const note = this.notes.get(quest)?.get(session); this.notes.get(quest)?.delete(session); return note;
+  }
 
   observe(session: TerminalSession, event: AgentEvent, at: number): void {
     if (event.subagent) return;
@@ -99,9 +109,10 @@ export class QuestTactics {
     const next: Run = { kind: "review", round: (run?.round ?? 0) + 1, waiting: new Set(), replies: new Map() };
     this.runs.set(quest, next);
     const fit = tacticFit("review", this.members(quest)), detail = this.party.quests.get(quest)!;
-    const text = reviewRequest({ title: detail.title, purpose: detail.purpose, folder: this.party.pty.getSession(owner)?.cwd }, event.text, next.round, serverLanguage());
+    const base = { title: detail.title, purpose: detail.purpose, folder: this.party.pty.getSession(owner)?.cwd };
     for (const reviewer of fit.inside) {
-      try { this.party.send(quest, reviewer, text, "tactic"); next.waiting.add(reviewer); } catch { /* A reviewer who cannot take messages is not waited for. */ }
+      const body = reviewRequest(base, event.text, next.round, serverLanguage(), this.takeNote(quest, reviewer));
+      try { this.party.send(quest, reviewer, body, "tactic"); next.waiting.add(reviewer); } catch { /* A reviewer who cannot take messages is not waited for. */ }
     }
     if (!next.waiting.size) this.stop(quest, tr("担当と 同じ フォルダの レビュー役に 頼めなかった", "could not ask a reviewer in the owner's folder"), at);
   }

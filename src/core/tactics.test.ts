@@ -50,6 +50,8 @@ describe("tactic messages", () => {
     expect(text).toContain("ファイルは 書きかえないでください");
     expect(text).toContain("/work/app の git diff");
     expect(text.endsWith("「判定：OK」か「判定：要修正」の どちらか だけを 書いてください。")).toBe(true);
+    const noted = reviewRequest({ title: "保存を直す", purpose: "" }, undefined, 1, "ja", "保存処理を とくに 見て");
+    expect(noted.indexOf("あなたへの 頼みごと:\n保存処理を とくに 見て")).toBeLessThan(noted.indexOf("最後の 行に"));
   });
   it("hands every reviewer's findings to the owner without the verdict lines", () => {
     const text = fixRequest([{ name: "ソラ", text: "a.ts:3 が 重複\n判定：要修正" }, { name: "リク", text: "判定：要修正" }], 2, "ja");

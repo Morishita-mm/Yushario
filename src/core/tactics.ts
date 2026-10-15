@@ -65,7 +65,8 @@ export function withoutVerdict(text: string): string {
   return lines.join("\n").trim();
 }
 
-export function reviewRequest(quest: { title: string; purpose: string; folder?: string }, report: string | undefined, round: number, language: Language): string {
+// `note`: what the person asked of this reviewer while forming; it goes before the verdict instruction, which stays last.
+export function reviewRequest(quest: { title: string; purpose: string; folder?: string }, report: string | undefined, round: number, language: Language, note?: string): string {
   const ja = language === "ja";
   return [
     ja ? `【作戦：レビューし合え · ${round}回目】担当の 変更を レビューしてください。ファイルは 書きかえないでください。` : `[Tactic: review each other · round ${round}] Please review the owner's changes. Do not change any files.`,
@@ -73,6 +74,7 @@ export function reviewRequest(quest: { title: string; purpose: string; folder?: 
     ...(quest.purpose ? [`${ja ? "目的" : "Purpose"}: ${quest.purpose}`] : []),
     ja ? `変更の 見かた: ${quest.folder ?? "担当の 作業フォルダ"} の git diff と、新しい ファイルを 読む。` : `How to see the changes: read git diff and new files in ${quest.folder ?? "the owner's folder"}.`,
     ...(report ? [`${ja ? "担当の 報告" : "Owner's report"}:\n${report}`] : []),
+    ...(note ? [`${ja ? "あなたへの 頼みごと" : "What I asked of you"}:\n${note}`] : []),
     ja ? "直してほしい 点が あれば、場所（ファイル:行）と 理由を 書いてください。\n最後の 行に「判定：OK」か「判定：要修正」の どちらか だけを 書いてください。"
       : "If anything should change, give the place (file:line) and why.\nOn the last line write only \"Verdict: OK\" or \"Verdict: Changes\".",
   ].join("\n\n");

@@ -6,7 +6,10 @@ export type ScrollCheck = { title: string; mark: string };
 export function handoffScroll(quest: QuestDetail, checks: ScrollCheck[], language: Language): string {
   const ja = language === "ja";
   const marks: Record<string, string> = { unrun: ja ? "· みじっこう" : "· Not run", passed: ja ? "✔ ごうかく" : "✔ Passed", failed: ja ? "✖ しっぱい" : "✖ Failed", stale: ja ? "↺ ふるい" : "↺ Stale", unknown: ja ? "? ふめい" : "? Unknown" };
-  const last = quest.events.filter((event) => event.kind === "report").sort((a, b) => b.at - a.at || b.id - a.id)[0];
+  // The owner's latest report; helpers' reviews and research are reports too, but not the quest's result.
+  // Right after the owner changed, the new owner has none yet: the latest report that changed files is the work.
+  const reports = quest.events.filter((event) => event.kind === "report").sort((a, b) => b.at - a.at || b.id - a.id);
+  const last = reports.find((event) => event.hero === quest.hero) ?? reports.find((event) => event.report?.files.length) ?? reports[0];
   const files = [...new Set(quest.events.flatMap((event) => event.report?.files ?? []))];
   return [
     `${ja ? "クエスト" : "Quest"}: ${quest.title}`,

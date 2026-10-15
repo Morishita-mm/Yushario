@@ -54,6 +54,11 @@ export async function handlePartyRequest(request: IncomingMessage, response: Ser
       if (!validTactic(body.tactic)) throw new Error(tr("作戦を えらんで", "Choose a tactic"));
       partyJson(response, 200, tactics.choose(id, body.tactic)); return;
     }
+    if (action === "notes" && tactics) {
+      const notes = body.notes;
+      if (!notes || typeof notes !== "object" || Array.isArray(notes) || Object.values(notes).some((text) => typeof text !== "string" || text.length > 8000)) throw new Error(tr("頼みごとが ちがう", "Invalid notes"));
+      tactics.setNotes(id, notes as Record<string, string>); partyJson(response, 200, { ok: true }); return;
+    }
     if (action === "research" && tactics) {
       if (typeof body.text !== "string" || !body.text.trim() || body.text.length > 8000) throw new Error(tr("ことばは 1〜8000文字で", "Use 1–8000 characters"));
       partyJson(response, 200, tactics.startResearch(id, body.text)); return;

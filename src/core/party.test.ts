@@ -80,3 +80,15 @@ describe("visible commander requests", () => {
     expect(room.agents.get("hero")?.talk.at(-1)?.text).toBe("Check again\nAlso check the human's addition");
   });
 });
+
+describe("handoff scroll picks the work, not a helper's reply", () => {
+  it("uses the owner's report, or the latest one that changed files", async () => {
+    const { handoffScroll } = await import("./party-scroll");
+    const report = (hero: string, at: number, files: string[], text: string) => ({ id: at, quest: "q", kind: "report" as const, at, title: "", hero, text,
+      report: { kind: files.length ? "chest" : "talk", files, tests: { passed: 0, failed: 0 }, tools: 1, startedAt: at, endedAt: at } as never });
+    const base = { id: "q", town: "t", title: "T", purpose: "", state: "review" as const, createdAt: 0, updatedAt: 0 };
+    const events = [report("reviewer", 3, [], "判定：OK"), report("owner", 2, ["a.ts"], "直した")];
+    expect(handoffScroll({ ...base, hero: "owner", events }, [], "ja")).toContain("直した");
+    expect(handoffScroll({ ...base, hero: "newcomer", events }, [], "ja")).toContain("直した");
+  });
+});

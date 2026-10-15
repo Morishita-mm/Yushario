@@ -103,7 +103,7 @@ async function dispatchHttp(request: IncomingMessage, response: ServerResponse):
   const reviewApi = url.pathname === "/api/review" || url.pathname === "/api/review/diff" || url.pathname === "/api/review/verdict";
   const worktreeApi = url.pathname === "/api/worktrees";
   const previewApi = url.pathname === "/api/previews";
-  const partyApi = url.pathname === "/api/party-notices" || url.pathname.startsWith("/api/party-notices/") || /^\/api\/quests\/[^/]+\/(party|scroll|send|summary|handoff|tactic|research)$/.test(url.pathname);
+  const partyApi = url.pathname === "/api/party-notices" || url.pathname.startsWith("/api/party-notices/") || /^\/api\/quests\/[^/]+\/(party|scroll|send|summary|handoff|tactic|research|notes)$/.test(url.pathname);
   if (sessionApi || townApi || questApi || reviewApi || worktreeApi || previewApi || partyApi) {
     if (!authorized(url, request.headers.origin, false)) { response.writeHead(403).end(); return; }
     if (partyApi) await handlePartyRequest(request, response, url, party, tactics);
