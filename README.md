@@ -66,7 +66,9 @@ Requires Node.js 22.13+, macOS or Linux, and at least one agent CLI installed an
 npx yushario
 ```
 
-Your browser opens the town. Choose **しゅつじん** (Launch), pick your project folder as the destination, and start an agent. Then click your hero. You can run it from any folder; the folder you start from is offered first.
+Your browser opens the town. Choose **Embark**, pick your project folder as the destination, and start an agent. Then click your hero. You can run it from any folder; the folder you start from is offered first.
+
+**Embark → Talk (request) → report → Review & Checks → Done.** A town is a project, a hero is a CLI session, and a quest is work that stays after the hero leaves. Read the report, inspect the git diff in Review, check the acceptance evidence in Checks, then mark the quest Done when you accept the work. HP reflects recent failures, MP is context left, and Lv counts completed work—not code quality. Hooks and the pi extension are attached automatically when you launch from Yushario.
 
 Until the first npm release, run from a checkout:
 
@@ -78,7 +80,7 @@ npm install && npm run build && npm start
 
 Run `npx yushario --help` for the port and other options.
 
-> The interface uses Japanese RPG labels for now.
+The screen starts in your browser's language (Japanese or English). Change it in **Settings → Language**; your choice is saved.
 
 ## Privacy and security
 

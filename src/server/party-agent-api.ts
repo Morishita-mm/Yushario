@@ -1,7 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { agentAuthorized, agentTokenBytes, partyRole } from "../core/party";
-import type { QuestParty } from "./party";
+import { TerminalOnlyError, type QuestParty } from "./party";
 import { partyBody, partyJson, partyView } from "./party-api";
 import { projectIdentity } from "./project";
 import { sessionInput } from "./pty-session";
@@ -30,7 +30,7 @@ export async function handleAgentQuest(request: IncomingMessage, response: Serve
       party.quests.addEvent(id, { kind: "note", title: body.text, at: Date.now(), session, hero: member?.hero });
       partyJson(response, 200, { ok: true, message: tr("おぼえた", "Note saved") }); return;
     }
-    if (action === "review") { party.quests.patch(id, { state: "review" }); partyJson(response, 200, { state: "review" }); return; }
+    if (action === "review") { const quest = party.quests.patch(id, { state: "review" }); partyJson(response, 200, { state: quest.state }); return; }
     if (action === "send") {
       if (typeof body.session !== "string" || typeof body.text !== "string") throw new Error("Choose a party hero and text");
       partyJson(response, 200, { delivered: party.send(id, body.session, body.text, "command", session) }); return;
@@ -51,5 +51,5 @@ export async function handleAgentQuest(request: IncomingMessage, response: Serve
       partyJson(response, 202, { id: invite.id, pending: true, message: tr("でんれいで 人の はいを まつ", "Awaiting a human yes at the herald") }); return;
     }
     partyJson(response, 403, { error: "This tool is not allowed" });
-  } catch (error) { partyJson(response, 400, { error: error instanceof Error ? error.message : "Quest tool failed" }); }
+  } catch (error) { partyJson(response, error instanceof TerminalOnlyError ? 409 : 400, { error: error instanceof Error ? error.message : "Quest tool failed" }); }
 }

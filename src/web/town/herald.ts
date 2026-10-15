@@ -55,18 +55,30 @@ export function renderHerald(root: HTMLElement, list: Notice[], onPick: (notice:
   }); }
 }
 
-export function windowBox(layer: HTMLElement, title: string, onClose: () => void): HTMLElement {
-  const box = element("div", "report-window");
-  box.setAttribute("role", "dialog");
-  box.setAttribute("aria-modal", "true");
+export function windowBox(layer: HTMLElement, title: string, onClose: () => void): HTMLDialogElement {
+  layer.querySelector<HTMLDialogElement>("dialog[open]")?.close();
+  const box = element("dialog", "report-window");
   box.setAttribute("aria-label", title);
   box.append(element("h3", undefined, title));
   const close = element("button", undefined, tr("▶ とじる", "▶ Close"));
   close.type = "button";
-  close.addEventListener("click", () => { layer.hidden = true; onClose(); });
+  const dismiss = () => { box.close(); layer.hidden = true; onClose(); };
+  close.addEventListener("click", dismiss);
+  box.addEventListener("cancel", (event) => { event.preventDefault(); dismiss(); });
+  box.addEventListener("keydown", (event) => {
+    event.stopPropagation();
+    if (event.key === "Escape" && !event.isComposing) { event.preventDefault(); dismiss(); }
+  });
+  box.addEventListener("click", (event) => {
+    if (event.target !== box) return;
+    const bounds = box.getBoundingClientRect();
+    if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) dismiss();
+  });
+  box.addEventListener("close", () => { if (layer.contains(box) && !box.open) layer.hidden = true; });
   const actions = element("div", "actions");
   actions.append(close);
-  queueMicrotask(() => box.append(actions));
+  // Show after the caller adds its fields; native dialog owns focus, Tab and return focus.
+  queueMicrotask(() => { box.append(actions); if (!layer.hidden && layer.contains(box)) box.showModal(); });
   layer.classList.remove("menu-layer");
   layer.replaceChildren(box);
   layer.hidden = false;
@@ -75,7 +87,7 @@ export function windowBox(layer: HTMLElement, title: string, onClose: () => void
 
 // A list of towns (a crowded region, or the sleeping towns) to pick from.
 export function showTownList(layer: HTMLElement, title: string, projects: Project[], onPick: (p: Project) => void, onClose: () => void, onPin?: (p: Project) => Promise<void>): void {
-  const box = (!layer.hidden && layer.querySelector<HTMLElement>('[data-town-list="town"]')) || windowBox(layer, title, onClose);
+  const box = (!layer.hidden && layer.querySelector<HTMLDialogElement>('[data-town-list="town"]')) || windowBox(layer, title, onClose);
   box.dataset.townList = "town";
   box.setAttribute("aria-label", title);
   box.querySelector("h3")!.textContent = title;
@@ -96,7 +108,7 @@ export function showTownList(layer: HTMLElement, title: string, projects: Projec
     const status = p.heroes ? [`👤${p.heroes}`, p.fighting ? `⚔️${p.fighting}` : "", p.unread ? `📜${p.unread}` : "", p.calling ? "❗" : ""].filter(Boolean).join("  ") : tr("だれも いない", "No heroes");
     button.querySelector(".name")!.textContent = p.label ?? p.repo;
     button.querySelector(".status")!.textContent = status;
-    button.onclick = () => { layer.hidden = true; onPick(p); };
+    button.onclick = () => { box.close(); layer.hidden = true; onPick(p); };
     if (onPin && p.pinned !== undefined) {
       const pin = row.querySelector<HTMLButtonElement>(".town-pin") ?? element("button", "town-pin");
       pin.type = "button";
@@ -122,7 +134,7 @@ export function showTownList(layer: HTMLElement, title: string, projects: Projec
 
 export function showArchivedTowns(layer: HTMLElement, projects: Project[], onRestore: (p: Project) => Promise<void>, onClose: () => void): void {
   const title = tr(`しまった町（${projects.length}）`, `Archived towns (${projects.length})`);
-  const box = (!layer.hidden && layer.querySelector<HTMLElement>('[data-town-list="archived"]')) || windowBox(layer, title, onClose);
+  const box = (!layer.hidden && layer.querySelector<HTMLDialogElement>('[data-town-list="archived"]')) || windowBox(layer, title, onClose);
   box.dataset.townList = "archived";
   box.setAttribute("aria-label", title);
   box.querySelector("h3")!.textContent = title;
@@ -139,6 +151,7 @@ export function showArchivedTowns(layer: HTMLElement, projects: Project[], onRes
     restore.type = "button";
     restore.setAttribute("aria-label", tr(`${project.label ?? project.repo}を もどす`, `Restore ${project.label ?? project.repo}`));
     restore.onclick = () => {
+      box.querySelector<HTMLButtonElement>(".actions button")?.focus(); // The restored row will disappear.
       restore.disabled = true;
       void onRestore(project).finally(() => { restore.disabled = false; });
     };
@@ -166,7 +179,7 @@ export function showThemeChooser(layer: HTMLElement, project: Project, art: Shee
     ctx.imageSmoothingEnabled = false;
     art.draw(ctx, "world-towns", ICON[theme], w, h * 2, false, 2);
     button.append(icon, element("span", undefined, THEME_NAMES[theme]));
-    button.addEventListener("click", () => { layer.hidden = true; onPick(theme); });
+    button.addEventListener("click", () => { box.close(); layer.hidden = true; onPick(theme); });
     list.append(button);
   }
   box.append(list);

@@ -19,7 +19,7 @@ export function renderPartyList(root: HTMLElement, agents: RoomAgent[], row: (ag
   }
   root.replaceChildren(toggle);
   for (const [town, members] of [...towns].sort(([a], [b]) => a.localeCompare(b))) {
-    root.append(element("h3", "party-town", tr(`${townName(town)}（${members.length}人）`, `${townName(town)} (${members.length} heroes)`)));
+    root.append(element("h3", "party-town", tr(`${townName(town)}（${members.length}人）`, `${townName(town)} (${members.length} ${members.length === 1 ? "hero" : "heroes"})`)));
     if (!grouped) { root.append(...members.map(row)); continue; }
     const bases = new Map<string, RoomAgent[]>();
     for (const member of members) {

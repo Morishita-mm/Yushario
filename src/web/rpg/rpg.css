@@ -109,8 +109,8 @@ dialog.strength-window[open] { display: flex; flex-direction: column; gap: 10px;
   .quest { grid-template-columns: 1fr; }
   .sidebar { max-height: none; }
 }
-/* PC and tablet: the page never scrolls; the map shrinks to fit and only the sidebar scrolls inside. */
-@media (min-width: 600px) and (min-height: 500px) {
+/* Wide windows keep the map and sidebar inside the viewport. Stacked windows scroll the page. */
+@media (min-width: 961px) and (min-height: 500px) {
   body { height: 100svh; }
   .quest { min-height: 0; align-items: stretch; }
   .sidebar { min-height: 0; max-height: none; overflow: hidden; }
@@ -129,6 +129,8 @@ dialog.strength-window[open] { display: flex; flex-direction: column; gap: 10px;
   #following-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .messages { height: calc(4 * 1.6em + 20px); white-space: pre; overflow: hidden; text-overflow: ellipsis; }
 }
-@media (min-width: 600px) and (max-width: 960px) and (min-height: 500px) {
-  .quest { grid-template-rows: auto minmax(0, 1fr); }
+@media (max-width: 960px) {
+  .quest { flex: none; }
+  .sidebar { min-width: 0; overflow: visible; }
+  .sidebar > [role="tabpanel"] { flex: none; max-height: 65svh; }
 }

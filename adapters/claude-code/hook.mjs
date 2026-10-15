@@ -170,7 +170,8 @@ async function toEvent(hook) {
     context = contextUsage(hook);
   }
   if (context !== undefined) event.context = context;
-  // Only these two conversation bodies go to the local relay/display, never files or external services.
+  // Only these two conversation bodies go to the local relay/display, never external services.
+  // The relay saves bodies only when the user opts in; quest titles and report summaries always persist.
   const body = name === "UserPromptSubmit" ? hook.prompt : name === "Stop" ? hook.last_assistant_message : undefined;
   if (typeof body === "string") event.text = body.slice(0, 8000);
   // Notification/tool outputs remain private; only a completed command's first 200 chars may be saved as evidence.
@@ -199,7 +200,8 @@ try {
   if (event) {
     await fetch(process.env.AGENT_CHARACTER_URL ?? "http://127.0.0.1:8790/event", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...(process.env.AGENT_CHARACTER_AGENT_TOKEN
+        ? { Authorization: `Bearer ${process.env.AGENT_CHARACTER_AGENT_TOKEN}` } : {}) },
       body: JSON.stringify(event),
       signal: AbortSignal.timeout(Math.max(1, Math.ceil(budgetMs - (performance.now() - started)))),
       redirect: "error",

@@ -11,6 +11,7 @@ export function questCard(quest: QuestDetail, heroName: string,
   embark?: () => void, fold?: () => Promise<void>, preview?: HTMLElement, party?: PartyControls): HTMLElement {
   const box = document.createElement("div"); box.className = "quest-card";
   const form = document.createElement("form");
+  form.oninput = form.onchange = () => { form.dataset.dirty = "true"; };
   const title = document.createElement("input"); title.value = quest.title; title.maxLength = 200; title.required = true;
   const purpose = document.createElement("textarea"); purpose.value = quest.purpose; purpose.maxLength = 2000; purpose.rows = 2;
   const state = document.createElement("select");
@@ -25,6 +26,7 @@ export function questCard(quest: QuestDetail, heroName: string,
     void (async () => {
       if (state.value === "done" && !await confirmChecksDone(quest)) return;
       await save({ title: title.value.trim(), purpose: purpose.value, state: state.value as QuestState });
+      delete form.dataset.dirty;
       status.textContent = tr("のこした！", "Saved!");
     })()
       .catch((error: Error) => { status.textContent = error.message; }).finally(() => { submit.disabled = false; });

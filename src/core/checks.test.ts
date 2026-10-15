@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { parseAgentEvent } from "./events";
-import { checkCandidates, checkMark, commandMatchesCheck, evidenceChecks, latestCheckEvidence, validQuestCheck, type CheckEvidence } from "./checks";
+import { checkBasePath, checkCandidates, checkMark, commandMatchesCheck, evidenceChecks, latestCheckEvidence, validQuestCheck, type CheckEvidence } from "./checks";
 
-const fingerprint = { head: "abc", changes: "123" };
-const evidence: CheckEvidence = { command: "npm test", passed: true, at: 10, session: "terminal", checks: ["test"], fingerprint };
+const fingerprint = { head: "abc", changes: "123", base: "/work/base" };
+const evidence: CheckEvidence = { command: "npm test", passed: true, at: 10, session: "terminal", base: fingerprint.base, checks: ["test"], fingerprint };
 describe("quest check marks", () => {
   it("covers unrun, passed, stale and failed", () => {
     expect(checkMark(undefined, fingerprint)).toBe("unrun");
@@ -17,6 +17,21 @@ describe("quest check marks", () => {
     expect(checkMark(evidence, undefined)).toBe("stale");
     expect(checkMark({ ...evidence, fingerprint: undefined }, fingerprint)).toBe("stale");
     expect(checkMark({ ...evidence, fingerprint: undefined }, undefined)).toBe("stale");
+  });
+  it("never passes another base or legacy evidence without its base", () => {
+    expect(checkMark(evidence, { ...fingerprint, base: "/other/base" })).toBe("stale");
+    expect(checkMark({ ...evidence, base: "/other/base" }, fingerprint)).toBe("stale");
+    expect(checkMark({ ...evidence, base: undefined }, fingerprint)).toBe("stale");
+    expect(checkMark({ ...evidence, fingerprint: { head: "abc", changes: "123" } }, fingerprint)).toBe("stale");
+  });
+  it("uses the saved base, otherwise only the live writer in the same town", () => {
+    const sessions = [{ id: "implement", cwd: "/main", project: "town" }, { id: "writer", cwd: "/base", project: "town" }];
+    expect(checkBasePath({ town: "town", worktreePath: "/missing" }, "writer", sessions)).toBe("/missing");
+    expect(checkBasePath({ town: "town" }, "writer", sessions)).toBe("/base");
+    expect(checkBasePath({ town: "town" }, undefined, sessions)).toBeUndefined();
+    expect(checkBasePath({ town: "town" }, "missing", sessions)).toBeUndefined();
+    expect(checkBasePath({ town: "other" }, "writer", sessions)).toBeUndefined();
+    expect(checkBasePath({ town: "town" }, "writer", [{ ...sessions[1], exited: { code: 0 } }])).toBeUndefined();
   });
   it("uses the latest matching evidence, even when fingerprint reads finish out of order", () => {
     const failed = { ...evidence, at: 30, passed: false };
@@ -34,11 +49,23 @@ describe("commands and check candidates", () => {
     expect(large.ok && large.event.command?.length).toBe(8000);
     expect(parseAgentEvent({ state: "working", command: 12 }).ok).toBe(false);
   });
-  it("matches a literal shape inside a longer command, not a regexp", () => {
+  it("matches simple command words at the command head, not a regexp", () => {
     expect(commandMatchesCheck("cd app && npm   run build -- --mode production", "npm run build")).toBe(true);
     expect(commandMatchesCheck("npm run build", "npm run lint")).toBe(false);
     expect(commandMatchesCheck("npm test", "")).toBe(false);
     expect(commandMatchesCheck("echo abc", "a.*")).toBe(false);
+  });
+  it.each(['echo "npm test"', '# npm test', 'true # npm test', 'echo "x && npm test"', 'echo x # hi; npm test', '$(npm test)', 'npm test > output'])
+  ("does not certify quoted, commented or unsupported shell syntax: %s", (command) => {
+    expect(commandMatchesCheck(command, "npm test")).toBe(false);
+  });
+  it("requires complete argument words and handles quotes, comments and environment assignments", () => {
+    expect(commandMatchesCheck("npm run build-docs", "npm run build")).toBe(false);
+    expect(commandMatchesCheck("CI=1 npm test -- --run", "npm test")).toBe(true);
+    expect(commandMatchesCheck('npm run "build"', "npm run build")).toBe(true);
+    expect(commandMatchesCheck("# no test\nnpm test", "npm test")).toBe(true);
+    expect(commandMatchesCheck("echo 'unterminated && npm test", "npm test")).toBe(false);
+    expect(commandMatchesCheck("npm test", "npm test && npm run build")).toBe(false);
   });
   it("only collects finished command tools and either explicit checks or classified tests", () => {
     const checks = [{ id: "build", name: "Build", command: "npm run build" }];

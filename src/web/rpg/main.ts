@@ -199,7 +199,7 @@ function connect(): void {
         }
         scene.sync(room, Date.now());
         for (const [event, at] of told.slice(-3)) messages.event(event, at, true);
-        if (!told.length) messages.say(tr("ここは エージェントたちの まち。 ゆうしゃの とうちゃくを まっている…", "A town for your heroes. Awaiting their arrival…"), undefined, true);
+        if (!told.length) messages.say(tr("しゅつじん → 依頼 → 報告 → 鑑定・ためすこと → クエストを おえる。町＝プロジェクト、勇者＝CLI。つづきは ヘルプへ。", "Embark → request → report → Review & Checks → Done. Town = project; hero = CLI. See Help."), undefined, true);
       } else if (data.type === "quests" && Array.isArray(data.quests) && Array.isArray(data.bindings)) {
         quests.set(data); previews.remember(data.quests); talk.update();
       } else if (data.type === "party-notices") {

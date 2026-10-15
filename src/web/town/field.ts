@@ -20,6 +20,16 @@ export function placeTitle(ctx: CanvasRenderingContext2D, place: string, x: numb
 export function label(ctx: CanvasRenderingContext2D, value: string, x: number, y: number, color = "#ffffff", size = 10): void {
   ctx.font = `${size}px "DotGothic16", monospace`;
   ctx.textAlign = "center";
+  if (ctx.measureText(value).width > 160) {
+    const letters = Array.from(value);
+    let low = 0, high = letters.length;
+    while (low < high) {
+      const mid = Math.ceil((low + high) / 2);
+      if (ctx.measureText(`${letters.slice(0, mid).join("")}…`).width <= 160) low = mid;
+      else high = mid - 1;
+    }
+    value = `${letters.slice(0, low).join("")}…`;
+  }
   ctx.fillStyle = "#1d1726";
   for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) ctx.fillText(value, x + dx, y + dy);
   ctx.fillStyle = color;

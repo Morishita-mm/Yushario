@@ -3,9 +3,10 @@ import type { QuestDetail } from "../../core/quests";
 import type { Session } from "../terminal";
 import { language, tr } from "../language";
 import { questHandoff } from "./quest-handoff";
+import type { AgentInfo } from "../rpg/agents";
 import "./quest-party.css";
 
-export type PartyHero = PartyMember & { name: string; active: boolean; waiting?: boolean; sessionInfo?: Session };
+export type PartyHero = PartyMember & { name: string; active: boolean; canTalk?: boolean; waiting?: boolean; sessionInfo?: Session };
 export type PartyControls = { talk: (hero: string, session: string) => void; review: (hero: string, session: string) => void; embark: () => void; mock?: PartyHero[] };
 const drafts = new Map<string, string>();
 const token = new URLSearchParams(location.search).get("token") ?? "";
@@ -28,7 +29,7 @@ export function questParty(quest: QuestDetail, controls?: PartyControls): HTMLEl
   const content = document.createElement("div"), status = document.createElement("p"); status.setAttribute("role", "status"); root.append(content, status);
   const prefix = `quests/${encodeURIComponent(quest.id)}`;
   const mock = controls?.mock;
-  let members: PartyHero[] = mock ?? [], sessions: Session[] = [];
+  let members: PartyHero[] = mock ?? [], sessions: Session[] = [], agents: AgentInfo[] = [];
   const run = (action: () => Promise<unknown>) => { void action().catch((error: Error) => { status.textContent = error.message; }); };
   async function save(session: string, role: PartyRole, note: string, writer?: boolean): Promise<void> {
     root.dataset.dirty = "true";
@@ -41,7 +42,7 @@ export function questParty(quest: QuestDetail, controls?: PartyControls): HTMLEl
     render(); introduce(members.find((item) => item.session === session)!);
   }
   function introduce(member: PartyHero): void {
-    if (!member) return;
+    if (!member || !member.canTalk) return;
     root.dataset.dirty = "true";
     const old = content.querySelector(".party-introduction"); old?.remove();
     const box = document.createElement("div"); box.className = "party-introduction";
@@ -62,23 +63,32 @@ export function questParty(quest: QuestDetail, controls?: PartyControls): HTMLEl
     for (const member of members) {
       const row = document.createElement("article"); row.className = "party-member";
       const name = document.createElement("strong"); name.textContent = member.name;
-      const info = document.createElement("p"); info.textContent = `${roleLabel(member.role, language)}${member.writer ? tr(" · かきかえる役", " · Writer") : ""} · ${member.active ? member.waiting === undefined ? tr("出陣中", "Active") : member.waiting ? tr("まっている", "Ready") : tr("さぎょう中", "Working") : tr("たびだった", "Departed")}`;
+      const info = document.createElement("p"); info.textContent = `${roleLabel(member.role, language)}${member.writer ? tr(" · かきかえる役", " · Writer") : ""} · ${!member.canTalk ? tr("ターミナルのみ", "Terminal only") : member.active ? member.waiting === undefined ? tr("出陣中", "Active") : member.waiting ? tr("まっている", "Ready") : tr("さぎょう中", "Working") : tr("たびだった", "Departed")}`;
       const base = document.createElement("p"); base.className = "hint"; base.textContent = member.sessionInfo ? `⑂ ${member.sessionInfo.branch ?? "HEAD"} — ${member.sessionInfo.cwd}` : "—";
       row.append(name, info, base);
-      if (controls) row.append(partyButton(tr("▶ はなす", "▶ Talk"), () => controls.talk(member.hero ?? member.session, member.session)),
-        partyButton(tr("▶ かんてい", "▶ Review"), () => controls.review(member.hero ?? member.session, member.session)));
-      if (member.active) row.append(partyButton(tr("▶ やくわり", "▶ Role"), () => edit(member)),
-        partyButton(tr("▶ 紹介文", "▶ Introduction"), () => introduce(member)));
+      if (controls) {
+        const talk = partyButton(tr("▶ はなす", "▶ Talk"), () => controls.talk(member.hero ?? member.session, member.session));
+        talk.disabled = !member.active || !member.canTalk;
+        row.append(talk, partyButton(tr("▶ かんてい", "▶ Review"), () => controls.review(member.hero ?? member.session, member.session)));
+      }
+      if (member.active) {
+        const intro = partyButton(tr("▶ 紹介文", "▶ Introduction"), () => introduce(member)); intro.disabled = !member.canTalk;
+        row.append(partyButton(tr("▶ やくわり", "▶ Role"), () => edit(member)), intro);
+      }
       content.append(row);
     }
     const add = document.createElement("details"), title = document.createElement("summary"); title.textContent = tr("▶ 仲間を たす", "▶ Add a hero"); add.append(title);
     const select = document.createElement("select");
-    for (const session of sessions.filter((item) => item.project === quest.town && !item.exited && !members.some((member) => member.session === item.id))) select.append(new Option(`${session.preset} · ${session.id} · ${session.branch ?? "HEAD"}`, session.id));
+    for (const session of sessions.filter((item) => item.project === quest.town && !item.exited && !members.some((member) => member.session === item.id))) {
+      const canTalk = agents.some((agent) => agent.id === session.preset && agent.hero);
+      const option = new Option(`${session.preset} · ${session.id} · ${session.branch ?? "HEAD"}${canTalk ? "" : tr(" · ターミナルのみ", " · Terminal only")}`, session.id);
+      option.disabled = !canTalk; select.append(option);
+    }
     const role = roles("implement"), note = document.createElement("input"); note.maxLength = 200;
     add.append(partyField(tr("いまいる 勇者", "Hero in town"), select), partyField(tr("やくわり", "Role"), role), partyField(tr("ひとこと", "Note"), note),
       partyButton(tr("▶ パーティーに いれる", "▶ Join party"), () => run(() => save(select.value, role.value as PartyRole, note.value))));
     if (controls) add.append(partyButton(tr("▶ あたらしく 出陣", "▶ Embark a new hero"), controls.embark));
-    content.append(add, questHandoff(quest, members, sessions, controls, status));
+    content.append(add, questHandoff(quest, members, sessions, controls, status, agents));
   }
   function roles(chosen: PartyRole): HTMLSelectElement {
     const select = document.createElement("select"); for (const role of PARTY_ROLES) select.append(new Option(roleLabel(role, language), role)); select.value = chosen; return select;
@@ -92,6 +102,6 @@ export function questParty(quest: QuestDetail, controls?: PartyControls): HTMLEl
       partyButton(tr("▶ この やくわりに する", "▶ Set this role"), () => run(() => save(member.session, role.value as PartyRole, note.value, writer.checked)))); content.append(form);
   }
   if (mock) render();
-  else void Promise.all([partyRequest(`${prefix}/party`), partyRequest("sessions")]).then(([party, list]: [PartyHero[], Session[]]) => { members = party; sessions = list; render(); }).catch((error: Error) => { status.textContent = error.message; });
+  else void Promise.all([partyRequest(`${prefix}/party`), partyRequest("sessions"), partyRequest("agents")]).then(([party, list, kinds]: [PartyHero[], Session[], AgentInfo[]]) => { members = party; sessions = list; agents = kinds; render(); }).catch((error: Error) => { status.textContent = error.message; });
   return root;
 }

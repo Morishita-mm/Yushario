@@ -17,6 +17,11 @@ Yushario は Agent Development Environment（エージェントに仕事を任�
 5. CLI とは公式の差し込み口（フック・拡張・起動引数）だけでつなぐ。CLI の中身や文脈の管理には手を入れない。
 6. 機能を特定の CLI に縛らない。仕事の台帳・確かめた結果・協調の仕組みは、どの CLI の勇者でも同じ物を使う（CLI の能力差で届かない所は画面に出す）。
 
+### 守る範囲
+
+Yushario と勇者は同じ OS 利用者で動く。悪意ある同一利用者によるファイル・DB・他プロセスへの直接操作は隔離しない。
+防ぐのは HTTP を1回送るだけで別の勇者や人を名乗ること。所属・証拠・許可はサーバーが起動した端末と専用の合言葉から決め、本文の端末 ID は信じない。
+
 ## データフロー
 
 ```text
@@ -43,6 +48,7 @@ Yushario は Agent Development Environment（エージェントに仕事を任�
 | モジュール | 責務 | 依存してよいもの |
 |---|---|---|
 | `src/core/events.ts` | `AgentEvent` 型と入力の検証 | なし |
+| `src/core/hook-trust.ts` | 合言葉なしの知らせから端末・証拠入力を外す処理、人が選んだ再開と旧端末終了の照合 | events |
 | `src/core/activity.ts` | フック・ツール名・対象から活動を分類 | events |
 | `src/core/room.ts` | 勇者・仲間・クエスト・行動ログ・会話の状態と、直近の流れから様子を計算 | events, activity, turns |
 | `src/core/turns.ts` | 進行中の往復の累計、最後のテスト結果と異常終了、直近256イベント内の遅着補正、許可待ちを除いた所要時間、報告の付与 | events, activity |
@@ -56,12 +62,14 @@ Yushario は Agent Development Environment（エージェントに仕事を任�
 | `src/core/story.ts` | 語り、Lv・HP・MP、仲間の職業、活動ごとのモンスター | events, activity, room |
 | `src/core/town.ts` | Room をプロジェクト別の町・安定した表示名・勇者の居場所へ変換 | room, story |
 | `src/core/town-ledger.ts` | 町の鍵・表示名・設定の型、町の登録・活動更新・自動でしまう判定 | なし |
-| `src/core/checks.ts` | ためすこと・証拠・指紋の型、コマンドの形の照合、最新の証拠と今の指紋による4つの印、package.json の候補 | events, activity |
-| `src/core/quests.ts` | 永続クエスト・出来事・結び付きの型、状態の判定、依頼の題と保存する本文の選択、一覧の順 | events, session-actions, turns, town-ledger |
+| `src/core/checks.ts` | ためすこと・拠点つき証拠と指紋の型、保存拠点／書き換える役の選択、単純なコマンド語の照合、最新の証拠と今の指紋による4つの印、package.json の候補 | events, activity |
+| `src/core/quests.ts` | 永続クエスト・出来事・結び付きの型、セッションごとの判断待ちを優先する状態の判定、依頼の題と保存する本文の選択、一覧の順 | events, session-actions, turns, town-ledger |
 | `src/core/party.ts`, `party-scroll.ts` | 役割・合言葉の形式・権限の純粋な判定、紹介文と台帳の事実だけの巻物 | core の型・関数のみ |
 | `src/core/names.ts`, `roster.ts` | 名前・めいぼの型と入力の判定、件数制限 | core の型・関数のみ |
 | `src/core/session-actions.ts` | イベントによる待機判定、フォルダ信頼確認の検出 | events |
 | `src/server/relay.ts` | HTTP/WS の入口、認可、イベント履歴と配信、許可・PTY・台帳の接続 | core, server, Node http, ws |
+| `src/server/hook-auth.ts` | 端末専用の合言葉の固定長比較から生存中の送り元を決める | core/party, pty-session, Node crypto |
+| `src/server/git.ts` | Git の外部実行設定・継承環境を抑えた小さな execFile 関数、filter の列挙と無効化 | Node child_process |
 | `src/server/agents.ts` | 起動・再開・整理・終了の送り方と対応範囲を1つの表に定義、PATH の CLI 検出 | Node fs/path/url |
 | `src/server/startup.ts` | 起動引数、空きポートへの bind、ブラウザを開く | Node http/child_process |
 | `src/server/pty.ts`, `pty-session.ts` | 複数の端末セッション、セッション API、WS /pty と保持出力 | core, server, Node, node-pty, ws |
@@ -70,24 +78,25 @@ Yushario は Agent Development Environment（エージェントに仕事を任�
 | `src/server/permissions.ts` | 許可要求の短い要約、利用者の回答・時間切れをフックへ返す | events |
 | `src/server/project.ts`, `town-api.ts`, `town-data.ts` | git 共通ディレクトリの実パスによる町の鍵・短い名前の取得、旧 JSON の移行、町・設定・名前・めいぼの API と JSON 保存 | core, agents, Node |
 | `src/server/quest-db.ts`, `quest-ledger.ts`, `quest-api.ts` | SQLite の版と表、クエスト・出来事・端末の結び付きの保存、依頼・報告の記録、クエスト API と WS の通知 | core, Node sqlite/fs/crypto, server |
-| `src/server/party.ts`, `party-db.ts`, `party-api.ts`, `party-agent-api.ts` | パーティーの保存・人の確認・巻物・通常と同じ依頼の配送、セッション専用 API と一定時間の合言葉比較 | core, server, Node sqlite/crypto/http |
+| `src/server/party.ts`, `party-db.ts`, `party-api.ts`, `party-agent-api.ts` | パーティーの保存・人の確認・巻物・会話対応の端末だけへの配送、現在の書き換える役の取得、セッション専用 API と一定時間の合言葉比較 | core, server, Node sqlite/crypto/http |
 | `scripts/yushario.mjs` の `quest` | セッションの合言葉で限定 API を呼ぶだけの管理コマンド。サーバーの起動処理を通らない | Node 標準 API |
-| `src/server/checks.ts`, `checks-db.ts`, `checks-api.ts` | 既知の端末の指紋の読み取り、フックからの証拠・条件の保存、候補と印の API。コマンドは実行しない | core, server, Node child_process/fs/crypto/sqlite/http |
+| `src/server/checks.ts`, `checks-db.ts`, `checks-api.ts` | クエストの保存拠点（無ければ現在の書き換える役）の指紋、上限つき未追跡本文のハッシュ、拠点つき証拠・条件の保存、候補と印の API。コマンドは実行しない | core, server, Node fs/crypto/sqlite/http |
 | `src/server/review.ts` | 既知の端末の作業フォルダの git 状態・差分の読み取り、フォルダ境界・サイズ・時間の検査 | core, Node child_process/fs/path/http |
 | `src/server/worktrees.ts` | git worktree の一覧・作成・撤去、親の実パス・既存 branch／フォルダ・活動中の端末・残る変更の検査 | core, Node child_process/fs/path/http |
 | `src/server/preview.ts`, `preview-db.ts`, `preview-output.ts` | クエスト／町のプレビュー URL の保存と API、PTY 保持出力と同じ場所での候補抽出 | core, server, Node http/sqlite/crypto |
 | `src/server/static.ts` | `dist/` と `public/` の静的配信、パスの検査 | Node |
 | `src/server/http-body.ts` | HTTP JSON 本文のバイト上限と400／413の応答 | Node http |
-| `src/web/rpg/*` | メインの町。Room と WS、移動・つよさ・許可・会話と報告・しゅつじん・コマンド・めいぼ・ヘルプ | core, web/town, terminal |
+| `src/web/rpg/*` | メインの町。Room と WS、移動・つよさ・許可・会話と報告・しゅつじん・コマンド・めいぼ・ヘルプ。空状態とヘルプは仕事の流れ・実務との言葉の対応を日英で案内 | core, web/town, terminal |
+| `src/web/town/herald.ts`, `src/web/rpg/scene.ts`, `navigation.ts` | 既存の町一覧・設定の窓は native dialog でフォーカス移動・復帰。眠る町・しまった町は通常のボタンからも開く（町一覧はモックも共通） | core, DOM, web/town |
 | `src/web/rpg/review-window.ts`, `review.css`, `file-open.ts` | 鑑定の窓、報告の鑑定済み印、ブラウザのエディタ選択とファイルを開くリンク（モックも同じ窓） | core, DOM, HTTP |
 | `src/web/rpg/expedition-bases.ts`, `worktrees.css`, `src/web/town/party-list.ts` | 出陣の拠点・新しい branch／path の下書き・同じ場所の警告、勇者を拠点ごとにまとめる共通一覧 | core, DOM, HTTP |
-| `src/web/rpg/quests.ts`, `quest-settings.ts`, `talk-quest.ts` | クエストのタブと札、会話からの選び直し、本文保存と記録削除の設定 | core, web/town, HTTP/WS |
+| `src/web/rpg/quests.ts`, `quest-settings.ts`, `talk-quest.ts` | クエストのタブと札、題・目的・ためすことの未保存入力とフォーカスの維持、会話からの選び直し、本文保存と記録削除の設定 | core, web/town, HTTP/WS |
 | `src/web/town/quest-party.ts`, `quest-handoff.ts`, `quest-party.css`, `src/web/rpg/party-notices.ts` | 本体・モック共通のパーティー・紹介文の下書き・巻物、でんれいの仲間の確認と役割外の変更 | core, DOM, HTTP/WS |
 | `src/web/town/quest-checks.ts`, `check-marks.ts`, `checks.css` | 本体・モック共通のためすこと、札・一覧・報告の印と証拠、done の確認 | core, DOM, HTTP |
 | `src/web/town/quest-list.ts`, `quest-card.ts`, `quest-board.ts` | 本体・モック共通のクエスト一覧・札・掲示板の入口 | core の型・関数, DOM, art data |
-| `src/web/rpg/preview.ts`, `src/web/town/quest-preview.ts`, `preview-controls.ts`, `preview.css` | 本体・モック共通のプレビュー区画、名前付きの別タブ、エラーの一覧と会話への下書き | core, DOM, HTTP |
+| `src/web/rpg/preview.ts`, `src/web/town/quest-preview.ts`, `preview-controls.ts`, `preview-tabs.ts`, `preview.css` | 本体・モック共通のプレビュー区画、名前付きの別タブ、エラーの一覧と会話への下書き | core, DOM, HTTP |
 | `public/preview-link.js` | opener があるページだけ、URL・題・先頭20件（各500文字）のエラーを配信元 origin へ postMessage | ブラウザ標準 API のみ |
-| `src/web/town/*` | データを引数で受け取る共有描画。ワールド・5種の町・宿屋・フィールド・戦闘、絵の読み込みと歩行 | core の型, DOM/Canvas, public/art |
+| `src/web/town/*` | データを引数で受け取る共有描画。ワールド・5種の町・宿屋・フィールド・戦闘、絵の読み込みと歩行。地図のラベルは描画時だけ160px以内で省略し、コマンドは親と窓自身のサイズ変更時に範囲内へ置き直す | core の型, DOM/Canvas, public/art |
 | `src/web/art/*` | `/art.html` のギャラリー、`/mock.html` の入口・偽データ | web/town, DOM/Canvas |
 | `src/web/terminal.ts`, `terminal-page.ts`, `style.css` | xterm の接続部品、`/terminal.html` の起動・接続・終了。町の端末窓も同じ接続部品を使う | xterm, DOM, HTTP/WS |
 | `adapters/claude-code/*`, `adapters/pi/*` | ハーネスのフック・拡張をイベントに変換し、ローカルへ短時間で送る | ハーネス API, Node |
@@ -123,8 +132,9 @@ Notification は実際の入力要求だけ waiting_input。pi の整理失敗�
 - `stats(agent, now)`、`narrate(event)`、`battleMonster(activity)` が RPG の見せ方を求める。
 - `townView(room, now, previousNames)` が町・勇者と安定した表示名を返す。
 - `registerTown` / `activateTown` / `archiveTowns` は入力の町一覧と時刻から新しい一覧を返す。`townKey` は内部の鍵、`townLabel` / `townNameForKey` は表示名を返し、未解決の鍵も実パスを見出しにしない。
-- `commandMatchesCheck` / `evidenceChecks` は終了したコマンドを条件または既存のテスト分類に照合する。`latestCheckEvidence` / `checkMark` は最新の証拠と今の指紋から `unrun`・`passed`・`failed`・`stale` を決め、指紋不明を合格にしない。
+- `checkBasePath` は保存拠点を優先し、無い時だけ同じ町の生存中の書き換える役を選ぶ。`commandMatchesCheck` / `evidenceChecks` は単純なコマンドの先頭と引数の語を照合し、引用の中の別コマンド・コメント・別名のscriptを拾わない。複雑なシェル構文は照合しない。`latestCheckEvidence` / `checkMark` は最新の証拠と今の指紋から `unrun`・`passed`・`failed`・`stale` を決め、指紋不明・拠点不明・別拠点を合格にしない。
 - `agentTokenBytes` は固定長の合言葉の形式を調べ、`agentAuthorized` は一致・生存・所属・役割から操作の権限を決める。比較そのものは server の `crypto.timingSafeEqual`。`handoffScroll` は台帳の値を並べるだけで要約しない。
+- `questStateForParty(state, waiting)` はメンバーの判断待ちを畳み込み、1人でも待つなら waiting、ただし人が決めた done・dropped を保つ。
 - `questTitle` / `questStateAfterEvent` / `questForRecall` / `savedQuestEvent` / `sortedQuests` は依頼の題・状態・再開時の結び付き・保存する本文・一覧の順を決める。`reportTitle(report, language)` は報告の共通の見出しを返す。
 
 ### server ↔ web: ローカル HTTP / WebSocket
@@ -133,9 +143,9 @@ Notification は実際の入力要求だけ waiting_input。pi の整理失敗�
 
 | 経路 | 契約 |
 |---|---|
-| `POST /event` | AgentEvent を検証して受付。正常時204、不正入力400 |
-| `WS /ws` | `event` / `replay`、`towns`、`names`、`quests`（一覧・端末の結び付き・報告の町内での題）、`pending`、`equipped`、`attention`、`permission` / `permission-resolved`、`party-notices`（仲間の確認・役割外の変更）。web からは `permission-decision` |
-| `/api/agents` | 起動時に PATH で検出した種類（shell は常に含む）と町・再開・整理・途中のそうび変更の対応範囲の公開部分 |
+| `POST /event` | AgentEvent を検証して受付。端末専用の Authorization Bearer から terminal を確定。合言葉なし／不一致は表示専用。Origin つき403、CORSなし。正常時204、不正入力400 |
+| `WS /ws` | `event` / `replay`、`towns`、`names`、`quests`（一覧・端末の結び付き・報告の町内での題）、`pending`、`equipped`、`attention`、`permission` / `permission-resolved`、`party-notices`（仲間の確認・役割外の変更）。web からは `permission-decision`。札は未保存入力・操作フォーカスがある間、`quests` の受信でフォームを差し替えない（通信形式は不変） |
+| `/api/agents` | 起動時に PATH で検出した種類（shell は常に含む）と町・再開・整理・途中のそうび変更の対応範囲の公開部分。出陣の窓は `hero: false` を「ターミナルのみ（勇者は出ない）」と表示 |
 | `/api/equipment` | エージェントごとの武器（モデル）・アクセサリ（考える量）の読み込み済みマスタ |
 | `/api/sessions` | 装備つき端末の一覧・作成・削除、`/:id/say` で依頼（`steer` で作業中にもすぐ伝える。答え待ちの間は断る）、`/:id/action` で中断・整理・終了、`/:id/equip` で装備の持ちかえ（作業中は預かる） |
 | `WS /pty?session=<id>` | 同じ端末の保持出力とライブ出力。web からは `input` / `resize` |
@@ -143,23 +153,23 @@ Notification は実際の入力要求だけ waiting_input。pi の整理失敗�
 | `/api/names`, `/api/towns`, `/api/settings` | 名前、町の鍵で引く台帳・すがた、町をしまうまでの日数・`saveConversation`（既定 false） |
 | `/api/review?session=<id>` | GET 既知の端末の cwd・branch・短い HEAD・上流との差・変更一覧と行の増減。成功した読み取りは `QuestLedger.reviewed` で記録 |
 | `/api/review/diff?session=<id>&path=<相対パス>` | GET 1ファイルの unified diff、または binary／tooLarge の印。相対パスと実パスの両方で cwd の外を拒否 |
-| `/api/quests` | GET 一覧（`?town=<鍵>` で町を限定）、POST `{town,title,purpose?}` で作成、DELETE 町ごと／すべての記録を削除 |
+| `/api/quests` | GET 一覧（`?town=<鍵>` で町を限定、`writerSession?` は現在の書き換える役から算出）、POST `{town,title,purpose?}` で作成、DELETE 町ごと／すべての記録を削除 |
 | `/api/quests/:id` | GET 出来事つきの札、PATCH `{title?,purpose?,state?}`、DELETE クエストと出来事・結び付きを削除 |
 | `/api/quests/:id/assign` | POST `{session}` で同じ町の端末に結び付け、cwd・branch を既定の拠点にする。勇者は同時に1つだけ |
-| `/api/quests/:id/party` | GET 勇者・役割・一言・書き換える役・状態・拠点、POST `{session,role,note,writer?}` で人が所属と役割を変更。1人の勇者は1クエスト、指揮役・書き換える役は各1人まで |
+| `/api/quests/:id/party` | GET 勇者・役割・一言・書き換える役・状態・拠点・`canTalk`（会話対応）、POST `{session,role,note,writer?}` で人が所属と役割を変更。1人の勇者は1クエスト、指揮役・書き換える役は各1人まで |
 | `/api/quests/:id/scroll` | GET `{text,reply?}`。台帳の事実だけの下書きと、差し込める直近の返事（本文保存なしならメモリだけ） |
-| `/api/quests/:id/send`, `/summary`, `/handoff` | POST 人が直した紹介文／選んで内容を確認した定型文／巻物を、通常と同じ配送で送る。handoff は `{session?,preset?,cwd?,text,writer?}`、新規出陣と書き換える役の移動は人の操作だけ |
+| `/api/quests/:id/send`, `/summary`, `/handoff` | POST 人が直した紹介文／選んで内容を確認した定型文／巻物を、通常と同じ配送で送る。summary は画面で確認した `{text}` をそのまま使い、サーバーで再生成しない。handoff は `{session?,preset?,cwd?,text,writer?}`、新規出陣と書き換える役の移動は人の操作だけ。会話非対応の受け手は409、預かり・新規起動・所属変更の前に断る |
 | `/api/party-notices` と `/:id` | GET 確認と警告、POST `{yes:boolean}` で仲間・役割の依頼に人が回答、DELETE で警告を既読に。画面用認可だけ |
 | `/api/agent/quests/:id/read`（`:id=current` 可） | GET 自分のクエストの題・目的・条件・パーティー・出来事の要点。画面用トークンは使わず、Authorization Bearer と X-Agent-Session。Origin つきのブラウザ要求を拒否 |
 | `/api/agent/quests/:id/note`, `/send`, `/invite`, `/review` | POST 自分の覚え書き（1〜2000文字）。指揮役だけ、パーティーへの依頼・人の確認待ちの仲間／役割変更・review への変更。done・dropped・削除・許可・他クエストの操作は拒否 |
-| `/api/quests/:id/checks` | GET `{checks,fingerprint?,candidates}`（既知の端末から指紋を再読）、POST `{name,command}` で条件を足す。実行 API ではない |
+| `/api/quests/:id/checks` | GET `{checks,fingerprint?,candidates}`（保存拠点、無ければ現在の書き換える役のフォルダから再読。他の端末で代用せず、読めなければ指紋なし）。証拠の `base?` と指紋の `base` は拠点のパス。POST `{name,command}` で条件を足す。実行 API ではない |
 | `/api/quests/:id/checks/:checkId` | DELETE 条件を消す（過去の証拠は出来事として残る） |
 | `/api/quests/checks-report?session=<id>&at=<時刻>` | GET 報告時のクエストの条件・最新の証拠・今の指紋。報告とクエストの印は別の判定 |
 | `/api/quests/:id/base` | POST `{session}` で同じ町の既知の端末の拠点を保存、DELETE で結び付きを外す（Git の branch は消さない） |
 | `/api/worktrees` | GET `?cwd=<絶対パス>` で既存拠点・ローカル branch・HEAD の branch・既定の親、POST `{cwd,base,branch,path}` で作成、DELETE `{cwd,path}` できれいで勇者のいない拠点をたたむ |
 | `/api/previews?quest=<id>` または `?town=<鍵>` | GET `{links,candidates}`、POST `{name?,url}`、DELETE `&id=<link id>`。literal loopback の HTTP(S) と 1〜65535 のポートだけ、Yushario 自身のポートを拒否。候補は自動で結び付けない |
 | `/preview-link.js` | GET トークン不要の静的 JS。`yushario-preview` の `{url,title,errors,count}` を opener に知らせるだけ |
-| `POST /hooks/permission` | Claude Code の HTTP フック。許可・拒否を返すか、時間切れ等は通常の端末プロンプトに戻す |
+| `POST /hooks/permission` | Claude Code の HTTP フック。Authorization Bearer の端末へ結び付け、許可・拒否を返す。Origin つき403、CORSなし。合言葉なし／不一致は表示だけで `{}`（端末判断）、許可カードは作らない |
 
 ### web 内: 描画データと端末の接続
 
@@ -172,25 +182,28 @@ Notification は実際の入力要求だけ waiting_input。pi の整理失敗�
 - server は `127.0.0.1` のみ。起動ごとにランダムなトークンを作り、URL に表示する。token ファイルは読まず・書かず、残っていても使わない。開発時だけ明示的な `AGENT_CHARACTER_TOKEN` 指定を許す。ブラウザを自動で開く（`--no-open` で無効）。既定8790／`--port`／`PORT` から、使用中なら次の空きポートを実際に bind して使う。
 - npm パッケージの allowlist は `dist/`・`lib/`・Claudeフック・bin・`LICENSE`・`NOTICE`。ライセンスと通知はブラウザ配布用の `dist/` にもコピーする。アダプタはパッケージの絶対パスから読み込み、ソース・テスト・作業用ファイル・利用者データを同梱しない。
 - HTTP・WS Upgrade の入口で Host を `127.0.0.1:<実ポート>`／`localhost:<実ポート>` に限定する。Vite proxy は Host を転送先へ変更する。WS `/ws`・`/pty` と `/api/*` はトークンと自分自身の Origin を検査する。WS は Origin 必須、HTTP API の Origin 無しリクエストはトークンで許可する。開発時だけローカルの別ポートも許可する。
-- フックの `POST /event`・`/hooks/permission` はトークン不要。ブラウザ由来の外部 Origin は拒否する。本文の上限は1MiB、端末作成・町の設定は4KiB、端末操作は64KiB（UTF-8バイト、超過は413）。Claude の command フック stdin も1MiBで、超過時は無言で正常終了する。
+- フックの `POST /event`・`/hooks/permission` は画面用トークンを使わず、端末の `AGENT_CHARACTER_AGENT_TOKEN` を Authorization Bearer で受ける。Claude HTTP 許可フックは公式の `headers`・`allowedEnvVars` で環境変数を展開する。すべての Origin つきを拒否し、CORS は返さない。合言葉なし／不一致の知らせは terminal・branch・command を外し、agent を `external:` 名前空間にして描くだけ。台帳・パーティー・証拠・許可・失効・PTY へは渡さない。本文の上限は1MiB、端末作成・町の設定は4KiB、端末操作は64KiB（UTF-8バイト、超過は413）。Claude の command フック stdin も1MiBで、超過時は無言で正常終了する。
+- 再開による所属移動は、画面の「よびもどす」で起動した端末の `recalledHero` と SessionStart の hero が一致し、旧端末が終了／削除済みの時だけ。recalledHero はメモリだけで DB に保存しない。ほかの端末の既知の hero を名乗るフックは表示専用に落とす。
+- サーバーの Git は `core.fsmonitor=false`・`core.hooksPath` を null device に固定し、global/system 設定と継承した `GIT_*` を使わない。repo の filter 名を `git config` で読み、clean・smudge・process を空、required を false に上書きする。外部 diff・textconv も読み取り側で無効化する。filter による変換を行わない拠点なので、必要な準備は人が端末で行う。同一利用者による同時の設定差し替え、PATH 上の git 自体の改変は隔離しない。
 - PTY はブラウザ切断では止めない。明示的な終了・CLI の終了・server の停止で終わる。最大16セッション、各出力の直近256KBを保持する。切り捨てた部分で有効になった端末のモード（pi の別画面・マウスなど）は覚えておき、開き直した時に先に送る。
 - 起動時に検査した CLI の絶対パスを保持し、別の作業ディレクトリでも同じパスを起動する。子プロセスに `AGENT_CHARACTER_URL`・`AGENT_CHARACTER_SESSION`・`AGENT_CHARACTER_PROJECT` を渡す。Claude フックは渡された project を使い、外部起動でその値が無い時だけ git から調べる。transcript_path が無い Stop は再試行しない。server のトークンや親の入れ子セッション判定用変数は渡さない。
 - イベント全体2000件・会話窓の本文と報告・預かり・端末出力はメモリのみ（永続クエストの要点は別）。履歴があふれた時は、最も多く持つ勇者の古いイベントから捨てる。活動中の勇者の最初のイベントと最後の本体の UserPromptSubmit は保護し、SessionEnd 済みの勇者は保護しない。サーバーを再起動すると消える。往復は進行中だけ累積し、遅着補正用のイベントは直近256件まで（それ以前への遅着は集計しない）。ファイル名は往復ごと最大256件、ツール・テスト・失敗の累計は切り捨てない。完了した札は通常の新イベントで数え直さず、直近範囲への遅着時だけ補正する。
 - 町・設定・名前・再開用のめいぼは `AGENT_CHARACTER_HOME`（既定 `~/.config/agent-character`）の JSON に保存する。町の最終活動時刻はメモリで更新し5秒おきと終了時にまとめて保存、時刻だけの変更では台帳を配信しない。登録・すがた・ピン・しまう／戻すはすぐ保存・配信する。本文は保存せず、一時ファイルから置き換える。壊れたファイルは `.broken` に退避する。
 - 町の内部の鍵は `git rev-parse --path-format=absolute --git-common-dir` の実パス（非 git はフォルダの実パス）。worktree は同じ鍵、同じ短い名前の別リポジトリは別の町。表示には親フォルダ名を添える。`towns.json` は起動時に保存済み path から鍵へ移し、読めない path は旧名のまま次の登録を待つ。セッションのイベントの project はサーバーが鍵に直す。
-- 仕事の台帳は `AGENT_CHARACTER_HOME/yushario.db`。`quests`・`quest_events`・`quest_sessions` を保存し、`PRAGMA user_version` と順番に呼ぶ移行関数の並びで版を上げる。題・目的・状態・時刻・担当・報告の集計と見出しはいつも保存し、依頼／返事の本文は `saveConversation` が true の時だけ。許可の全文・端末／ツールの出力は保存しない。削除は外部キーの CASCADE で出来事・結び付きも消し、secure_delete を使う。DB は 0600。再起動で一覧と札は戻るが、会話窓を DB から再構成しない。
-- パーティーは `quest_party`（`CREATE TABLE IF NOT EXISTS`、既存列・移行配列の変更なし、クエスト削除で CASCADE）。セッションを主キーにし、指揮役と書き換える役にクエストごとの一意索引を置く。旧 `quest_sessions` から取り込み、所属・再開時に同表とそろえ、`quests.session`・`hero` は最初の「じっそう」を指す。書き換える役の移動とは別。役割・一言・覚え書き・出来事の要点は保存し、依頼・紹介文・巻物の本文は `saveConversation` に従う。
+- 仕事の台帳は `AGENT_CHARACTER_HOME/yushario.db`。`quests`・`quest_events`・`quest_sessions` を保存し、`PRAGMA user_version` と順番に呼ぶ移行関数の並びで版を上げる。題・目的・状態・時刻・担当・報告の集計と見出しはいつも保存し、依頼／返事の本文は `saveConversation` が true の時だけ。許可の全文・端末／ツールの出力は保存しない。削除は外部キーの CASCADE で出来事・結び付きも消し、secure_delete を使う。DB は 0600。再起動で一覧と札は戻るが、会話窓を DB から再構成しない。DB を開けない・読めない時は起動を止め、bin が実パスと「消さずに退避して、別の AGENT_CHARACTER_HOME で切り分け」を日英で案内する。DB の自動削除・作り直しはしない。
+- パーティーは `quest_party`（`CREATE TABLE IF NOT EXISTS`、既存列・移行配列の変更なし、クエスト削除で CASCADE）。セッションを主キーにし、指揮役と書き換える役にクエストごとの一意索引を置く。旧 `quest_sessions` から取り込み、所属・再開時に同表とそろえ、`quests.session`・`hero` は最初の「じっそう」を指す。書き換える役の移動とは別。`writerSession` は `quest_party` から返す値で列は足さない。役割・一言・覚え書き・出来事の要点は保存し、依頼・紹介文・巻物の本文は `saveConversation` に従う。
 - `AGENT_CHARACTER_AGENT_TOKEN` は PTY ごとに生成する32バイトの乱数で、DB・公開セッション情報・WS に出さない。固定長の形式を core で検査し、server で32バイトを `timingSafeEqual` する。端末・会話が終了／旅立ち中なら拒否。画面用のトークンは従来どおり子へ渡さず、`AGENT_CHARACTER_QUEST_TOOL` と一時 PATH の `yushario` を渡す。仲間の依頼（最大32件）と警告、差し込む直近の返事はメモリだけ。指揮役が去った依頼は失効し、人の「はい」より前に出陣・役割変更しない。
+- セッションごとの判断待ち・往復・依頼重複の覚えは終了時と端末削除時に破棄し、クエスト削除時は所属セッション分と指紋・読み取り世代・直近の返事も破棄する。パーティーの編集観測・警告済みの覚えはセッションごと直近256往復まで、終了時に破棄する。画面では会話非対応の受け手を「ターミナルのみ」として選べなくする。
 - 指揮役の依頼は `say` の通常の預かり・配送を共有し、`PartyRequest`（`detail` は指揮役の表示名）を会話へ出す。実際の UserPromptSubmit が来ても同じ行を重ねず、起動前の勇者には到着後に表示する。役割の外の編集は成功した編集フックからすぐに知らせ、遅着時は報告のファイル一覧でも補う。1往復につき1件だけで、CLI を止めない。
-- ためすことは `quest_checks`、証拠は `quest_events` の `check` 出来事と `quest_check_evidence` に保存する。既存列・移行配列を変えず、作成の最後で `CREATE TABLE IF NOT EXISTS`。条件名・コマンドの形、証拠の先頭200文字・成否・時刻・勇者・一致した条件ID・指紋は `saveConversation` に関係なく保存し、クエスト削除で両表とも CASCADE する。
-- 指紋は `rev-parse --verify HEAD` と `diff HEAD --no-ext-diff --no-textconv --binary`、未追跡の NUL ファイル一覧を SHA-256 にした物（未追跡の本文は読まない）。git は execFile・5秒・1MiB上限。`/event` の記録・配信と証拠の作成を先に終え、git を待たずに読み始めて後から証拠へ付ける。遅い読み取りで新しい指紋を上書きしない。今の指紋はメモリだけで、クエスト・鑑定・報告を開く時と Stop で読み直す。不明なら「じょうたい ふめい」。done は画面で一言確かめるが、人の判断を止めない。
+- ためすことは `quest_checks`、証拠は `quest_events` の `check` 出来事と `quest_check_evidence` に保存する。既存列の意味・移行配列を変えず、作成の最後で `CREATE TABLE IF NOT EXISTS`。証拠の `base`（その端末の拠点）と `capture`（保存ごとの乱数ID）は、既存DBでは `PRAGMA table_info` で未作成を確かめて `ALTER TABLE ADD COLUMN` する。古い証拠は残すが、拠点が無いので合格にしない。条件名・コマンドの形、証拠の先頭200文字・成否・時刻・勇者・一致した条件ID・指紋・拠点は `saveConversation` に関係なく保存し、クエスト削除で両表とも CASCADE する。遅れた指紋は出来事ID・capture・親クエストが一致する未付与の証拠だけに付け、削除後のrowid再利用でも別の証拠を変えない。captureは配信しない。
+- 指紋は `rev-parse --verify HEAD` と `diff HEAD --no-ext-diff --no-textconv --binary`、未追跡の NUL ファイル一覧と本文を SHA-256 にした物。未追跡は256ファイル・本文の合計1MiBまでを有界読み取りし、上限超過・読取失敗・シンボリックリンク・範囲外は不明。本文は保存も配信もしない。git は execFile・5秒・1MiB上限。比較先は保存拠点、無ければ現在の書き換える役だけ。指紋に実パスを含め、別拠点の証拠を合格に使わない。`/event` の記録・配信と証拠の作成を先に終え、git を待たずに証拠の端末を読んで後から付け、比較先は別に読み直す。遅い読み取りで新しい指紋を上書きしない。今の指紋はメモリだけで、拠点／所属の変更で捨て、クエスト・鑑定・報告を開く時と Stop で読み直す。不明なら「じょうたい ふめい」。done は画面で一言確かめるが、人の判断を止めない。
 - 拠点の path・branch は SQLite のクエストの `worktreePath`・`worktreeBranch` に保存し、`QuestLedger.setWorktree(id,{path,branch})` で結び付ける。たたんだ拠点の結び付きは外すが branch は Git に残す。worktree は Git 自身が管理し、別の台帳は作らない。`execFile` の引数で `check-ref-format --branch`・`worktree add -b`・`worktree list --porcelain -z`・`worktree remove` を呼ぶ（5秒・1MiB上限、force なし）。新しい置き場所の既存フォルダ・既存拠点内・別のリポジトリ内・シンボリックリンクの親を確かめる。撤去中は同じ場所への端末作成を断り、活動中の端末（shell も含む）と未追跡も含む変更があれば撤去しない。フックの記録は git の読み直しで待たせず、branch の更新は次のイベント／一覧に使う。
 - `QuestLedger.current(session)`・`addEvent(id,{kind,at,title,...})`・`reviewed(session,at)` は鑑定側からも直接呼べる。出来事の要点は core の往復集計から保存し、直近範囲の遅着で補正する。`done`・`dropped` はフックで上書きしない。
 - 許可は id ごとに最大16件、独立した120秒の期限で待つ。再接続では全件を再送し、画面がすべて切断したら全件を端末判断へ戻す。コマンド／パスの表示は待っている間だけ2000文字まで保持し、超過時は画面での許可を禁止する。履歴・ログには短い要約だけを渡す。
 - 鑑定は `execFile` の git 読み取りだけ（シェルを通さない）。外部 diff・textconv・色を無効にし、各コマンドは5秒、出力は1MiBまで。未追跡の内容は選んだ時だけ読み、バイナリ・1MiB超は本文を返さない。絶対パス・`..`・外向きのシンボリックリンクを拒否し、差分の本文は保存しない。編集後の最後のテストが成功した報告だけ宝箱、未実行・失敗は巻物。見出しは core の `reportTitle` を画面と台帳で共有する。
 - エディタ（なし＝パスをコピー／VS Code／Cursor）と報告の鑑定済み印（勇者IDと時刻、直近200件）は localStorage。ファイルを開く操作は URL／クリップボードだけで、サーバーに開く API はない。
-- プレビューの名前・URL は同じ SQLite の `quest_previews` 表（`CREATE TABLE IF NOT EXISTS`、移行配列と既存 quests 列は変更しない）。クエスト削除時は FK CASCADE、町／全記録の削除時は町用の結び付きも削除する。端末の候補は最大20件・未完行8KiBのメモリだけ、ページの知らせ・エラー・下書きはブラウザのメモリだけ。表示中の区画の URL／候補は2秒ごとに読む。通知は結び付け済み URL と同じ origin・同じ origin の通知内 URL の時だけ受け、外部へ送らず、下書きを自動送信しない。
-- 既読は勇者IDと時刻だけをブラウザに保存する。会話の下書きはページ内だけ。各 CLI 自身の履歴保存は別。
+- プレビューの名前・URL は同じ SQLite の `quest_previews` 表（`CREATE TABLE IF NOT EXISTS`、移行配列と既存 quests 列は変更しない）。クエスト削除時は FK CASCADE、町／全記録の削除時は町用の結び付きも削除する。端末の候補は最大20件・未完行8KiBのメモリだけ、ページの知らせ・エラー・下書きはブラウザのメモリだけ。表示中の区画の URL／候補は2秒ごとに読む。通知は `window.open` が返したそのクエスト／町のタブ（閉じていない WindowProxy）と `event.source` が一致し、結び付け済み URL と同じ origin・同じ origin の通知内 URL の時だけ受ける。タブの参照はメモリだけで、結び付き／クエストを消した時に捨て、外部へ送らず、下書きを自動送信しない。クエストの下書きの宛先は `writerSession`、いなければ人がパーティーから会話対応の勇者を選ぶ。実装役の有無では入口を消さない。
+- 既読は勇者IDと時刻だけをブラウザに保存する。会話の下書きはページ内だけ。クエスト札の未保存の題・目的・ためすことも開いている札のDOMだけに持ち、背景の更新や遅い初回読み取りで消さない。閉じると破棄し、保存・追加を選ぶまでAPIへ送らない。各 CLI 自身の履歴保存は別。
 
 ## PoC でやらないこと
 

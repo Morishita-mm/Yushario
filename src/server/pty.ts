@@ -21,6 +21,7 @@ import { launchPty, writeClaudeSettings } from "./pty-launch";
 import { AGENTS, publicAgents } from "./agents";
 import { hasTrustPrompt, replacedSession } from "../core/session-actions";
 import { descendants } from "./pty-process";
+import { authenticatedHookSession } from "./hook-auth";
 import { readJsonBody, SETTINGS_BODY_LIMIT } from "./http-body";
 
 function json(response: ServerResponse, status: number, value: unknown): void {
@@ -60,9 +61,7 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
   }
 
   function observe(event: AgentEvent, at: number): void {
-    // Claude's permission hook has no terminal; its conversation ID still names the session.
-    const session = event.terminal ? sessions.get(event.terminal)
-      : event.agent ? [...sessions.values()].find((item) => item.agentId === event.agent) : undefined;
+    const session = event.terminal ? sessions.get(event.terminal) : undefined;
     if (!session) return;
     if (!event.subagent && event.agent) session.info.hero = event.agent;
     const previous = replacedSession(event, session.agentId);
@@ -130,7 +129,7 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
     let finish!: () => void;
     const finished = new Promise<void>((resolve) => { finish = resolve; });
     const session: Session = {
-      info: { id, preset, cwd, project, branch, projectName: identity.name, projectParent: identity.parent, createdAt: Date.now(), ...selectedEquipment }, terminal,
+      info: { id, preset, cwd, project, branch, projectName: identity.name, projectParent: identity.parent, createdAt: Date.now(), ...(resume ? { recalledHero: resume } : {}), ...selectedEquipment }, terminal,
       agentToken, output: Buffer.alloc(0), modes: new Map(), clients: new Set(), stop, waiting: false, eventAt: -Infinity, texts: [],
       interrupted: false, interrupting: false, departing: false, asking: false, askedAt: -Infinity, agentId: resume,
       hasPrompt: Boolean(resume), name: basename(cwd), finished, finish,
@@ -261,9 +260,10 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
   return {
     sockets, handleRequest, observe,
     // The app answered a permission prompt: the CLI no longer waits, so steering is safe again.
-    answered: (agent: string) => {
-      for (const session of sessions.values()) if (session.agentId === agent) { session.asking = false; session.askedAt = Date.now(); }
+    answered: (terminal: string) => {
+      const session = sessions.get(terminal); if (session) { session.asking = false; session.askedAt = Date.now(); }
     },
+    hookSession: (authorization: string | undefined) => disposed ? undefined : authenticatedHookSession(authorization, sessions.values()),
     pending: () => [...sessions.values()].filter((session) => session.texts.length || session.pendingEquipment).map(pending),
     attention: () => [...sessions.values()].filter((session) => session.attention && !session.agentId && !session.info.exited)
       .map((session) => ({ type: "attention", terminal: session.info.id, reason: "trust" })),

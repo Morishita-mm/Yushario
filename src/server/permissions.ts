@@ -4,7 +4,7 @@ import type { AgentEvent } from "../core/events";
 export const PERMISSION_TIMEOUT_MS = 120_000;
 export type PermissionDecision = "allow" | "deny" | "terminal";
 type Summary = { tool: string; summary: string; content: string; omitted: number; agent?: string; name?: string; helper?: string };
-export type Permission = { type: "permission"; id: string; expiresAt: number } & Summary;
+export type Permission = { type: "permission"; id: string; expiresAt: number; terminal: string } & Summary;
 
 function shortText(value: unknown): string | undefined {
   return typeof value === "string" && value && value.length <= 200 ? value : undefined;
@@ -64,7 +64,7 @@ export class PermissionWaiter {
 
   observe(event: AgentEvent): void {
     for (const { permission, finish } of this.waiting.values()) {
-      if (event.source !== "claude-code" || event.agent !== permission.agent) continue;
+      if (event.source !== "claude-code" || event.terminal !== permission.terminal) continue;
       const stopped = !event.subagent && ["Stop", "StopFailure", "SessionEnd"].includes(event.hook ?? "");
       const sameTool = event.subagent?.id === permission.helper && event.tool === permission.tool
         && (event.state === "error" || (event.state === "working" && event.detail === "Tool completed"));

@@ -18,7 +18,7 @@ import { interiorHotspots } from "./mock-interior";
 import { drawTown, townSpots } from "../town/town";
 import { FIGHTS, PROJECTS, farewell, recall, ROSTER, SLEEPERS, PRAYERS, TOWN_REPORTS, townHeroes, walkers, equippedWalkers, townReports, CALLER, walkTown, initTown, heroPlace } from "./mock-data";
 import { notices } from "./mock-notices";
-import { renderHerald, noticesInTown, showTownList, showThemeChooser, type Notice } from "../town/herald";
+import { renderHerald, noticesInTown, showTownList, showArchivedTowns, showThemeChooser, type Notice } from "../town/herald";
 import { drawWorld, markers, plate, regionName, sleeping, type Project } from "../town/world";
 import { Sheets } from "../town/sheets";
 import { drawNavigation } from "../town/navigation";
@@ -50,7 +50,6 @@ let mark: { id: string; place: Place; at?: number } | undefined;
 const herald = document.querySelector<HTMLElement>("#herald")!;
 const party = document.querySelector<HTMLElement>("#party")!;
 const sideTabs = initSideTabs();
-// Entering a town; a town whose kind is not chosen yet asks first.
 function enter(project: Project, place: Place = "town"): void {
   if (!project.theme) {
     showThemeChooser(reportRoot, project, art, (theme) => { project.theme = theme; refreshHerald(); enter(project); }, () => undefined);
@@ -61,7 +60,6 @@ function enter(project: Project, place: Place = "town"): void {
   go(byId(place));
 }
 let picked: string | undefined; // The mock hero chosen in the ゆうしゃ tab.
-// Like the app: urgent news crosses town borders, but the heroes list stays local.
 function refreshHerald(): void {
   const localTown = current.place === "world" ? undefined : town.repo;
   const list = noticesInTown(notices(), localTown);
@@ -79,6 +77,8 @@ function refreshHerald(): void {
 const read = new Set<string>();
 let report: string | undefined; // name of the agent whose report is open
 const reportRoot = document.querySelector<HTMLElement>("#report")!;
+document.querySelector("#sleeping-towns")!.addEventListener("click", () => showTownList(reportRoot, tr("ねむっている町", "Sleeping towns"), sleeping(PROJECTS), enter, () => undefined));
+document.querySelector("#archived-towns")!.addEventListener("click", () => showArchivedTowns(reportRoot, [], async () => undefined, () => undefined));
 const mockQuests = initMockQuests(PROJECTS, reportRoot, openReport);
 function openReport(name: string): void {
   if (mark?.id === name) mark = undefined;
@@ -87,7 +87,7 @@ function openReport(name: string): void {
   showReport(reportRoot, name, REPORTS[name], () => { read.add(name); report = undefined; }); mockReportChecks(reportRoot);
 }
 function closeLayer(): void {
-  reportRoot.hidden = true;
+  reportRoot.querySelector<HTMLDialogElement>("dialog[open]")?.close(); reportRoot.hidden = true;
   reportRoot.classList.remove("menu-layer");
   if (report) read.add(report);
   report = undefined;

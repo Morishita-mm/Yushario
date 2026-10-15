@@ -71,7 +71,9 @@ try {
     }
   }
 } catch (error) {
-  if (phase === "data") {
+  if (error instanceof Error && error.name === "QuestDatabaseError") {
+    console.error(error.message);
+  } else if (phase === "data") {
     console.error(`Cannot create or write data folder: ${directory}. Start with AGENT_CHARACTER_HOME=<writable-folder>.`);
     console.error(`データフォルダを作れないか書けません: ${directory}。AGENT_CHARACTER_HOME=<書けるフォルダ> で起動してください。`);
   } else if (phase === "pty") {

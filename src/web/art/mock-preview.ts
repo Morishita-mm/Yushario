@@ -25,8 +25,10 @@ export function initMockPreview() {
           if (!result.ok) throw new Error(tr("この PC の 別の ポートを えらんで", "Choose another local port"));
           list(quest).push({ id: `mock-preview-${Date.now()}`, quest: quest.id, town: quest.town, name, url: result.url }); render();
         }, remove: async (id) => { links.set(quest.id, list(quest).filter((link) => link.id !== id)); render(); },
-        tell: (text) => {
-          const draft = document.createElement("textarea"); draft.rows = 7; draft.value = text; draft.setAttribute("aria-label", tr("勇者への 下書き", "Draft for hero")); root.append(draft); draft.focus();
+        recipients: [{ session: "party-0", name: tr("アレン", "Allen") }, { session: "party-1", name: tr("ミラ", "Mira") },
+          { session: "party-2", name: tr("ルカ · ターミナルのみ", "Luca · Terminal only"), disabled: true }],
+        tell: (text, session) => {
+          const draft = document.createElement("textarea"); draft.rows = 7; draft.value = text; draft.setAttribute("aria-label", tr("勇者への 下書き", "Draft for hero")); draft.dataset.session = session ?? ""; root.append(draft); draft.focus();
         } }));
     }
     render(); return root;

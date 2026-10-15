@@ -23,28 +23,36 @@ export class QuestDatabase {
   readonly previews: PreviewDatabase;
   constructor() {
     const path = join(dataDirectory, "yushario.db");
-    this.db = new DatabaseSync(path);
-    chmodSync(path, 0o600);
-    this.db.exec("PRAGMA foreign_keys=ON; PRAGMA journal_mode=DELETE; PRAGMA secure_delete=ON;");
-    const version = Number(this.db.prepare("PRAGMA user_version").get()!.user_version);
-    if (version > migrations.length) throw new Error("Quest database is from a newer Yushario");
-    for (let i = version; i < migrations.length; i++) {
-      this.db.exec("BEGIN");
-      try { migrations[i](this.db); this.db.exec(`PRAGMA user_version=${i + 1}; COMMIT`); }
-      catch (error) { this.db.exec("ROLLBACK"); throw error; }
+    let opened: DatabaseSync | undefined;
+    try {
+      this.db = opened = new DatabaseSync(path);
+      chmodSync(path, 0o600);
+      this.db.exec("PRAGMA foreign_keys=ON; PRAGMA journal_mode=DELETE; PRAGMA secure_delete=ON;");
+      const version = Number(this.db.prepare("PRAGMA user_version").get()!.user_version);
+      if (version > migrations.length) throw new Error("Quest database is from a newer Yushario");
+      for (let i = version; i < migrations.length; i++) {
+        this.db.exec("BEGIN");
+        try { migrations[i](this.db); this.db.exec(`PRAGMA user_version=${i + 1}; COMMIT`); }
+        catch (error) { this.db.exec("ROLLBACK"); throw error; }
+      }
+      createPartyTables(this.db); this.party = new PartyDatabase(this.db);
+      this.checks = new CheckDatabase(this.db);
+      createPreviewTables(this.db); this.previews = new PreviewDatabase(this.db);
+    } catch (cause) {
+      try { opened?.close(); } catch { /* Keep the original startup error. */ }
+      const error = new Error(`Cannot open or read quest database: ${path}\nCheck permissions, damage, or a newer database version. Keep the file; set it aside without deleting it, then try a different AGENT_CHARACTER_HOME.\nクエストの DB を 開けないか 読めません: ${path}\n権限・破損・新しい版の DB を 確かめてください。消さずに退避して、別の AGENT_CHARACTER_HOME で 切り分けてください。`, { cause });
+      error.name = "QuestDatabaseError";
+      throw error;
     }
-    createPartyTables(this.db); this.party = new PartyDatabase(this.db);
-    this.checks = new CheckDatabase(this.db);
-    createPreviewTables(this.db); this.previews = new PreviewDatabase(this.db);
   }
   list(): Quest[] { return (this.db.prepare("SELECT * FROM quests ORDER BY updatedAt DESC").all() as unknown as Quest[])
-    .map((quest) => ({ ...quest, checks: this.checks.list(quest.id), fingerprint: this.checks.fingerprints.get(quest.id) })); }
+    .map((quest) => ({ ...quest, writerSession: this.party.writerSession(quest.id), checks: this.checks.list(quest.id), fingerprint: this.checks.fingerprints.get(quest.id) })); }
   get(id: string): QuestDetail | undefined {
     const quest = this.db.prepare("SELECT * FROM quests WHERE id=?").get(id) as unknown as Quest | undefined;
     if (!quest) return;
     const events = this.db.prepare("SELECT * FROM quest_events WHERE quest=? ORDER BY at DESC, id DESC").all(id)
       .map((row) => ({ ...row, report: row.report ? JSON.parse(String(row.report)) : undefined, text: row.text ?? undefined })) as unknown as QuestEvent[];
-    return { ...quest, events: events.map((event) => event.kind === "check" ? { ...event, evidence: this.checks.event(event.id) } : event),
+    return { ...quest, writerSession: this.party.writerSession(id), events: events.map((event) => event.kind === "check" ? { ...event, evidence: this.checks.event(event.id) } : event),
       checks: this.checks.list(id), fingerprint: this.checks.fingerprints.get(id) };
   }
   save(quest: Quest): void {

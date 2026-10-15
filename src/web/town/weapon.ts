@@ -16,5 +16,5 @@ export function drawWeapon(ctx: CanvasRenderingContext2D, art: Sheets, tier: num
 
 export function weaponBesideLabel(ctx: CanvasRenderingContext2D, art: Sheets, tier: number | undefined,
   t: number, name: string, x: number, y: number): void {
-  drawWeapon(ctx, art, tier, t, x + ctx.measureText(name).width / 2 + art.size("ui-weapons")[0] / 2 + 3, y + 2);
+  drawWeapon(ctx, art, tier, t, x + Math.min(160, ctx.measureText(name).width) / 2 + art.size("ui-weapons")[0] / 2 + 3, y + 2);
 }

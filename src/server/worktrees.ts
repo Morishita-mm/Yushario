@@ -1,16 +1,13 @@
-import { execFile } from "node:child_process";
+import { gitText as git } from "./git";
 import { lstatSync, realpathSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { promisify } from "node:util";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { insideWorktree, parseWorktrees, validWorktreeBranch, validWorktreePath } from "../core/worktrees";
 import { readJsonBody, SETTINGS_BODY_LIMIT } from "./http-body";
 import { tr } from "./language";
 import type { TerminalSession } from "./pty-session";
 
-const execute = promisify(execFile);
 const removing = new Set<string>();
-const git = async (cwd: string, args: string[]) => (await execute("git", ["-C", cwd, ...args], { timeout: 5000, maxBuffer: 1024 * 1024 })).stdout;
 const exists = (path: string): boolean => { try { lstatSync(path); return true; } catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return false; throw error; } };
 
 // Realpath the nearest existing ancestor too: a user-supplied parent may be a symlink.

@@ -1,17 +1,10 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { validQuestCheck } from "../core/checks";
-import type { Quest } from "../core/quests";
 import { ACTION_BODY_LIMIT, readJsonBody } from "./http-body";
 import { tr } from "./language";
 import type { QuestLedger } from "./quest-ledger";
 import type { TerminalSession } from "./pty-session";
-import { refreshCheckFingerprint, scriptCandidates } from "./checks";
-
-export function checkSession(quest: Quest, sessions: TerminalSession[]): TerminalSession | undefined {
-  return sessions.find((session) => session.id === quest.session && session.project === quest.town)
-    ?? sessions.find((session) => session.project === quest.town && session.cwd === quest.worktreePath)
-    ?? sessions.find((session) => session.project === quest.town && !session.exited);
-}
+import { questCheckBase, refreshCheckFingerprint, scriptCandidates } from "./checks";
 export async function handleChecksRequest(request: IncomingMessage, response: ServerResponse, url: URL,
   quests: QuestLedger, sessions: () => TerminalSession[]): Promise<boolean> {
   const parts = url.pathname.split("/");
@@ -22,12 +15,12 @@ export async function handleChecksRequest(request: IncomingMessage, response: Se
     const quest = report ? quests.list().find((quest) => quests.get(quest.id)?.events.some((event) => event.kind === "report"
       && event.session === url.searchParams.get("session") && event.at === Number(url.searchParams.get("at")))) : quests.get(decodeURIComponent(parts[3]));
     if (!quest) { if (report) { json(200, { checks: [] }); return true; } return false; }
-    const chosen = checkSession(quest, sessions());
+    const known = sessions(), base = questCheckBase(quests, quest.id, known);
     if (request.method === "GET") {
-      await refreshCheckFingerprint(quests, quest.id, chosen?.cwd);
+      await refreshCheckFingerprint(quests, quest.id, known);
       if (parts[4] !== "checks" && !report) return false;
       json(200, { quest: quest.id, checks: quests.checks.list(quest.id), fingerprint: quests.checks.fingerprints.get(quest.id),
-        candidates: chosen ? await scriptCandidates(chosen.cwd) : [] }); return true;
+        candidates: base ? await scriptCandidates(base) : [] }); return true;
     }
     if (report) { response.writeHead(405).end(); return true; }
     if (request.method === "POST" && !parts[5]) {

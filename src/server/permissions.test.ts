@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PermissionWaiter, PERMISSION_TIMEOUT_MS, permissionOutput, permissionSummary } from "./permissions";
 
-const request = { type: "permission" as const, id: "first", tool: "Bash", summary: "Bash: date", content: "date", omitted: 0, expiresAt: Date.now() + PERMISSION_TIMEOUT_MS };
+const request = { type: "permission" as const, terminal: "t1", id: "first", tool: "Bash", summary: "Bash: date", content: "date", omitted: 0, expiresAt: Date.now() + PERMISSION_TIMEOUT_MS };
 afterEach(() => vi.useRealTimers());
 
 describe("PermissionWaiter", () => {
@@ -36,7 +36,7 @@ describe("PermissionWaiter", () => {
   ])("clears a terminal-answered request on Claude progress $state", async (event) => {
     const waiter = new PermissionWaiter();
     const result = waiter.wait(request, true);
-    waiter.observe({ ...event, source: "claude-code" });
+    waiter.observe({ ...event, terminal: "t1", source: "claude-code" });
     expect(await result).toBe("terminal");
     expect(waiter.pending).toEqual([]);
   });
@@ -63,12 +63,12 @@ describe("PermissionWaiter", () => {
       { state: "working" as const, tool: "Bash", detail: "Tool completed", agent: "s1" },
       { state: "working" as const, tool: "Bash", detail: "Tool completed", agent: "s1", subagent: { id: "h2" } },
       { state: "success" as const, hook: "Stop", agent: "s1", subagent: { id: "h1" } },
-    ]) waiter.observe({ ...event, source: "claude-code" });
+    ]) waiter.observe({ ...event, terminal: event.agent === "s2" ? "t2" : "t1", source: "claude-code" });
     expect(waiter.pending).toEqual([scoped]);
-    waiter.observe({ state: "error", tool: "Bash", agent: "s1", subagent: { id: "h1" }, source: "claude-code" });
+    waiter.observe({ state: "error", tool: "Bash", terminal: "t1", agent: "s1", subagent: { id: "h1" }, source: "claude-code" });
     expect(await result).toBe("terminal");
     const stopped = waiter.wait(scoped, true);
-    waiter.observe({ state: "success", hook: "Stop", agent: "s1", source: "claude-code" });
+    waiter.observe({ state: "success", hook: "Stop", terminal: "t1", agent: "s1", source: "claude-code" });
     expect(await stopped).toBe("terminal");
   });
   it("keeps independent calls and can cancel all on disconnect", async () => {

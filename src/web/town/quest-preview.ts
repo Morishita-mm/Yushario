@@ -1,11 +1,11 @@
 import type { PreviewLink, PreviewPage } from "../../core/preview";
 import { tr } from "../language";
-import { previewControls } from "./preview-controls";
+import { previewControls, type PreviewRecipient } from "./preview-controls";
 import "./preview.css";
 
 export type QuestPreviewView = {
   key: string; links: PreviewLink[]; candidates: string[]; pages: Map<string, PreviewPage>; script: string;
-  add: (name: string, url: string) => Promise<void>; remove: (id: string) => Promise<void>; tell?: (text: string) => void;
+  add: (name: string, url: string) => Promise<void>; remove: (id: string) => Promise<void>; tell?: (text: string, session?: string) => void; recipients?: PreviewRecipient[];
 };
 export function questPreview(view: QuestPreviewView): HTMLElement {
   const section = document.createElement("section"); section.className = "quest-preview";
@@ -16,7 +16,7 @@ export function questPreview(view: QuestPreviewView): HTMLElement {
     const address = document.createElement("p"); address.textContent = link.url;
     const remove = document.createElement("button"); remove.type = "button"; remove.textContent = tr("はずす", "Unlink");
     remove.onclick = () => { remove.disabled = true; void view.remove(link.id).catch((error: Error) => { status.textContent = error.message; remove.disabled = false; }); };
-    row.append(previewControls(view.key, [link], view.pages, view.tell), remove, address); section.append(row);
+    row.append(previewControls(view.key, [link], view.pages, view.tell, view.recipients), remove, address); section.append(row);
   }
   const form = document.createElement("form"), name = document.createElement("input"), url = document.createElement("input");
   name.maxLength = 200; url.maxLength = 4096; url.required = true; url.type = "url"; url.placeholder = "http://localhost:5173/";

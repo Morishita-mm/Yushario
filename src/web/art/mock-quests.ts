@@ -18,11 +18,11 @@ export function initMockQuests(projects: Project[], layer: HTMLElement, report: 
   function open(quest: QuestDetail): void {
     const box = windowBox(layer, quest.title, () => undefined);
     box.append(questCard(quest, "", async (patch) => { Object.assign(quest, patch); }, () => undefined, report,
-      async () => { quests = quests.filter((item) => item.id !== quest.id); layer.hidden = true; }, undefined, undefined, previews.section(quest), {
+      async () => { quests = quests.filter((item) => item.id !== quest.id); box.close(); layer.hidden = true; }, undefined, undefined, previews.section(quest), {
         talk: report, review: report, embark: () => undefined,
         mock: (["implement", "review", "command"] as const).map((role, i) => ({ quest: quest.id, session: `party-${i}`, hero: `party-${i}`,
-          name: [tr("アレン", "Allen"), tr("ミラ", "Mira"), tr("ルカ", "Luca")][i], role, note: "", writer: i === 0, active: true, joinedAt: now + i,
-          sessionInfo: { id: `party-${i}`, preset: "shell", cwd: "/tmp/town-base", branch: "quest/town", project: quest.town, createdAt: now } })),
+          name: [tr("アレン", "Allen"), tr("ミラ", "Mira"), tr("ルカ", "Luca")][i], role, note: "", writer: i === 0, active: true, canTalk: i !== 2, joinedAt: now + i,
+          sessionInfo: { id: `party-${i}`, preset: ["claude", "pi", "shell"][i], cwd: "/tmp/town-base", branch: "quest/town", project: quest.town, createdAt: now } })),
       }));
   }
   return (town?: string) => {

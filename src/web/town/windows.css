@@ -22,6 +22,8 @@
   background: #0a0a1a; border: 3px solid #fff; border-radius: 8px; box-shadow: 0 0 0 2px #0a0a1a, 0 0 0 4px #6e6a8a;
   font-size: 15px; line-height: 1.7;
 }
+dialog.report-window { color: inherit; max-height: 90svh; }
+dialog.report-window::backdrop { background: rgba(0, 0, 0, 0.65); }
 .report-window h3 { margin: 0 0 6px; text-align: center; color: #ffe066; font-weight: normal; font-size: 19px; }
 .report-window h4 { margin: 12px 0 2px; color: #9fd3ff; font-weight: normal; }
 .report-window .who { margin: 0 0 8px; }

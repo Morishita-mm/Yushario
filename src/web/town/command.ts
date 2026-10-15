@@ -13,15 +13,25 @@ export function element<K extends keyof HTMLElementTagNameMap>(tag: K, className
   return node;
 }
 
+const placements = new WeakMap<HTMLElement, ResizeObserver>();
+
 export function place(layer: HTMLElement, box: HTMLElement, at: [number, number], dismiss = () => close(layer), initial = 0): void {
   layer.classList.add("menu-layer");
   layer.replaceChildren(box);
   layer.hidden = false;
-  const width = layer.clientWidth, height = layer.clientHeight;
-  const left = Math.min(Math.max(8, at[0] + 24), width - box.offsetWidth - 8);
-  const top = Math.min(Math.max(8, at[1] - box.offsetHeight / 2), height - box.offsetHeight - 8);
-  box.style.left = `${left}px`;
-  box.style.top = `${top}px`;
+  placements.get(layer)?.disconnect();
+  const position = () => {
+    const width = layer.clientWidth, height = layer.clientHeight;
+    if (box.offsetWidth > width - 16 || box.offsetHeight > height - 16) { dismiss(); return; }
+    box.style.left = `${Math.max(8, Math.min(at[0] + 24, width - box.offsetWidth - 8))}px`;
+    box.style.top = `${Math.max(8, Math.min(at[1] - box.offsetHeight / 2, height - box.offsetHeight - 8))}px`;
+  };
+  position();
+  const observer = new ResizeObserver(() => {
+    if (layer.hidden || layer.firstElementChild !== box) { observer.disconnect(); return; }
+    position();
+  });
+  observer.observe(layer); observer.observe(box); placements.set(layer, observer);
 
   const enabled = () => [...box.querySelectorAll<HTMLButtonElement>(".commands button:not(:disabled)")];
   let selected: HTMLButtonElement | undefined;
@@ -61,6 +71,7 @@ export function place(layer: HTMLElement, box: HTMLElement, at: [number, number]
 }
 
 function close(layer: HTMLElement): void {
+  placements.get(layer)?.disconnect(); placements.delete(layer);
   layer.hidden = true;
   layer.classList.remove("menu-layer");
 }
@@ -160,6 +171,7 @@ function showRestConfirmation(layer: HTMLElement, at: [number, number], name: st
 
 // The roster of heroes who have set off; call one back to resume the same session.
 export function showRoster(layer: HTMLElement, roster: Departed[], onRecall: (name: string) => void): void {
+  placements.get(layer)?.disconnect(); placements.delete(layer);
   layer.classList.remove("menu-layer");
   const box = element("div", "report-window");
   box.setAttribute("role", "dialog");

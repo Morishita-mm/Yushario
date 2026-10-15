@@ -3,10 +3,12 @@ import type { Quest } from "../../core/quests";
 import type { RoomAgent } from "../../core/room";
 import { tr } from "../language";
 import { questPreview } from "../town/quest-preview";
-import { previewControls } from "../town/preview-controls";
+import { forgetPreviewTab, previewTabMatches } from "../town/preview-tabs";
+import { previewControls, type PreviewRecipient } from "../town/preview-controls";
+import { partyRequest, type PartyHero } from "../town/quest-party";
 
 type Scope = { key: string; quest?: string; town: string; session?: string; links: PreviewLink[]; candidates: string[];
-  checked: number; loading: boolean; error: string };
+  checked: number; loading: boolean; error: string; party: PartyHero[] };
 type Mount = { scope: Scope; full: boolean; signature: string };
 const token = new URLSearchParams(location.search).get("token") ?? "";
 const port = Number(location.port || (location.protocol === "https:" ? 443 : 80));
@@ -18,10 +20,10 @@ export function initPreview(tell: (session: string, text: string) => void) {
     const key = quest?.id ?? `town-${town}`;
     let value = scopes.get(key);
     if (!value) {
-      value = { key, town, quest: quest?.id, session: quest?.session ?? session, links: [], candidates: [], checked: 0, loading: false, error: "" };
+      value = { key, town, quest: quest?.id, session: quest ? quest.writerSession : session, links: [], candidates: [], checked: 0, loading: false, error: "", party: [] };
       scopes.set(key, value);
     }
-    value.session = quest ? quest.session ?? undefined : session ?? value.session; return value;
+    value.session = quest ? quest.writerSession : session ?? value.session; return value;
   }
   async function request(value: Scope, method = "GET", body?: unknown, id?: string): Promise<any> {
     const query = new URLSearchParams({ token, ...(value.quest ? { quest: value.quest } : { town: value.town }), ...(id ? { id } : {}) });
@@ -32,7 +34,11 @@ export function initPreview(tell: (session: string, text: string) => void) {
   }
   async function refresh(value: Scope): Promise<void> {
     if (value.loading) return; value.loading = true; value.checked = Date.now();
-    try { const data = await request(value); value.links = data.links; value.candidates = data.candidates; value.error = ""; }
+    try {
+      const [data, members] = await Promise.all([request(value), value.quest ? partyRequest(`quests/${encodeURIComponent(value.quest)}/party`) as Promise<PartyHero[]> : Promise.resolve([])]);
+      for (const link of value.links) if (!data.links.some((current: PreviewLink) => current.id === link.id && current.url === link.url)) { pages.delete(link.id); forgetPreviewTab(value.key, link.id); }
+      value.links = data.links; value.candidates = data.candidates; value.party = members; value.error = "";
+    }
     catch (error) { value.error = (error as Error).message; }
     finally { value.loading = false; paint(); }
   }
@@ -40,18 +46,22 @@ export function initPreview(tell: (session: string, text: string) => void) {
     for (const [root, mount] of mounts) {
       if (!root.isConnected) continue;
       const value = mount.scope;
-      const signature = JSON.stringify([value.links, value.candidates, value.links.map((link) => pages.get(link.id)), value.error, value.session]);
+      const signature = JSON.stringify([value.links, value.candidates, value.links.map((link) => pages.get(link.id)), value.error, value.session, value.party]);
       if (signature === mount.signature) continue; mount.signature = signature;
-      const draft = value.session ? (text: string) => tell(value.session!, text) : undefined;
+      const writer = value.party.find((member) => member.session === value.session);
+      const recipients: PreviewRecipient[] | undefined = value.quest && (!writer?.active || !writer.canTalk)
+        ? value.party.filter((member) => !value.session || member.session === value.session).map((member) => ({ session: member.session,
+          name: `${member.name}${member.canTalk ? "" : tr(" · ターミナルのみ", " · Terminal only")}`, disabled: !member.active || !member.canTalk })) : undefined;
+      const draft = value.quest || value.session ? (text: string, chosen?: string) => { const target = chosen ?? value.session; if (target) tell(target, text); } : undefined;
       if (mount.full) {
         const inputs = [...root.querySelectorAll("input")], focused = inputs.indexOf(document.activeElement as HTMLInputElement);
         const fields = inputs.map((input) => input.value);
-        root.replaceChildren(questPreview({ key: value.key, links: value.links, candidates: value.candidates, pages, script, tell: draft,
+        root.replaceChildren(questPreview({ key: value.key, links: value.links, candidates: value.candidates, pages, script, tell: draft, recipients,
           add: async (name, url) => { await request(value, "POST", { name, url }); await refresh(value); },
           remove: async (id) => { await request(value, "DELETE", undefined, id); pages.delete(id); await refresh(value); } }));
         [...root.querySelectorAll("input")].forEach((input, i) => { input.value = fields[i] ?? ""; if (i === focused) input.focus(); });
         if (value.error) { const error = document.createElement("p"); error.setAttribute("role", "status"); error.textContent = value.error; root.append(error); }
-      } else root.replaceChildren(previewControls(value.key, value.links, pages, draft));
+      } else root.replaceChildren(previewControls(value.key, value.links, pages, draft, recipients));
     }
   }
   function mount(value: Scope, full: boolean): HTMLElement {
@@ -67,6 +77,7 @@ export function initPreview(tell: (session: string, text: string) => void) {
   window.addEventListener("message", (event) => {
     if (!event.data || event.data.type !== "yushario-preview") return;
     for (const value of scopes.values()) for (const link of value.links) {
+      if (!previewTabMatches(value.key, link.id, event.source)) continue;
       const page = previewNotice(event.data, event.origin, link.url, port);
       if (page) pages.set(link.id, page);
     }
@@ -105,7 +116,7 @@ export function initPreview(tell: (session: string, text: string) => void) {
     remember: (quests: Quest[]) => {
       const ids = new Set(quests.map((quest) => quest.id));
       for (const [key, value] of scopes) if (value.quest && !ids.has(value.quest)) {
-        for (const link of value.links) pages.delete(link.id); scopes.delete(key);
+        for (const link of value.links) pages.delete(link.id); forgetPreviewTab(key); scopes.delete(key);
       }
       for (const quest of quests) scope(quest.town, quest);
     }, decorate };

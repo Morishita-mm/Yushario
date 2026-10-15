@@ -26,6 +26,7 @@ export function writeClaudeSettings(port: number, temporary: string): string {
   writeFileSync(settings, JSON.stringify({ hooks: { ...hooks,
     PermissionRequest: [{ matcher: "*", hooks: [{
       type: "http", url: `http://127.0.0.1:${port}/hooks/permission`, timeout: 125,
+      headers: { Authorization: "Bearer $AGENT_CHARACTER_AGENT_TOKEN" }, allowedEnvVars: ["AGENT_CHARACTER_AGENT_TOKEN"],
     }] }],
   } }), { mode: 0o600 });
   return settings;

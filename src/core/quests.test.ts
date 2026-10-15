@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { questForRecall, questStateAfterEvent, questTitle, savedQuestEvent, sortedQuests, validQuestPatch, type Quest } from "./quests";
+import { questForRecall, questStateAfterEvent, questStateForParty, questTitle, savedQuestEvent, sortedQuests, validQuestPatch, type Quest } from "./quests";
+import { askingAfterEvent } from "./session-actions";
+import type { AgentEvent } from "./events";
 import { registerTown, townKey, townLabel } from "./town-ledger";
 
 describe("persistent quests", () => {
@@ -20,6 +22,26 @@ describe("persistent quests", () => {
   it("never replaces a human's done/dropped decision and ignores helper reports", () => {
     for (const state of ["done", "dropped"] as const) expect(questStateAfterEvent(state, { state: "working", hook: "UserPromptSubmit" })).toBe(state);
     expect(questStateAfterEvent("active", { state: "idle", hook: "Stop", subagent: { id: "helper" } })).toBe("active");
+  });
+  it("keeps A's question through B's activity/report until A answers", () => {
+    const waiting = new Map<string, boolean>();
+    let state = "active" as Quest["state"];
+    const apply = (session: string, event: AgentEvent) => {
+      const asking = askingAfterEvent(event);
+      if (asking !== undefined) waiting.set(session, asking);
+      state = questStateForParty(questStateAfterEvent(state, event), waiting.values());
+      return state;
+    };
+    expect(apply("A", { state: "waiting_input", hook: "PermissionRequest" })).toBe("waiting");
+    expect(apply("B", { state: "working", hook: "PostToolUse", tool: "Read" })).toBe("waiting");
+    expect(apply("B", { state: "idle", hook: "Stop" })).toBe("waiting");
+    expect(apply("A", { state: "working", hook: "PostToolUse", tool: "Bash" })).toBe("active");
+    expect(questStateForParty("review", [false, false])).toBe("review");
+    for (const state of ["done", "dropped"] as const) expect(questStateForParty(state, [true])).toBe(state);
+  });
+  it("keeps helper questions until the owning conversation resumes", () => {
+    expect(questStateForParty("active", [askingAfterEvent({ state: "waiting_input", hook: "PermissionRequest", subagent: { id: "h" } }) === true])).toBe("waiting");
+    expect(askingAfterEvent({ state: "idle", hook: "Stop", subagent: { id: "h" } })).toBeUndefined();
   });
   it("drops conversation bodies unless chosen and never loses the request title", () => {
     const event = { quest: "q", kind: "request" as const, at: 1, title: "first line", text: "first line\nprivate" };

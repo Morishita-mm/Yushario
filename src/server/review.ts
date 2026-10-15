@@ -1,4 +1,4 @@
-import { execFile } from "node:child_process";
+import { gitText as git } from "./git";
 import { lstat, readFile, realpath, stat } from "node:fs/promises";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { isAbsolute, join, relative } from "node:path";
@@ -8,11 +8,6 @@ import { tr } from "./language";
 const LIMIT = 1024 * 1024;
 class ReviewError extends Error {
   constructor(readonly status: number, message: string) { super(message); }
-}
-function git(cwd: string, args: string[]): Promise<string> {
-  return new Promise((resolve, reject) => execFile("git", ["-c", "core.quotepath=false", "-c", "color.ui=false", ...args],
-    { cwd, timeout: 5000, maxBuffer: LIMIT, encoding: "utf8", env: { ...process.env, GIT_OPTIONAL_LOCKS: "0", GIT_LITERAL_PATHSPECS: "1" } },
-    (error, stdout) => error ? reject(error) : resolve(stdout)));
 }
 function inside(root: string, path: string): boolean {
   const rel = relative(root, path);

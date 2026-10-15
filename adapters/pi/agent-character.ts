@@ -39,7 +39,8 @@ export default function (pi: ExtensionAPI): void {
         terminal: process.env.AGENT_CHARACTER_SESSION?.slice(0, 200), ...extra };
       if (typeof percent === "number" && Number.isFinite(percent) && percent >= 0) event.context = Math.min(1, percent / 100);
       return project.then((name) => fetch(process.env.AGENT_CHARACTER_URL ?? "http://127.0.0.1:8790/event", {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json", ...(process.env.AGENT_CHARACTER_AGENT_TOKEN
+          ? { Authorization: `Bearer ${process.env.AGENT_CHARACTER_AGENT_TOKEN}` } : {}) },
         body: JSON.stringify({ ...event, project: name.slice(0, 200) }),
         signal: AbortSignal.timeout(500), redirect: "error",
       })).then(async (response) => { await response.body?.cancel(); }).catch(() => {});

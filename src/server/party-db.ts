@@ -38,6 +38,10 @@ export class PartyDatabase {
       this.db.exec("COMMIT");
     } catch (error) { this.db.exec("ROLLBACK"); throw error; }
   }
+  writerSession(quest: string): string | undefined {
+    const row = this.db.prepare("SELECT session FROM quest_party WHERE quest=? AND writer=1").get(quest);
+    return row ? String(row.session) : undefined;
+  }
   syncLead(quest: string): void {
     const lead = this.list(quest).find((member) => member.role === "implement");
     this.db.prepare("UPDATE quests SET session=?,hero=? WHERE id=?").run(lead?.session ?? null, lead?.hero ?? null, quest);

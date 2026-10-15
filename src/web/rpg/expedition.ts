@@ -36,6 +36,9 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
   const weapon = document.querySelector<HTMLSelectElement>("#expedition-weapon")!;
   const accessory = document.querySelector<HTMLSelectElement>("#expedition-accessory")!;
   const describe = () => {
+    document.querySelector<HTMLElement>("#expedition-capability")!.textContent = agents.find((agent) => agent.id === preset.value)?.hero
+      ? tr("町・会話に 対応", "Town and conversation supported")
+      : tr("ターミナルのみ（勇者は出ない）", "Terminal only (no hero appears)");
     const items = equipment[preset.value];
     weapon.replaceChildren(new Option(tr("そうびなし（きほん）", "None (default)"), ""));
     accessory.replaceChildren(new Option(tr("そうびなし（きほん）", "None (default)"), ""));
@@ -138,6 +141,7 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
     path.value = "";
     chooseDestination();
     status.textContent = tr("よみこみ中…", "Loading…");
+    document.querySelector<HTMLElement>("#expedition-capability")!.textContent = "";
     launch.showModal();
     const selectedTown = quest?.town ?? currentTown();
     void Promise.allSettled([loadTowns(), loadAgents(), loadEquipment(), loadSettings()]).then(([towns, kinds, gear, settings]) => {

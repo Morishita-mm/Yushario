@@ -10,7 +10,8 @@ export function evidenceView(evidence?: CheckEvidence): HTMLElement {
   const command = document.createElement("pre"); command.textContent = evidence.command;
   const facts = document.createElement("p"); facts.textContent = `${evidence.passed ? tr("成功", "Success") : tr("失敗", "Failure")} · ${clock(evidence.at, true)} · ${evidence.hero ?? evidence.session}`;
   const state = document.createElement("p"); state.textContent = evidence.fingerprint ? `HEAD ${evidence.fingerprint.head.slice(0, 8)}` : tr("じょうたい ふめい", "State unknown");
-  box.append(command, facts, state); return box;
+  const base = document.createElement("p"); base.textContent = `${tr("拠点", "Base")} · ${evidence.base ?? tr("ふめい", "Unknown")}`;
+  box.append(command, facts, state, base); return box;
 }
 function openEvidence(check: QuestCheck): void {
   const dialog = document.createElement("dialog"); dialog.className = "check-evidence-window";
@@ -30,7 +31,7 @@ export function checkMarks(checks: QuestCheck[] = [], fingerprint?: WorkFingerpr
       if (event.key === "Enter" || event.key === " ") { event.preventDefault(); event.stopPropagation(); openEvidence(check); }
     }; }
     item.textContent = `${check.name} ${symbols[mark]}`;
-    const unknown = !fingerprint || Boolean(check.evidence && !check.evidence.fingerprint);
+    const unknown = !fingerprint?.base || Boolean(check.evidence && (!check.evidence.base || !check.evidence.fingerprint?.base));
     item.title = `${checkMarkLabel(mark)}${unknown ? ` · ${tr("じょうたい ふめい", "State unknown")}` : ""}`;
     item.setAttribute("aria-label", `${check.name} · ${item.title}`);
     item.onclick = (event) => { event.stopPropagation(); openEvidence(check); }; box.append(item);

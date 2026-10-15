@@ -35,6 +35,7 @@ export function questChecks(quest: Quest): HTMLElement {
     }
     const status = document.createElement("p"); status.setAttribute("role", "status");
     const form = document.createElement("form"); form.className = "quest-check-form";
+    form.oninput = () => { form.dataset.dirty = "true"; };
     const name = document.createElement("input"), command = document.createElement("input");
     name.maxLength = 80; command.maxLength = 200; name.required = command.required = true;
     for (const [text, input] of [[tr("名前", "Name"), name], [tr("コマンドの形", "Command shape"), command]] as const) {
@@ -67,7 +68,10 @@ export function questChecks(quest: Quest): HTMLElement {
     render();
   }
   render();
-  if (!mock) void checksRequest(`${encodeURIComponent(quest.id)}/checks`).then((result) => { data = result; render(); })
+  if (!mock) void checksRequest(`${encodeURIComponent(quest.id)}/checks`).then((result) => {
+    data = result;
+    if (!box.querySelector('[data-dirty="true"]') && !box.contains(document.activeElement)) render();
+  })
     .catch((error: Error) => { const status = document.createElement("p"); status.textContent = error.message; box.append(status); });
   return box;
 }

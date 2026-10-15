@@ -60,6 +60,8 @@
       <section class="stage">
         <nav class="map-nav" aria-label="地図の操作" data-en-aria-label="Map controls">
           <button id="world-back" data-en="◀ World Map" type="button" hidden>◀ ワールドマップ</button>
+          <button id="sleeping-towns" data-en="Sleeping towns" type="button">ねむっている町</button>
+          <button id="archived-towns" data-en="Archived towns" type="button">しまった町</button>
           <button id="town-look" data-en="Change town look" type="button" hidden>町のすがたを かえる</button>
           <button id="town-pin" data-en="Pin" type="button" aria-pressed="false" hidden>ピンどめ</button>
           <div id="following" class="following" role="status" hidden>
@@ -91,7 +93,8 @@
       <h3 id="expedition-title" data-en="Embark">しゅつじん</h3>
       <form id="expedition-form">
         <label for="expedition-preset" data-en="Hero kind">勇者の種類</label>
-        <select id="expedition-preset"></select>
+        <select id="expedition-preset" aria-describedby="expedition-capability"></select>
+        <p id="expedition-capability" class="settings-status" role="status"></p>
         <label id="expedition-weapon-label" data-en="Weapon" for="expedition-weapon" hidden>ぶき</label>
         <select id="expedition-weapon" hidden><option value="" data-en="None (default)">そうびなし（きほん）</option></select>
         <label id="expedition-accessory-label" data-en="Accessory" for="expedition-accessory" hidden>アクセサリ</label>
@@ -115,6 +118,13 @@
     </dialog>
     <dialog id="help-dialog" class="report-window" aria-labelledby="help-title">
       <h3 id="help-title" data-en="Help">ヘルプ</h3>
+      <h4 data-en="From request to finished work">仕事の ながれ</h4>
+      <p data-en="Embark → choose a CLI and folder → Talk to send a request → read the report → Review changes and Checks → mark the quest Done when you accept the work.">しゅつじん → CLI と フォルダを えらぶ → はなすで 依頼 → 報告を よむ → 鑑定・ためすこと → 成果を 採ったら クエストを おえる。</p>
+      <dl>
+        <dt data-en="Town / Hero">町 / 勇者</dt><dd data-en="Project / CLI session">プロジェクト / CLI の セッション</dd>
+        <dt>HP / MP / Lv</dt><dd data-en="Recent failures (fewer is healthier) / context left (? if unknown) / completed work. Not a quality score.">最近の 失敗の 少なさ / 会話の 残り（不明は？）/ 終えた 仕事。品質の 点数ではない。</dd>
+        <dt data-en="Quest / Review / Checks">クエスト / 鑑定 / ためすこと</dt><dd data-en="Persistent work / read the git diff / acceptance conditions and evidence. You decide Done.">残る 仕事 / git の 差分を よむ / 受け入れの 条件と 証拠。おえるのは あなたが きめる。</dd>
+      </dl>
       <h4 data-en="Controls">そうさ</h4>
       <ul>
         <li data-en="Click a town or hero">町や 勇者を クリック</li>

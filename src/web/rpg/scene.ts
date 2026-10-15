@@ -73,11 +73,12 @@ export class Scene {
     });
     layer.addEventListener("click", (event) => {
       if (event.target !== layer) return;
-      this.closeCommands?.(); layer.hidden = true;
+      this.closeCommands?.(); layer.querySelector<HTMLDialogElement>("dialog[open]")?.close(); layer.hidden = true;
       if (this.focused) this.go(this.place); // Outside the battle commands: back to the field.
     });
-    document.addEventListener("keydown", (event) => { if (event.key === "Escape" && !event.isComposing) { this.closeCommands?.(); layer.hidden = true; } });
+    document.addEventListener("keydown", (event) => { if (event.key === "Escape" && !event.isComposing) { this.closeCommands?.(); layer.querySelector<HTMLDialogElement>("dialog[open]")?.close(); layer.hidden = true; } });
     document.querySelector("#world-back")!.addEventListener("click", () => this.go("world"));
+    for (const kind of ["sleeping", "archived"] as const) document.querySelector(`#${kind}-towns`)!.addEventListener("click", () => this.openList(kind));
     document.querySelector("#settings")!.addEventListener("click", () => { this.closeCommands?.(); this.list = undefined; showSettings(layer, this.currentTown); });
     const pin = document.querySelector<HTMLButtonElement>("#town-pin")!;
     pin.addEventListener("click", () => {
@@ -188,10 +189,9 @@ export class Scene {
     this.flashWhite = Boolean(this.focused || focused); this.flashAt = performance.now();
     this.place = place; this.focused = focused; this.gateMenu = false;
     this.ambient = focused ? new Ambient(this.art, place as Theme, `bg-battle-${place}`) : undefined;
-    this.layer.hidden = true; this.list = undefined;
+    this.layer.querySelector<HTMLDialogElement>("dialog[open]")?.close(); this.layer.hidden = true; this.list = undefined;
     if (focused && !automatic) this.battleCommands();
   }
-  // Clicking the party opens the commands; anywhere else returns to the field.
   private battleCommands(): void {
     const hero = this.heroes.find((h) => h.id === this.focused), size = this.size();
     if (!hero) return;

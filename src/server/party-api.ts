@@ -1,10 +1,11 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { partyRole } from "../core/party";
-import { handoffScroll, summaryRequest } from "../core/party-scroll";
+import { handoffScroll } from "../core/party-scroll";
 import { checkMark } from "../core/checks";
 import { readJsonBody, ACTION_BODY_LIMIT } from "./http-body";
-import type { QuestParty } from "./party";
+import { requirePartyConversation, TerminalOnlyError, type QuestParty } from "./party";
 import { serverLanguage, tr } from "./language";
+import { AGENTS } from "./agents";
 
 export function partyJson(response: ServerResponse, status: number, value: unknown): void {
   response.writeHead(status, { "Content-Type": "application/json", "Cache-Control": "no-store" }).end(JSON.stringify(value));
@@ -16,7 +17,11 @@ export async function partyBody(request: IncomingMessage, response: ServerRespon
   return body.value as Record<string, unknown>;
 }
 export function partyView(party: QuestParty, id: string) {
-  return party.quests.party(id).map((member) => ({ ...member, name: party.label(member.session), sessionInfo: party.pty.getSession(member.session), waiting: party.pty.agentSession(member.session)?.waiting ?? false, active: party.pty.agentSession(member.session)?.active ?? false }));
+  return party.quests.party(id).map((member) => {
+    const sessionInfo = party.pty.getSession(member.session);
+    return { ...member, name: party.label(member.session), sessionInfo, canTalk: Boolean(sessionInfo && AGENTS[sessionInfo.preset].hero),
+      waiting: party.pty.agentSession(member.session)?.waiting ?? false, active: party.pty.agentSession(member.session)?.active ?? false };
+  });
 }
 export async function handlePartyRequest(request: IncomingMessage, response: ServerResponse, url: URL, party: QuestParty): Promise<void> {
   try {
@@ -47,12 +52,15 @@ export async function handlePartyRequest(request: IncomingMessage, response: Ser
     if (action === "summary") {
       const session = party.quests.party(id).find((member) => member.writer)?.session ?? quest.session;
       if (!session) throw new Error(tr("担当を えらんで", "Choose an owner"));
-      partyJson(response, 200, { delivered: party.send(id, session, summaryRequest(serverLanguage())) }); return;
+      if (typeof body.text !== "string") throw new Error(tr("たしかめた 文を えらんで", "Choose the confirmed text"));
+      partyJson(response, 200, { delivered: party.send(id, session, body.text) }); return;
     }
     if (action === "send" || action === "handoff") {
       if (typeof body.text !== "string" || !body.text.trim() || body.text.length > 8000) throw new Error(tr("ことばは 1〜8000文字で", "Use 1–8000 characters"));
       let session = typeof body.session === "string" ? party.pty.getSession(body.session) : undefined;
+      if (session) requirePartyConversation(session.preset);
       if (!session && action === "handoff" && body.preset && body.cwd) {
+        requirePartyConversation(String(body.preset));
         const { projectIdentity } = await import("./project");
         if (typeof body.cwd !== "string" || (await projectIdentity(body.cwd)).key !== quest.town) throw new Error(tr("この町の 拠点を えらんで", "Choose a base in this town"));
         session = await party.pty.create({ preset: body.preset, cwd: body.cwd });
@@ -70,5 +78,5 @@ export async function handlePartyRequest(request: IncomingMessage, response: Ser
       partyJson(response, 200, { delivered, session }); return;
     }
     partyJson(response, 400, { error: tr("その コマンドは ない", "Unknown party command") });
-  } catch (error) { partyJson(response, 400, { error: error instanceof Error ? error.message : "Party request failed" }); }
+  } catch (error) { partyJson(response, error instanceof TerminalOnlyError ? 409 : 400, { error: error instanceof Error ? error.message : "Party request failed" }); }
 }

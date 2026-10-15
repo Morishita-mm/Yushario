@@ -36,10 +36,11 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
   const label = townName;
   const heroLabel = (quest: Quest) => quest.hero ? name(quest.hero) ?? hero(quest.hero)?.name ?? quest.hero : "";
   function show(title: string): void { heading.textContent = title; coverMap(dialog); if (!dialog.open) dialog.showModal(); }
-  async function open(id: string): Promise<void> {
+  const editing = () => Boolean(content.querySelector('[data-dirty="true"]')) || content.contains(document.activeElement);
+  async function open(id: string, refresh = false): Promise<void> {
     selected = id; const version = ++generation;
     const quest: QuestDetail = await questRequest(`/${encodeURIComponent(id)}`);
-    if (version !== generation) return;
+    if (version !== generation || refresh && (!dialog.open || editing())) return;
     content.replaceChildren(questCard(quest, heroLabel(quest), async (patch) => { await questRequest(`/${id}`, "PATCH", patch); },
       () => { if (quest.hero && hero(quest.hero)) { dialog.close(); select(quest.hero); } },
       (id, at) => { if (hero(id)) { dialog.close(); talk(id, at); } },
@@ -93,7 +94,7 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
     quests = data.quests; bindings = data.bindings; reportLinks = data.reports ?? []; signature = ""; render();
     if (selected && dialog.open) {
       if (!quests.some((quest) => quest.id === selected)) dialog.close();
-      else if (!content.querySelector('.quest-party[data-dirty="true"]') && !content.querySelector('.quest-party')?.contains(document.activeElement)) void open(selected);
+      else if (!editing()) void open(selected, true);
     }
   }
   return { set, render, choose, open,

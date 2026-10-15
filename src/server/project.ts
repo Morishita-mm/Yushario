@@ -1,24 +1,20 @@
-import { execFile, execFileSync } from "node:child_process";
+import { gitText, gitTextSync } from "./git";
 import { realpathSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
-import { promisify } from "node:util";
-
-const execute = promisify(execFile);
 export type ProjectIdentity = { key: string; name: string; parent: string };
 function identity(cwd: string, common?: string, main?: string): ProjectIdentity {
   const folder = realpathSync(main ? resolve(main) : cwd);
   return { key: realpathSync(common ? resolve(common.trim()) : cwd), name: basename(folder) || "root", parent: basename(dirname(folder)) };
 }
-const commonArgs = (cwd: string) => ["-C", cwd, "rev-parse", "--path-format=absolute", "--git-common-dir"];
-const mainArgs = (cwd: string) => ["-C", cwd, "worktree", "list", "--porcelain", "-z"];
+const commonArgs = ["rev-parse", "--path-format=absolute", "--git-common-dir"];
+const mainArgs = ["worktree", "list", "--porcelain", "-z"];
 const mainPath = (output: string) => output.split("\0")[0].replace(/^worktree /, "");
 
 export async function projectIdentity(cwd: string): Promise<ProjectIdentity> {
   cwd = realpathSync(resolve(cwd));
   try {
-    const options = { timeout: 1000, maxBuffer: 64 * 1024 };
-    const [common, main] = await Promise.all([execute("git", commonArgs(cwd), options), execute("git", mainArgs(cwd), options)]);
-    return identity(cwd, common.stdout, mainPath(main.stdout));
+    const [common, main] = await Promise.all([gitText(cwd, commonArgs), gitText(cwd, mainArgs)]);
+    return identity(cwd, common, mainPath(main));
   } catch { return identity(cwd); }
 }
 
@@ -27,8 +23,7 @@ export function storedProjectIdentity(cwd: string): ProjectIdentity | undefined 
   try {
     cwd = realpathSync(resolve(cwd));
     try {
-      const options = { timeout: 1000, maxBuffer: 64 * 1024, encoding: "utf8" as const, stdio: ["ignore", "pipe", "ignore"] as ["ignore", "pipe", "ignore"] };
-      return identity(cwd, execFileSync("git", commonArgs(cwd), options), mainPath(execFileSync("git", mainArgs(cwd), options)));
+      return identity(cwd, gitTextSync(cwd, commonArgs), mainPath(gitTextSync(cwd, mainArgs)));
     } catch { return identity(cwd); }
   } catch { return; }
 }

@@ -7,6 +7,14 @@ import type { createPtyServer } from "./pty";
 import type { TerminalSession } from "./pty-session";
 import { tr } from "./language";
 import { projectIdentity } from "./project";
+import { AGENTS, type Preset } from "./agents";
+
+export class TerminalOnlyError extends Error {
+  constructor() { super(tr("ターミナルのみ。町での会話に 対応しないため ことばを 届けられない", "Terminal only. This CLI cannot receive town conversations")); }
+}
+export function requirePartyConversation(preset: string): void {
+  if (!AGENTS[preset as Preset]?.hero) throw new TerminalOnlyError();
+}
 
 export type PartyInvite = { id: string; quest: string; town: string; from: string; role: PartyRole; note: string; session?: string; preset?: string; cwd?: string; at: number };
 export type PartyWarning = { id: string; quest: string; town: string; hero: string; at: number };
@@ -23,9 +31,27 @@ export class QuestParty {
     private readonly broadcast: (value: object) => void, private readonly record: (event: AgentEvent) => void,
     private readonly name: (id: string) => string | undefined) {}
   label(session: string): string { const hero = this.quests.member(session)?.hero; return hero && this.name(hero) || this.pty.sessionLabel(session) || session; }
-  snapshot() {
-    for (const [id, invite] of this.invitations) if (!this.quests.get(invite.quest) || !agentAuthorized(true, Boolean(this.pty.agentSession(invite.from)?.active), this.quests.member(invite.from), invite.quest, "invite")) this.invitations.delete(id);
+  forgetSession(session: string): void {
+    this.turnStarts.delete(session); this.requests.delete(session);
+    for (const key of this.observedEdits) if (key.startsWith(`${session}:`)) this.observedEdits.delete(key);
+    for (const key of this.warned) if (key.startsWith(`${session}:`)) this.warned.delete(key);
+    for (const key of this.warnings.keys()) if (key.startsWith(`${session}:`)) this.warnings.delete(key);
+    for (const [id, invite] of this.invitations) if (invite.from === session || invite.session === session) this.invitations.delete(id);
+  }
+  prune(): void {
+    for (const quest of this.replies.keys()) if (!this.quests.get(quest)) this.replies.delete(quest);
+    const sessions = new Set([...this.turnStarts.keys(), ...this.requests.keys(), ...[...this.observedEdits, ...this.warned].map((key) => key.slice(0, key.lastIndexOf(":")))]);
+    for (const session of sessions) if (!this.quests.member(session)) this.forgetSession(session);
     for (const [id, warning] of this.warnings) if (!this.quests.get(warning.quest)) this.warnings.delete(id);
+  }
+  private trimTurns(session: string): void {
+    const keys = [...new Set([...this.observedEdits, ...this.warned])].filter((key) => key.startsWith(`${session}:`))
+      .sort((a, b) => Number(b.slice(session.length + 1)) - Number(a.slice(session.length + 1)));
+    for (const key of keys.slice(256)) { this.observedEdits.delete(key); this.warned.delete(key); }
+  }
+  snapshot() {
+    this.prune();
+    for (const [id, invite] of this.invitations) if (!this.quests.get(invite.quest) || !agentAuthorized(true, Boolean(this.pty.agentSession(invite.from)?.active), this.quests.member(invite.from), invite.quest, "invite")) this.invitations.delete(id);
     return { type: "party-notices", invitations: [...this.invitations.values()], warnings: [...this.warnings.values()] };
   }
   private changed(): void { this.broadcast(this.snapshot()); }
@@ -59,6 +85,9 @@ export class QuestParty {
   send(quest: string, session: string, text: string, kind: "request" | "command" | "handoff" = "request", from?: string): boolean {
     if (!text.trim() || text.length > 8000) throw new Error(tr("ことばは 1〜8000文字で", "Use 1–8000 characters"));
     if (this.quests.member(session)?.quest !== quest || !this.pty.agentSession(session)?.active) throw new Error(tr("パーティーの 勇者を えらんで", "Choose a party hero"));
+    const info = this.pty.getSession(session);
+    if (!info) throw new Error(tr("勇者が みつからない", "Hero not found"));
+    requirePartyConversation(info.preset);
     const delivered = this.pty.say(session, text);
     this.quests.submittedText(session, text);
     const at = Date.now(), hero = this.quests.member(session)?.hero;
@@ -71,7 +100,7 @@ export class QuestParty {
     return delivered;
   }
   observe(session: TerminalSession, event: AgentEvent, at: number): void {
-    if (event.hook === "SessionEnd") { this.turnStarts.delete(session.id); this.requests.delete(session.id); this.changed(); return; }
+    if (event.hook === "SessionEnd" && !event.subagent) { this.forgetSession(session.id); this.changed(); return; }
     const member = this.quests.member(session.id);
     if (event.hook === "SessionStart" && !event.subagent && member?.hero) {
       const requests = this.requests.get(session.id) ?? []; this.requests.delete(session.id);
@@ -81,7 +110,7 @@ export class QuestParty {
     if (!event.subagent && event.hook === "SessionStart") this.turnStarts.delete(session.id);
     const start = this.turnStarts.get(session.id), files = event.subagent ? [] : partyEditFiles(event);
     if (member && start !== undefined && at >= start && files.length) {
-      this.observedEdits.add(`${session.id}:${start}`);
+      this.observedEdits.add(`${session.id}:${start}`); this.trimTurns(session.id);
       this.warn(member.writer, { quest: member.quest, at, hero: member.hero, report: { files, startedAt: start } }, session);
     }
     if (member && !event.subagent && ["Stop", "StopFailure"].includes(event.hook ?? "") && event.text !== undefined && at >= (this.replies.get(member.quest)?.at ?? -Infinity)) this.replies.set(member.quest, { at, text: event.text });
@@ -94,7 +123,7 @@ export class QuestParty {
   private warn(writer: boolean, report: Pick<QuestEvent, "quest" | "at" | "hero"> & { report?: { files: string[]; startedAt: number } }, session: TerminalSession): void {
     const key = `${session.id}:${report.report?.startedAt ?? report.at}`;
     if (!outsideRole({ ...this.quests.member(session.id)!, writer }, report.report?.files ?? []) || this.warned.has(key)) return;
-    this.warned.add(key);
+    this.warned.add(key); this.trimTurns(session.id);
     const hero = report.hero ?? session.id;
     const notice = { id: key, quest: report.quest, town: session.project, hero, at: report.at };
     this.warnings.set(key, notice);

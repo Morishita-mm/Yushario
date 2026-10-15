@@ -6,7 +6,7 @@ import type { QuestCheck, WorkFingerprint, CheckEvidence } from "./checks";
 
 export const QUEST_STATES = ["open", "active", "waiting", "review", "done", "dropped"] as const;
 export type QuestState = typeof QUEST_STATES[number];
-export type Quest = { id: string; town: string; title: string; purpose: string; state: QuestState; createdAt: number; updatedAt: number; session?: string; hero?: string; worktreePath?: string; worktreeBranch?: string; checks?: QuestCheck[]; fingerprint?: WorkFingerprint };
+export type Quest = { id: string; town: string; title: string; purpose: string; state: QuestState; createdAt: number; updatedAt: number; session?: string; hero?: string; writerSession?: string; worktreePath?: string; worktreeBranch?: string; checks?: QuestCheck[]; fingerprint?: WorkFingerprint };
 export type QuestEvent = { id: number; quest: string; kind: "request" | "report" | "state" | "assigned" | "reviewed" | "party" | "handoff" | "command" | "note" | "outside-role" | "check"; at: number; title: string; session?: string; hero?: string; report?: TalkReport; text?: string; evidence?: CheckEvidence };
 export type QuestDetail = Quest & { events: QuestEvent[] };
 export type QuestBinding = { session: string; quest: string; hero?: string };
@@ -22,6 +22,10 @@ export function questForRecall(quests: Quest[], bindings: QuestBinding[], hero: 
     : [...quests].filter((quest) => quest.hero === hero && quest.town === town).sort((a, b) => b.updatedAt - a.updatedAt)[0];
 }
 export const finishedQuest = (state: QuestState): boolean => state === "done" || state === "dropped";
+// A teammate's activity/report cannot answer another session's question.
+export function questStateForParty(state: QuestState, waiting: Iterable<boolean>): QuestState {
+  return !finishedQuest(state) && [...waiting].some(Boolean) ? "waiting" : state;
+}
 export function questStateAfterEvent(state: QuestState, event: AgentEvent): QuestState {
   if (finishedQuest(state)) return state;
   if (event.subagent) return askingAfterEvent(event) === true ? "waiting" : state;
