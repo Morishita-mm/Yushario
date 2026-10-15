@@ -20,3 +20,13 @@
 .talk-quest > span { flex: 1 1 12em; min-width: 0; overflow-wrap: anywhere; }
 .talk-quest > button { flex: none; white-space: nowrap; }
 .report-quest-title { color: #ffe066; font-size: 13px; margin: 0 0 5px; overflow-wrap: anywhere; }
+.quest-summary { display: grid; gap: 8px; }
+.quest-summary p { margin: 0; }
+.quest-state { color: #ffe066; }
+.quest-purpose { white-space: pre-wrap; }
+.quest-owner { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.quest-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.quest-summary .quest-event { margin-top: 0; }
+.quest-fold { border-top: 1px solid #605776; margin-top: 10px; padding-top: 8px; }
+.quest-fold > summary { cursor: pointer; color: #f9c22b; padding: 4px 0; }
+.quest-fold[open] > summary { margin-bottom: 8px; }
