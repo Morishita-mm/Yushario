@@ -111,7 +111,7 @@ Yushario と勇者は同じ OS 利用者で動く。悪意ある同一利用者�
 | `src/web/rpg/expedition.ts` | 出陣・端末の窓。出陣直後はパス欄へフォーカスし、読込後にその欄を隠す時だけ種類／行き先へ移す | core の型, DOM, HTTP, terminal |
 | `src/web/rpg/expedition-bases.ts`, `worktrees.css`, `src/web/town/party-list.ts` | 出陣の拠点・新しい branch／path の下書き・同じ場所の警告、勇者を拠点ごとにまとめる共通一覧 | core, DOM, HTTP |
 | `src/web/rpg/quests.ts`, `quest-settings.ts`, `talk-quest.ts` | クエストのタブと札、題・目的・ためすことの未保存入力とフォーカスの維持、見出しで名前を付けた窓と表示中のresizeでの位置更新、会話からの選び直し、本文保存と記録削除の設定 | core, web/town, HTTP/WS |
-| `src/web/town/quest-party.ts`, `party-window.ts`, `party-window.css`, `quest-party.css`, `src/web/rpg/party-notices.ts` | 本体・モック共通の札のパーティー一覧と、ドラクエ風の編成窓（手伝ってもらう・担当を交代する・外す・しき役）、でんれいの仲間の確認と役割外の変更。確認窓は見出しで名前を付け、表示中だけresizeで位置更新し、閉じる時に監視を外す | core, DOM, HTTP/WS |
+| `src/web/town/quest-party.ts`, `party-window.ts`, `party-tactics.ts`, `party-window.css`, `quest-party.css`, `src/web/rpg/party-notices.ts` | 本体・モック共通の札のパーティー一覧と、ドラクエ風の編成窓（手伝ってもらう・担当を交代する・外す・しき役）、でんれいの仲間の確認と役割外の変更。確認窓は見出しで名前を付け、表示中だけresizeで位置更新し、閉じる時に監視を外す | core, DOM, HTTP/WS |
 | `src/web/town/quest-checks.ts`, `check-marks.ts`, `checks.css` | 本体・モック共通のためすこと、札・一覧・報告の印と見出しで名前を付けた証拠の窓、done の確認 | core, DOM, HTTP |
 | `src/web/town/quest-list.ts`, `quest-card.ts`, `quest-board.ts` | 本体・モック共通のクエスト一覧・札・掲示板の入口。一覧は「あなたの番／勇者が作業中／おわった」に分け、札は6段階の帯と「次にやること」を上に出す。編集・追加・パーティー・全出来事は開いた状態を保つ折り畳みにする（段階22）。一覧更新は操作中の新規／クエストID／条件ID／町の折り畳みへフォーカスを戻し、削除時だけ隣接項目へ移す | core の型・関数, DOM, art data |
 | `src/web/rpg/preview.ts`, `src/web/town/quest-preview.ts`, `preview-controls.ts`, `preview-tabs.ts`, `preview.css` | 本体・モック共通のプレビュー区画、名前付きの別タブ、エラーの一覧と会話への下書き。町のプレビューとエラーの窓は見出しで名前を付ける | core, DOM, HTTP |

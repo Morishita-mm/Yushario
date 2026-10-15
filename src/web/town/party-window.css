@@ -60,3 +60,10 @@
 .pw-plus { font-size: 28px; line-height: 1; }
 .pw-gone .pw-card { opacity: .55; }
 .pw-gone .pw-card:hover, .pw-gone .pw-card:focus-visible { opacity: 1; }
+.pw-tactics { gap: 6px; }
+.pw-progress { margin: 0; color: #ffe066; }
+.pw-tactic-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 4px 12px; }
+.pw-tactic-list .pw-command { display: grid; gap: 2px; }
+.pw-tactic-list small { color: #b9b1cc; font-size: 12px; line-height: 1.5; }
+.pw-tactic-list .pw-command:disabled small { color: #777; }
+.pw-outside { font-size: 11px; color: #b9b1cc; border: 1px dashed #777; padding: 0 4px; }

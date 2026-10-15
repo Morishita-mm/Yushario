@@ -2,7 +2,8 @@ import { questTitle, type Quest, type QuestBinding, type QuestDetail, type Quest
 import type { RoomAgent } from "../../core/room";
 import { tr } from "../language";
 import { questCard, type TownHero } from "../town/quest-card";
-import type { HeroInfo, PartyControls } from "../town/quest-party";
+import { partyRequest, type HeroInfo, type PartyControls } from "../town/quest-party";
+import type { TacticStatus } from "../../core/tactics";
 import { openPartyWindow } from "../town/party-window";
 import { questStateLabel, renderQuestList } from "../town/quest-list";
 import { coverMap } from "./talk";
@@ -70,7 +71,8 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
   }
   async function open(id: string, refresh = false): Promise<void> {
     selected = id; const version = ++generation;
-    const quest: QuestDetail = await questRequest(`/${encodeURIComponent(id)}`);
+    const [quest, tactic]: [QuestDetail, TacticStatus | undefined] = await Promise.all([questRequest(`/${encodeURIComponent(id)}`),
+      partyRequest(`quests/${encodeURIComponent(id)}/tactic`).catch(() => undefined)]);
     if (version !== generation || refresh && (!dialog.open || editing())) return;
     shown = { title: quest.title, purpose: quest.purpose, state: quest.state };
     const session = quest.session;
@@ -111,6 +113,9 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
       party: partyControls(quest),
       review: () => reviewQuest(quest),
       reload: () => void open(id),
+      tactic,
+      stopTactic: async () => { await partyRequest(`quests/${encodeURIComponent(id)}/tactic`, "POST", { tactic: "obey" }); await open(id); },
+      research: async (text) => { await partyRequest(`quests/${encodeURIComponent(id)}/research`, "POST", { text }); await open(id); },
     }));
     show(quest.title);
   }

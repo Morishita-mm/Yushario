@@ -1,14 +1,14 @@
-import { finishedQuest, reportTitle, QUEST_STATES, type QuestDetail, type QuestEvent, type QuestState } from "../../core/quests";
+import { finishedQuest, QUEST_STATES, type QuestDetail, type QuestState } from "../../core/quests";
 import { previousHero, questRound, questStage, stepIndex, QUEST_STEPS, type QuestStage } from "../../core/quest-stage";
 import type { CheckCandidate } from "../../core/checks";
-import { clock, language, tr } from "../language";
+import { tr } from "../language";
 import { questStateLabel } from "./quest-list";
+import { acceptedView, eventRow, ownerReport } from "./quest-events";
 import { questChecks, confirmChecksDone, checksRequest } from "./quest-checks";
-import { checkMarkLabel, checkMarks, evidenceView } from "./check-marks";
+import { checkMarks } from "./check-marks";
 import { questParty, type PartyControls } from "./quest-party";
-import { partyEventTitle } from "../../core/party";
-import { parseMarkdown } from "../../core/markdown";
-import { renderMarkdown } from "../rpg/markdown";
+import type { TacticStatus } from "../../core/tactics";
+import { tacticProgress } from "./party-tactics";
 import { iconLabel } from "../icons.js";
 
 export type QuestPatch = { title?: string; purpose?: string; state?: QuestState; adoption?: { reason: string; pr: string } };
@@ -31,6 +31,10 @@ export type QuestCardActions = {
   party?: PartyControls;
   review?: () => void;
   reload?: () => void;
+  // The party tactic (stage 24): its status, stopping it, and starting "Research first".
+  tactic?: TacticStatus;
+  stopTactic?: () => Promise<void>;
+  research?: (text: string) => Promise<void>;
 };
 const STEP_NAMES: Record<typeof QUEST_STEPS[number], () => string> = {
   write: () => tr("依頼", "Request"), assign: () => tr("任せる", "Assign"), send: () => tr("指示", "Send"),
@@ -83,6 +87,15 @@ function nextMove(quest: QuestDetail, stage: QuestStage, who: string, actions: Q
   box.append(label, what);
   const talk = () => { if (quest.hero) actions.talk(quest.hero); };
   const fail = (error: Error) => { status.textContent = error.message; };
+  const tactic = actions.tactic;
+  // While the tactic moves the party on its own, the card says so and offers to stop it.
+  if (tactic?.running) {
+    box.className = "quest-next work"; label.textContent = tr("作戦で 進んでいる", "The tactic is running");
+    what.textContent = tacticProgress(tactic);
+    if (actions.stopTactic) row.append(button(tr("止める（命令に従え に 戻す）", "Stop (back to Follow orders)"), () => void actions.stopTactic!().catch(fail)));
+    box.append(row); return box;
+  }
+  if (tactic?.stopped && !finishedQuest(quest.state)) box.append(element("p", "quest-tactic-stopped", tacticProgress(tactic)));
   if (stage === "assign") {
     what.textContent = tr("このクエストを 誰に任せる？", "Who should take this quest?");
     const heroes = actions.townHeroes(), list = element("div", "quest-pick");
@@ -115,7 +128,10 @@ function nextMove(quest: QuestDetail, stage: QuestStage, who: string, actions: Q
         option.append(check, document.createTextNode(` ${candidate.command}`)); picks.append(option);
       }
     }).catch(() => undefined);
-    if (actions.send) row.append(button(tr("▶ この指示を送る", "▶ Send this request"), () => {
+    if (tactic?.tactic === "research" && actions.research) row.append(button(tr("▶ 調べる役に 送る（調べてから）", "▶ Send to the researchers (Research first)"), () => {
+      void actions.research!(text.value).then(() => { delete box.dataset.dirty; status.textContent = tr("調べる役に 送った", "Sent to the researchers"); }).catch(fail);
+    }, true));
+    else if (actions.send) row.append(button(tr("▶ この指示を送る", "▶ Send this request"), () => {
       void actions.send!(text.value, [...chosen.values()]).then((delivered) => {
         delete box.dataset.dirty;
         status.textContent = delivered ? tr("指示を 届けた", "Request delivered") : tr("指示を あずけた。勇者の 手が あいたら 届く", "Request held. It will be delivered when the hero is free.");
@@ -132,7 +148,7 @@ function nextMove(quest: QuestDetail, stage: QuestStage, who: string, actions: Q
     if (actions.terminal) row.append(button(tr("ターミナルを見る", "Open the terminal"), actions.terminal));
   } else if (stage === "review") {
     what.textContent = tr("報告が届いた。変更を見て、採用するか決めよう。", "A report arrived. Look at the changes, then decide whether to adopt them.");
-    const latest = quest.events.find((event) => event.kind === "report");
+    const latest = ownerReport(quest);
     if (latest) box.append(eventRow(latest, actions.talk));
     if (quest.checks?.length) box.append(checkMarks(quest.checks, quest.fingerprint, true));
     // Adopting and asking for another try each open their own small form under the buttons.
@@ -163,7 +179,7 @@ function nextMove(quest: QuestDetail, stage: QuestStage, who: string, actions: Q
   } else if (stage === "done") {
     what.append(iconLabel("check", tr("採用した", "Adopted")));
     const accepted = quest.events.find((event) => event.kind === "adopted");
-    const report = quest.events.find((event) => event.kind === "report" && (!accepted || event.at <= accepted.at));
+    const report = ownerReport(quest, accepted?.at);
     if (accepted) box.append(acceptedView(accepted, report));
   } else what.textContent = tr("やめた クエスト", "Dropped quest");
   box.append(row); return box;
@@ -173,6 +189,7 @@ function facts(quest: QuestDetail, stage: QuestStage, actions: QuestCardActions)
   const list = element("dl", "quest-facts");
   const add = (term: string, value: string | HTMLElement) => { list.append(element("dt", undefined, term)); const dd = element("dd"); dd.append(value); list.append(dd); };
   const before = previousHero(quest.events, quest.hero);
+  if (actions.tactic && actions.tactic.tactic !== "obey") add(tr("さくせん", "Tactic"), tacticProgress(actions.tactic));
   const owner = element("button", undefined, before ? `${actions.heroName(before)} → ${actions.heroName(quest.hero)}` : actions.heroName(quest.hero) || tr("まだ 誰にも任せていない", "Not assigned yet"));
   owner.type = "button"; owner.disabled = !quest.hero; owner.onclick = actions.focusHero;
   add(tr("担当", "Hero"), owner);
@@ -233,46 +250,4 @@ function foldable(quest: string, key: string, title: string, initial = false): H
   details.open = opened.get(quest)?.get(key) ?? initial;
   details.addEventListener("toggle", () => { const state = opened.get(quest) ?? new Map<string, boolean>(); state.set(key, details.open); opened.set(quest, state); });
   return details;
-}
-
-function eventRow(event: QuestEvent, talk: (hero: string, at?: number) => void): HTMLElement {
-  const row = element("article", "quest-event");
-  const headline = event.kind === "state" ? questStateLabel(event.title as QuestState)
-    : event.kind === "assigned" ? tr("勇者に 任せた", "Hero assigned")
-    : event.kind === "reviewed" ? tr("変更を 見た（かんてい）", "Opened the changes (review)")
-    : event.kind === "verdict" ? event.decision?.verdict === "approved" ? tr("鑑定：みとめた", "Review: approved") : tr("鑑定：なおしが いる", "Review: changes needed")
-    : event.kind === "adopted" ? tr("採用した", "Adopted")
-    : event.kind === "report" ? reportTitle(event.report, language) : partyEventTitle(event.kind, event.title, language);
-  const text = `${clock(event.at, true)} · ${headline}`;
-  if (event.kind === "report" && event.hero) row.append(button(text, () => talk(event.hero!, event.at)));
-  else row.append(element("p", undefined, text));
-  if (event.report) {
-    const r = event.report, duration = Math.max(0, Math.round((r.endedAt - r.startedAt - (r.waitedMs ?? 0)) / 1000));
-    row.append(element("p", undefined, `${r.files.join(", ")} · ${tr("テストの じっこう", "Test runs")} ○${r.tests.passed} ×${r.tests.failed} · ${duration}s`));
-  }
-  if (event.result && (event.kind === "verdict" || event.kind === "adopted" || event.kind === "report")) {
-    const unknown = event.kind !== "report" && !event.decision?.changes ? tr(" · じょうたい ふめい", " · State unknown") : "";
-    row.append(element("p", "hint", `${event.result.branch ?? "—"} · HEAD ${event.result.head ?? "—"}${unknown}`));
-  }
-  if (event.evidence) row.append(evidenceView(event.evidence));
-  if (event.text) row.append(element("pre", "quest-event-body", event.text));
-  return row;
-}
-// What was adopted, readable here without going back to the conversation.
-function acceptedView(event: QuestEvent, report?: QuestEvent): HTMLElement {
-  const box = element("section", "quest-accepted");
-  if (report?.report) box.append(element("p", undefined, `${reportTitle(report.report, language)} · ${report.report.files.join(", ") || "—"} · ${tr("テストの じっこう", "Test runs")} ○${report.report.tests.passed} ×${report.report.tests.failed}`));
-  if (event.decision?.answer) {
-    const answer = element("div", "quest-answer talk-body"); renderMarkdown(answer, parseMarkdown(event.decision.answer));
-    box.append(element("h5", undefined, tr("採用した 回答", "Adopted answer")), answer);
-  } else box.append(element("p", "hint", tr("この採用には 回答の本文が 残っていない（この機能より前の採用）。", "No answer text was kept for this adoption (adopted before this was saved).")));
-  box.append(element("p", undefined, `${tr("採用した 版", "Adopted state")}: ${event.result?.branch ?? "—"} · HEAD ${event.result?.head ?? "—"}${event.decision?.changes ? "" : tr(" · じょうたい ふめい", " · State unknown")}`));
-  const marks = event.decision?.checks ?? [];
-  if (marks.length) box.append(element("p", "hint", marks.map((check) => `${check.name}: ${checkMarkLabel(check.mark)}`).join(" · ")));
-  if (event.decision?.reason) box.append(element("p", undefined, event.decision.reason));
-  if (event.decision?.pr) {
-    const link = element("a", undefined, `PR: ${event.decision.pr}`); link.href = event.decision.pr; link.target = "_blank"; link.rel = "noopener noreferrer"; box.append(link);
-  }
-  box.append(element("p", "hint", tr("採用した ＝ main への 取りこみ では ない。取りこみは PR で。", "Adopted is not merged into main. Merge through your PR.")));
-  return box;
 }

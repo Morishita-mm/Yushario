@@ -1,6 +1,6 @@
 import type { AgentEvent } from "../core/events";
-import { fixRequest, parseVerdict, relayToCommander, researchedRequest, researchRequest, reviewRequest, tacticFit, tacticLabel, REVIEW_ROUNDS,
-  type Tactic, type TacticFit, type TacticMember, type Verdict } from "../core/tactics";
+import { TACTICS, fixRequest, parseVerdict, relayToCommander, researchedRequest, researchRequest, reviewRequest, tacticFit, tacticLabel, REVIEW_ROUNDS,
+  type Tactic, type TacticMember, type TacticStatus, type Verdict } from "../core/tactics";
 import type { QuestParty } from "./party";
 import type { TerminalSession } from "./pty-session";
 import { serverLanguage, tr } from "./language";
@@ -8,7 +8,6 @@ import { serverLanguage, tr } from "./language";
 // One automatic run: a review round or the research before the owner starts.
 type Run = { kind: "review" | "research"; round: number; waiting: Set<string>; replies: Map<string, { verdict?: Verdict; text: string }>;
   request?: string; stopped?: string; done?: boolean };
-export type TacticStatus = { tactic: Tactic; fit: TacticFit; running: boolean; round: number; waiting: number; total: number; stopped?: string; done?: boolean };
 
 // Moves a party along its tactic by watching hook events (docs/PLATFORM.md stage 24). It only sends what
 // the tactic says, logs every message as a quest event, and stops (returning to the person) when unsure.
@@ -31,9 +30,10 @@ export class QuestTactics {
       active: Boolean(this.party.pty.agentSession(member.session)?.active) }));
   }
   status(quest: string): TacticStatus {
-    const tactic = this.tactic(quest), run = this.runs.get(quest), fit = tacticFit(tactic, this.members(quest));
+    const tactic = this.tactic(quest), run = this.runs.get(quest), members = this.members(quest);
+    const fits = Object.fromEntries(TACTICS.map((item) => [item, tacticFit(item, members)])) as Record<Tactic, ReturnType<typeof tacticFit>>, fit = fits[tactic];
     const running = Boolean(run && !run.stopped && !run.done && run.waiting.size);
-    return { tactic, fit, running, round: run?.round ?? 0, waiting: run?.waiting.size ?? 0, total: (run?.waiting.size ?? 0) + (run?.replies.size ?? 0), stopped: run?.stopped, done: run?.done };
+    return { tactic, fit, fits, running, round: run?.round ?? 0, waiting: run?.waiting.size ?? 0, total: (run?.waiting.size ?? 0) + (run?.replies.size ?? 0), stopped: run?.stopped, done: run?.done };
   }
   choose(quest: string, tactic: Tactic, at = Date.now()): TacticStatus {
     if (this.status(quest).running && tactic !== "obey") throw new Error(tr("作戦で 進んでいる 間は 変えられない。先に「命令に従え」で 止める", "Stop the running tactic (Follow orders) before changing it"));

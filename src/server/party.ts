@@ -114,7 +114,8 @@ export class QuestParty {
       this.observedEdits.add(`${session.id}:${start}`); this.trimTurns(session.id);
       this.warn(member.writer, { quest: member.quest, at, hero: member.hero, report: { files, startedAt: start } }, session);
     }
-    if (member && !event.subagent && ["Stop", "StopFailure"].includes(event.hook ?? "") && event.text !== undefined && at >= (this.replies.get(member.quest)?.at ?? -Infinity)) this.replies.set(member.quest, { at, text: event.text });
+    // The quest's answer comes from its owner (or the commander), never from a helper's review or research.
+    if (member && (member.writer || member.role === "command") && !event.subagent && ["Stop", "StopFailure"].includes(event.hook ?? "") && event.text !== undefined && at >= (this.replies.get(member.quest)?.at ?? -Infinity)) this.replies.set(member.quest, { at, text: event.text });
     if (!member || event.subagent || !["Stop", "StopFailure", "PostToolUse", "PostToolUseFailure"].includes(event.hook ?? "")) return;
     if (member.writer) return;
     for (const report of this.quests.reportsAfter(session.id, at)) {

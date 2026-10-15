@@ -11,6 +11,8 @@ export const REVIEW_ROUNDS = 3;
 export type TacticMember = { session: string; role: PartyRole; writer: boolean; active: boolean; cwd?: string; joinedAt: number };
 export type TacticGap = "owner" | "reviewer" | "same-folder" | "researcher" | "commander" | "separate-commander";
 export type TacticFit = { ok: boolean; gaps: TacticGap[]; inside: string[]; outside: string[] };
+// The tactic, whether the party fits it, and how far an automatic run has got.
+export type TacticStatus = { tactic: Tactic; fit: TacticFit; fits: Record<Tactic, TacticFit>; running: boolean; round: number; waiting: number; total: number; stopped?: string; done?: boolean };
 
 export const validTactic = (value: unknown): value is Tactic => TACTICS.includes(value as Tactic);
 export function tacticLabel(tactic: Tactic, language: Language): string {

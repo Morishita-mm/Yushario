@@ -6,11 +6,12 @@ import type { AgentInfo } from "../rpg/agents";
 import { language, tr } from "../language";
 import { partyRequest, type PartyControls, type PartyHero } from "./quest-party";
 import "./party-window.css";
+import { tacticBox } from "./party-tactics";
 import { iconLabel } from "../icons.js";
 
 // A Dragon Quest style formation window: the party on the left, heroes in town on the right,
 // a command window for the chosen hero, and a message window that walks through each step.
-const HELP_ROLES: PartyRole[] = ["research", "review", "test"];
+const HELP_ROLES: PartyRole[] = ["research", "review"];
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] => {
   const node = document.createElement(tag); if (className) node.className = className; if (text !== undefined) node.textContent = text; return node;
 };
@@ -34,7 +35,9 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
   const head = el("div", "pw-head"); head.append(title, command(tr("とじる", "Close"), close));
   const party = el("section", "pw-box"), town = el("section", "pw-box"), commands = el("section", "pw-box pw-commands"), message = el("section", "pw-box pw-message");
   const columns = el("div", "pw-rows"); columns.append(party, town);
-  dialog.append(head, columns, commands, message); document.body.append(dialog);
+  // The tactic box is filled once the helpers below exist.
+  const tacticSlot = el("div");
+  dialog.append(head, tacticSlot, columns, commands, message); document.body.append(dialog);
   dialog.addEventListener("cancel", (event) => { event.preventDefault(); close(); });
   dialog.addEventListener("keydown", (event) => event.stopPropagation());
   const prefix = `quests/${encodeURIComponent(quest.id)}`, mock = controls?.mock;
@@ -63,10 +66,12 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
     message.replaceChildren(text);
   };
 
+  const tactics = tacticBox(quest.id, Boolean(mock), command, (text) => say(text), () => void reload().catch(fail));
+  tacticSlot.replaceWith(tactics.root);
   async function reload(): Promise<void> {
     if (mock) { render(); return; }
     [members, sessions, agents] = await Promise.all([partyRequest(`${prefix}/party`), partyRequest("sessions"), partyRequest("agents")]);
-    render();
+    await tactics.load(); render();
   }
   // A card per hero, like a party screen: picture, name, role, CLI, model and effort, MP and state.
   function card(session: string, preset: string | undefined, badge: string, writer: boolean, state: string, pick: () => void, small = false): HTMLButtonElement {
@@ -81,6 +86,7 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
       el("span", "pw-kind", `${preset ?? "?"}${info.level !== undefined ? ` · Lv ${info.level}` : ""}`), el("span", "pw-gear", info.gear ?? tr("モデル・effort 不明", "Model and effort unknown")));
     if (!small) node.append(mp);
     node.append(el("span", "pw-state", state));
+    if (tactics.outside().has(session)) node.append(el("span", "pw-outside", tr("作戦の外", "Outside the tactic")));
     node.setAttribute("aria-label", [nameOf(session), badge, preset, info.gear, state].filter(Boolean).join(" · "));
     return node;
   }
