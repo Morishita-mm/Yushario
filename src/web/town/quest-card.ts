@@ -9,6 +9,7 @@ import { questParty, type PartyControls } from "./quest-party";
 import { partyEventTitle } from "../../core/party";
 import { parseMarkdown } from "../../core/markdown";
 import { renderMarkdown } from "../rpg/markdown";
+import { iconLabel } from "../icons.js";
 
 export type QuestPatch = { title?: string; purpose?: string; state?: QuestState; adoption?: { reason: string; pr: string } };
 export type TownHero = { session: string; name: string; busy: boolean };
@@ -38,8 +39,8 @@ const STEP_NAMES: Record<typeof QUEST_STEPS[number], () => string> = {
 const element = <K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] => {
   const node = document.createElement(tag); if (className) node.className = className; if (text !== undefined) node.textContent = text; return node;
 };
-const button = (text: string, run: () => void, primary = false): HTMLButtonElement => {
-  const node = element("button", primary ? "primary" : undefined, text); node.type = "button"; node.onclick = run; return node;
+const button = (text: string | HTMLElement, run: () => void, primary = false): HTMLButtonElement => {
+  const node = element("button", primary ? "primary" : undefined); node.append(text); node.type = "button"; node.onclick = run; return node;
 };
 
 export function questCard(quest: QuestDetail, actions: QuestCardActions): HTMLElement {
@@ -52,7 +53,7 @@ export function questCard(quest: QuestDetail, actions: QuestCardActions): HTMLEl
   QUEST_STEPS.forEach((step, index) => track.append(element("li", index < at ? "done" : index === at ? "now" : "", `${index + 1} ${STEP_NAMES[step]()}`)));
   // Deleting is common, so it sits at the top instead of inside a fold.
   const head = element("div", "quest-card-head");
-  head.append(button(tr("🗑 クエストを消す", "🗑 Delete quest"), () => {
+  head.append(button(iconLabel("trash", tr("クエストを消す", "Delete quest")), () => {
     if (!confirm(tr("この クエストの きろくを けす？", "Delete this quest's records?"))) return;
     void actions.remove().catch((error: Error) => { status.textContent = error.message; });
   }));
@@ -160,7 +161,7 @@ function nextMove(quest: QuestDetail, stage: QuestStage, who: string, actions: Q
     }
     box.append(row, accept, retry); return box;
   } else if (stage === "done") {
-    what.textContent = tr("✓ 採用した", "✓ Adopted");
+    what.append(iconLabel("check", tr("採用した", "Adopted")));
     const accepted = quest.events.find((event) => event.kind === "adopted");
     const report = quest.events.find((event) => event.kind === "report" && (!accepted || event.at <= accepted.at));
     if (accepted) box.append(acceptedView(accepted, report));
@@ -175,7 +176,7 @@ function facts(quest: QuestDetail, stage: QuestStage, actions: QuestCardActions)
   const owner = element("button", undefined, before ? `${actions.heroName(before)} → ${actions.heroName(quest.hero)}` : actions.heroName(quest.hero) || tr("まだ 誰にも任せていない", "Not assigned yet"));
   owner.type = "button"; owner.disabled = !quest.hero; owner.onclick = actions.focusHero;
   add(tr("担当", "Hero"), owner);
-  if (quest.worktreePath) add(tr("作業する場所", "Working folder"), `⑂ ${quest.worktreeBranch ?? "HEAD"} — ${quest.worktreePath}`);
+  if (quest.worktreePath) add(tr("作業する場所", "Working folder"), iconLabel("branch", `${quest.worktreeBranch ?? "HEAD"} — ${quest.worktreePath}`));
   if (quest.purpose && stage !== "send") add(tr("目的", "Purpose"), quest.purpose);
   if (quest.checks?.length && stage !== "review") add(tr("合格条件", "Acceptance checks"), checkMarks(quest.checks, quest.fingerprint, true));
   const round = questRound(quest.events, stage);

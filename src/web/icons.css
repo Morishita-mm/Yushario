@@ -1,0 +1,3 @@
+.pixel-icon { display: inline-block; flex: none; vertical-align: -3px; shape-rendering: crispEdges; }
+.icon-label { display: inline; }
+.icon-label > .pixel-icon { margin-right: 2px; }

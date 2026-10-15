@@ -1,4 +1,5 @@
 import { tr } from "../language";
+import { iconLabel } from "../icons.js";
 import type { AgentEquipment, Equipment } from "../../core/equipment";
 import { equipmentTiers } from "../../core/battle-presentation";
 import { element, option, place, showHeroCommands } from "../town/command";
@@ -83,14 +84,17 @@ function showEquipment(layer: HTMLElement, name: string, at: [number, number], w
     box.append(element("h4", undefined, key === "weapon" ? tr("ぶき", "Weapon") : tr("アクセサリ", "Accessory")));
     const list = element("div", "commands"), current = gear.get(name) ?? {};
     for (const item of key === "weapon" ? items.weapons : items.accessories) {
-      list.append(option(`${current[key] === item.id ? "◆ " : ""}${item.name}`, () => {
+      const choice = option(item.name, () => {
         const next = { ...current, [key]: item.id };
         gear.set(name, next);
         const walker = walkers.find((w) => w.name === name);
         if (walker) walker.weaponTier = equipmentTiers(next, items).weaponTier;
         toast(tr(`${name}は ${item.name}を そうびした！`, `${name} equipped ${item.name}!`));
         render();
-      }));
+      });
+      choice.setAttribute("aria-pressed", String(current[key] === item.id));
+      if (current[key] === item.id) choice.replaceChildren(iconLabel("check", item.name));
+      list.append(choice);
     }
     list.append(option(tr("もどる", "Back"), render));
     box.append(list);

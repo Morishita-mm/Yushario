@@ -1,5 +1,6 @@
 import "@fontsource/dotgothic16/400.css";
 import "./gallery.css";
+import { iconLabel } from "../icons.js";
 
 // Review page for the pixel-art components in public/art (see docs/ART.md), ordered by section.
 interface Entry {
@@ -36,7 +37,11 @@ function card(entry: Entry, image: HTMLImageElement): HTMLElement {
   root.append(element("h4", undefined, entry.name),
     element("p", "id", `${entry.id} ・ ${entry.frames.length}コマ ・ 1コマ ${w}×${h} ・ ${entry.colors}色`));
   if (entry.use) root.append(element("p", "use", `使う場面：${entry.use}`));
-  if (entry.warning) root.append(element("p", "warning", `⚠ ${entry.warning}`));
+  if (entry.warning) {
+    const warning = element("p", "warning");
+    warning.append(iconLabel("warning", entry.warning));
+    root.append(warning);
+  }
   const sheet = element("canvas", "sheet");
   sheet.width = image.width * zoom;
   sheet.height = image.height * zoom;

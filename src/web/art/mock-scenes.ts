@@ -1,4 +1,5 @@
 import { tr } from "../language";
+import { icon, iconLabel, type IconName } from "../icons.js";
 import type { HeroPlace } from "../../core/town";
 import type { Focus } from "../town/battle";
 import { focusData as FOCUS } from "./mock-battle-data";
@@ -37,11 +38,16 @@ export function updateSceneTabs(tabs: HTMLElement, current: Scene, townName: str
     const count = button.querySelector<HTMLElement>(".count");
     const alert = button.querySelector<HTMLElement>(".alert");
     if (!count || !alert) continue;
-    if (scene.place === "world") count.textContent = `🏰 ${PROJECTS.length}`;
-    else if (scene.place === "town") count.textContent = `👤 ${7 + 3}`;
-    else if (scene.place === "inn") count.textContent = `💤 ${SLEEPERS.length}`;
-    else if (scene.place === "church") count.textContent = tr(`祈り ${PRAYERS.length}`, `Praying ${PRAYERS.length}`);
-    else if (theme) count.textContent = `⚔️ ${FIGHTS[theme].filter((f) => !f.done).length}`;
+    let badge: IconName | undefined, text = "";
+    if (scene.place === "world") { badge = "castle"; text = String(PROJECTS.length); }
+    else if (scene.place === "town") { badge = "hero"; text = String(7 + 3); }
+    else if (scene.place === "inn") { badge = "sleep"; text = String(SLEEPERS.length); }
+    else if (scene.place === "church") text = tr(`祈り ${PRAYERS.length}`, `Praying ${PRAYERS.length}`);
+    else if (theme) { badge = "swords"; text = String(FIGHTS[theme].filter((f) => !f.done).length); }
+    if (count.dataset.value !== `${badge}:${text}`) {
+      count.replaceChildren(badge ? iconLabel(badge, text) : document.createTextNode(text));
+      count.dataset.value = `${badge}:${text}`;
+    }
     if (scene.place === "town") button.querySelector(".name")!.textContent = townName;
     const unread = theme !== undefined && FIGHTS[theme].some((f) => f.done && !read.has(f.name))
       || scene.place === "town" && TOWN_REPORTS.some((r) => !read.has(r.name));
@@ -57,8 +63,10 @@ export function initSceneTabs(tabs: HTMLElement, select: (scene: Scene) => void)
     const button = document.createElement("button");
     button.type = "button";
     button.dataset.id = scene.id;
-    button.innerHTML = `<span class="name"></span><span class="count"></span><span class="alert">❗</span>`;
+    button.innerHTML = `<span class="name"></span><span class="count"></span><span class="alert"></span>`;
     button.querySelector(".name")!.textContent = scene.label;
+    const alert = button.querySelector(".alert")!;
+    alert.append(icon("alert")); alert.setAttribute("role", "img"); alert.setAttribute("aria-label", tr("知らせあり", "Needs attention"));
     if (scene.focus) button.querySelector(".count")!.remove();
     button.addEventListener("click", () => select(scene));
     tabs.append(button);

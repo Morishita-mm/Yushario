@@ -10,7 +10,7 @@
 .side-tabs + #herald { border-top-left-radius: 0; border-top-right-radius: 0; }
 .notice { display: grid; grid-template-columns: 1.6em 1fr; gap: 2px 6px; width: 100%; text-align: left; font: inherit; font-size: 13px; color: #fff; background: none; border: 0; border-bottom: 1px dashed #3a3550; padding: 7px 2px; cursor: pointer; }
 .notice:hover, .notice:focus-visible { background: #1d1a30; outline: none; }
-.notice .icon { grid-row: span 2; font-family: system-ui, "Apple Color Emoji", sans-serif; }
+.notice .icon { grid-row: span 2; }
 .notice .ago { color: #8a86a0; font-size: 11px; }
 .notice.permission .text, .notice.call .text { color: #ffe7a3; }
 .notice.down .text { color: #ff9a9a; }
@@ -46,7 +46,7 @@ dialog.report-window::backdrop { background: rgba(0, 0, 0, 0.65); }
 .town-pin[aria-pressed="true"] { color: #ffe066; }
 .town-row { display: flex; justify-content: space-between; gap: 12px; font: inherit; background: none; border: 0; border-bottom: 1px dashed #3a3550; color: #fff; padding: 8px 4px; cursor: pointer; }
 .town-row:hover, .town-row:focus-visible { color: #ffe066; outline: none; }
-.town-row .status { color: #ffe7a3; font-family: system-ui, "Apple Color Emoji", sans-serif; font-size: 13px; }
+.town-row .status { color: #ffe7a3; font-size: 13px; }
 .theme-list { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 8px; }
 .theme-option { display: flex; flex-direction: column; align-items: center; gap: 6px; font: inherit; font-size: 13px; color: #fff; background: #1d1a30; border: 2px solid #3a3550; border-radius: 6px; padding: 8px 4px; cursor: pointer; }
 .theme-option:hover, .theme-option:focus-visible { border-color: #ffe066; color: #ffe066; outline: none; }

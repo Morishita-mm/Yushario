@@ -1,6 +1,7 @@
 import type { RoomAgent } from "../../core/room";
 import { townNameForKey } from "../../core/town-ledger";
 import { tr } from "../language";
+import { iconLabel } from "../icons.js";
 
 function element<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, text: string): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag); node.className = className; node.textContent = text; return node;
@@ -27,7 +28,8 @@ export function renderPartyList(root: HTMLElement, agents: RoomAgent[], row: (ag
       bases.set(branch, [...(bases.get(branch) ?? []), member]);
     }
     for (const [branch, heroes] of [...bases].sort(([a], [b]) => a.localeCompare(b))) {
-      root.append(element("h4", "party-base", `⑂ ${branch} (${heroes.length})`), ...heroes.map(row));
+      const heading = element("h4", "party-base", ""); heading.append(iconLabel("branch", `${branch} (${heroes.length})`));
+      root.append(heading, ...heroes.map(row));
     }
   }
 }

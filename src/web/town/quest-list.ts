@@ -2,11 +2,12 @@ import { finishedQuest, sortedQuests, type Quest, type QuestState } from "../../
 import { questStage, yourTurn, type QuestStage } from "../../core/quest-stage";
 import { ago, tr } from "../language";
 import { checkMarks } from "./check-marks";
+import { icon, iconLabel, type IconName } from "../icons.js";
 // Saved states, as statuses. The list and card lead with the stage (what to do next) instead.
 export const questStateLabel = (state: QuestState): string => ({ open: tr("準備中", "Getting ready"), active: tr("作業中", "Working"), waiting: tr("返事を待っている", "Waiting for you"), review: tr("報告が届いた", "Report arrived"), done: tr("採用した", "Adopted"), dropped: tr("やめた", "Dropped") })[state];
-export const questStateMark = (state: QuestState): string => ({ open: "◇", active: "⚔", waiting: "❗", review: "📜", done: "✓", dropped: "―" })[state];
+export const questStateMark = (state: QuestState): SVGSVGElement => icon(({ open: "assign", active: "swords", waiting: "alert", review: "scroll", done: "check", dropped: "minus" } satisfies Record<QuestState, IconName>)[state]);
 export const questStageLabel = (stage: QuestStage): string => ({ assign: tr("任せる人を決める", "Choose a hero"), send: tr("指示を送る", "Send the request"), work: tr("作業中", "Working"), waiting: tr("返事を待っている", "Waiting for you"), review: tr("報告を見る", "Read the report"), done: tr("採用した", "Adopted"), dropped: tr("やめた", "Dropped") })[stage];
-const STAGE_MARK: Record<QuestStage, string> = { assign: "◇", send: "✉", work: "⚔", waiting: "❗", review: "📜", done: "✓", dropped: "―" };
+const STAGE_MARK: Record<QuestStage, IconName> = { assign: "assign", send: "mail", work: "swords", waiting: "alert", review: "scroll", done: "check", dropped: "minus" };
 export function renderQuestList(root: HTMLElement, quests: Quest[], townName: (key: string) => string,
   heroName: (quest: Quest) => string, pick: (quest: Quest) => void, create: () => void, now: number,
   ownerHere: (quest: Quest) => boolean = () => true, remove?: (quest: Quest) => void): void {
@@ -50,16 +51,18 @@ export function renderQuestList(root: HTMLElement, quests: Quest[], townName: (k
     const top = document.createElement("span"); top.className = "quest-row-top";
     const title = document.createElement("span"); title.className = "quest-row-title"; title.textContent = quest.title;
     const chip = document.createElement("span"); chip.className = `quest-chip ${yourTurn(stage) ? "you" : stage === "work" ? "work" : "end"}`;
-    chip.textContent = `${STAGE_MARK[stage]} ${questStageLabel(stage)}`; top.append(title, chip);
+    chip.append(iconLabel(STAGE_MARK[stage], questStageLabel(stage))); top.append(title, chip);
     const meta = document.createElement("small"); meta.className = "quest-row-meta";
     const who = heroName(quest);
-    meta.textContent = [who || tr("まだ 誰にも任せていない", "Not assigned yet"), tr(`町：${townName(quest.town)}`, `Town: ${townName(quest.town)}`), quest.worktreeBranch ? `⑂ ${quest.worktreeBranch}` : "", ago(now - quest.updatedAt)].filter(Boolean).join(" · ");
+    meta.append([who || tr("まだ 誰にも任せていない", "Not assigned yet"), tr(`町：${townName(quest.town)}`, `Town: ${townName(quest.town)}`)].join(" · "));
+    if (quest.worktreeBranch) meta.append(" · ", iconLabel("branch", quest.worktreeBranch));
+    meta.append(` · ${ago(now - quest.updatedAt)}`);
     const marks = checkMarks(quest.checks, quest.fingerprint);
     [...marks.querySelectorAll<HTMLElement>(".check-mark")].forEach((item, index) => { item.dataset.focus = `check:${quest.id}:${quest.checks![index].id}`; });
     button.title = questStateLabel(quest.state); button.append(top, meta); button.onclick = () => pick(quest); row.append(button, marks);
     if (remove) {
       const del = document.createElement("button"); del.type = "button"; del.className = "quest-row-delete"; del.dataset.focus = `delete:${quest.id}`;
-      del.textContent = tr("🗑 消す", "🗑 Delete"); del.setAttribute("aria-label", tr(`「${quest.title}」を 消す`, `Delete "${quest.title}"`));
+      del.append(iconLabel("trash", tr("消す", "Delete"))); del.setAttribute("aria-label", tr(`「${quest.title}」を 消す`, `Delete "${quest.title}"`));
       del.onclick = () => remove(quest); row.append(del);
     }
     return row;

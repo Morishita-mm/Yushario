@@ -4,6 +4,7 @@ import type { Session } from "../terminal";
 import { tr } from "../language";
 import { memberBadge, memberState, openPartyWindow } from "./party-window";
 import "./quest-party.css";
+import { iconLabel } from "../icons.js";
 
 export type PartyHero = PartyMember & { name: string; active: boolean; canTalk?: boolean; waiting?: boolean; sessionInfo?: Session };
 // What a card shows beyond the party record: the hero's picture, gear, MP and level.
@@ -34,7 +35,10 @@ export function questParty(quest: QuestDetail, controls?: PartyControls, changed
   root.append(list, open);
   const show = (members: PartyHero[]) => {
     list.replaceChildren(...members.map((member) => {
-      const item = document.createElement("li"); const name = controls?.sessionName?.(member.session) ?? member.name; item.textContent = `${name === member.session ? tr("去った勇者", "A hero who left") : name}（${memberBadge(member)} · ${memberState(member)}）`; return item;
+      const item = document.createElement("li"), name = controls?.sessionName?.(member.session) ?? member.name;
+      item.append(`${name === member.session ? tr("去った勇者", "A hero who left") : name}（`,
+        member.writer ? iconLabel("edit", memberBadge(member)) : memberBadge(member), ` · ${memberState(member)}）`);
+      return item;
     }));
     if (!members.length) { const item = document.createElement("li"); item.textContent = tr("まだ だれも いない", "Nobody yet"); list.append(item); }
   };

@@ -1,4 +1,5 @@
 import { tr } from "../language";
+import { icon } from "../icons";
 import { gearSummary, type AgentEquipment, type Equipment, type EquipmentMaster } from "../../core/equipment";
 import type { RoomAgent } from "../../core/room";
 import { equipmentTiers, type EquipmentTiers } from "../../core/battle-presentation";
@@ -113,7 +114,10 @@ export function initEquipment(hero: (id: string) => RoomAgent | undefined, name:
       list.append(none);
       for (const item of key === "weapon" ? items.weapons : items.accessories) {
         const value = "model" in item ? item.model : item.value;
-        list.append(button(`${next[key] === item.id ? "◆ " : ""}${item.name}（${value}）`, () => { next = { ...next, [key]: item.id }; render(); }));
+        const choice = button(`${item.name}（${value}）`, () => { next = { ...next, [key]: item.id }; render(); });
+        choice.setAttribute("aria-pressed", String(next[key] === item.id));
+        if (next[key] === item.id) choice.prepend(icon("check"), " ");
+        list.append(choice);
       }
       list.append(button(tr("もどる", "Back"), () => render())); box.append(list); place(layer, box, at, () => render());
     }

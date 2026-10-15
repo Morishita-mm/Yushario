@@ -1,4 +1,5 @@
 import { tr } from "../language";
+import { drawIcon, type IconName } from "../icons.js";
 import { battlePresentation, type EquipmentTiers } from "../../core/battle-presentation";
 import { weaponBesideLabel } from "./weapon";
 import type { Theme } from "./ambient";
@@ -17,18 +18,24 @@ export function placeTitle(ctx: CanvasRenderingContext2D, place: string, x: numb
   plate(ctx, town ? [[town, "#ffe066", 20], [place, "#fff7d6", 12]] : [[place, "#fff7d6", 16]], x, y);
 }
 
-export function label(ctx: CanvasRenderingContext2D, value: string, x: number, y: number, color = "#ffffff", size = 10): void {
+export function label(ctx: CanvasRenderingContext2D, value: string, x: number, y: number, color = "#ffffff", size = 10, mark?: IconName): void {
   ctx.font = `${size}px "DotGothic16", monospace`;
   ctx.textAlign = "center";
-  if (ctx.measureText(value).width > 160) {
+  const maxWidth = mark ? 140 : 160;
+  if (ctx.measureText(value).width > maxWidth) {
     const letters = Array.from(value);
     let low = 0, high = letters.length;
     while (low < high) {
       const mid = Math.ceil((low + high) / 2);
-      if (ctx.measureText(`${letters.slice(0, mid).join("")}…`).width <= 160) low = mid;
+      if (ctx.measureText(`${letters.slice(0, mid).join("")}…`).width <= maxWidth) low = mid;
       else high = mid - 1;
     }
     value = `${letters.slice(0, low).join("")}…`;
+  }
+  if (mark) {
+    const left = Math.round(x - (ctx.measureText(value).width + 20) / 2);
+    drawIcon(ctx, mark, left, Math.round(y - size / 2 - 8), color);
+    x += 10;
   }
   ctx.fillStyle = "#1d1726";
   for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) ctx.fillText(value, x + dx, y + dy);
@@ -78,7 +85,7 @@ function battle(ctx: CanvasRenderingContext2D, art: Sheets, fight: Fight, t: num
   label(ctx, fight.target, mx, y + 14, "#ffe7a3");
   if (!enemyTurn && heroFrame === "wind-up" && effects.charging) label(ctx, tr("ちからを ためている…", "Charging…"), x, y - 76, "#ffe066", 10);
   label(ctx, `${fight.name} Lv${fight.level}`, x - 6, y + 28);
-  if (fight.branch) label(ctx, `⑂ ${fight.branch}`, x - 6, y + 40, "#9fd3ff", 8);
+  if (fight.branch) label(ctx, fight.branch, x - 6, y + 40, "#9fd3ff", 8, "branch");
   weaponBesideLabel(ctx, art, fight.weaponTier, t, `${fight.name} Lv${fight.level}`, x - 6, y + 28);
 }
 
@@ -94,7 +101,7 @@ function victory(ctx: CanvasRenderingContext2D, art: Sheets, fight: Fight, t: nu
   }
   label(ctx, read ? tr("かくにん ずみ", "Seen") : tr("しょうり！", "Victory!"), cx, fight.y + 14, read ? "#c9c3dc" : "#ffe066");
   label(ctx, `${fight.name} Lv${fight.level}`, fight.x - 6, fight.y + 28);
-  if (fight.branch) label(ctx, `⑂ ${fight.branch}`, fight.x - 6, fight.y + 40, "#9fd3ff", 8);
+  if (fight.branch) label(ctx, fight.branch, fight.x - 6, fight.y + 40, "#9fd3ff", 8, "branch");
   weaponBesideLabel(ctx, art, fight.weaponTier, t, `${fight.name} Lv${fight.level}`, fight.x - 6, fight.y + 28);
 }
 

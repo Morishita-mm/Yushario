@@ -1,9 +1,10 @@
 import { checkMark, type CheckMark, type QuestCheck, type WorkFingerprint, type CheckEvidence } from "../../core/checks";
 import { clock, tr } from "../language";
 import "./checks.css";
+import { icon, type IconName } from "../icons.js";
 
 export const checkMarkLabel = (mark: CheckMark): string => ({ unrun: tr("みじっこう", "Not run"), passed: tr("ごうかく", "Passed"), failed: tr("しっぱい", "Failed"), stale: tr("ふるい", "Stale"), unknown: tr("ふめい", "Unknown") })[mark];
-const symbols: Record<CheckMark, string> = { unrun: "·", passed: "✔", failed: "✖", stale: "↺", unknown: "?" };
+const symbols: Partial<Record<CheckMark, IconName>> = { passed: "check", failed: "cross", stale: "refresh" };
 export function evidenceView(evidence?: CheckEvidence): HTMLElement {
   const box = document.createElement("div"); box.className = "check-evidence";
   if (!evidence) { box.textContent = tr("まだ ためしていない", "Not tried yet"); return box; }
@@ -31,7 +32,8 @@ export function checkMarks(checks: QuestCheck[] = [], fingerprint?: WorkFingerpr
     else { item.tabIndex = 0; item.setAttribute("role", "button"); item.onkeydown = (event) => {
       if (event.key === "Enter" || event.key === " ") { event.preventDefault(); event.stopPropagation(); openEvidence(check); }
     }; }
-    item.textContent = `${check.name} ${symbols[mark]}`;
+    const symbol = symbols[mark];
+    item.append(`${check.name} `, symbol ? icon(symbol) : mark === "unrun" ? "·" : "?");
     const unknown = !fingerprint?.base || Boolean(check.evidence && (!check.evidence.base || !check.evidence.fingerprint?.base));
     item.title = `${checkMarkLabel(mark)}${unknown ? ` · ${tr("じょうたい ふめい", "State unknown")}` : ""}`;
     item.setAttribute("aria-label", `${check.name} · ${item.title}`);

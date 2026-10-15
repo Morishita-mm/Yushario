@@ -1,4 +1,5 @@
 import { clock, language, tr } from "../language";
+import { icon, iconLabel, type IconName } from "../icons";
 import type { Activity } from "../../core/activity";
 import type { Mood, RoomAgent } from "../../core/room";
 import { jobName, jobOf, stats } from "../../core/story";
@@ -15,10 +16,13 @@ const DOING: Record<Activity, (target: string) => string> = {
   delegate: () => tr("なかまと ドラゴンに いどんでいる", "Battling the Dragon together"), ask: () => tr("あなたを よんでいる！", "Calling you!"),
   tool: (t) => tr(`どうぐを つかっている ${t}`, `Using a tool ${t}`), rest: () => tr("きょうかいで いのりを ささげている", "Praying at the church"),
 };
-const MOODS: Record<Mood, string> = {
-  waiting_long: tr("⏳ まちくたびれている", "⏳ Waiting a while"), struggling: tr("💦 くるしい たたかい", "💦 Tough battle"), recovered: tr("✨ たちなおった", "✨ Recovered"),
-  flowing: tr("♪ ちょうしが いい", "♪ In good spirits"), tired: tr("💤 つかれぎみ", "💤 Tired"), calling_long: tr("❗ ずっと よんでいる", "❗ Still calling"), dozing: tr("💤 いねむり", "💤 Dozing"),
+const MOODS: Record<Mood, [IconName, string]> = {
+  waiting_long: ["hourglass", tr("まちくたびれている", "Waiting a while")], struggling: ["sweat", tr("くるしい たたかい", "Tough battle")], recovered: ["sparkle", tr("たちなおった", "Recovered")],
+  flowing: ["music", tr("ちょうしが いい", "In good spirits")], tired: ["sleep", tr("つかれぎみ", "Tired")], calling_long: ["alert", tr("ずっと よんでいる", "Still calling")], dozing: ["sleep", tr("いねむり", "Dozing")],
 };
+function branchLabel(branch: string): HTMLElement {
+  const node = element("small", "branch-name"); node.append(iconLabel("branch", branch)); return node;
+}
 
 export function element<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
@@ -52,7 +56,7 @@ export function compactRow(agent: RoomAgent, now: number, name: string, selected
   row.title = `${name}${agent.branch ? ` [${agent.branch}]` : ""} · Lv ${level} · HP ${Math.round(hp * 100)} · MP ${mp === undefined ? "？" : Math.round(mp * 100)} · ${doing}`;
   row.setAttribute("aria-label", row.title);
   const badge = element("span", "compact-name", `${waiting ? "！ " : ""}${name}`);
-  if (agent.branch) badge.append(element("small", "branch-name", `⑂ ${agent.branch}`));
+  if (agent.branch) badge.append(branchLabel(agent.branch));
   row.append(badge, levelLabel(level));
   const bars = element("span", "compact-bars"); bars.append(bar("HP", hp, hpColor(hp)), bar("MP", mp, "#62b8ff"));
   row.append(bars, element("span", "compact-doing", doing));
@@ -71,7 +75,7 @@ export function statusCard(agent: RoomAgent, agentMoods: Mood[], permission: HTM
   const crest = element("span", "crest"); crest.style.background = heroAccent(agent.id);
   head.append(crest, element("strong", undefined, name), levelLabel(level));
   card.append(head);
-  if (agent.branch) card.append(element("small", "branch-name", `⑂ ${agent.branch}`));
+  if (agent.branch) card.append(branchLabel(agent.branch));
   card.append(bar("HP", hp, hpColor(hp)), bar("MP", mp, "#62b8ff"));
   card.append(element("p", "doing", `▶ ${interruptStatus(agent, now) ?? DOING[agent.activity](agent.target ?? "")}`));
   if (agent.source === "codex") card.append(element("p", "hint", codexNotice()));
@@ -100,7 +104,7 @@ export function statusCard(agent: RoomAgent, agentMoods: Mood[], permission: HTM
   }
   if (detailed || agentMoods.length) {
     const chips = element("p", "moods");
-    for (const mood of agentMoods) chips.append(element("span", "chip", MOODS[mood]));
+    for (const mood of agentMoods) { const chip = iconLabel(...MOODS[mood]); chip.classList.add("chip"); chips.append(chip); }
     if (!agentMoods.length) chips.append(element("span", "chip", tr("いつもどおり", "As usual")));
     if (detailed) card.append(element("p", "section", tr("きぶん", "Mood")));
     card.append(chips);
@@ -118,8 +122,10 @@ export function statusCard(agent: RoomAgent, agentMoods: Mood[], permission: HTM
     const done = agent.tasks.filter((task) => task.status === "completed").length;
     const list = element("ul", "quests");
     for (const task of agent.tasks) {
-      const mark = task.status === "completed" ? "✔" : task.status === "in_progress" ? "▶" : "・";
-      list.append(element("li", task.status, `${mark} ${task.subject ?? `#${task.id}`}`));
+      const row = element("li", task.status);
+      row.append(task.status === "completed" ? icon("check") : task.status === "in_progress" ? "▶" : "・", ` ${task.subject ?? `#${task.id}`}`);
+      if (task.status === "completed") row.setAttribute("aria-label", tr(`完了：${task.subject ?? task.id}`, `Completed: ${task.subject ?? task.id}`));
+      list.append(row);
     }
     if (!agent.tasks.length) list.append(element("li", undefined, tr("まだ クエストは ありません", "No quests yet")));
     card.append(element("p", "section", tr(`クエスト ${done}/${agent.tasks.length}${detailed ? " たっせい" : ""}`, `Quests ${done}/${agent.tasks.length}${detailed ? " complete" : ""}`)), list);

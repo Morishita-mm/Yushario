@@ -28,7 +28,7 @@ nav button.on { border-color: #ffe066; color: #ffe066; }
 nav button { display: inline-flex; align-items: center; gap: 6px; min-width: 7.5em; justify-content: space-between; }
 nav button .count { color: #c9c3dc; font-size: 12px; min-width: 2.6em; text-align: right; }
 nav button .alert { visibility: hidden; width: 1.1em; font-size: 12px; }
-nav button .count, nav button .alert { font-family: system-ui, "Apple Color Emoji", sans-serif; }
+nav button .count, nav button .alert { font-family: inherit; }
 body > header { position: sticky; top: 0; z-index: 2; background: #0d0b14; }
 #sections { display: flex; gap: 14px; flex-wrap: wrap; }
 #sections a { color: #9fd3ff; font-size: 14px; text-decoration: none; }

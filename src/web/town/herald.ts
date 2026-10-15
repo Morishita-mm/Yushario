@@ -1,4 +1,5 @@
 import { tr } from "../language";
+import { icon, iconLabel, type IconName } from "../icons";
 import { THEME_NAMES, type TownTheme } from "./themes";
 import { ICON, type Project } from "./world";
 import type { Sheets } from "./sheets";
@@ -12,7 +13,16 @@ export function noticesInTown(list: Notice[], town?: string): Notice[] {
   return list.filter((notice) => town === undefined || notice.repo === town || ["permission", "party-invite", "outside-role", "call", "down"].includes(notice.kind));
 }
 
-const ICONS: Record<Notice["kind"], string> = { permission: "🔑", "party-invite": "👥", "outside-role": "⚠", call: "❗", down: "⚠", new: "🏗", struggle: "💦", report: "📜" };
+const ICONS: Record<Notice["kind"], IconName> = { permission: "key", "party-invite": "party", "outside-role": "warning", call: "alert", down: "warning", new: "build", struggle: "sweat", report: "scroll" };
+const NOTICE_LABELS: Record<Notice["kind"], string> = {
+  permission: tr("許可待ち", "Permission"), "party-invite": tr("仲間の確認", "Party invitation"), "outside-role": tr("役割外の変更", "Outside-role change"),
+  call: tr("呼び出し", "Calling"), down: tr("接続切れ", "Disconnected"), new: tr("新しい町", "New town"), struggle: tr("苦戦中", "Struggling"), report: tr("報告", "Report"),
+};
+function counter(name: IconName, count: number, label: string): HTMLSpanElement {
+  const node = iconLabel(name, String(count));
+  node.setAttribute("role", "img"); node.setAttribute("aria-label", `${label}: ${count}`); node.title = `${label}: ${count}`;
+  return node;
+}
 
 function element<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
@@ -37,10 +47,13 @@ export function renderHerald(root: HTMLElement, list: Notice[], onPick: (notice:
   function group([repo, notices]: [string, Notice[]]): HTMLElement[] {
     const heading = headings.find((item) => item.dataset.town === repo) ?? element("h3", "herald-town");
     heading.dataset.town = repo;
-    const counts = (Object.keys(ICONS) as Notice["kind"][]).map((kind) => [kind, notices.filter((n) => n.kind === kind).length] as const)
-      .filter(([, n]) => n).map(([kind, n]) => `${ICONS[kind]}${n}`).join(" ");
-    const text = `${townName(repo) || tr("（町なし）", "(No town)")}  ${counts}`;
-    if (heading.textContent !== text) heading.textContent = text;
+    const counts = (Object.keys(ICONS) as Notice["kind"][]).map((kind) => [kind, notices.filter((n) => n.kind === kind).length] as const).filter(([, n]) => n);
+    const name = townName(repo) || tr("（町なし）", "(No town)");
+    const key = JSON.stringify([name, counts]);
+    if (heading.dataset.counts !== key) {
+      heading.replaceChildren(`${name}  `, ...counts.flatMap(([kind, n]) => [counter(ICONS[kind], n, NOTICE_LABELS[kind]), " "]));
+      heading.dataset.counts = key;
+    }
     return [heading, ...items(notices)];
   }
 
@@ -49,7 +62,10 @@ export function renderHerald(root: HTMLElement, list: Notice[], onPick: (notice:
     const button = existing.find((item) => item.dataset.notice === key) ?? element("button", `notice ${notice.kind}`);
     button.type = "button"; button.dataset.notice = key;
     button.setAttribute("aria-label", notice.text);
-    if (!button.children.length) button.append(element("span", "icon", ICONS[notice.kind]), element("span", "text", notice.text), element("span", "ago"));
+    if (!button.children.length) {
+      const mark = element("span", "icon"); mark.append(icon(ICONS[notice.kind]));
+      button.append(mark, element("span", "text", notice.text), element("span", "ago"));
+    }
     button.querySelector(".ago")!.textContent = notice.ago;
     button.onclick = () => onPick(notice);
     return button;
@@ -106,14 +122,17 @@ export function showTownList(layer: HTMLElement, title: string, projects: Projec
       button.append(element("span", "name"), element("span", "status"));
       row.append(button);
     }
-    const status = p.heroes ? [`👤${p.heroes}`, p.fighting ? `⚔️${p.fighting}` : "", p.unread ? `📜${p.unread}` : "", p.calling ? "❗" : ""].filter(Boolean).join("  ") : tr("だれも いない", "No heroes");
     button.querySelector(".name")!.textContent = p.label ?? p.repo;
-    button.querySelector(".status")!.textContent = status;
+    const status = button.querySelector(".status")!;
+    status.replaceChildren(...(p.heroes ? [counter("hero", p.heroes, tr("勇者", "Heroes")),
+      ...(p.fighting ? ["  ", counter("swords", p.fighting, tr("作業中", "Working"))] : []),
+      ...(p.unread ? ["  ", counter("scroll", p.unread, tr("未読の報告", "Unread reports"))] : []),
+      ...(p.calling ? ["  ", iconLabel("alert", tr("呼び出し", "Calling"))] : [])] : [tr("だれも いない", "No heroes")]));
     button.onclick = () => { box.close(); layer.hidden = true; onPick(p); };
     if (onPin && p.pinned !== undefined) {
       const pin = row.querySelector<HTMLButtonElement>(".town-pin") ?? element("button", "town-pin");
       pin.type = "button";
-      pin.textContent = p.pinned ? tr("◆ ピンどめ中", "◆ Pinned") : tr("◇ ピンどめ", "◇ Pin");
+      pin.replaceChildren(iconLabel("pin", p.pinned ? tr("ピンどめ中", "Pinned") : tr("ピンどめ", "Pin")));
       pin.setAttribute("aria-label", tr(`${p.label ?? p.repo}の ピンどめ`, `Pin ${p.label ?? p.repo}`));
       pin.setAttribute("aria-pressed", String(p.pinned));
       pin.onclick = () => {

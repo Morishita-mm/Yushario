@@ -27,7 +27,7 @@ export function drawChurch(ctx: CanvasRenderingContext2D, art: Sheets, t: number
     drawNoticeHero(ctx, art, art.variant("hero-pray", prayer.variant), art.pose("hero-pray", "prayer", Math.floor((t + i * 120) / 360) % 2), x, y, notice?.id === prayer.id ? notice : undefined);
     art.draw(ctx, "ui-prayer-balloon", "praying hands", x + room.balloon[0], y + room.balloon[1] + (Math.floor((t + i * 400) / 500) % 2));
     label(ctx, prayer.name, x + lx, y + ly);
-    if (prayer.branch) label(ctx, `⑂ ${prayer.branch}`, x + lx, y + ly + 12, "#9fd3ff", 8);
+    if (prayer.branch) label(ctx, prayer.branch, x + lx, y + ly + 12, "#9fd3ff", 8, "branch");
     weaponBesideLabel(ctx, art, prayer.weaponTier, t, prayer.name, x + lx, y + ly);
   });
   placeTitle(ctx, tr("きょうかい（なか）", "CHURCH"), TOWN_W / 2, 8, town);

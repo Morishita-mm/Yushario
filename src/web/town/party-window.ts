@@ -6,6 +6,7 @@ import type { AgentInfo } from "../rpg/agents";
 import { language, tr } from "../language";
 import { partyRequest, type PartyControls, type PartyHero } from "./quest-party";
 import "./party-window.css";
+import { iconLabel } from "../icons.js";
 
 // A Dragon Quest style formation window: the party on the left, heroes in town on the right,
 // a command window for the chosen hero, and a message window that walks through each step.
@@ -18,7 +19,7 @@ const command = (text: string, run: () => void, primary = false): HTMLButtonElem
 };
 export const memberState = (member: PartyHero): string => !member.canTalk ? tr("ターミナルのみ", "Terminal only")
   : !member.active ? tr("去った", "Left") : member.waiting ? tr("待っている", "Ready") : tr("作業中", "Working");
-export const memberBadge = (member: PartyHero): string => member.writer ? tr("担当 ✎", "Owner ✎")
+export const memberBadge = (member: PartyHero): string => member.writer ? tr("担当", "Owner")
   : member.role === "command" ? tr("しき", "Command") : tr(`手伝い · ${roleLabel(member.role, language)}`, `Helper · ${roleLabel(member.role, language)}`);
 
 export function openPartyWindow(quest: QuestDetail, controls: PartyControls | undefined, changed: () => void): void {
@@ -55,8 +56,12 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
   };
   const say = (text: string, ...extra: HTMLElement[]) => { message.replaceChildren(el("p", undefined, text), ...extra); };
   const fail = (error: Error) => say(error.message);
-  const guide = () => say(tr("勇者を えらんでね。担当（✎）は ファイルを 書きかえる ただ1人。手伝いは 書きかえずに 報告する。",
-    "Choose a hero. The owner (✎) is the only one who changes files. Helpers report without changing files."));
+  const guide = () => {
+    const text = el("p");
+    text.append(tr("勇者を えらんでね。", "Choose a hero. "), iconLabel("edit", tr("担当", "The owner")),
+      tr("は ファイルを 書きかえる ただ1人。手伝いは 書きかえずに 報告する。", " is the only one who changes files. Helpers report without changing files."));
+    message.replaceChildren(text);
+  };
 
   async function reload(): Promise<void> {
     if (mock) { render(); return; }
@@ -66,11 +71,13 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
   // A card per hero, like a party screen: picture, name, role, CLI, model and effort, MP and state.
   function card(session: string, preset: string | undefined, badge: string, writer: boolean, state: string, pick: () => void, small = false): HTMLButtonElement {
     const info = controls?.heroInfo?.(session) ?? {}, node = command("", pick); node.classList.add("pw-card"); if (small) node.classList.add("small");
-    if (writer) node.classList.add("writer");
+    if (writer && !small) node.classList.add("writer");
     const picture = el("span", "pw-picture"); if (info.portrait) picture.append(info.portrait);
     const mp = el("span", "pw-mp"), fill = el("span"); fill.style.width = `${Math.round((info.mp ?? 0) * 100)}%`; mp.append(fill);
     mp.title = `MP ${info.mp === undefined ? "？" : Math.round(info.mp * 100)}`; mp.classList.toggle("unknown", info.mp === undefined);
-    node.append(picture, el("span", "pw-name", nameOf(session)), el("span", writer ? "pw-badge writer" : "pw-badge", badge),
+    const role = el("span", writer && !small ? "pw-badge writer" : "pw-badge");
+    role.append(writer ? iconLabel("edit", badge) : badge);
+    node.append(picture, el("span", "pw-name", nameOf(session)), role,
       el("span", "pw-kind", `${preset ?? "?"}${info.level !== undefined ? ` · Lv ${info.level}` : ""}`), el("span", "pw-gear", info.gear ?? tr("モデル・effort 不明", "Model and effort unknown")));
     if (!small) node.append(mp);
     node.append(el("span", "pw-state", state));
@@ -93,7 +100,7 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
     party.replaceChildren(el("h4", undefined, tr(`いまの パーティー（${present.length}）`, `The party (${present.length})`)), slots);
     if (gone.length) {
       const away = el("div", "pw-cards small pw-gone");
-      for (const member of gone) away.append(card(member.session, member.sessionInfo?.preset, memberBadge(member), false, tr("去った（よびもどせる）", "Left (can be recalled)"), () => chooseMember(member), true));
+      for (const member of gone) away.append(card(member.session, member.sessionInfo?.preset, memberBadge(member), member.writer, tr("去った（よびもどせる）", "Left (can be recalled)"), () => chooseMember(member), true));
       party.append(el("h4", undefined, tr(`町を 去った 仲間（${gone.length}）`, `Party members who left (${gone.length})`)), away);
     }
     const free = sessions.filter((session) => session.project === quest.town && !session.exited && !members.some((member) => member.session === session.id));
@@ -107,9 +114,10 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
     town.replaceChildren(el("h4", undefined, tr("町に いる 勇者", "Heroes in town")), row);
     if (!free.length) town.append(el("p", "pw-empty", tr("ほかに いない", "No one else")));
   }
-  function showCommands(heading: string, ...buttons: HTMLButtonElement[]): void {
+  function showCommands(heading: string | HTMLElement, ...buttons: HTMLButtonElement[]): void {
     commands.hidden = false;
-    commands.replaceChildren(el("h4", undefined, heading), ...buttons, command(tr("やめる", "Cancel"), () => { commands.hidden = true; guide(); }));
+    const title = el("h4"); title.append(heading);
+    commands.replaceChildren(title, ...buttons, command(tr("やめる", "Cancel"), () => { commands.hidden = true; guide(); }));
     buttons[0]?.focus();
   }
   function chooseMember(member: PartyHero): void {
@@ -120,7 +128,8 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
     if (!member.writer && member.active && member.canTalk) buttons.push(command(tr("担当を 交代する", "Make the owner"), () => swap(member.session)));
     if (member.active) buttons.push(command(member.role === "command" ? tr("しき役を やめる", "Stop commanding") : tr("しき役に する", "Make commander"), () => commander(member)));
     buttons.push(command(tr("パーティーから 外す", "Remove from the party"), () => leave(member)));
-    showCommands(tr(`${nameOf(member.session)}（${memberBadge(member)} · ${memberState(member)}）`, `${nameOf(member.session)} (${memberBadge(member)} · ${memberState(member)})`), ...buttons);
+    const heading = tr(`${nameOf(member.session)}（${memberBadge(member)} · ${memberState(member)}）`, `${nameOf(member.session)} (${memberBadge(member)} · ${memberState(member)})`);
+    showCommands(member.writer ? iconLabel("edit", heading) : heading, ...buttons);
     say(member.writer ? tr("担当は ファイルを 書きかえる ただ1人。交代する時は 町の勇者を えらんで「担当を 交代する」。", "The owner is the only one who changes files. To change owners, pick a hero in town and choose Make the owner.")
       : tr("手伝いは ファイルを 書きかえない。気づいたことを 報告する。", "Helpers do not change files; they report what they find."));
   }

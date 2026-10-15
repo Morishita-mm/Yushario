@@ -113,6 +113,6 @@ export function drawWalker(ctx: CanvasRenderingContext2D, art: Sheets, walker: W
     drawNoticeHero(ctx, art, art.variant(id, walker.variant), art.pose(id, walker.dy > 0 ? "front" : "back", stride), walker.x, walker.y, mark);
   }
   label(ctx, walker.name, walker.x, walker.y + 13);
-  if (walker.branch) label(ctx, `⑂ ${walker.branch}`, walker.x, walker.y + 25, "#9fd3ff", 8);
+  if (walker.branch) label(ctx, walker.branch, walker.x, walker.y + 25, "#9fd3ff", 8, "branch");
   weaponBesideLabel(ctx, art, walker.weaponTier, t, walker.name, walker.x, walker.y + 13);
 }

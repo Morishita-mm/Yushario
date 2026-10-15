@@ -19,7 +19,7 @@ export function drawInn(ctx: CanvasRenderingContext2D, art: Sheets, t: number, s
     drawNoticeHero(ctx, art, art.variant("hero-sleep-bed-interior", heroVariant(sleeper.id)), "sleeping", x, y, sleeper.id === notice?.id ? notice : undefined);
     art.draw(ctx, "ui-balloons", "sleep Zz", x + room.balloon[0], y + room.balloon[1] + (Math.floor((t + i * 400) / 500) % 2));
     label(ctx, sleeper.name, x + lx, y + ly);
-    if (sleeper.branch) label(ctx, `⑂ ${sleeper.branch}`, x + lx, y + ly + 12, "#9fd3ff", 8);
+    if (sleeper.branch) label(ctx, sleeper.branch, x + lx, y + ly + 12, "#9fd3ff", 8, "branch");
     weaponBesideLabel(ctx, art, sleeper.weaponTier, t, sleeper.name, x + lx, y + ly);
   });
   placeTitle(ctx, tr("やどや（なか）", "INN"), TOWN_W / 2, 8, town);

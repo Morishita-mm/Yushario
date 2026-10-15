@@ -247,7 +247,7 @@ function drawScene(now: number, dt: number, w: number, h: number, notice?: Param
   else if (current.place === "town") {
     walkTown(art, now);
     drawTown(ctx, art, now, { sleepers: SLEEPERS.length, prayers: PRAYERS.length, theme: town.theme, name: town.repo, walkers: current.id === "equipment-town" ? equippedWalkers : walkers, reports: current.id === "equipment-town" ? [] : townReports(), caller: current.id === "equipment-town" ? undefined : CALLER, read, notice });
-    rosterPlate = plate(ctx, [[tr(`📖 ぼうけんしゃの めいぼ ${ROSTER.length}`, `📖 ROSTER ${ROSTER.length}`), "#fff7d6", 10]], w - 92, 8);
+    rosterPlate = plate(ctx, [[tr(`ぼうけんしゃの めいぼ ${ROSTER.length}`, `ROSTER ${ROSTER.length}`), "#fff7d6", 10, "book"]], w - 92, 8);
   }
   else if (current.place === "inn") drawInn(ctx, art, now, SLEEPERS.map((name) => ({ id: name, name })), notice, town.repo);
   else if (current.place === "church") drawChurch(ctx, art, now, PRAYERS.map((prayer) => ({ id: prayer.name, ...prayer })), notice, town.repo);

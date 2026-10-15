@@ -1,4 +1,5 @@
 import { tr } from "../language";
+import { drawIcon, type IconName } from "../icons.js";
 import type { TownTheme } from "./themes";
 import type { Sheets } from "./sheets";
 
@@ -37,14 +38,19 @@ export function markers(art: Sheets, w: number, h: number, projects: Project[]):
 }
 
 // A name plate: dark box with a light frame, so names stay readable on any terrain.
-export function plate(ctx: CanvasRenderingContext2D, lines: [string, string, number][], x: number, y: number): { x: number; y: number; w: number; h: number } {
+type PlateParts = { icon: IconName; text: string }[];
+type PlateLine = [string | PlateParts, string, number, IconName?];
+export function plate(ctx: CanvasRenderingContext2D, lines: PlateLine[], x: number, y: number): { x: number; y: number; w: number; h: number } {
   ctx.textAlign = "center";
   let width = 0;
-  for (const [text, , size] of lines) {
+  const parts = (text: string | PlateParts, mark?: IconName): { icon?: IconName; text: string }[] =>
+    typeof text === "string" ? [{ text, icon: mark }] : text;
+  const lineWidth = (items: { icon?: IconName; text: string }[]) => items.reduce((sum, item) => sum + ctx.measureText(item.text).width + (item.icon ? 20 : 0), 0) + (items.length - 1) * 8;
+  for (const [text, , size, mark] of lines) {
     ctx.font = `${size}px "DotGothic16", monospace`;
-    width = Math.max(width, ctx.measureText(text).width);
+    width = Math.max(width, lineWidth(parts(text, mark)));
   }
-  const height = lines.reduce((sum, [, , size]) => sum + size + 3, 4);
+  const height = lines.reduce((sum, [text, , size, mark]) => sum + Math.max(size, mark || typeof text !== "string" ? 16 : 0) + 3, 4);
   const left = Math.round(x - width / 2 - 6), box = Math.round(width + 12);
   ctx.fillStyle = "rgba(10, 10, 26, 0.86)";
   ctx.fillRect(left, y, box, height);
@@ -52,12 +58,24 @@ export function plate(ctx: CanvasRenderingContext2D, lines: [string, string, num
   ctx.lineWidth = 1;
   ctx.strokeRect(left + 0.5, y + 0.5, box - 1, height - 1);
   let line = y + 2;
-  for (const [text, color, size] of lines) {
+  for (const [text, color, size, mark] of lines) {
     ctx.font = `${size}px "DotGothic16", monospace`;
-    ctx.fillStyle = color;
-    ctx.fillText(text, x, line + size);
-    line += size + 3;
+    const items = parts(text, mark), rowHeight = Math.max(size, mark || typeof text !== "string" ? 16 : 0);
+    let left = Math.round(x - lineWidth(items) / 2);
+    ctx.textAlign = "left";
+    for (const item of items) {
+      if (item.icon) {
+        drawIcon(ctx, item.icon, left, Math.round(line + (rowHeight - 16) / 2), color);
+        left += 20;
+      }
+      ctx.fillStyle = color;
+      ctx.fillText(item.text, left, line + size + Math.floor((rowHeight - size) / 2));
+      left += ctx.measureText(item.text).width + 8;
+      left = Math.round(left);
+    }
+    line += rowHeight + 3;
   }
+  ctx.textAlign = "center";
   return { x: left, y, w: box, h: height };
 }
 
@@ -90,12 +108,14 @@ export function drawWorld(ctx: CanvasRenderingContext2D, art: Sheets, t: number,
       art.draw(ctx, "world-towns", ICON[marker.theme], x, y + 8);
     }
     const fighting = sum(projects, "fighting"), unread = sum(projects, "unread");
-    const badges = [`👤${sum(projects, "heroes")}`, fighting ? `⚔️${fighting}` : "", unread ? `📜${unread}` : ""].filter(Boolean).join("  ");
+    const badges: PlateParts = [{ icon: "hero", text: String(sum(projects, "heroes")) }];
+    if (fighting) badges.push({ icon: "swords", text: String(fighting) });
+    if (unread) badges.push({ icon: "scroll", text: String(unread) });
     const title = bundle ? `${regionName(marker.theme)} ×${projects.length}` : (projects[0].label ?? projects[0].repo);
     plate(ctx, [[title, "#ffffff", 10], [badges, "#ffe7a3", 8]], x, y + 14);
     if (projects.some((p) => p.calling)) art.draw(ctx, "ui-balloons", "exclamation", x + 16, y - 22 - (Math.floor(t / 400) % 2));
   }
   plate(ctx, [[tr("ワールドマップ", "WORLD MAP"), "#fff7d6", 12]], w / 2, 6);
   const asleep = sleeping(towns).length; // Zero-count plates stay hidden and unclickable.
-  return asleep ? plate(ctx, [[tr(`💤 ねむっている町 ${asleep}`, `💤 SLEEPING TOWNS ${asleep}`), "#c9c3dc", 9]], w - 72, h - 24) : { x: -1, y: -1, w: 0, h: 0 };
+  return asleep ? plate(ctx, [[tr(`ねむっている町 ${asleep}`, `SLEEPING TOWNS ${asleep}`), "#c9c3dc", 9, "sleep"]], w - 72, h - 24) : { x: -1, y: -1, w: 0, h: 0 };
 }

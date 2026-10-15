@@ -1,4 +1,5 @@
 import { tr } from "../language";
+import { iconLabel } from "../icons";
 export const FIELD_NAMES = { meadow: tr("そうげん", "Meadow"), cave: tr("どうくつ", "Cave"), forest: tr("よるのもり", "Night Forest") };
 
 export function updateMapNav(place: "world" | "town" | "inn" | "church" | keyof typeof FIELD_NAMES,
@@ -10,7 +11,7 @@ export function updateMapNav(place: "world" | "town" | "inn" | "church" | keyof 
   document.querySelector<HTMLButtonElement>("#town-look")!.hidden = place !== "town";
   const pin = document.querySelector<HTMLButtonElement>("#town-pin")!;
   pin.hidden = place === "world" || pinned === undefined;
-  pin.textContent = pinned ? tr("◆ ピンどめ中", "◆ Pinned") : tr("◇ ピンどめ", "◇ Pin");
+  pin.replaceChildren(iconLabel("pin", pinned ? tr("ピンどめ中", "Pinned") : tr("ピンどめ", "Pin")));
   pin.setAttribute("aria-pressed", String(pinned ?? false));
   return title;
 }
