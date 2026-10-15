@@ -28,7 +28,7 @@ export function tacticProgress(status: TacticStatus): string {
 export function tacticBox(quest: string, mock: boolean, command: (text: string, run: () => void, primary?: boolean) => HTMLButtonElement,
   say: (text: string) => void, changed: () => void) {
   const root = document.createElement("section"); root.className = "pw-box pw-tactics";
-  let status: TacticStatus | undefined;
+  let status: TacticStatus | undefined, unreadable = false;
   const prefix = `quests/${encodeURIComponent(quest)}`;
   async function choose(tactic: Tactic): Promise<void> {
     status = await partyRequest(`${prefix}/tactic`, "POST", { tactic });
@@ -37,7 +37,12 @@ export function tacticBox(quest: string, mock: boolean, command: (text: string, 
   function render(): void {
     const heading = document.createElement("h4"); heading.textContent = tr("さくせん", "Tactic");
     root.replaceChildren(heading);
-    if (!status) { const wait = document.createElement("p"); wait.textContent = mock ? tr("（見本では 作戦を 選べない）", "(Tactics are not available in the sample)") : tr("よんでいる…", "Loading…"); root.append(wait); return; }
+    if (!status) {
+      const wait = document.createElement("p");
+      wait.textContent = mock ? tr("（見本では 作戦を 選べない）", "(Tactics are not available in the sample)")
+        : unreadable ? tr("作戦を よめない。サーバーが 古いまま なら、起動しなおすと 直る。", "Cannot read the tactic. If the server is older than this page, restart it.") : tr("よんでいる…", "Loading…");
+      root.append(wait); return;
+    }
     const line = document.createElement("p"); line.className = "pw-progress"; line.textContent = tacticProgress(status); root.append(line);
     if (status.running) root.append(command(tr("止める（命令に従え に 戻す）", "Stop (back to Follow orders)"), () => void choose("obey").catch((error: Error) => say(error.message))));
     const list = document.createElement("div"); list.className = "pw-tactic-list";
@@ -51,9 +56,10 @@ export function tacticBox(quest: string, mock: boolean, command: (text: string, 
     root.append(list);
   }
   async function load(): Promise<TacticStatus | undefined> {
-    if (!mock) status = await partyRequest(`${prefix}/tactic`);
+    // A tactic that cannot be read must not hide the party itself.
+    if (!mock) try { status = await partyRequest(`${prefix}/tactic`); unreadable = false; } catch { status = undefined; unreadable = true; }
     render(); return status;
   }
   render();
-  return { root, load, outside: () => new Set(status?.tactic === "obey" ? [] : status?.fit.outside ?? []) };
+  return { root, load, current: () => status, outside: () => new Set(status?.tactic === "obey" ? [] : status?.fit.outside ?? []) };
 }

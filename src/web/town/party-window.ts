@@ -23,7 +23,8 @@ export const memberState = (member: PartyHero): string => !member.canTalk ? tr("
 export const memberBadge = (member: PartyHero): string => member.writer ? tr("担当", "Owner")
   : member.role === "command" ? tr("しき", "Command") : tr(`手伝い · ${roleLabel(member.role, language)}`, `Helper · ${roleLabel(member.role, language)}`);
 
-export function openPartyWindow(quest: QuestDetail, controls: PartyControls | undefined, changed: () => void): void {
+// `request`: a request not sent yet. The window then ends with "form the party, then send it to the owner".
+export function openPartyWindow(quest: QuestDetail, controls: PartyControls | undefined, changed: () => void, request?: string): void {
   document.querySelector("#party-window")?.remove();
   const dialog = el("dialog", "party-window"); dialog.id = "party-window";
   const title = el("h3", undefined, tr(`パーティー へんせい — ${quest.title}`, `Party — ${quest.title}`)); title.id = "party-window-title";
@@ -37,7 +38,8 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
   const columns = el("div", "pw-rows"); columns.append(party, town);
   // The tactic box is filled once the helpers below exist.
   const tacticSlot = el("div");
-  dialog.append(head, tacticSlot, columns, commands, message); document.body.append(dialog);
+  const pending = request === undefined ? undefined : el("section", "pw-box pw-request"), draft = el("textarea");
+  dialog.append(head, tacticSlot, columns, commands, ...(pending ? [pending] : []), message); document.body.append(dialog);
   dialog.addEventListener("cancel", (event) => { event.preventDefault(); close(); });
   dialog.addEventListener("keydown", (event) => event.stopPropagation());
   const prefix = `quests/${encodeURIComponent(quest.id)}`, mock = controls?.mock;
@@ -113,7 +115,7 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
     const row = el("div", "pw-cards small");
     for (const session of free) row.append(card(session.id, session.preset, canTalk(session) ? tr("町に いる", "In town") : tr("ターミナルのみ", "Terminal only"), false, "", () => chooseTownHero(session), true));
     if (controls) {
-      const embark = command("", () => { exit(); controls.embark(() => openPartyWindow(quest, controls, changed)); });
+      const embark = command("", () => { exit(); controls.embark(() => openPartyWindow(quest, controls, changed, pending ? draft.value : undefined)); });
       embark.classList.add("pw-card", "small", "pw-add"); embark.append(el("span", "pw-plus", "＋"), el("span", undefined, tr("新しく 出陣させる", "Embark a new hero")));
       row.append(embark);
     }
@@ -141,6 +143,15 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
   }
   function chooseTownHero(session: Session): void {
     if (!canTalk(session)) { say(tr("この勇者は ターミナルだけで、会話で 頼めない。", "This hero is terminal-only and cannot take requests by talk.")); return; }
+    // With no owner yet, this hero simply becomes the owner; nothing is sent until the request goes out.
+    if (!owner()?.active) {
+      showCommands(nameOf(session.id), command(tr("担当にする", "Make the owner"), () => {
+        if (mock) return;
+        void partyRequest(`${prefix}/assign`, "POST", { session: session.id }).then(reload).then(guide).catch(fail);
+      }, true), command(tr("手伝ってもらう", "Ask for help"), () => help(session.id)));
+      say(tr("まだ 担当が いない。担当にする：この勇者が 依頼を 受ける（まだ 何も 送らない）。", "No owner yet. Make the owner: this hero takes the request (nothing is sent yet)."));
+      return;
+    }
     showCommands(nameOf(session.id), command(tr("手伝ってもらう", "Ask for help"), () => help(session.id), true), command(tr("担当を 交代する", "Make the owner"), () => swap(session.id)));
     say(tr("手伝ってもらう：いまの担当は そのまま。担当を 交代する：仕事ごと この勇者に 渡す。", "Ask for help keeps the owner. Make the owner hands the whole quest to this hero."));
   }
@@ -236,6 +247,21 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
       : tr(`${nameOf(member.session)}を パーティーから 外す。勇者そのものは 町に 残る。`, `Remove ${nameOf(member.session)} from the party. The hero stays in town.`), yes);
   }
 
+  // Forming first, sending last: the owner (or the researchers) get the request only when the party is ready.
+  if (pending) {
+    draft.rows = 4; draft.maxLength = 8000; draft.value = request ?? "";
+    const send = command(tr("▶ 編成を終えて 依頼する", "▶ Done forming — send the request"), () => void (async () => {
+      const text = draft.value.trim(), lead = owner();
+      if (!text) { draft.focus(); return; }
+      if (mock) { say(tr("（見本）依頼した", "(Sample) Sent")); return; }
+      if (tactics.current()?.tactic === "research") await partyRequest(`${prefix}/research`, "POST", { text });
+      else if (!lead?.active) { say(tr("先に 担当を 決める。町の勇者を えらんで「担当を 交代する」か、新しく 出陣させる。", "Choose an owner first: pick a hero in town and make them the owner, or embark a new one.")); return; }
+      else await partyRequest(`${prefix}/send`, "POST", { session: lead.session, text });
+      close();
+    })().catch(fail), true);
+    send.classList.add("pw-send");
+    pending.append(el("h4", undefined, tr("依頼（編成が 終わったら 送る）", "Request (sent when the party is ready)")), draft, send);
+  }
   dialog.showModal(); guide();
   void reload().catch(fail);
 }

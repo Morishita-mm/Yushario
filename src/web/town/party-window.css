@@ -67,3 +67,5 @@
 .pw-tactic-list small { color: #b9b1cc; font-size: 12px; line-height: 1.5; }
 .pw-tactic-list .pw-command:disabled small { color: #777; }
 .pw-outside { font-size: 11px; color: #b9b1cc; border: 1px dashed #777; padding: 0 4px; }
+.pw-request { gap: 8px; }
+.pw-request textarea { font: inherit; width: 100%; box-sizing: border-box; color: #fff; background: #111; border: 1px solid #fff; padding: 6px; resize: vertical; }

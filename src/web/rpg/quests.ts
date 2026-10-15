@@ -189,15 +189,16 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
           if (send) status.textContent = await sendRequest(quest.id, choice, text) ? tr("依頼を 届けた", "Request delivered") : tr("依頼を あずけた。勇者の 手が あいたら 届く", "Request held until the hero is free");
         }
         await open(quest.id);
+        // Form the party first; the window sends the request when the party is ready.
         if (formParty) {
           const detail: QuestDetail = await questRequest(`/${encodeURIComponent(quest.id)}`);
-          openPartyWindow(detail, partyControls(detail), () => void open(quest.id));
+          openPartyWindow(detail, partyControls(detail), () => void open(quest.id), text);
         }
       } catch (error) { status.textContent = error instanceof Error ? error.message : String(error); primary.disabled = only.disabled = team.disabled = false; }
     }
     form.onsubmit = (event) => { event.preventDefault(); void make(true); };
     only.onclick = () => void make(false);
-    team.onclick = () => void make(choice !== "embark", true);
+    team.onclick = () => void make(false, true);
     heroes(); content.replaceChildren(form); show(tr("新しいクエスト", "New quest")); request.focus();
   }
   function choose(session: string, townKey: string): void {
