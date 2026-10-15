@@ -72,3 +72,6 @@
 .pw-away .pw-gone-row { width: 100%; text-align: left; color: #b9b1cc; font-size: 13px; overflow-wrap: anywhere; }
 .pw-away-fold > summary { cursor: pointer; color: #b9b1cc; font-size: 13px; letter-spacing: .08em; }
 .pw-away-fold[open] > summary { margin-bottom: 4px; }
+@keyframes pw-flash { from { border-color: #ffe066; box-shadow: 0 0 0 3px #ffe06688; } to { border-color: #fff; box-shadow: none; } }
+.pw-box.pw-flash { animation: pw-flash 1.2s ease-out; }
+@media (prefers-reduced-motion: reduce) { .pw-box.pw-flash { animation: none; border-color: #ffe066; } }

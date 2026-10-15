@@ -80,8 +80,14 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
         here ? memberState(member) : tr("まだ 町に 来ていない（ターミナルで 最初の 依頼を 待っている）", "Not in town yet (waiting for its first request in the terminal)"), () => chooseMember(member)));
     }
     if (mode !== "view") {
-      const add = command("", () => { (town.querySelector<HTMLButtonElement>(".pw-card") ?? town.querySelector<HTMLButtonElement>(".pw-command"))?.focus();
-        say(tr("下の「町に いる 勇者」から えらぶか、新しく 出陣させよう。", "Pick a hero in town below, or embark a new one.")); });
+      // With nobody free in town this launches a new hero; otherwise it shows where to pick one.
+      const add = command("", () => {
+        const first = town.querySelector<HTMLButtonElement>(".pw-card:not(.pw-add)");
+        if (!first) { town.querySelector<HTMLButtonElement>(".pw-add")?.click(); return; }
+        town.scrollIntoView({ block: "nearest", behavior: "smooth" }); town.classList.remove("pw-flash"); void town.offsetWidth; town.classList.add("pw-flash");
+        first.focus({ preventScroll: true });
+        say(tr("「町に いる 勇者」から 仲間に する 勇者を えらぼう。いなければ「新しく 出陣させる」。", "Pick a hero from Heroes in town, or embark a new one."));
+      });
       add.classList.add("pw-card", "pw-add"); add.append(el("span", "pw-plus", "＋"), el("span", undefined, tr("仲間を 足す", "Add a hero"))); slots.append(add);
     }
     party.replaceChildren(el("h4", undefined, tr(`いまの パーティー（${present.length}）`, `The party (${present.length})`)), slots);
@@ -130,7 +136,7 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
       command(tr("変更を見る", "Look at changes"), () => { exit(); controls?.review(hero, member.session); }),
     ];
     if (mode !== "view") {
-      if (!member.writer && member.active && member.canTalk) buttons.push(command(tr("担当を 交代する", "Make the owner"), () => swap(member.session)));
+      if (!member.writer && member.active && member.canTalk) buttons.push(command(owner()?.active ? tr("担当を 交代する", "Make the owner") : tr("担当にする", "Make the owner"), () => swap(member.session)));
       if (member.active) buttons.push(command(member.role === "command" ? tr("しき役を やめる", "Stop commanding") : tr("しき役に する", "Make commander"), () => commander(member)));
       buttons.push(command(tr("パーティーから 外す", "Remove from the party"), () => leave(member)));
     }
