@@ -52,7 +52,7 @@ export function questCard(quest: QuestDetail, actions: QuestCardActions): HTMLEl
   QUEST_STEPS.forEach((step, index) => track.append(element("li", index < at ? "done" : index === at ? "now" : "", `${index + 1} ${STEP_NAMES[step]()}`)));
   // Deleting is common, so it sits at the top instead of inside a fold.
   const head = element("div", "quest-card-head");
-  head.append(button(tr("× クエストを消す", "× Delete quest"), () => {
+  head.append(button(tr("クエストを消す", "Delete quest"), () => {
     if (!confirm(tr("この クエストの きろくを けす？", "Delete this quest's records?"))) return;
     void actions.remove().catch((error: Error) => { status.textContent = error.message; });
   }));

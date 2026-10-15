@@ -60,3 +60,7 @@
 #quests .quest-row-delete { justify-self: end; margin-top: 4px; }
 .quest-answer { background: #111020; padding: 10px 12px; border-left: 3px solid #8fd6a4; max-height: 60vh; overflow: auto; }
 .quest-accepted h5 { margin: 6px 0 0; font-weight: normal; color: #8fd6a4; }
+/* Gold buttons keep dark text on hover; the shared window hover would turn it gold on gold. */
+.quest-window.report-window button.primary:hover:not(:disabled), .quest-window.report-window button.primary:focus-visible { color: #1a1d2b; background: #fff0a8; border-color: #fff0a8; }
+.quest-window .quest-close { position: absolute; top: 8px; right: 10px; font-size: 20px; line-height: 1; padding: 4px 10px; }
+.quest-create-actions { display: flex; flex-wrap: wrap; gap: 8px; }

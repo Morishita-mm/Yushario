@@ -29,8 +29,8 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
   const dialog = document.createElement("dialog"); dialog.className = "report-window quest-window";
   const heading = document.createElement("h3"), content = document.createElement("div"), close = document.createElement("button");
   heading.id = `quest-title-${crypto.randomUUID()}`; dialog.setAttribute("aria-labelledby", heading.id);
-  close.type = "button"; close.textContent = tr("▶ とじる", "▶ Close"); close.onclick = () => dialog.close();
-  dialog.append(heading, content, close); document.body.append(dialog);
+  close.type = "button"; close.className = "quest-close"; close.textContent = "×"; close.setAttribute("aria-label", tr("とじる", "Close")); close.onclick = () => dialog.close();
+  dialog.append(close, heading, content); document.body.append(dialog);
   dialog.addEventListener("keydown", (event) => event.stopPropagation());
   window.addEventListener("resize", () => { if (dialog.open) coverMap(dialog); });
   dialog.addEventListener("click", (event) => { if (event.target === dialog) {
@@ -149,15 +149,14 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
     }
     function update(): void {
       primary.textContent = choice === "embark" ? tr("▶ 作って出陣させる", "▶ Create and embark") : choice ? tr("▶ 作って依頼する", "▶ Create and send") : tr("▶ 作る", "▶ Create");
+      team.textContent = choice === "embark" ? tr("作ってパーティーを編成する", "Create and form the party") : tr("作ってパーティーに依頼する", "Create and ask the party");
       only.hidden = !choice;
     }
     towns.onchange = heroes;
     primary.type = "submit"; primary.className = "primary"; only.type = "button"; only.textContent = tr("作るだけ", "Create only");
-    team.type = "button"; team.textContent = tr("作って パーティーを 編成する", "Create and form the party");
-    const hint = document.createElement("p"); hint.className = "hint";
-    hint.textContent = tr("手伝いや しき役も 呼ぶなら「作って パーティーを 編成する」。担当には 依頼を 送ってから 編成の 窓が ひらく。",
-      "To add helpers or a commander, choose Create and form the party. The owner gets the request first, then the party window opens.");
-    form.append(label(tr("町", "Town"), towns), label(tr("依頼（1行目が クエストの名前になる）", "Request (the first line names the quest)"), request), who, primary, only, team, hint, status);
+    team.type = "button";
+    const choices = document.createElement("div"); choices.className = "quest-create-actions"; choices.append(primary, team, only);
+    form.append(label(tr("町", "Town"), towns), label(tr("依頼（1行目が クエストの名前になる）", "Request (the first line names the quest)"), request), who, choices, status);
     async function make(send: boolean, formParty = false): Promise<void> {
       const text = request.value.trim();
       if (!text) { request.reportValidity(); return; }
