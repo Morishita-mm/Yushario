@@ -84,7 +84,7 @@ const quests = initQuests(() => scene.currentTown, () => scene.projects, (id) =>
   (session, text) => talk.draft(session, text), (town) => [...room.agents.values()].filter((agent) => agent.project === town), (hero) => void actions.farewell(hero),
   (session) => {
     const agent = [...room.agents.values()].find((item) => item.terminal === session), now = agent && stats(agent, Date.now());
-    return { portrait: heroPortrait(scene.art, agent?.id), gear: equipment.brief(session), mp: now?.mp, level: now?.level };
+    return { portrait: heroPortrait(scene.art, agent?.id), gear: equipment.brief(session), mp: now?.mp, level: now?.level, here: Boolean(agent) };
   });
 talk.setQuestControls(quests.current, quests.choose, quests.reportTitle);
 scene.openQuests = () => sideTabs.show("quests");

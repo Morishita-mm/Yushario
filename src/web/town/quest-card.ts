@@ -7,6 +7,8 @@ import { questChecks, confirmChecksDone, checksRequest } from "./quest-checks";
 import { checkMarkLabel, checkMarks, evidenceView } from "./check-marks";
 import { questParty, type PartyControls } from "./quest-party";
 import { partyEventTitle } from "../../core/party";
+import { parseMarkdown } from "../../core/markdown";
+import { renderMarkdown } from "../rpg/markdown";
 
 export type QuestPatch = { title?: string; purpose?: string; state?: QuestState; adoption?: { reason: string; pr: string } };
 export type TownHero = { session: string; name: string; busy: boolean };
@@ -139,7 +141,9 @@ function nextMove(quest: QuestDetail, stage: QuestStage, who: string, actions: Q
     if (quest.hero) row.append(button(tr("報告を受ける", "Read the report"), () => actions.talk(quest.hero!, latest?.at)));
     row.append(button(tr("採用する", "Adopt"), () => toggle(accept, retry, edit.reason)));
     edit.adoption.hidden = false;
-    accept.append(edit.adoption, button(tr("▶ この版を 採用する", "▶ Adopt this state"), () => void edit.accept()));
+    accept.append(edit.adoption, element("p", "hint", tr("採用すると、この回の 報告の 本文も 保存される（設定の「かいわも のこす」が 切れていても）。あとから この札で 読みかえせる。",
+      "Adopting also saves this round's report text, even when conversations are not kept, so you can read it again on this card.")),
+      button(tr("▶ この版を 採用する", "▶ Adopt this state"), () => void edit.accept()));
     if (actions.send) {
       const text = element("textarea"); text.rows = 3; text.maxLength = 8000;
       text.placeholder = tr("例：エラー文が まだ かたい。もっと やさしく して。", "e.g. The error text is still stiff. Make it friendlier.");
@@ -158,7 +162,8 @@ function nextMove(quest: QuestDetail, stage: QuestStage, who: string, actions: Q
   } else if (stage === "done") {
     what.textContent = tr("✓ 採用した", "✓ Adopted");
     const accepted = quest.events.find((event) => event.kind === "adopted");
-    if (accepted) box.append(acceptedView(accepted));
+    const report = quest.events.find((event) => event.kind === "report" && (!accepted || event.at <= accepted.at));
+    if (accepted) box.append(acceptedView(accepted, report));
   } else what.textContent = tr("やめた クエスト", "Dropped quest");
   box.append(row); return box;
 }
@@ -252,8 +257,14 @@ function eventRow(event: QuestEvent, talk: (hero: string, at?: number) => void):
   if (event.text) row.append(element("pre", "quest-event-body", event.text));
   return row;
 }
-function acceptedView(event: QuestEvent): HTMLElement {
+// What was adopted, readable here without going back to the conversation.
+function acceptedView(event: QuestEvent, report?: QuestEvent): HTMLElement {
   const box = element("section", "quest-accepted");
+  if (report?.report) box.append(element("p", undefined, `${reportTitle(report.report, language)} · ${report.report.files.join(", ") || "—"} · ${tr("テストの じっこう", "Test runs")} ○${report.report.tests.passed} ×${report.report.tests.failed}`));
+  if (event.decision?.answer) {
+    const answer = element("div", "quest-answer talk-body"); renderMarkdown(answer, parseMarkdown(event.decision.answer));
+    box.append(element("h5", undefined, tr("採用した 回答", "Adopted answer")), answer);
+  } else box.append(element("p", "hint", tr("この採用には 回答の本文が 残っていない（この機能より前の採用）。", "No answer text was kept for this adoption (adopted before this was saved).")));
   box.append(element("p", undefined, `${tr("採用した 版", "Adopted state")}: ${event.result?.branch ?? "—"} · HEAD ${event.result?.head ?? "—"}${event.decision?.changes ? "" : tr(" · じょうたい ふめい", " · State unknown")}`));
   const marks = event.decision?.checks ?? [];
   if (marks.length) box.append(element("p", "hint", marks.map((check) => `${check.name}: ${checkMarkLabel(check.mark)}`).join(" · ")));

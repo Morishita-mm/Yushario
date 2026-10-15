@@ -58,3 +58,5 @@
 .pw-add { place-content: center; color: #b9b1cc; border-style: dashed; min-height: 120px; }
 .pw-card.small.pw-add { min-height: 0; }
 .pw-plus { font-size: 28px; line-height: 1; }
+.pw-gone .pw-card { opacity: .55; }
+.pw-gone .pw-card:hover, .pw-gone .pw-card:focus-visible { opacity: 1; }

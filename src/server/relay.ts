@@ -111,7 +111,7 @@ async function dispatchHttp(request: IncomingMessage, response: ServerResponse):
       url.searchParams.has("quest") ? quests.get(url.searchParams.get("quest") ?? "") : undefined, () => reviewed(url),
       (result, decision) => quests.verdict(url.searchParams.get("session") ?? "", url.searchParams.get("quest") ?? undefined, result, decision));
     else if (questApi) {
-      if (!await handleChecksRequest(request, response, url, quests, pty.listSessions)) await handleQuestRequest(request, response, url, quests, ledger.towns, pty.getSession);
+      if (!await handleChecksRequest(request, response, url, quests, pty.listSessions)) await handleQuestRequest(request, response, url, quests, ledger.towns, pty.getSession, (id) => party.latestReply(id));
     }
     else if (sessionApi) await pty.handleRequest(request, response, url);
     else await ledger.handleRequest(request, response, url);

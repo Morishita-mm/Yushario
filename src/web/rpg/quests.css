@@ -58,3 +58,5 @@
 .quest-card-head { display: flex; justify-content: flex-end; }
 .quest-window .quest-card-head button, #quests .quest-row-delete { font-size: 12px; padding: 3px 8px; color: #ffb3a0; }
 #quests .quest-row-delete { justify-self: end; margin-top: 4px; }
+.quest-answer { background: #111020; padding: 10px 12px; border-left: 3px solid #8fd6a4; max-height: 60vh; overflow: auto; }
+.quest-accepted h5 { margin: 6px 0 0; font-weight: normal; color: #8fd6a4; }

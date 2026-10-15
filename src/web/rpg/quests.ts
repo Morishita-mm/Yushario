@@ -2,7 +2,8 @@ import { questTitle, type Quest, type QuestBinding, type QuestDetail, type Quest
 import type { RoomAgent } from "../../core/room";
 import { tr } from "../language";
 import { questCard, type TownHero } from "../town/quest-card";
-import type { HeroInfo } from "../town/quest-party";
+import type { HeroInfo, PartyControls } from "../town/quest-party";
+import { openPartyWindow } from "../town/party-window";
 import { questStateLabel, renderQuestList } from "../town/quest-list";
 import { coverMap } from "./talk";
 import type { Project } from "../town/world";
@@ -58,6 +59,15 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
     if (id && session && hero(id)) openReview(name(id) ?? hero(id)?.name ?? id, session, (text) => text && draft ? draft(session, text) : talk(id), () => terminal?.(session));
     else openReview(quest.title, { quest: quest.id }, undefined, undefined);
   }
+  function partyControls(quest: Quest): PartyControls {
+    return {
+      talk: (id, session) => { dialog.close(); if (hero(id)) talk(id); else terminal?.(session); },
+      review: (id, session) => { dialog.close(); openReview(name(id) ?? hero(id)?.name ?? id, hero(id) ? session : { quest: quest.id },
+        hero(id) ? (text) => text && draft ? draft(session, text) : talk(id) : undefined, hero(id) ? () => terminal?.(session) : undefined); },
+      embark: (back) => { dialog.close(); embark(quest, back); },
+      farewell, heroInfo, sessionName: (session) => { const agent = heroesIn(quest.town).find((item) => item.terminal === session); return agent && (name(agent.id) ?? agent.name); },
+    };
+  }
   async function open(id: string, refresh = false): Promise<void> {
     selected = id; const version = ++generation;
     const quest: QuestDetail = await questRequest(`/${encodeURIComponent(id)}`);
@@ -98,13 +108,7 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
         await questRequest(`/${id}/base`, "DELETE"); await open(id);
       },
       preview: preview?.(quest),
-      party: {
-        talk: (id, session) => { dialog.close(); if (hero(id)) talk(id); else terminal?.(session); },
-        review: (id, session) => { dialog.close(); openReview(name(id) ?? hero(id)?.name ?? id, hero(id) ? session : { quest: quest.id },
-          hero(id) ? (text) => text && draft ? draft(session, text) : talk(id) : undefined, hero(id) ? () => terminal?.(session) : undefined); },
-        embark: (back) => { dialog.close(); embark(quest, back); },
-        farewell, heroInfo, sessionName: (session) => { const agent = heroesIn(quest.town).find((item) => item.terminal === session); return agent && (name(agent.id) ?? agent.name); },
-      },
+      party: partyControls(quest),
       review: () => reviewQuest(quest),
       reload: () => void open(id),
     }));
@@ -128,7 +132,7 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
     if (townKey) towns.value = townKey;
     request.required = true; request.maxLength = 2000; request.rows = 4;
     request.placeholder = tr("例：ログイン画面の エラー文を やさしくして。テストも 足して。", "e.g. Make the login error messages friendlier and add a test.");
-    const who = document.createElement("fieldset"), primary = document.createElement("button"), only = document.createElement("button");
+    const who = document.createElement("fieldset"), primary = document.createElement("button"), only = document.createElement("button"), team = document.createElement("button");
     let choice = session ?? "";
     const label = (text: string, field: HTMLElement) => { const node = document.createElement("label"); node.append(document.createTextNode(text), field); return node; };
     const option = (value: string, text: string) => {
@@ -149,11 +153,15 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
     }
     towns.onchange = heroes;
     primary.type = "submit"; primary.className = "primary"; only.type = "button"; only.textContent = tr("作るだけ", "Create only");
-    form.append(label(tr("町", "Town"), towns), label(tr("依頼（1行目が クエストの名前になる）", "Request (the first line names the quest)"), request), who, primary, only, status);
-    async function make(send: boolean): Promise<void> {
+    team.type = "button"; team.textContent = tr("作って パーティーを 編成する", "Create and form the party");
+    const hint = document.createElement("p"); hint.className = "hint";
+    hint.textContent = tr("手伝いや しき役も 呼ぶなら「作って パーティーを 編成する」。担当には 依頼を 送ってから 編成の 窓が ひらく。",
+      "To add helpers or a commander, choose Create and form the party. The owner gets the request first, then the party window opens.");
+    form.append(label(tr("町", "Town"), towns), label(tr("依頼（1行目が クエストの名前になる）", "Request (the first line names the quest)"), request), who, primary, only, team, hint, status);
+    async function make(send: boolean, formParty = false): Promise<void> {
       const text = request.value.trim();
       if (!text) { request.reportValidity(); return; }
-      primary.disabled = only.disabled = true;
+      primary.disabled = only.disabled = team.disabled = true;
       try {
         const quest: Quest = await questRequest("", "POST", { town: towns.value, title: questTitle(text), purpose: text });
         if (choice === "embark" && send) { dialog.close(); embark(quest); return; }
@@ -162,10 +170,15 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
           if (send) status.textContent = await sendRequest(quest.id, choice, text) ? tr("依頼を 届けた", "Request delivered") : tr("依頼を あずけた。勇者の 手が あいたら 届く", "Request held until the hero is free");
         }
         await open(quest.id);
-      } catch (error) { status.textContent = error instanceof Error ? error.message : String(error); primary.disabled = only.disabled = false; }
+        if (formParty) {
+          const detail: QuestDetail = await questRequest(`/${encodeURIComponent(quest.id)}`);
+          openPartyWindow(detail, partyControls(detail), () => void open(quest.id));
+        }
+      } catch (error) { status.textContent = error instanceof Error ? error.message : String(error); primary.disabled = only.disabled = team.disabled = false; }
     }
     form.onsubmit = (event) => { event.preventDefault(); void make(true); };
     only.onclick = () => void make(false);
+    team.onclick = () => void make(choice !== "embark", true);
     heroes(); content.replaceChildren(form); show(tr("新しいクエスト", "New quest")); request.focus();
   }
   function choose(session: string, townKey: string): void {

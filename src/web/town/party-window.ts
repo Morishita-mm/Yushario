@@ -40,8 +40,19 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
   let members: PartyHero[] = mock ?? [], sessions: Session[] = [], agents: AgentInfo[] = [];
   const owner = () => members.find((member) => member.writer);
   const canTalk = (session: Session) => mock ? true : agents.some((agent) => agent.id === session.preset && agent.hero);
-  // The town's own name for a hero first, so the same hero reads the same everywhere.
-  const nameOf = (session: string) => controls?.sessionName?.(session) ?? members.find((member) => member.session === session)?.name ?? session;
+  // The town's own name for a hero first, so the same hero reads the same everywhere. Never a raw session id;
+  // heroes sharing a folder name are told apart by their CLI.
+  const baseName = (session: string) => {
+    const name = controls?.sessionName?.(session) ?? members.find((member) => member.session === session)?.name;
+    return name && name !== session ? name : tr("去った勇者", "A hero who left");
+  };
+  const presetOf = (session: string) => members.find((member) => member.session === session)?.sessionInfo?.preset ?? sessions.find((item) => item.id === session)?.preset;
+  const nameOf = (session: string) => {
+    const name = baseName(session), shown = [...members.map((member) => member.session), ...sessions.map((item) => item.id)];
+    // The CLI is added only when it actually tells same-named heroes apart.
+    const presets = new Set(shown.filter((other) => baseName(other) === name).map(presetOf));
+    return presets.size > 1 && presetOf(session) ? `${name}（${presetOf(session)}）` : name;
+  };
   const say = (text: string, ...extra: HTMLElement[]) => { message.replaceChildren(el("p", undefined, text), ...extra); };
   const fail = (error: Error) => say(error.message);
   const guide = () => say(tr("勇者を えらんでね。担当（✎）は ファイルを 書きかえる ただ1人。手伝いは 書きかえずに 報告する。",
@@ -68,13 +79,23 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
   }
   function render(): void {
     commands.hidden = true;
-    const slots = el("div", "pw-cards");
-    for (const member of members) slots.append(card(member.session, member.sessionInfo?.preset, memberBadge(member), member.writer, memberState(member), () => chooseMember(member)));
+    // Present heroes first; a terminal whose hero has not reached town says why; departed heroes stay apart.
+    const slots = el("div", "pw-cards"), present = members.filter((member) => member.active), gone = members.filter((member) => !member.active);
+    for (const member of present) {
+      const here = controls?.heroInfo?.(member.session).here ?? true;
+      const state = here ? memberState(member) : tr("まだ 町に 来ていない（ターミナルで 最初の 依頼を 待っている）", "Not in town yet (waiting for its first request in the terminal)");
+      slots.append(card(member.session, member.sessionInfo?.preset, memberBadge(member), member.writer, state, () => chooseMember(member)));
+    }
     const add = command("", () => { (town.querySelector<HTMLButtonElement>(".pw-card") ?? town.querySelector<HTMLButtonElement>(".pw-command"))?.focus();
       say(tr("下の「町に いる 勇者」から えらぶか、新しく 出陣させよう。", "Pick a hero in town below, or embark a new one.")); });
     add.classList.add("pw-card", "pw-add"); add.append(el("span", "pw-plus", "＋"), el("span", undefined, tr("仲間を 足す", "Add a hero")));
     slots.append(add);
-    party.replaceChildren(el("h4", undefined, tr(`いまの パーティー（${members.length}）`, `The party (${members.length})`)), slots);
+    party.replaceChildren(el("h4", undefined, tr(`いまの パーティー（${present.length}）`, `The party (${present.length})`)), slots);
+    if (gone.length) {
+      const away = el("div", "pw-cards small pw-gone");
+      for (const member of gone) away.append(card(member.session, member.sessionInfo?.preset, memberBadge(member), false, tr("去った（よびもどせる）", "Left (can be recalled)"), () => chooseMember(member), true));
+      party.append(el("h4", undefined, tr(`町を 去った 仲間（${gone.length}）`, `Party members who left (${gone.length})`)), away);
+    }
     const free = sessions.filter((session) => session.project === quest.town && !session.exited && !members.some((member) => member.session === session.id));
     const row = el("div", "pw-cards small");
     for (const session of free) row.append(card(session.id, session.preset, canTalk(session) ? tr("町に いる", "In town") : tr("ターミナルのみ", "Terminal only"), false, "", () => chooseTownHero(session), true));
