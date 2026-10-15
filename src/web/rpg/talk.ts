@@ -8,6 +8,7 @@ import { CLAUDE_SETUP_GUIDANCE, initArrival } from "./arrival";
 import { initTalkQuest } from "./talk-quest";
 import { sessionFolder } from "./file-open";
 import { reportReviewed } from "./review-window";
+import { interruptStatus } from "./interrupt-status";
 
 // The talk and terminal windows cover the map in the same place, so switching between them keeps the layout.
 export function coverMap(dialog: HTMLElement): void {
@@ -30,6 +31,9 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
   const input = document.querySelector<HTMLTextAreaElement>("#talk-input")!;
   const send = document.querySelector<HTMLButtonElement>("#talk-send")!;
   const status = document.querySelector<HTMLElement>("#talk-status")!;
+  const stopStatus = document.createElement("p");
+  stopStatus.className = "hint"; stopStatus.setAttribute("role", "status"); stopStatus.hidden = true;
+  status.before(stopStatus);
   const pendingBox = document.querySelector<HTMLElement>("#talk-pending")!;
   const foreign = document.querySelector<HTMLElement>("#talk-foreign")!;
   const terminal = document.querySelector<HTMLButtonElement>("#talk-terminal")!;
@@ -134,6 +138,9 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
 
   function update(): void {
     if (!selected || !dialog.open) return;
+    const stopping = "hero" in selected ? hero(selected.hero) : undefined;
+    const stopText = stopping && interruptStatus(stopping, Date.now());
+    stopStatus.hidden = !stopText; stopStatus.textContent = stopText ?? "";
     if ("terminal" in selected) {
       const agent = arrivingHero(selected.terminal);
       if (agent) {

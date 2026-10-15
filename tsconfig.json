@@ -8,5 +8,5 @@
     "noEmit": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src/**/*.ts", "vite.config.ts"]
+  "include": ["src/**/*.ts", "adapters/codex/**/*.ts", "adapters/pi/**/*.ts", "vite.config.ts"]
 }

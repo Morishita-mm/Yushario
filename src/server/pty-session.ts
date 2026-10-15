@@ -10,6 +10,7 @@ export { PRESETS, type Preset } from "./agents";
 export const SESSION_LIMIT = 16;
 export const OUTPUT_LIMIT = 256 * 1024;
 
+// Public session JSON: project is the town key, not its display name.
 export type TerminalSession = {
   id: string; preset: Preset; cwd: string; project: string; projectName?: string; projectParent?: string; createdAt: number;
   branch?: string; hero?: string; recalledHero?: string;

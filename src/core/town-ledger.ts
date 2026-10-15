@@ -2,7 +2,7 @@ export const TOWN_THEMES = ["village", "port", "snow", "desert", "volcano"] as c
 export type TownTheme = typeof TOWN_THEMES[number];
 export type TownRecord = {
   name: string;
-  key?: string;
+  key?: string; // Town key, not a display name; old records fall back to name.
   parent?: string;
   path: string;
   theme?: TownTheme;

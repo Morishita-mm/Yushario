@@ -5,7 +5,7 @@
 売りは **エージェントの様子を細かく描写すること**。「作業中」の一言で済ませず、
 **何を・どう・どれくらい** やっているかを、視界の端でも読み取れる形で見せる。
 
-段階5の対象は **Claude Code と pi**。Codex / shell はターミナルのみ（勇者は出ない）。操作と対応範囲の最新仕様は `docs/PLATFORM.md` 段階5、現在の構成は `docs/ARCHITECTURE.md` を参照。
+現在の対象は **Claude Code・pi・Codex 0.162.1**。shell はターミナルのみ（勇者は出ない）。Codex の制限は下記「Codex」の表、操作と対応範囲の最新仕様は `docs/PLATFORM.md` 段階20、現在の構成は `docs/ARCHITECTURE.md` を参照。
 
 ## 方針の選択肢
 
@@ -59,6 +59,23 @@ Claude Code 2.1.295 の実行ファイルで、以下のイベント名と入力
 
 pi は拡張で同じ AgentEvent に変換する。session_start / before_agent_start / tool_call / tool_result / agent_settled が開始・依頼・ツール・完了の境界。作業中に入力した指示（`input` の `streamingBehavior: "steer"`）も依頼（UserPromptSubmit）として送る。最終成否は agent_before_settle とキャンセル信号で判定し、中断は失敗に数えない。UI 入力の開始だけ waiting_input、終了は作業中なら thinking、待機中なら idle。整理失敗・キャンセルは PostCompact/idle の detail で成功と区別する。
 `/new`・再開・fork で SessionStart の ID が変わった時は旧勇者だけ退場し、端末は継続する。reload は同じ勇者のまま。PTY 終了時も必ず退場する。
+
+## Codex（段階20）
+
+公式 [hooks](https://developers.openai.com/codex/hooks) と [0.162.1 の入力スキーマ](https://github.com/openai/codex/tree/rust-v0.162.1/codex-rs/hooks/schema/generated) を使う。`-c hooks.<Event>=[...]` と `features.hooks=true` を起動に付け、`--no-daemon` で端末専用の環境を保つ。Yushario は `~/.codex` を書き換えず、信頼の迂回もしない。Codex の `/hooks` で利用者がフックを確かめ、最初の依頼をターミナルから送る。管理者がユーザーフックを禁止している環境では観察できない。
+
+| 公式フック | 変換・観察の範囲 |
+|---|---|
+| SessionStart / SessionEnd | 到着／退場。compact 後の SessionStart は往復を消さないため無視 |
+| UserPromptSubmit / Stop | 依頼／最後の返事（最大8000文字）、クエストと報告 |
+| PreToolUse / PostToolUse | 道具の開始／終了、Bash の安全な先頭3語。終了は「成否は ふめい」 |
+| PermissionRequest | 判断待ち。アダプタは `{}` を返し、許可は元のターミナルで答える |
+| Interrupt | Codex が知らせた中断の確認（画面の停止要求とは別） |
+| PreCompact / PostCompact | manual だけ整理の開始／完了。auto は作業中なので待機へ戻さない |
+
+`tool_response` は任意の JSON で、公式の unified-exec 例は標準出力の文字列だけ。終了コードの契約がないため、本文の成否や画面の文字を解析しない。成功・失敗、編集成功のファイル一覧、ためすことの証拠、MP は取れない。PostToolUse だけで成功数・合格印・勝利の語りを付けない。条件の追加・鑑定・会話・パーティーの受け手・再開（UUID）・`/compact` は共通の入口を使う。`apply_patch` は対象の本文を送らず汎用の道具として表示する。Hosted WebSearch などは公式のツールフック対象外。`notify` は往復の完了だけなので併用しない（返事の二重表示を防ぐ）。
+
+変換は純粋な `src/core/codex.ts`、入出力は `adapters/codex/hook.ts`。stdin は1MiB、送信は端末専用 Bearer 付きの `/event`、700ms以内に終える。出力・transcript は読まず、通信失敗や不正入力で Codex の仕事を止めない。
 
 ## キャラクターの識別
 
@@ -172,7 +189,7 @@ interface AgentEvent {
 
 ## やらないこと（この段階）
 
-- Codex の町連携（段階5ではターミナルのみ）
+- Codex のツール出力・画面・transcript からの成否や MP の推測
 - 町のレイアウト編集
 - キャラ同士の会話・やりとりの演出、効果音・BGM
 - 勇者の表情の描き分け（Live2D 表示・Decider は廃止）

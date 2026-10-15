@@ -6,6 +6,7 @@ import { loadAgents } from "./rpg/agents";
 import { loadTowns } from "./rpg/ledger";
 import { townNameForKey, type TownRecord } from "../core/town-ledger";
 
+// Session JSON: project is the town key, not its display name.
 export type Session = {
   id: string; preset: string; cwd: string; project: string; createdAt: number;
   branch?: string; projectName?: string; projectParent?: string;

@@ -8,20 +8,18 @@ import { HeroTravel } from "./travel";
 import { drawFocus } from "../town/battle";
 import { openBattleCommands, openHeroCommands } from "./hero-commands";
 import { Following } from "./following";
-import { drawField } from "../town/field";
 import { showArchivedTowns, showThemeChooser, showTownList } from "../town/herald";
-import { drawInn } from "../town/inn";
-import { drawChurch, PRIEST_LINES } from "../town/church";
-import { heroVariant } from "../town/appearance";
+import { PRIEST_LINES } from "../town/church";
 import { Sheets } from "../town/sheets";
 import { drawNavigation } from "../town/navigation";
-import { drawTown, TOWN_H, TOWN_W } from "../town/town";
-import { drawWorld, markers, plate, regionName, sleeping, type Project } from "../town/world";
+import { TOWN_H, TOWN_W } from "../town/town";
+import { drawLocalScene, drawWorldScene } from "./scene-drawing";
+import { regionName, sleeping, type Project } from "../town/world";
 import { patchTown, type TownChange, type TownRecord } from "./ledger";
 import { showSettings } from "./settings";
-import { fights, focus, battleSlots } from "./battles";
+import { focus } from "./battles";
 import { updateMapNav } from "./navigation";
-import { localHotspots } from "./map-hotspots";
+import { localHotspots, worldHotspots } from "./map-hotspots";
 import { archivedTownProjects, townProjects } from "./town-projects";
 import { drawReportSigns, reportSigns } from "./report-signs";
 import { drawNoticeArrow, NoticeMark } from "../town/notice-mark";
@@ -63,6 +61,10 @@ export class Scene {
     private readonly gear: (terminal?: string) => EquipmentTiers) {
     this.following = new Following(say);
     this.ctx = canvas.getContext("2d")!;
+    this.bindControls();
+  }
+  private bindControls(): void {
+    const canvas = this.canvas, layer = this.layer;
     canvas.addEventListener("mousemove", (event) => {
       this.pointer = this.point(event);
       canvas.style.cursor = this.hit(...this.pointer) ? "pointer" : "default";
@@ -80,17 +82,18 @@ export class Scene {
     document.querySelector("#world-back")!.addEventListener("click", () => this.go("world"));
     for (const kind of ["sleeping", "archived"] as const) document.querySelector(`#${kind}-towns`)!.addEventListener("click", () => this.openList(kind));
     document.querySelector("#settings")!.addEventListener("click", () => { this.closeCommands?.(); this.list = undefined; showSettings(layer, this.currentTown); });
-    const pin = document.querySelector<HTMLButtonElement>("#town-pin")!;
-    pin.addEventListener("click", () => {
-      const town = this.records.find((record) => townKey(record) === this.project);
-      if (!town) return;
-      pin.disabled = true;
-      void this.changeTown(townKey(town), { pinned: !town.pinned }).finally(() => { pin.disabled = false; });
-    });
+    document.querySelector("#town-pin")!.addEventListener("click", () => this.togglePin());
     document.querySelector("#town-look")!.addEventListener("click", () => {
       const town = this.project === undefined ? undefined : this.towns.get(this.project);
       if (town) this.chooseLook(town); else this.go("world");
     });
+  }
+  private togglePin(): void {
+    const pin = document.querySelector<HTMLButtonElement>("#town-pin")!;
+    const town = this.records.find((record) => townKey(record) === this.project);
+    if (!town) return;
+    pin.disabled = true;
+    void this.changeTown(townKey(town), { pinned: !town.pinned }).finally(() => { pin.disabled = false; });
   }
   async load(): Promise<void> { await this.art.load(); await document.fonts.load('10px "DotGothic16"'); }
   sync(room: Room, now: number, replaying = false): void {
@@ -125,15 +128,15 @@ export class Scene {
     this.rebuildTowns();
     if (this.list && !this.layer.hidden) this.openList(this.list);
   }
-  private look(name: string): TownTheme | undefined {
-    const record = this.records.find((town) => townKey(town) === name);
-    return record ? record.theme : this.foreignLooks.get(name);
+  private look(key: string): TownTheme | undefined {
+    const record = this.records.find((town) => townKey(town) === key);
+    return record ? record.theme : this.foreignLooks.get(key);
   }
-  private rebuildTowns(): void { this.towns = townProjects(this.records, this.heroes, (name) => this.look(name)); }
-  private async changeTown(name: string, change: TownChange): Promise<boolean> {
+  private rebuildTowns(): void { this.towns = townProjects(this.records, this.heroes, (key) => this.look(key)); }
+  private async changeTown(key: string, change: TownChange): Promise<boolean> {
     const feedback = document.querySelector<HTMLElement>("#town-feedback")!;
     try {
-      const town = await patchTown(name, change);
+      const town = await patchTown(key, change);
       this.setTowns(this.records.map((record) => townKey(record) === townKey(town) ? town : record));
       feedback.hidden = true;
       return true;
@@ -161,14 +164,14 @@ export class Scene {
     const start = this.travel.prepare(hero);
     return () => { this.following.stop(); this.closeCommands?.(); start(); this.enter(town); };
   }
-  enterTown(project: string, entered: () => void): void {
-    const town = this.towns.get(project);
+  enterTown(key: string, entered: () => void): void {
+    const town = this.towns.get(key);
     // Closing the town look chooser must not hide the launched hero's guidance (e.g. an early exit).
     if (town) this.enter(town, "town", undefined, entered, entered);
   }
-  visitNotice(project: string, id?: string, at?: number): void {
+  visitNotice(key: string, id?: string, at?: number): void {
     this.selected = id;
-    const hero = this.heroes.find((h) => h.id === id), town = this.towns.get(project);
+    const hero = this.heroes.find((h) => h.id === id), town = this.towns.get(key);
     if (town) this.enter(town, hero?.place ?? "town", undefined, () => {
       this.noticeMark.start(id, performance.now());
       if (id && at !== undefined) this.talk(id, at);
@@ -243,14 +246,8 @@ export class Scene {
     const [w, h] = this.size();
     if (this.focused) return [...reports, { x: w / 2 - 130, y: h - 112, w: 260, h: 66, act: () => this.battleCommands() },
       { x: 0, y: 0, w, h, act: () => this.go(this.place) }];
-    if (this.place === "world") {
-      const towns = [...this.towns.values()];
-      return [...markers(this.art, w, h, towns).map((marker) => ({ x: marker.x - 34, y: marker.y - 22, w: 68, h: 60, act: () => {
-        if (marker.projects.length > 1) this.openList(marker.theme);
-        else this.enter(marker.projects[0]);
-      } })), { ...this.sleepingPlate, act: () => this.openList("sleeping") },
-        { ...this.archivedPlate, act: () => this.openList("archived") }];
-    }
+    if (this.place === "world") return worldHotspots(this.art, w, h, [...this.towns.values()], this.sleepingPlate, this.archivedPlate,
+      (kind) => this.openList(kind), (town) => this.enter(town));
     return [...reports, ...localHotspots(this.art, this.place, this.localHeroes(), this.travel.walkers, this.gateMenu,
       (place, focused) => this.go(place, false, focused),
       (id, x, y, watch) => this.commands(id, x, y, watch), () => { this.gateMenu = true; },
@@ -279,17 +276,11 @@ export class Scene {
     if (hero && this.ambient) {
       drawFocus(ctx, this.art, focus(hero, now, this.gear(hero.agent.terminal)), this.ambient, time, dt, w, h);
     } else if (this.place === "world") {
-      this.sleepingPlate = drawWorld(ctx, this.art, time, w, h, [...this.towns.values()]);
-      const archived = this.records.filter((town) => town.archivedAt !== undefined).length;
-      this.archivedPlate = archived ? plate(ctx, [[tr(`しまった町 ${archived}`, `ARCHIVED TOWNS ${archived}`), "#c9c3dc", 9]], 68, h - 24) : { x: -1, y: -1, w: 0, h: 0 };
+      const plates = drawWorldScene(ctx, this.art, time, w, h, [...this.towns.values()], this.records.filter((town) => town.archivedAt !== undefined).length);
+      this.sleepingPlate = plates.sleepingPlate; this.archivedPlate = plates.archivedPlate;
     }
-    else if (this.place === "town") drawTown(ctx, this.art, time, {
-      sleepers: local.filter((h) => h.place === "inn").length, prayers: local.filter((h) => h.place === "church").length, theme: theme!, name: this.townName(this.project!),
-      walkers: this.travel.local(this.project, local), notice,
-    });
-    else if (this.place === "inn") drawInn(ctx, this.art, time, local.filter((h) => h.place === "inn").map((h) => ({ id: h.id, name: h.name, branch: h.agent.branch, ...this.gear(h.agent.terminal) })), notice, displayName);
-    else if (this.place === "church") drawChurch(ctx, this.art, time, local.filter((h) => h.place === "church").map((h) => ({ id: h.id, name: h.name, branch: h.agent.branch, variant: heroVariant(h.id), ...this.gear(h.agent.terminal) })), notice, displayName);
-    else drawField(ctx, this.art, this.place, time, fights(this.art, local.filter((h) => h.place === this.place), now, this.gear), undefined, Math.max(0, local.filter((h) => h.place === this.place).length - battleSlots(this.art, this.place).length), notice, displayName);
+    else drawLocalScene(ctx, this.art, { place: this.place, time, now, heroes: local, theme: theme!,
+      name: displayName!, walkers: this.travel.local(this.project, local), notice }, this.gear);
     drawReportSigns(ctx, this.art, time, this.signs(), notice);
     drawNoticeArrow(ctx, notice);
     drawNavigation(ctx, this.hotspots(), this.pointer, this.gateMenu);

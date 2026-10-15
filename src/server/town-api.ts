@@ -35,11 +35,11 @@ export class TownLedger {
     this.save(registerTown(this.towns, name, path, now, key, parent));
   }
 
-  observe(name: string, now: number): void {
-    const town = this.towns.find((town) => townKey(town) === name);
+  observe(key: string, now: number): void {
+    const town = this.towns.find((town) => townKey(town) === key);
     if (!town) return;
     if (town.archivedAt !== undefined) {
-      this.save(activateTown(this.towns, name, now));
+      this.save(activateTown(this.towns, key, now));
     } else if (now > town.lastActiveAt) {
       town.lastActiveAt = now;
       this.activityDirty = true;
@@ -53,11 +53,12 @@ export class TownLedger {
     this.activityDirty = false;
   }
 
-  archive(activeNames: ReadonlySet<string>, now: number): void {
-    this.save(archiveTowns(this.towns, activeNames, this.settings.archiveAfterDays, now));
+  archive(activeKeys: ReadonlySet<string>, now: number): void {
+    this.save(archiveTowns(this.towns, activeKeys, this.settings.archiveAfterDays, now));
   }
 
   async handleRequest(request: IncomingMessage, response: ServerResponse, url: URL): Promise<void> {
+    // Town JSON keeps name for display and key for identity; URLs carry the key.
     if (url.pathname === "/api/towns" && request.method === "GET") {
       json(response, 200, this.towns);
       return;

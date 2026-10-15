@@ -1,5 +1,6 @@
 import { classifyActivity, toolActivity, type Activity } from "./activity";
 import type { AgentEvent, TaskStatus } from "./events";
+import { stopRequestAfterEvent } from "./session-actions";
 import { attachReports, emptyTurns, recordTurn, type TalkEntry, type Turns } from "./turns";
 
 // How an agent is doing, derived from its recent history (docs/OBSERVATION.md).
@@ -40,8 +41,9 @@ export function downAfterEvent(current: DownState | undefined, event: AgentEvent
 export interface RoomAgent {
   id: string;
   name: string;
+  source?: string;
   terminal?: string;
-  project?: string;
+  project?: string; // Town key, not a display name.
   branch?: string;
   activity: Activity;
   target?: string;
@@ -50,6 +52,7 @@ export interface RoomAgent {
   lastEventAt: number;
   context?: number;
   down?: DownState;
+  stopRequestedAt?: number;
   failures: number[];
   edits: number[];
   wins: number; // Tools that finished successfully, for the whole session.
@@ -67,13 +70,17 @@ export interface RoomAgent {
 export class Room {
   readonly agents = new Map<string, RoomAgent>();
   private readonly turns = new Map<string, Turns>();
+  private readonly stoppedHelpers = new Map<string, Map<string, number>>();
 
   // `at` is the event time in ms. Returns the agent the event belongs to, if it is still present.
   apply(event: AgentEvent, at: number): RoomAgent | undefined {
     const id = event.agent ?? "default";
     if (event.hook === "SessionEnd" && !event.subagent) {
+      const current = this.agents.get(id);
+      if (current?.stopRequestedAt !== undefined && at < current.stopRequestedAt) return current;
       this.agents.delete(id);
       this.turns.delete(id);
+      this.stoppedHelpers.delete(id);
       return;
     }
     let agent = this.agents.get(id);
@@ -86,11 +93,13 @@ export class Room {
       this.agents.set(id, agent);
     }
     if (event.name) agent.name = event.name;
+    if (event.source) agent.source = event.source;
     if (event.terminal) agent.terminal = event.terminal;
     if (event.project) agent.project = event.project;
     if (event.branch !== undefined) agent.branch = event.branch;
     agent.lastEventAt = Math.max(agent.lastEventAt, at);
     agent.down = downAfterEvent(agent.down, event, at);
+    if (at >= agent.activityAt) agent.stopRequestedAt = stopRequestAfterEvent(agent.stopRequestedAt, event, at);
     if (!event.subagent) {
       if (event.context !== undefined && at >= agent.contextAt) {
         agent.context = event.context;
@@ -99,7 +108,11 @@ export class Room {
       this.updateTalk(agent, event, at);
     }
     if (event.task) updateTask(agent, event.task);
-    if (event.subagent) updateHelper(agent, event);
+    if (event.subagent) {
+      const stopped = this.stoppedHelpers.get(id) ?? new Map<string, number>();
+      this.stoppedHelpers.set(id, stopped);
+      updateHelper(agent, event, at, stopped);
+    }
     else updateActivity(agent, event, at);
     updateOutcome(agent, event, at);
     return agent;
@@ -136,12 +149,22 @@ function updateTask(agent: RoomAgent, task: NonNullable<AgentEvent["task"]>): vo
   else if (agent.tasks.length < TASK_LIMIT) agent.tasks.push(next);
 }
 
-function updateHelper(agent: RoomAgent, event: AgentEvent): void {
+function updateHelper(agent: RoomAgent, event: AgentEvent, at: number, stopped: Map<string, number>): void {
   const { id, type } = event.subagent!;
   const index = agent.helpers.findIndex((helper) => helper.id === id);
   if (event.hook === "SubagentStop") {
+    stopped.set(id, Math.max(at, stopped.get(id) ?? -Infinity));
+    if (stopped.size > 256) {
+      const oldest = [...stopped].sort((a, b) => a[1] - b[1])[0][0];
+      stopped.delete(oldest);
+    }
     if (index >= 0) agent.helpers.splice(index, 1);
     return;
+  }
+  const endedAt = stopped.get(id);
+  if (endedAt !== undefined) {
+    if (event.hook !== "SubagentStart" || at <= endedAt) return;
+    stopped.delete(id);
   }
   const helper = index >= 0 ? agent.helpers[index] : { id, activity: "think" as Activity };
   if (index < 0) agent.helpers.push(helper);
@@ -157,7 +180,7 @@ function updateActivity(agent: RoomAgent, event: AgentEvent, at: number): void {
   // An answered permission resumes the tool that asked: show its result instead of the call.
   const resumed = agent.activity === "ask" && event.hook === "PostToolUse" && event.tool;
   const activity = classifyActivity(event) ?? (resumed ? toolActivity(event.tool!, event.target) : undefined);
-  if (!activity || at < agent.activityAt) return;
+  if (!activity || at < agent.activityAt || agent.stopRequestedAt !== undefined && (at < agent.stopRequestedAt || activity === "idle")) return;
   const target = event.hook === "PreToolUse" || resumed ? event.target : undefined;
   if (activity !== agent.activity || target !== agent.target) agent.since = at;
   if (activity !== agent.activity || event.hook === "PreToolUse") {
@@ -176,6 +199,8 @@ function updateOutcome(agent: RoomAgent, event: AgentEvent, at: number): void {
     agent.postAt = Math.max(agent.postAt, at);
     if (at >= agent.activityAt) agent.running = false;
   }
+  // Codex's PostToolUse carries no documented command outcome; never award a win.
+  if (event.source === "codex" && finished) return;
   const failed = event.state === "error" && (finished || event.hook === "StopFailure");
   if (!failed && event.hook !== "PostToolUse") return;
   const activity = event.tool ? toolActivity(event.tool, event.target) : undefined;
@@ -220,6 +245,6 @@ export function moods(agent: RoomAgent, now: number): Mood[] {
     && within(agent.failures, now, MOOD_RULES.flowWindowMs) === 0) result.push("flowing");
   if ((agent.context ?? 0) >= MOOD_RULES.tiredContext) result.push("tired");
   if (agent.activity === "ask" && now - agent.since >= MOOD_RULES.callingMs) result.push("calling_long");
-  if (now - agent.lastEventAt >= MOOD_RULES.dozingMs) result.push("dozing");
+  if (agent.stopRequestedAt === undefined && now - agent.lastEventAt >= MOOD_RULES.dozingMs) result.push("dozing");
   return result;
 }

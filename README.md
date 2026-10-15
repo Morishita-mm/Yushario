@@ -53,10 +53,14 @@ Agents work in a terminal: useful, but easy to lose track of once several are ru
 | --- | :---: | :---: |
 | Claude Code | ✅ | ✅ |
 | [pi](https://pi.dev/) | ✅ | ✅ |
-| Codex | — | ✅ |
+| Codex 0.162.1 | ✅* | ✅ |
 | shell | — | ✅ |
 
 Hooks are attached only to agents launched from Yushario. Your personal agent settings are not edited.
+
+*Codex: review Yushario's hooks in `/hooks`, then send the first request in the terminal. Town, conversation, quests, reports, party delivery, `resume` and `/compact` are supported; approvals stay in the terminal. Tool completion has no documented exit status: automatic check evidence, successful-edit lists and MP are unavailable. Checks stay unrun, never assumed passed. Hook trust and administrator policy still apply.
+
+In Claude Code's auto mode, permission windows rarely appear because Claude handles most approvals itself.
 
 ## Quick start
 

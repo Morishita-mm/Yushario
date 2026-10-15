@@ -3,7 +3,8 @@ export type ReviewFile = {
   status: "modified" | "added" | "deleted" | "renamed" | "untracked";
   added?: number; removed?: number; binary?: boolean;
 };
-export type Review = { cwd: string; branch: string; head: string; ahead: number; behind: number; files: ReviewFile[] };
+export type Review = { cwd: string; branch: string; head: string; ahead: number; behind: number; files: ReviewFile[];
+  comparison?: { mode: import("./review-base").ReviewMode; branches: string[]; defaultBase?: string; base?: string; mergeBase?: string } };
 export type ReviewDiff = { text?: string; binary?: boolean; tooLarge?: boolean };
 export type DiffLine = { text: string; kind: "add" | "remove" | "context" | "meta"; old?: number; next?: number };
 
@@ -43,6 +44,16 @@ export function parseGitNumstat(output: string): { path: string; added?: number;
     result.push({ path, binary, ...(!binary ? { added: Number(match[1]), removed: Number(match[2]) } : {}) });
   }
   return result;
+}
+
+export function parseGitNameStatus(output: string): ReviewFile[] {
+  const records = output.split("\0"), files: ReviewFile[] = [];
+  for (let i = 0; i < records.length - 1;) {
+    const code = records[i++], path = records[i++];
+    if (code.startsWith("R")) files.push({ path: records[i++], oldPath: path, status: "renamed" });
+    else files.push({ path, status: code === "A" ? "added" : code === "D" ? "deleted" : "modified" });
+  }
+  return files;
 }
 
 export function safeReviewPath(path: string): boolean {

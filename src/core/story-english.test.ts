@@ -7,7 +7,8 @@ describe("English narration", () => {
   it.each([
     [e({ hook: "SessionStart" }), "Hero 1 arrived in town!"],
     [e({ hook: "SessionEnd" }), "Hero 1 set off on a journey."],
-    [e({ hook: "Interrupt" }), "Hero 1 fled the battle!"],
+    [e({ hook: "Interrupt" }), "Asked Hero 1 to stop."],
+    [e({ hook: "InterruptConfirmed" }), "Hero 1 stopped."],
     [e({ hook: "UserPromptSubmit" }), "Hero 1 took on a new quest!"],
     [e({ hook: "Notification", state: "waiting_input" }), "Hero 1 is calling you!"],
     [e({ hook: "Notification", state: "idle" }), "Hero 1 awaits the next quest."],

@@ -1,8 +1,9 @@
-import { randomBytes, randomUUID } from "node:crypto";
-import { createServer } from "node:http";
-import { WebSocket, WebSocketServer } from "ws";
-import { parseAgentEvent, type AgentEvent } from "../core/events";
-import { canRecallHero, hookEventForTerminal } from "../core/hook-trust";
+import { randomBytes } from "node:crypto";
+import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import type { Duplex } from "node:stream";
+import { WebSocket, WebSocketServer, type RawData } from "ws";
+import type { AgentEvent } from "../core/events";
+import { receiveHook } from "./relay-hooks";
 import { EVENT_HISTORY_LIMIT, historyDiscardIndex, type RecordedEvent } from "../core/event-history";
 import { DAY_MS } from "../core/town-ledger";
 import { namedHero } from "../core/names";
@@ -20,9 +21,8 @@ import { handleWorktrees } from "./worktrees";
 import { handlePreview } from "./preview";
 import { createPtyServer } from "./pty";
 import { AGENTS } from "./agents";
-import { PermissionWaiter, PERMISSION_TIMEOUT_MS, permissionOutput, permissionSummary } from "./permissions";
+import { PermissionWaiter } from "./permissions";
 import { allowedHost } from "../core/local-request";
-import { EVENT_BODY_LIMIT, readJsonBody } from "./http-body";
 import { listenAvailable, openBrowser, prepareDataDirectory, startupOptions } from "./startup";
 import { printStartupLogo } from "./startup-logo";
 
@@ -45,7 +45,7 @@ const token = development && process.env.AGENT_CHARACTER_TOKEN
 const history: RecordedEvent[] = [];
 const ledger = new TownLedger((towns) => broadcast({ type: "towns", towns }),
   (names) => broadcast({ type: "names", names }));
-const quests = new QuestLedger((message) => { broadcast(message); party.prune(); }, () => ledger.saveConversation);
+const quests = new QuestLedger((message) => { broadcast(message); party.prune(new Set(message.quests.map((quest) => quest.id))); }, () => ledger.saveConversation);
 
 function record(event: AgentEvent): boolean {
   const { command, ...observed } = event; event = observed;
@@ -81,7 +81,7 @@ function authorized(url: URL, origin: string | undefined, requireOrigin: boolean
     && (origin === undefined ? !requireOrigin : ownOrigin || (development && localOrigin(origin)));
 }
 
-const server = createServer(async (request, response) => {
+async function dispatchHttp(request: IncomingMessage, response: ServerResponse): Promise<void> {
   if (!allowedHost(request.headers.host, port)) { response.writeHead(403).end(); return; }
   let url: URL;
   try { url = new URL(request.url ?? "/", `http://127.0.0.1:${port}`); }
@@ -104,14 +104,8 @@ const server = createServer(async (request, response) => {
     if (partyApi) await handlePartyRequest(request, response, url, party);
     else if (previewApi) await handlePreview(request, response, url, port, quests, ledger.towns, pty.listSessions());
     else if (worktreeApi) await handleWorktrees(request, response, url, pty.listSessions, (path) => quests.foldedWorktree(path));
-    else if (reviewApi) await handleReview(request, response, url, pty.getSession(url.searchParams.get("session") ?? ""), () => {
-      try {
-        const session = pty.getSession(url.searchParams.get("session") ?? ""), quest = session && quests.current(session.id);
-        if (quest && session) void refreshCheckFingerprint(quests, quest.id, pty.listSessions()).catch(() => undefined);
-        quests.reviewed(url.searchParams.get("session") ?? "", Date.now());
-      }
-      catch (error) { console.error("Quest review save failed:", error); }
-    });
+    else if (reviewApi) await handleReview(request, response, url, pty.getSession(url.searchParams.get("session") ?? ""),
+      url.searchParams.has("quest") ? quests.get(url.searchParams.get("quest") ?? "") : undefined, () => reviewed(url));
     else if (questApi) {
       if (!await handleChecksRequest(request, response, url, quests, pty.listSessions)) await handleQuestRequest(request, response, url, quests, ledger.towns, pty.getSession);
     }
@@ -123,65 +117,18 @@ const server = createServer(async (request, response) => {
     await serveStatic(request, response);
     return;
   }
-  const origin = request.headers.origin;
-  if (origin !== undefined) {
-    response.writeHead(403).end();
-    return;
-  }
-  if (request.method !== "POST") {
-    response.writeHead(405, { Allow: "POST" }).end();
-    return;
-  }
+  await receiveHook(request, response, pty, quests, permissions, sockets, record, broadcast);
+}
 
-  const body = await readJsonBody(request, response, EVENT_BODY_LIMIT);
-  if (!body.ok) return;
-  const input = body.value;
-  let sender = pty.hookSession(request.headers.authorization);
-  if (request.url === "/hooks/permission") {
-    const summary = permissionSummary(input);
-    if (!summary) { response.writeHead(400).end(); return; }
-    const event = hookEventForTerminal({ state: "waiting_input", source: "claude-code", hook: "PermissionRequest", tool: summary.tool, detail: summary.summary.slice(0, 200),
-      agent: sender?.hero ?? summary.agent, ...(summary.name ? { name: summary.name } : {}),
-      ...(summary.helper ? { subagent: { id: summary.helper } } : {}) }, sender?.id);
-    record(event);
-    if (!sender) { response.writeHead(200, { "Content-Type": "application/json" }).end("{}"); return; }
-    const permission = { type: "permission" as const, id: randomUUID(), expiresAt: Date.now() + PERMISSION_TIMEOUT_MS, ...summary, agent: event.agent, terminal: sender.id };
-    const connected = [...sockets.clients].some((client) => client.readyState === WebSocket.OPEN);
-    const waiting = permissions.wait(permission, connected);
-    if (permissions.pending.some((item) => item.id === permission.id)) broadcast(permission);
-    const disconnected = (): void => { permissions.decide(permission.id, "terminal"); };
-    response.once("close", disconnected);
-    const decision = await waiting;
-    response.off("close", disconnected);
-    broadcast({ type: "permission-resolved", id: permission.id });
-    if (decision !== "terminal" && !permissions.pending.some((item) => item.terminal === permission.terminal)) {
-      pty.answered(permission.terminal); quests.answered(permission.terminal);
-    }
-    if (!response.destroyed) response.writeHead(200, { "Content-Type": "application/json" })
-      .end(JSON.stringify(permissionOutput(decision)));
-    return;
-  }
-  const result = parseAgentEvent(input);
-  if (!result.ok) {
-    response.writeHead(400, { "Content-Type": "application/json" }).end(JSON.stringify({ error: result.error }));
-    return;
-  }
+function reviewed(url: URL): void {
+  try {
+    const session = pty.getSession(url.searchParams.get("session") ?? ""), questId = url.searchParams.get("quest") ?? (session && quests.current(session.id)?.id);
+    if (questId) void refreshCheckFingerprint(quests, questId, pty.listSessions()).catch(() => undefined);
+    quests.reviewed(url.searchParams.get("session") ?? "", Date.now(), questId);
+  } catch (error) { console.error("Quest review save failed:", error); }
+}
 
-  // A valid credential cannot claim a different terminal's existing hero either.
-  const owner = result.event.agent && (quests.sessionForHero(result.event.agent) ?? pty.sessionForAgent(result.event.agent)?.id);
-  if (sender && owner && owner !== sender.id && !canRecallHero(sender.recalledHero, result.event.agent, !pty.getSession(owner) || Boolean(pty.getSession(owner)?.exited))) sender = undefined;
-  const event = hookEventForTerminal(result.event, sender?.id);
-  response.writeHead(204).end();
-  if (!record(event)) return;
-  if (sender) permissions.observe(event);
-  // Git must never delay hook ordering; the refreshed badge is used by the next event/list.
-  if (event.terminal && !event.subagent && ["SessionStart", "UserPromptSubmit", "Stop", "StopFailure"].includes(event.hook ?? "")) void pty.refreshBranch(event.terminal);
-  if (process.env.AGENT_CHARACTER_DEBUG === "1") {
-    const { state, source, tool, ts, context, hook, agent, target, terminal, project } = event;
-    console.log(JSON.stringify({ state, source, tool, ts, context, hook, agent, target, terminal, project }));
-  }
-});
-
+const server = createServer(dispatchHttp);
 port = await listenAvailable(server, options.port);
 const sockets = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 });
 const pty = createPtyServer(port, (session) => ledger.register(session.projectName ?? session.project, session.cwd, session.createdAt, session.project, session.projectParent), broadcast,
@@ -189,16 +136,17 @@ const pty = createPtyServer(port, (session) => ledger.register(session.projectNa
   (session, text, hero) => quests.requested(session, text, Date.now(), hero));
 const party = new QuestParty(quests, pty, broadcast, record, (id) => namedHero(ledger.names, id));
 function archive(): void {
-  try { ledger.archive(pty.activeProjects(), Date.now()); }
+  try { ledger.archive(pty.activeTownKeys(), Date.now()); }
   catch (error) { console.error("Town archive failed:", error); }
 }
 archive();
 const archiveTimer = setInterval(archive, DAY_MS).unref();
-const activityTimer = setInterval(() => {
+const activityTimer = setInterval(flushActivity, 5000).unref();
+function flushActivity(): void {
   try { ledger.flushActivity(); }
   catch (error) { console.error("Town activity save failed:", error); }
-}, 5000).unref();
-server.on("upgrade", (request, socket, head) => {
+}
+function upgradeSocket(request: IncomingMessage, socket: Duplex, head: Buffer): void {
   if (!allowedHost(request.headers.host, port)) {
     socket.end("HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n");
     return;
@@ -216,12 +164,13 @@ server.on("upgrade", (request, socket, head) => {
   }
   const target = url.pathname === "/pty" ? pty.sockets : sockets;
   target.handleUpgrade(request, socket, head, (client) => target.emit("connection", client, request));
-});
+}
+server.on("upgrade", upgradeSocket);
 sockets.on("error", (error) => {
   console.error("WebSocket server error:", error.message);
   process.exitCode = 1;
 });
-sockets.on("connection", (client) => {
+function connectSocket(client: WebSocket): void {
   client.on("error", (error) => console.error("WebSocket error:", error.message));
   client.send(JSON.stringify({ type: "replay", events: history }));
   client.send(JSON.stringify({ type: "towns", towns: ledger.towns }));
@@ -232,17 +181,19 @@ sockets.on("connection", (client) => {
   // These are snapshots too, not fresh requests that should ring on reconnect.
   for (const message of pty.attention()) client.send(JSON.stringify({ ...message, live: false }));
   for (const permission of permissions.pending) client.send(JSON.stringify({ ...permission, live: false }));
-  client.on("message", (data, binary) => {
-    if (binary) return;
-    try {
-      const message = JSON.parse(String(data));
-      if (message?.type === "permission-decision") permissions.decide(message.id, message.decision);
-    } catch { /* Ignore malformed or stale decisions. */ }
-  });
+  client.on("message", receiveDecision);
   client.once("close", () => {
     if (![...sockets.clients].some((socket) => socket.readyState === WebSocket.OPEN)) permissions.cancel();
   });
-});
+}
+function receiveDecision(data: RawData, binary: boolean): void {
+  if (binary) return;
+  try {
+    const message = JSON.parse(String(data));
+    if (message?.type === "permission-decision") permissions.decide(message.id, message.decision);
+  } catch { /* Ignore malformed or stale decisions. */ }
+}
+sockets.on("connection", connectSocket);
 server.on("error", (error) => {
   console.error("Relay error:", error.message);
   process.exitCode = 1;
@@ -251,8 +202,7 @@ server.on("error", (error) => {
 function shutdown(): void {
   clearInterval(archiveTimer);
   clearInterval(activityTimer);
-  try { ledger.flushActivity(); }
-  catch (error) { console.error("Town activity save failed:", error); }
+  flushActivity();
   permissions.cancel();
   pty.dispose();
   quests.close();
@@ -264,9 +214,12 @@ process.once("SIGINT", shutdown);
 process.once("SIGTERM", shutdown);
 process.once("exit", () => pty.dispose());
 
-const url = `http://127.0.0.1:${port}/?token=${token}`;
-if (port !== options.port) console.log(`Port ${options.port} is in use; using ${port}.`);
-printStartupLogo();
-console.log(`Open ${url}`);
-console.log(`Terminal: http://127.0.0.1:${port}/terminal.html?token=${token}`);
-if (options.open) openBrowser(url);
+function announceStartup(): void {
+  const url = `http://127.0.0.1:${port}/?token=${token}`;
+  if (port !== options.port) console.log(`Port ${options.port} is in use; using ${port}.`);
+  printStartupLogo();
+  console.log(`Open ${url}`);
+  console.log(`Terminal: http://127.0.0.1:${port}/terminal.html?token=${token}`);
+  if (options.open) openBrowser(url);
+}
+announceStartup();

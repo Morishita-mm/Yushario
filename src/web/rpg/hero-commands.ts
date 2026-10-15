@@ -50,6 +50,7 @@ export function initHeroActions(hero: (id: string) => RoomAgent | undefined, tal
     if (at < (eventAt.get(terminal) ?? -Infinity)) return;
     const next = waitingAfterEvent(event, interrupted.has(terminal));
     if (next !== undefined) { waiting.set(terminal, next); eventAt.set(terminal, at); }
+    if (event.hook === "Interrupt") interrupted.add(terminal);
     if (event.hook === "UserPromptSubmit") interrupted.delete(terminal);
   }
   async function act(id: string, action: "interrupt" | "compact" | "farewell"): Promise<void> {
@@ -74,11 +75,11 @@ export function initHeroActions(hero: (id: string) => RoomAgent | undefined, tal
         talk.close(); closeStrength(); depart?.();
       } else {
         if (action === "interrupt") {
-          interrupted.add(terminal); eventAt.set(terminal, Date.now()); waiting.set(terminal, true); talk.setPending(terminal, []);
+          talk.setPending(terminal, []);
         } else waiting.set(terminal, false);
         talk.open(id);
         talk.notice(action === "interrupt" ? held
-          ? tr(`作業を 中断した。あずかった ことば ${held}件を すてた。`, `Work interrupted. ${held} held messages discarded.`) : tr("作業を 中断した。", "Work interrupted.")
+          ? tr(`とめるよう たのんだ。あずかった ことば ${held}件を すてた。`, `Asked to stop. ${held} held messages discarded.`) : tr("とめるよう たのんだ。", "Asked to stop.")
           : tr("おはなしを まとめている…", "Resting…"));
       }
     } catch (error) {

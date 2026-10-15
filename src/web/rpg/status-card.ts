@@ -3,6 +3,8 @@ import type { Activity } from "../../core/activity";
 import type { Mood, RoomAgent } from "../../core/room";
 import { jobName, jobOf, stats } from "../../core/story";
 import { heroAccent } from "../town/appearance";
+import { interruptStatus } from "./interrupt-status";
+import { codexNotice } from "./agents";
 
 const DOING: Record<Activity, (target: string) => string> = {
   idle: () => tr("まちで ひとやすみしている", "Resting in town"), think: () => tr("たきびの まえで かんがえている", "Thinking by the fire"),
@@ -46,7 +48,7 @@ export function compactRow(agent: RoomAgent, now: number, name: string, selected
   const row = element("button", "compact-hero"); row.type = "button"; row.dataset.hero = agent.id;
   row.classList.toggle("selected", selected); row.classList.toggle("waiting", waiting || agent.activity === "ask");
   row.setAttribute("aria-pressed", String(selected));
-  const doing = DOING[agent.activity](agent.target ?? "");
+  const doing = interruptStatus(agent, now) ?? DOING[agent.activity](agent.target ?? "");
   row.title = `${name}${agent.branch ? ` [${agent.branch}]` : ""} · Lv ${level} · HP ${Math.round(hp * 100)} · MP ${mp === undefined ? "？" : Math.round(mp * 100)} · ${doing}`;
   row.setAttribute("aria-label", row.title);
   const badge = element("span", "compact-name", `${waiting ? "！ " : ""}${name}`);
@@ -70,7 +72,8 @@ export function statusCard(agent: RoomAgent, agentMoods: Mood[], permission: HTM
   card.append(head);
   if (agent.branch) card.append(element("small", "branch-name", `⑂ ${agent.branch}`));
   card.append(bar("HP", hp, hpColor(hp)), bar("MP", mp, "#62b8ff"));
-  card.append(element("p", "doing", `▶ ${DOING[agent.activity](agent.target ?? "")}`));
+  card.append(element("p", "doing", `▶ ${interruptStatus(agent, now) ?? DOING[agent.activity](agent.target ?? "")}`));
+  if (agent.source === "codex") card.append(element("p", "hint", codexNotice()));
   if (equipment.length) {
     card.append(element("p", "section", tr("そうび", "Equipment")));
     for (const text of equipment) card.append(element("p", "hint", text));

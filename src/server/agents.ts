@@ -14,9 +14,9 @@ export const AGENTS = {
     modelArg: "--model", thinkingArg: "--effort", modelCommand: "", thinkingCommand: "", // /model and /effort save user defaults.
   },
   codex: {
-    label: "Codex", command: "codex", args: [], source: "codex",
-    hero: false, resume: false, resumeArgs: [], compact: false, compactCommand: "",
-    interrupt: "\x1b", clearDraft: "\x03", restoresDraft: false, farewell: "/quit", // Non-managed hooks require /hooks trust review.
+    label: "Codex", command: "codex", args: ["--no-daemon", "$codex-hooks"], source: "codex",
+    hero: true, resume: true, resumeArgs: ["resume"], compact: true, compactCommand: "/compact",
+    interrupt: "\x1b", clearDraft: "\x15", restoresDraft: false, farewell: "/quit", // Ctrl+C on an empty prompt quits Codex. /hooks trust review stays in Codex.
     modelArg: "-m", thinkingArg: "", modelCommand: "", thinkingCommand: "",
   },
   pi: {

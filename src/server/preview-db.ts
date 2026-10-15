@@ -2,13 +2,6 @@ import type { DatabaseSync } from "node:sqlite";
 import { randomUUID } from "node:crypto";
 import type { PreviewLink } from "../core/preview";
 
-export function createPreviewTables(db: DatabaseSync): void {
-  db.exec(`CREATE TABLE IF NOT EXISTS quest_previews (
-    id TEXT PRIMARY KEY, quest TEXT REFERENCES quests(id) ON DELETE CASCADE,
-    town TEXT NOT NULL, name TEXT NOT NULL, url TEXT NOT NULL);
-    CREATE INDEX IF NOT EXISTS quest_previews_scope ON quest_previews(town,quest);`);
-}
-
 export class PreviewDatabase {
   constructor(private readonly db: DatabaseSync) {}
   list(quest: string | null, town: string): PreviewLink[] {

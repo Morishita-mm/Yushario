@@ -1,9 +1,10 @@
 import { language, tr } from "../language";
 import "@fontsource/dotgothic16/400.css";
-import { parseAgentEvent, type AgentEvent } from "../../core/events";
+import type { AgentEvent } from "../../core/events";
+import { parsePermission, parseRelayEvent } from "./relay-message";
 import { Room } from "../../core/room";
 import { narrate, stats } from "../../core/story";
-import { Messages, Status, type Permission } from "./hud";
+import { Messages, Status } from "./hud";
 import { Scene } from "./scene";
 import { loadTowns, type TownRecord } from "./ledger";
 import type { Session } from "../terminal";
@@ -36,11 +37,11 @@ const mapNav = document.querySelector<HTMLElement>(".map-nav")!;
 const messageLog = document.querySelector<HTMLElement>("#messages")!;
 // The map column is as wide as a map that fills the height left by the controls and the log, so the
 // log matches it and the sidebar takes the rest. Never measure the map itself: it follows this width.
-const fitMap = (): void => {
+function fitMap(): void {
   const gap = parseFloat(getComputedStyle(stage).rowGap) || 0;
   const height = stage.clientHeight - mapNav.offsetHeight - messageLog.offsetHeight - gap * 2;
   document.body.style.setProperty("--map-w", `${Math.max(0, Math.floor(height * 16 / 9))}px`);
-};
+}
 const fitter = new ResizeObserver(fitMap);
 for (const element of [stage, mapNav, messageLog]) fitter.observe(element);
 const scene = new Scene(canvas, document.querySelector<HTMLElement>("#town-layer")!,
@@ -116,11 +117,6 @@ const notices = initNotices(document.querySelector<HTMLElement>("#herald")!, (no
   scene.visitNotice(notice.repo, notice.hero, notice.kind === "report" ? notice.at : undefined);
 }, (n) => sideTabs.count("herald", n), scene.townName);
 
-function parse(input: unknown, at: unknown): { event: AgentEvent; at: number } | undefined {
-  const result = parseAgentEvent(input);
-  if (result.ok && typeof at === "number" && Number.isFinite(at)) return { event: result.event, at };
-}
-
 const endedTerminals = new Set<string>();
 const endedAgents = new Set<string>(); // Sound only: Room may recreate a hero from a late hook.
 function currentTerminal(event: AgentEvent): boolean {
@@ -163,12 +159,66 @@ function live(event: AgentEvent, at: number, audible: boolean): void {
   notifySound({ type: "event", event, levelUp, ended: endedAgents.has(event.agent ?? "default") }, audible, scene.followedId);
 }
 
-function permission(value: Record<string, unknown>): Permission | undefined {
-  if (typeof value.id !== "string" || typeof value.tool !== "string" || typeof value.summary !== "string"
-    || typeof value.content !== "string" || typeof value.omitted !== "number" || typeof value.expiresAt !== "number") return;
-  return { id: value.id, tool: value.tool, summary: value.summary, content: value.content, omitted: value.omitted, expiresAt: value.expiresAt,
-    ...(typeof value.agent === "string" ? { agent: value.agent } : {}),
-    ...(typeof value.helper === "string" ? { helper: value.helper } : {}) };
+function replay(events: { event?: unknown; at?: unknown }[]): void {
+  // Rebuild who is in town; retell only the last few lines.
+  room = new Room();
+  talk.resetPending(); actions.reset(); equipment.reset(); endedTerminals.clear(); endedAgents.clear();
+  void equipment.refresh().catch((error: Error) => messages.say(error.message));
+  const told: [AgentEvent, number][] = [];
+  for (const item of events) {
+    const parsed = parseRelayEvent(item?.event, item?.at);
+    if (!parsed || !currentTerminal(parsed.event)) continue;
+    actions.observe(parsed.event, parsed.at);
+    const present = room.agents.has(parsed.event.agent ?? "default");
+    room.apply(parsed.event, parsed.at);
+    scene.sync(room, parsed.at, true);
+    const line = parsed.event.hook === "SessionEnd" && !present ? undefined
+      : narrate({ ...parsed.event, name: scene.names.get(parsed.event.agent ?? "default") ?? parsed.event.name }, undefined, language);
+    if (line) told.push([parsed.event, parsed.at]);
+  }
+  scene.sync(room, Date.now());
+  for (const [event, at] of told.slice(-3)) messages.event(event, at, true);
+  if (!told.length) messages.say(tr("しゅつじん → 依頼 → 報告 → 鑑定・ためすこと → クエストを おえる。町＝プロジェクト、勇者＝CLI。つづきは ヘルプへ。", "Embark → request → report → Review & Checks → Done. Town = project; hero = CLI. See Help."), undefined, true);
+}
+
+function receiveMessage(message: MessageEvent): void {
+  try {
+    const data = JSON.parse(message.data);
+    if (data.type === "replay" && Array.isArray(data.events)) {
+      replay(data.events);
+    } else if (data.type === "quests" && Array.isArray(data.quests) && Array.isArray(data.bindings)) {
+      quests.set(data); previews.remember(data.quests); talk.update();
+    } else if (data.type === "party-notices") {
+      setPartyNotices(data);
+    } else if (data.type === "names") {
+      const names = parseNames(data.names);
+      if (names) namesChanged(names);
+    } else if (data.type === "towns" && Array.isArray(data.towns)) {
+      scene.setTowns(data.towns);
+    } else if (data.type === "pending" && typeof data.terminal === "string" && Array.isArray(data.texts)
+      && data.texts.every((text: unknown) => typeof text === "string")) {
+      talk.setPending(data.terminal, data.texts);
+      equipment.setPending(data.terminal, data.equipment);
+    } else if (data.type === "attention" && typeof data.terminal === "string" && data.reason === "trust") {
+      if (![...room.agents.values()].some((agent) => agent.terminal === data.terminal)) talk.attention(data.terminal);
+      notifySound({ type: "attention", reason: data.reason }, data.live !== false, scene.followedId);
+    } else if (data.type === "equipped" && typeof data.session?.id === "string") {
+      equipment.changed(data.session);
+    } else if (data.type === "event") {
+      const parsed = parseRelayEvent(data.event, data.at);
+      if (parsed) live(parsed.event, parsed.at, data.live !== false);
+    } else if (data.type === "permission") {
+      const request = parsePermission(data);
+      if (request) {
+        notifySound({ type: "permission", ...request }, data.live !== false, scene.followedId);
+        status.permissions.set(request.id, request);
+      }
+    } else if (data.type === "permission-resolved") {
+      status.permissions.delete(data.id);
+    }
+  } catch (error) {
+    console.warn("Invalid relay message:", error);
+  }
 }
 
 function connect(): void {
@@ -177,63 +227,7 @@ function connect(): void {
   socket = current;
   connectionLabel.textContent = tr("せつぞく中…", "Connecting…");
   current.onopen = () => { connectionLabel.textContent = ""; };
-  current.onmessage = (message) => {
-    try {
-      const data = JSON.parse(message.data);
-      if (data.type === "replay" && Array.isArray(data.events)) {
-        // Rebuild who is in town; retell only the last few lines.
-        room = new Room();
-        talk.resetPending(); actions.reset(); equipment.reset(); endedTerminals.clear(); endedAgents.clear();
-        void equipment.refresh().catch((error: Error) => messages.say(error.message));
-        const told: [AgentEvent, number][] = [];
-        for (const item of data.events) {
-          const parsed = parse(item?.event, item?.at);
-          if (!parsed || !currentTerminal(parsed.event)) continue;
-          actions.observe(parsed.event, parsed.at);
-          const present = room.agents.has(parsed.event.agent ?? "default");
-          room.apply(parsed.event, parsed.at);
-          scene.sync(room, parsed.at, true);
-          const line = parsed.event.hook === "SessionEnd" && !present ? undefined
-            : narrate({ ...parsed.event, name: scene.names.get(parsed.event.agent ?? "default") ?? parsed.event.name }, undefined, language);
-          if (line) told.push([parsed.event, parsed.at]);
-        }
-        scene.sync(room, Date.now());
-        for (const [event, at] of told.slice(-3)) messages.event(event, at, true);
-        if (!told.length) messages.say(tr("しゅつじん → 依頼 → 報告 → 鑑定・ためすこと → クエストを おえる。町＝プロジェクト、勇者＝CLI。つづきは ヘルプへ。", "Embark → request → report → Review & Checks → Done. Town = project; hero = CLI. See Help."), undefined, true);
-      } else if (data.type === "quests" && Array.isArray(data.quests) && Array.isArray(data.bindings)) {
-        quests.set(data); previews.remember(data.quests); talk.update();
-      } else if (data.type === "party-notices") {
-        setPartyNotices(data);
-      } else if (data.type === "names") {
-        const names = parseNames(data.names);
-        if (names) namesChanged(names);
-      } else if (data.type === "towns" && Array.isArray(data.towns)) {
-        scene.setTowns(data.towns);
-      } else if (data.type === "pending" && typeof data.terminal === "string" && Array.isArray(data.texts)
-        && data.texts.every((text: unknown) => typeof text === "string")) {
-        talk.setPending(data.terminal, data.texts);
-        equipment.setPending(data.terminal, data.equipment);
-      } else if (data.type === "attention" && typeof data.terminal === "string" && data.reason === "trust") {
-        if (![...room.agents.values()].some((agent) => agent.terminal === data.terminal)) talk.attention(data.terminal);
-        notifySound({ type: "attention", reason: data.reason }, data.live !== false, scene.followedId);
-      } else if (data.type === "equipped" && typeof data.session?.id === "string") {
-        equipment.changed(data.session);
-      } else if (data.type === "event") {
-        const parsed = parse(data.event, data.at);
-        if (parsed) live(parsed.event, parsed.at, data.live !== false);
-      } else if (data.type === "permission") {
-        const request = permission(data);
-        if (request) {
-          notifySound({ type: "permission", ...request }, data.live !== false, scene.followedId);
-          status.permissions.set(request.id, request);
-        }
-      } else if (data.type === "permission-resolved") {
-        status.permissions.delete(data.id);
-      }
-    } catch (error) {
-      console.warn("Invalid relay message:", error);
-    }
-  };
+  current.onmessage = receiveMessage;
   current.onerror = () => current.close();
   current.onclose = () => {
     status.permissions.clear(); setPartyNotices({});
@@ -262,7 +256,8 @@ function frame(time: number): void {
   requestAnimationFrame(frame);
 }
 
-void scene.load().then(async () => {
+async function start(): Promise<void> {
+  await scene.load();
   try { scene.setTowns(await loadTowns()); }
   catch (error) {
     messages.say(tr("町の台帳を よみこめませんでした。せつぞくを おたしかめください。", "Could not load towns. Check the connection."), undefined, true);
@@ -273,7 +268,8 @@ void scene.load().then(async () => {
   await soundLoaded;
   connect();
   requestAnimationFrame(frame);
-}).catch((error: unknown) => {
+}
+void start().catch((error: unknown) => {
   connectionLabel.textContent = tr("町の絵を よみこめませんでした", "Could not load town art");
   console.error(error);
 });

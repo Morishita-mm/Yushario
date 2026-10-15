@@ -56,6 +56,8 @@ export function commandMatchesCheck(command: string, shape: string): boolean {
   return commandWords(command).some((words) => needles[0].every((word, index) => words[index] === word));
 }
 export function checkCommand(event: AgentEvent): string | undefined {
+  // Codex 0.162.1 documents tool output, not a structured exit status.
+  if (event.source === "codex") return;
   if (!["PostToolUse", "PostToolUseFailure"].includes(event.hook ?? "") || event.tool !== "Bash") return;
   return event.command ?? event.target;
 }

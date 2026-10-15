@@ -55,14 +55,29 @@ export function showBattleCommands(layer: HTMLElement, name: string, corner: [nu
     const box = element("div", "command-window wide battle-commands");
     box.append(element("h4", undefined, tr("さくせん", "Tactics")));
     const list = element("div", "commands");
+    const previews = new Map<Element, () => void>();
+    const preview = element("p", "tactics-preview");
+    preview.id = "battle-tactics-preview";
+    preview.setAttribute("aria-live", "polite");
     for (const [label, text] of TACTICS) {
-      const button = option(label, () => send(tr(`さくせん「${label}」：${text}`, `Tactics "${label}": ${text}`)));
-      button.title = text;
+      const message = tr(`さくせん「${label}」：${text}`, `Tactics "${label}": ${text}`);
+      const button = option(label, () => send(message));
+      button.setAttribute("aria-describedby", preview.id);
+      const showText = () => { preview.textContent = message; };
+      previews.set(button, showText);
+      button.addEventListener("focus", showText);
+      button.addEventListener("mouseenter", showText);
+      if (!preview.textContent) showText();
       list.append(button);
     }
     list.append(option(tr("やめる", "Cancel"), menu));
-    box.append(list);
+    box.append(list, preview);
     show(box, menu);
+    // place() moves its cursor on keydown; focus can be suppressed in an embedded WebView.
+    box.addEventListener("keydown", () => {
+      const selected = list.querySelector("button[aria-current=true]");
+      if (selected) previews.get(selected)?.();
+    });
   }
   function order(): void {
     inMenu = false;

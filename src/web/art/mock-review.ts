@@ -2,6 +2,7 @@ import { openReview } from "../rpg/review-window";
 import type { Review, ReviewDiff } from "../../core/review";
 const review: Review = {
   cwd: "/tmp/tiny-quest", branch: "quest/fix", head: "abc1234", ahead: 1, behind: 2,
+  comparison: { mode: "uncommitted", branches: ["main", "origin/main", "quest/fix"], defaultBase: "origin/main", base: "origin/main" },
   files: [
     { path: "src/a.ts", status: "modified", added: 1, removed: 1 },
     { path: "new.ts", status: "added", added: 1, removed: 0 },
@@ -20,5 +21,8 @@ const diffs: Record<string, ReviewDiff> = {
   "image.png": { binary: true }, "large.txt": { tooLarge: true },
 };
 export function mockReview(name: string): void {
-  openReview(name, "mock", () => undefined, () => undefined, undefined, { review, diffs });
+  const branchReview: Review = { ...review, comparison: { ...review.comparison!, mode: "branch", mergeBase: "0123456789abcdef" },
+    files: [{ path: "committed.ts", status: "added", added: 1, removed: 0 }, ...review.files] };
+  openReview(name, "mock", () => undefined, () => undefined, undefined, { review, diffs, branchReview,
+    branchDiffs: { ...diffs, "committed.ts": { text: "@@ -0,0 +1 @@\n+export const committed = true;\n" } } });
 }

@@ -23,8 +23,18 @@ function windowBox(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
   ctx.strokeRect(x + 2, y + 2, w - 4, h - 4);
 }
 
-function line(ctx: CanvasRenderingContext2D, value: string, x: number, y: number, size = 8, color = "#ffffff", align: CanvasTextAlign = "left"): void {
+function line(ctx: CanvasRenderingContext2D, value: string, x: number, y: number, size = 8, color = "#ffffff", align: CanvasTextAlign = "left", maxWidth?: number): void {
   ctx.font = `${size}px "DotGothic16", monospace`;
+  if (maxWidth !== undefined && ctx.measureText(value).width > maxWidth) {
+    const letters = Array.from(value);
+    let low = 0, high = letters.length;
+    while (low < high) {
+      const mid = Math.ceil((low + high) / 2);
+      if (ctx.measureText(`${letters.slice(0, mid).join("")}…`).width <= maxWidth) low = mid;
+      else high = mid - 1;
+    }
+    value = `${letters.slice(0, low).join("")}…`;
+  }
   ctx.textAlign = align;
   ctx.fillStyle = color;
   ctx.fillText(value, x, y);
@@ -85,7 +95,8 @@ export function drawFocus(ctx: CanvasRenderingContext2D, art: Sheets, focus: Foc
   focus.status.forEach((status, i) => {
     const w = 84, x = 8 + i * (w + 6);
     windowBox(ctx, x, 6, w, 34);
-    line(ctx, status.name, x + 8, 19, 8);
+    const weaponSpace = i === 0 && focus.weaponTier ? art.size("ui-weapons")[0] + 2 : 0;
+    line(ctx, status.name, x + 8, 19, 8, "#ffffff", "left", w - 16 - weaponSpace);
     if (i === 0) drawWeapon(ctx, art, focus.weaponTier, t, x + w - art.size("ui-weapons")[0] / 2 - 3, 23);
     const values = status.hp === undefined ? tr("なかま", "Ally") : `HP ${Math.round(status.hp * 100)}  MP ${status.mp === undefined ? "？" : Math.round(status.mp * 100)}`;
     line(ctx, values, x + 8, 32, 7, "#c9c3dc");

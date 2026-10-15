@@ -55,6 +55,7 @@ dialog.report-window::backdrop { background: rgba(0, 0, 0, 0.65); }
 .command-window { position: absolute; min-width: 190px; background: #0a0a1a; border: 3px solid #fff; border-radius: 8px; box-shadow: 0 0 0 2px #0a0a1a, 0 0 0 4px #6e6a8a; padding: 10px 14px; font-size: 15px; }
 .command-window.wide { width: min(420px, 90%); }
 .command-window.battle-commands:not(.wide) { width: 210px; }
+.tactics-preview { margin: 8px 0 0; padding-top: 8px; border-top: 1px solid #6e6a8a; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.5; }
 .command-window h4 { margin: 0 0 6px; color: #ffe066; font-weight: normal; }
 .command-window .hint { margin: 0 0 8px; font-size: 13px; color: #c9c3dc; white-space: pre-line; }
 .command-window .hint:empty { display: none; }

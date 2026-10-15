@@ -1,5 +1,5 @@
 import { basename } from "node:path";
-import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext } from "./types";
 import type { AgentEvent, AgentState } from "../../src/core/events";
 import { projectName } from "../../src/server/project";
 

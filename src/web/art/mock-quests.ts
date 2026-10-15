@@ -2,6 +2,7 @@ import { tr } from "../language";
 import { mockChecks, mockFingerprint } from "./mock-checks";
 export { mockReportChecks } from "./mock-checks";
 import { initMockPreview } from "./mock-preview";
+import { mockReview } from "./mock-review";
 import type { QuestDetail } from "../../core/quests";
 import { renderQuestList } from "../town/quest-list";
 import { questCard } from "../town/quest-card";
@@ -23,7 +24,7 @@ export function initMockQuests(projects: Project[], layer: HTMLElement, report: 
         mock: (["implement", "review", "command"] as const).map((role, i) => ({ quest: quest.id, session: `party-${i}`, hero: `party-${i}`,
           name: [tr("アレン", "Allen"), tr("ミラ", "Mira"), tr("ルカ", "Luca")][i], role, note: "", writer: i === 0, active: true, canTalk: i !== 2, joinedAt: now + i,
           sessionInfo: { id: `party-${i}`, preset: ["claude", "pi", "shell"][i], cwd: "/tmp/town-base", branch: "quest/town", project: quest.town, createdAt: now } })),
-      }));
+      }, () => { box.close(); layer.hidden = true; mockReview(quest.title); }));
   }
   return (town?: string) => {
     const list = quests.filter((quest) => town === undefined || quest.town === town);

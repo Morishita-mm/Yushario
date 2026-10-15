@@ -5,13 +5,13 @@ export type HeroPlace = "town" | "inn" | "church" | "meadow" | "cave" | "forest"
 export type TownHero = {
   id: string;
   name: string;
-  project: string;
+  project: string; // Town key, not a display name.
   place: HeroPlace;
   monster?: MonsterKind;
   party: Job[];
   agent: RoomAgent;
 };
-type TownProject = { name: string; heroes: TownHero[] };
+type TownProject = { name: string; heroes: TownHero[] }; // name is the town key.
 export type TownNames = { id: string; project: string; base: string; name: string }[];
 
 export function townView(room: Room, now: number, previous: TownNames = []): {

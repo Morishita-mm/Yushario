@@ -5,6 +5,7 @@ import type { Sheets } from "./sheets";
 
 // The herald (でんれい): everything that needs you, across all projects, most urgent first.
 // With many projects you don't browse towns; you work down this list.
+// repo is the town key, not its display name.
 export interface Notice { kind: "permission" | "party-invite" | "outside-role" | "call" | "down" | "new" | "struggle" | "report"; repo: string; text: string; ago: string; hero?: string; at?: number; id?: string }
 export const NOTICE_ORDER: Notice["kind"][] = ["permission", "party-invite", "outside-role", "call", "down", "new", "struggle", "report"];
 export function noticesInTown(list: Notice[], town?: string): Notice[] {

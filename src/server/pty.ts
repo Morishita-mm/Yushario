@@ -6,10 +6,9 @@ import { tmpdir } from "node:os";
 import { basename, isAbsolute, join } from "node:path";
 import type { AgentEvent } from "../core/events";
 import { equipmentInput } from "../core/equipment";
-import { WebSocket, WebSocketServer } from "ws";
-import { appendOutput, dimensions, SESSION_LIMIT, sessionInput, type EquippedMessage, type PendingMessage, type Session, type TerminalSession } from "./pty-session";
-import { modePrefix } from "../core/terminal-modes";
-import { capturePreviewUrls } from "./preview-output";
+import { WebSocketServer } from "ws";
+import { SESSION_LIMIT, sessionInput, type EquippedMessage, type PendingMessage, type Session, type TerminalSession } from "./pty-session";
+import { connectTerminal, relayOutput } from "./pty-socket";
 import { worktreeBranch, worktreeRemoving } from "./worktrees";
 import { clearPending, observe as observeSession, pending, say } from "./pty-actions";
 import { flushEquipment } from "./pty-equipment";
@@ -19,7 +18,7 @@ import { readEquipment, readRoster, writeRoster } from "./town-data";
 import { projectIdentity } from "./project";
 import { launchPty, writeClaudeSettings } from "./pty-launch";
 import { AGENTS, publicAgents } from "./agents";
-import { hasTrustPrompt, replacedSession } from "../core/session-actions";
+import { replacedSession } from "../core/session-actions";
 import { descendants } from "./pty-process";
 import { authenticatedHookSession } from "./hook-auth";
 import { readJsonBody, SETTINGS_BODY_LIMIT } from "./http-body";
@@ -97,7 +96,7 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
     } catch { throw new Error(tr("行き先のフォルダが見つかりません。存在するフォルダを指定してください", "Destination folder not found. Choose an existing folder")); }
     const selectedEquipment = equipmentInput(input, equipment[preset], serverLanguage());
     const identity = await projectIdentity(cwd);
-    const project = identity.key;
+    const townKey = identity.key;
     const branch = await worktreeBranch(cwd);
     if (worktreeRemoving(cwd)) throw new Error(tr("この 拠点は たたんでいる", "This base is folding"));
     // Check after the await too: concurrent requests must not exceed the limit.
@@ -108,7 +107,7 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
     const terminal = launchPty(preset, cwd, id, port, settings, selectedEquipment, equipment[preset], identity.name, resume, agentToken);
     groups.add(terminal.pid);
     let stopped = false;
-    const stop = (): void => {
+    function stop(): void {
       if (stopped) return;
       stopped = true; session.departing = true;
       clearTimeout(session.enter); session.equipping = undefined;
@@ -125,29 +124,19 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
         kills.delete(timer);
       }, 500);
       kills.add(timer);
-    };
+    }
     let finish!: () => void;
     const finished = new Promise<void>((resolve) => { finish = resolve; });
     const session: Session = {
-      info: { id, preset, cwd, project, branch, projectName: identity.name, projectParent: identity.parent, createdAt: Date.now(), ...(resume ? { recalledHero: resume } : {}), ...selectedEquipment }, terminal,
+      info: { id, preset, cwd, project: townKey, branch, projectName: identity.name, projectParent: identity.parent, createdAt: Date.now(), ...(resume ? { recalledHero: resume } : {}), ...selectedEquipment }, terminal,
       agentToken, output: Buffer.alloc(0), modes: new Map(), clients: new Set(), stop, waiting: false, eventAt: -Infinity, texts: [],
       interrupted: false, interrupting: false, departing: false, asking: false, askedAt: -Infinity, agentId: resume,
       hasPrompt: Boolean(resume), name: basename(cwd), finished, finish,
     };
     sessions.set(id, session);
-    const output = (data: string): void => {
-      session.output = appendOutput(session.output, data, session.modes);
-      capturePreviewUrls(session, data, port);
-      if (!session.attention && !session.agentId && !session.info.exited && AGENTS[preset].hero && hasTrustPrompt(session.output.toString("utf8").slice(-8192))) {
-        session.attention = true;
-        attentionChanged({ type: "attention", terminal: id, reason: "trust" });
-      }
-      for (const client of session.clients) {
-        if (client.readyState === WebSocket.OPEN) client.send(data);
-      }
-    };
+    const output = (data: string): void => relayOutput(session, data, port, attentionChanged);
     terminal.onData(output);
-    terminal.onExit(({ exitCode }) => {
+    function exited({ exitCode }: { exitCode: number }): void {
       session.info.exited = { code: exitCode, at: Date.now() };
       stop();
       output(tr(`\r\n[終了: ${exitCode}]\r\n`, `\r\n[Ended: ${exitCode}]\r\n`));
@@ -155,10 +144,11 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
       rememberDeparture(session);
       // Every town-capable agent departs even if its own shutdown event never arrived.
       if (AGENTS[preset].hero && session.agentId && !session.ended) recordEvent({ state: "idle", hook: "SessionEnd",
-        agent: session.agentId, name: session.name, terminal: id, project, source: AGENTS[preset].source });
+        agent: session.agentId, name: session.name, terminal: id, project: townKey, source: AGENTS[preset].source });
       terminalEnded(id);
       session.finish();
-    });
+    }
+    terminal.onExit(exited);
     try { if (AGENTS[preset].hero) registerTown(session.info); }
     catch { sessions.delete(id); stop(); throw new Error(tr("町の記録を保存できませんでした。データフォルダの権限を確認してください", "Could not save towns. Check data-folder permissions")); }
     return session.info;
@@ -229,36 +219,26 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
     }
   }
 
-  sockets.on("connection", (client, request) => {
-    client.on("error", (error) => console.error("PTY WebSocket error:", error.message));
-    const url = new URL(request.url ?? "/", `http://127.0.0.1:${port}`);
-    const session = sessions.get(url.searchParams.get("session") ?? "");
-    if (!session) { client.close(1008, tr("そのターミナルが見つかりません", "Terminal not found")); return; }
-    // Replay is queued before any live output (all callbacks run on the same event loop).
-    if (session.output.length) client.send(modePrefix(session.modes) + session.output.toString("utf8"));
-    if (session.info.exited) { client.close(1000, tr("終了しました", "Ended")); return; }
-    session.clients.add(client);
-    const size = dimensions(Number(url.searchParams.get("cols")), Number(url.searchParams.get("rows")));
-    if (size) {
-      try { session.terminal.resize(size.cols, size.rows); } catch { /* Process exited. */ }
-    }
-    client.on("message", (data, binary) => {
-      if (session.info.exited || binary || !sessions.has(session.info.id)) return;
-      try {
-        const message = JSON.parse(String(data));
-        // Drop input during Esc restoration; resize remains safe and input is not queued.
-        if (message?.type === "input" && typeof message.data === "string" && !session.interrupting) session.terminal.write(message.data);
-        else if (message?.type === "resize") {
-          const size = dimensions(message.cols, message.rows);
-          if (size) session.terminal.resize(size.cols, size.rows);
-        }
-      } catch { /* Ignore invalid messages and races with process exit. */ }
-    });
-    client.once("close", () => session.clients.delete(client));
-  });
+  sockets.on("connection", (client, request) => connectTerminal(client, request, port, sessions));
   sockets.on("error", (error) => console.error("PTY server error:", error.message));
+  function dispose(): void {
+    if (disposed) return;
+    disposed = true;
+    for (const session of sessions.values()) {
+      session.stop();
+      // Shutdown may exit Node before node-pty can emit onExit; the child is being killed here.
+      if (!session.info.exited) rememberDeparture(session);
+    }
+    sessions.clear();
+    for (const timer of kills) clearTimeout(timer);
+    for (const pid of children) killPid(pid, "SIGKILL");
+    for (const pid of groups) killGroup(pid, "SIGKILL");
+    for (const client of sockets.clients) client.terminate();
+    sockets.close();
+    rmSync(temporary, { recursive: true, force: true });
+  }
   return {
-    sockets, handleRequest, observe,
+    sockets, handleRequest, observe, dispose,
     // The app answered a permission prompt: the CLI no longer waits, so steering is safe again.
     answered: (terminal: string) => {
       const session = sessions.get(terminal); if (session) { session.asking = false; session.askedAt = Date.now(); }
@@ -276,23 +256,7 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
     listSessions: () => [...sessions.values()].map((session) => session.info),
     refreshBranch: async (id: string) => { const session = sessions.get(id); if (session) session.info.branch = await worktreeBranch(session.info.cwd); },
     sessionForAgent: (agent: string) => [...sessions.values()].find((item) => item.agentId === agent)?.info,
-    activeProjects: () => new Set([...sessions.values()]
+    activeTownKeys: () => new Set([...sessions.values()]
       .filter((session) => !session.info.exited && AGENTS[session.info.preset].hero).map((session) => session.info.project)),
-    dispose: () => {
-      if (disposed) return;
-      disposed = true;
-      for (const session of sessions.values()) {
-        session.stop();
-        // Shutdown may exit Node before node-pty can emit onExit; the child is being killed here.
-        if (!session.info.exited) rememberDeparture(session);
-      }
-      sessions.clear();
-      for (const timer of kills) clearTimeout(timer);
-      for (const pid of children) killPid(pid, "SIGKILL");
-      for (const pid of groups) killGroup(pid, "SIGKILL");
-      for (const client of sockets.clients) client.terminate();
-      sockets.close();
-      rmSync(temporary, { recursive: true, force: true });
-    },
   };
 }

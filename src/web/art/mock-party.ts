@@ -18,7 +18,7 @@ export function renderMockParty(root: HTMLElement, town: string, selected: strin
     places.set(name, place);
     room.apply({ state: "idle", hook: "SessionStart", agent: name, name, project: town, terminal: `mock-${name}`, branch: name.length % 2 ? "main" : "yushario/map", ...event }, at);
   };
-  for (const hero of townHeroes()) hook(hero.name, "town", now);
+  for (const [index, hero] of townHeroes().entries()) hook(hero.name, "town", now, index === 0 ? { source: "codex" } : {});
   for (const theme of ["meadow", "cave", "forest"] as const) for (const fight of FIGHTS[theme]) {
     if (places.has(fight.name)) continue; // A name already shown in town.
     hook(fight.name, theme, now);

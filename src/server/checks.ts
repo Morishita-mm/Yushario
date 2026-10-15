@@ -54,7 +54,7 @@ export async function scriptCandidates(cwd: string) {
 }
 // The saved base wins, even if absent on disk. Only the current writer is a fallback.
 export function questCheckBase(quests: QuestLedger, id: string, sessions: TerminalSession[]): string | undefined {
-  const quest = quests.get(id);
+  const quest = quests.summary(id);
   return quest && checkBasePath(quest, quests.party(id).find((member) => member.writer)?.session, sessions);
 }
 const readVersions = new WeakMap<QuestLedger, Map<string, symbol>>();
@@ -67,11 +67,11 @@ function versionFor(quests: QuestLedger, id: string): { versions: Map<string, sy
   const version = Symbol(); versions.set(id, version); return { versions, version };
 }
 export async function refreshCheckFingerprint(quests: QuestLedger, id: string, sessions: TerminalSession[]): Promise<WorkFingerprint | undefined> {
-  if (!quests.get(id)) return undefined;
+  if (!quests.summary(id)) return undefined;
   const cwd = questCheckBase(quests, id, sessions);
   const { versions, version } = versionFor(quests, id);
   const fingerprint = cwd ? await workFingerprint(cwd) : undefined;
-  if (versions.get(id) === version && quests.get(id)) {
+  if (versions.get(id) === version && quests.summary(id)) {
     const current = questCheckBase(quests, id, sessions) === cwd ? fingerprint : undefined;
     const previous = quests.checks.fingerprints.get(id);
     quests.checks.fingerprints.set(id, current);

@@ -35,7 +35,7 @@ export async function handlePtyAction(request: IncomingMessage, response: Server
       if (action === "interrupt" && !AGENTS[session.info.preset].hero) { json(response, 409, { error: tr("このターミナルは勇者のコマンドに対応していません", "This terminal has no hero commands") }); return false; }
       if (action === "compact" && !session.waiting) { json(response, 409, { error: tr("勇者は作業中です。終わってからやすませてください", "Your hero is busy. Rest after battle") }); return false; }
       await act(session, action, changed);
-      if (action === "interrupt" && session.agentId) recordEvent({ state: "idle", hook: "Interrupt",
+      if (action === "interrupt" && session.agentId) recordEvent({ state: "working", hook: "Interrupt",
         agent: session.agentId, name: session.name, terminal: session.info.id, project: session.info.project,
         source: AGENTS[session.info.preset].source });
       json(response, 200, { ok: true }); return action === "farewell";

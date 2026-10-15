@@ -4,20 +4,6 @@ import { latestCheckEvidence, type CheckCandidate, type CheckEvidence, type Ques
 
 type CheckCapture = { event: number; quest: string; capture: string };
 
-export function createCheckTables(db: DatabaseSync): void {
-  db.exec(`CREATE TABLE IF NOT EXISTS quest_checks (
-    id TEXT PRIMARY KEY, quest TEXT NOT NULL REFERENCES quests(id) ON DELETE CASCADE,
-    name TEXT NOT NULL, command TEXT NOT NULL);
-    CREATE TABLE IF NOT EXISTS quest_check_evidence (
-    event INTEGER PRIMARY KEY REFERENCES quest_events(id) ON DELETE CASCADE,
-    command TEXT NOT NULL, passed INTEGER NOT NULL, matches TEXT NOT NULL, fingerprint TEXT, base TEXT, capture TEXT);
-    CREATE INDEX IF NOT EXISTS quest_checks_quest ON quest_checks(quest);`);
-  // These tables predate the numbered quest migrations. Upgrade existing databases in place.
-  const columns = db.prepare("PRAGMA table_info(quest_check_evidence)").all();
-  for (const column of ["base", "capture"]) if (!columns.some((item) => item.name === column)) {
-    db.exec(`ALTER TABLE quest_check_evidence ADD COLUMN ${column} TEXT`);
-  }
-}
 function decodeEvidence(row: Record<string, unknown>): CheckEvidence {
   return { command: String(row.command), passed: Boolean(row.passed), checks: JSON.parse(String(row.matches)),
     at: Number(row.at), session: String(row.session), hero: row.hero ? String(row.hero) : undefined, base: row.base ? String(row.base) : undefined,
@@ -25,11 +11,27 @@ function decodeEvidence(row: Record<string, unknown>): CheckEvidence {
 }
 export class CheckDatabase {
   readonly fingerprints = new Map<string, WorkFingerprint | undefined>();
-  constructor(private readonly db: DatabaseSync) { createCheckTables(db); }
+  constructor(private readonly db: DatabaseSync) {}
   list(quest: string): QuestCheck[] {
     const evidence = this.evidence(quest);
     return (this.db.prepare("SELECT id,name,command FROM quest_checks WHERE quest=? ORDER BY rowid").all(quest) as unknown as QuestCheck[])
       .map((check) => ({ ...check, evidence: latestCheckEvidence(check.id, evidence) }));
+  }
+  listAll(): Map<string, QuestCheck[]> {
+    const latest = new Map<string, CheckEvidence>();
+    const rows = this.db.prepare(`SELECT q.quest,e.command,e.passed,e.matches,e.fingerprint,e.base,q.at,q.session,q.hero FROM quest_check_evidence e
+      JOIN quest_events q ON q.id=e.event WHERE EXISTS (SELECT 1 FROM quest_checks c WHERE c.quest=q.quest) ORDER BY q.at,q.id`).all();
+    for (const row of rows) {
+      const evidence = decodeEvidence(row);
+      for (const id of evidence.checks) latest.set(`${row.quest}:${id}`, evidence);
+    }
+    const quests = new Map<string, QuestCheck[]>();
+    for (const row of this.db.prepare("SELECT quest,id,name,command FROM quest_checks ORDER BY rowid").all()) {
+      const quest = String(row.quest), checks = quests.get(quest) ?? [];
+      checks.push({ id: String(row.id), name: String(row.name), command: String(row.command), evidence: latest.get(`${quest}:${row.id}`) });
+      quests.set(quest, checks);
+    }
+    return quests;
   }
   add(quest: string, input: CheckCandidate): void {
     this.db.prepare("INSERT INTO quest_checks VALUES (?,?,?,?)").run(randomUUID(), quest, input.name.trim(), input.command.trim());

@@ -53,9 +53,10 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
         await questRequest(`/${id}/base`, "DELETE"); await open(id);
       }, preview?.(quest), {
         talk: (id, session) => { dialog.close(); if (hero(id)) talk(id); else terminal?.(session); },
-        review: (id, session) => { dialog.close(); openReview(name(id) ?? hero(id)?.name ?? id, session, () => { void open(quest.id); }, () => terminal?.(session)); },
+        review: (id, session) => { dialog.close(); openReview(name(id) ?? hero(id)?.name ?? id, hero(id) ? session : { quest: quest.id },
+          hero(id) ? () => talk(id) : undefined, hero(id) ? () => terminal?.(session) : undefined); },
         embark: () => { dialog.close(); embark(quest); },
-      }));
+      }, () => { dialog.close(); openReview(quest.title, { quest: quest.id }, undefined, undefined); }));
     show(quest.title);
   }
   function create(session?: string, townKey = town()): void {

@@ -47,7 +47,8 @@ export function narrate(event: AgentEvent, previousContext?: number, language: L
   switch (event.hook) {
     case "SessionStart": return tr(`${name}が 町に やってきた！`, `${name} arrived in town!`);
     case "SessionEnd": return tr(`${name}は 旅立っていった。`, `${name} set off on a journey.`);
-    case "Interrupt": return tr(`${name}は たたかいから にげだした！`, `${name} fled the battle!`);
+    case "Interrupt": return tr(`${name}に とめるよう たのんだ。`, `Asked ${name} to stop.`);
+    case "InterruptConfirmed": return tr(`${name}が とまった。`, `${name} stopped.`);
     case "UserPromptSubmit": return tr(`${name}は あたらしい いらいを うけた！`, `${name} took on a new quest!`);
     case "Notification": return event.state === "waiting_input" ? tr(`${name}は あなたを よんでいる！`, `${name} is calling you!`)
       : event.state === "idle" ? tr(`${name}は つぎの いらいを まっている。`, `${name} awaits the next quest.`) : undefined;
@@ -67,6 +68,7 @@ export function narrate(event: AgentEvent, previousContext?: number, language: L
     case "TaskCompleted": return tr(`クエスト${quoted(event.task?.subject, "", "ja")}を たっせいした！`, `Quest complete${event.task?.subject ? `: ${quoted(event.task.subject, "", "en")}` : ""}!`);
     case "PreToolUse": return event.tool ? begin(name, toolActivity(event.tool, target), target, event.tool, language) : undefined;
     case "PostToolUse":
+      if (event.source === "codex") return tr(`${name}の どうぐが おわった。成否は ふめい。`, `${name}'s tool finished. Result unknown.`);
       if (event.state === "error") return tr(`${name}は ダメージを うけた！（${event.tool ?? "こうどう"}が しっぱい）`, `${name} took damage! (${event.tool ?? "Action"} failed)`);
       return event.tool ? finish(event, toolActivity(event.tool, target), language) : undefined;
     case "PostToolUseFailure":

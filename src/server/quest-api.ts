@@ -15,11 +15,12 @@ export async function handleQuestRequest(request: IncomingMessage, response: Ser
     const parts = url.pathname.split("/");
     const id = parts[3] ? decodeURIComponent(parts[3]) : undefined;
     const method = request.method;
+    // town in query/JSON is the town key, not its display name.
     if (!id && method === "GET") { json(response, 200, quests.list().filter((quest) => !url.searchParams.has("town") || quest.town === url.searchParams.get("town"))); return; }
     if (!id && method === "DELETE") {
-      const town = url.searchParams.get("town") ?? undefined;
-      if (town && !towns.some((item) => townKey(item) === town)) { json(response, 404, { error: tr("町が みつからない", "Town not found") }); return; }
-      quests.clear(town); response.writeHead(204).end(); return;
+      const key = url.searchParams.get("town") ?? undefined;
+      if (key && !towns.some((item) => townKey(item) === key)) { json(response, 404, { error: tr("町が みつからない", "Town not found") }); return; }
+      quests.clear(key); response.writeHead(204).end(); return;
     }
     if (id && !quests.get(id)) { json(response, 404, { error: tr("クエストが みつからない", "Quest not found") }); return; }
     if (id && !parts[4] && method === "GET") { json(response, 200, quests.get(id)); return; }
@@ -30,11 +31,11 @@ export async function handleQuestRequest(request: IncomingMessage, response: Ser
     if (!body.ok) return;
     const input = body.value && typeof body.value === "object" && !Array.isArray(body.value) ? body.value as Record<string, unknown> : {};
     if (!id && method === "POST") {
-      const { town, ...patch } = input;
-      if (typeof town !== "string" || !towns.some((item) => townKey(item) === town) || !validQuestPatch(patch) || !patch.title) {
+      const { town: key, ...patch } = input;
+      if (typeof key !== "string" || !towns.some((item) => townKey(item) === key) || !validQuestPatch(patch) || !patch.title) {
         json(response, 400, { error: tr("町と クエストの 題を えらんで", "Choose a town and quest title") }); return;
       }
-      json(response, 201, quests.create(town, patch.title, patch.purpose)); return;
+      json(response, 201, quests.create(key, patch.title, patch.purpose)); return;
     }
     if (id && parts[4] === "base" && method === "POST") {
       const chosen = typeof input.session === "string" ? session(input.session) : undefined;

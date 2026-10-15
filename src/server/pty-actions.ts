@@ -69,9 +69,13 @@ export function observe(session: Session, event: AgentEvent, at: number,
     if (event.hook === "UserPromptSubmit") session.hasPrompt = true;
     if (event.name) session.name = event.name;
   }
+  if (session.departing || at < session.eventAt) return;
   if (event.hook === "SessionEnd") session.ended = true;
-  if (session.departing || session.interrupting || at < session.eventAt) return;
   const waiting = waitingAfterEvent(event, session.interrupted);
+  if (session.interrupting) {
+    if (waiting !== true && event.hook !== "SessionEnd") return;
+    session.interrupting = false;
+  }
   if (waiting === undefined) return;
   session.eventAt = at;
   if (event.hook === "UserPromptSubmit") session.interrupted = false;
@@ -102,11 +106,7 @@ export async function act(session: Session, action: SessionAction,
   session.eventAt = Date.now(); // Ignore hooks already in flight before Esc.
   session.waiting = false;
   if (action === "interrupt") {
-    session.interrupting = true;
-    try {
-      await new Promise<void>((resolve) => setTimeout(resolve, 300)); // Let Esc restore the draft before the next say.
-      session.waiting = !session.info.exited && !session.ended;
-    } finally { session.interrupting = false; }
+    session.interrupting = true; // A later main ready/end hook, not elapsed time, confirms the stop.
     return;
   }
   session.departing = true; // No queued/new turn may race with /exit.

@@ -32,7 +32,8 @@ export function toolActivity(tool: string, target?: string): Activity {
 // Undefined means the event does not change what the agent is doing.
 export function classifyActivity(event: AgentEvent): Activity | undefined {
   switch (event.hook) {
-    case "SessionStart": case "Stop": case "StopFailure": case "Interrupt": return "idle";
+    case "Interrupt": return undefined;
+    case "SessionStart": case "Stop": case "StopFailure": case "InterruptConfirmed": return "idle";
     case "UserPromptSubmit": return "think";
     case "PreCompact": return "rest";
     case "PostCompact": return "idle";

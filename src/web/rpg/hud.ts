@@ -6,6 +6,7 @@ import { compactRow, element, statusCard } from "./status-card";
 import { initNameEditor } from "./names";
 import { renderPartyList } from "../town/party-list";
 import { townNameForKey } from "../../core/town-ledger";
+import { interruptStatus } from "./interrupt-status";
 
 export type Permission = { id: string; tool: string; summary: string; content: string; omitted: number; expiresAt: number; agent?: string; helper?: string };
 type Decision = "allow" | "deny" | "terminal";
@@ -62,7 +63,7 @@ export class Status {
   }
 
   private signature(agent: RoomAgent, now: number, name: string, permission?: Permission, detailed = false): string {
-    return JSON.stringify([name, agent.branch, agent.activity, agent.target, moods(agent, now), stats(agent, now),
+    return JSON.stringify([name, agent.branch, agent.activity, agent.target, interruptStatus(agent, now), moods(agent, now), stats(agent, now),
       agent.tasks, agent.helpers, agent.terminal, permission, agent.log, this.equipment(agent.terminal),
       detailed ? Math.max(0, Math.floor((now - agent.since) / 1000)) : undefined]);
   }
@@ -93,7 +94,7 @@ export class Status {
     this.counted(agents.length);
     const waiting = (id: string) => [...this.permissions.values()].some((item) => (item.agent ?? "default") === id);
     const signature = JSON.stringify([chosen?.id, agents.map((agent) => [agent.id, names.get(agent.id) ?? agent.name, agent.project, this.townName(agent.project ?? agent.name), agent.branch,
-      agent.activity, agent.target, stats(agent, now), waiting(agent.id)])]);
+      agent.activity, agent.target, interruptStatus(agent, now), stats(agent, now), waiting(agent.id)])]);
     if (signature !== this.listSignature) {
       this.listSignature = signature;
       renderPartyList(this.list, agents, (agent) => compactRow(agent, now, names.get(agent.id) ?? agent.name,

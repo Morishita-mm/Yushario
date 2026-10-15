@@ -45,7 +45,7 @@ function copyCursor(cursor: Cursor): Cursor {
 
 function toolMark(event: AgentEvent): Tool {
   const mark: Tool = { tools: event.hook === "PreToolUse" ? 1 : 0, failures: 0, passed: 0, failed: 0 };
-  if (event.hook === "PreToolUse") return mark;
+  if (event.hook === "PreToolUse" || event.source === "codex") return mark;
   const failed = event.state === "error";
   const activity = toolActivity(event.tool!, event.target);
   if (failed) mark.failures = 1;

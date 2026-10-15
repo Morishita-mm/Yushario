@@ -1,6 +1,7 @@
 import { MAX_EVENT_METADATA_LENGTH } from "./events";
 import type { Equipment } from "./equipment";
 
+// project is the town key, not its display name.
 export type RosterEntry = { sessionId: string; name: string; project: string; cwd: string; leftAt: number } & Equipment;
 export const ROSTER_LIMIT = 50;
 

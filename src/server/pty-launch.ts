@@ -6,6 +6,7 @@ import { spawn } from "node-pty";
 import { AGENTS, agentExecutables, type Preset } from "./agents";
 import { isClaudeSessionId } from "../core/roster";
 import { equipmentArgs, type AgentEquipment, type Equipment } from "../core/equipment";
+import { CODEX_HOOKS } from "../core/codex";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
 // Keep user configuration, but not server secrets or inherited child-session markers.
@@ -32,6 +33,15 @@ export function writeClaudeSettings(port: number, temporary: string): string {
   return settings;
 }
 
+export function codexHookArgs(): string[] {
+  const source = import.meta.url.endsWith(".ts");
+  const runner = source ? `${quote(process.execPath)} --import ${quote(import.meta.resolve("tsx"))}` : quote(process.execPath);
+  const command = `${runner} ${quote(join(root, source ? "adapters/codex/hook.ts" : "lib/adapters/codex/hook.js"))}`;
+  // Session overrides merge with existing hooks; never edit CODEX_HOME or bypass trust.
+  return ["-c", "features.hooks=true", ...CODEX_HOOKS.flatMap((event) => ["-c",
+    `hooks.${event}=[{hooks=[{type="command",command=${JSON.stringify(command)},timeout=1}]}]`])];
+}
+
 export function launchPty(preset: Preset, cwd: string, id: string, port: number, settings: string,
   equipment: Equipment, master: AgentEquipment, project: string, resume?: string, agentToken?: string) {
   const agent = AGENTS[preset];
@@ -39,7 +49,7 @@ export function launchPty(preset: Preset, cwd: string, id: string, port: number,
   const program = agent.command;
   const path = agentExecutables[preset];
   if (!path) throw new Error(tr(`${program} が PATH に見つかりません。① CLI を入れて PATH に追加 → ② yushario を止める（Ctrl+C）→ ③ 起動し直してください。`, `${program} not found in PATH. Install it, then stop and restart yushario.`));
-  const args = [...agent.args.map((arg) => arg === "$settings" ? settings : arg),
+  const args = [...agent.args.flatMap((arg) => arg === "$settings" ? [settings] : arg === "$codex-hooks" ? codexHookArgs() : [arg]),
     ...(resume ? [...agent.resumeArgs, resume] : []), ...equipmentArgs(equipment, master, agent, serverLanguage())];
   const env = Object.fromEntries(Object.entries(process.env).filter((entry): entry is [string, string] => entry[1] !== undefined));
   for (const name of serverOnlyEnvironment) delete env[name];

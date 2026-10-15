@@ -17,7 +17,7 @@ export interface AgentEvent {
   agent?: string; // Session id; one character per session.
   name?: string; // Display name (last segment of the working directory).
   terminal?: string; // Embedded terminal session id.
-  project?: string; // Repository identity (shared by its worktrees).
+  project?: string; // Town key, not a display name (shared by its worktrees).
   branch?: string; // Local branch, for the base's name badge.
   text?: string; // Prompt/final reply for local conversation display only.
   hook?: string; // Harness hook name, e.g. "PreToolUse".

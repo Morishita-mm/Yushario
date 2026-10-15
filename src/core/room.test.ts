@@ -236,10 +236,10 @@ describe("moods", () => {
 });
 
 describe("Room interrupt", () => {
-  it("ends the battle when the server reports an interrupt (Claude sends no hook for Esc)", () => {
+  it("keeps the battle while a stop request is unconfirmed", () => {
     const room = new Room();
     room.apply({ state: "working", agent: "s1", hook: "PreToolUse", tool: "Bash", target: "ping" }, 10);
     const agent = room.apply({ state: "idle", agent: "s1", hook: "Interrupt" }, 20)!;
-    expect(agent).toMatchObject({ activity: "idle", running: false });
+    expect(agent).toMatchObject({ activity: "run", running: true, stopRequestedAt: 20 });
   });
 });

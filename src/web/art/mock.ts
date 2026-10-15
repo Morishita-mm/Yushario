@@ -16,7 +16,7 @@ import { drawInn } from "../town/inn";
 import { drawChurch, PRIEST_LINES } from "../town/church";
 import { interiorHotspots } from "./mock-interior";
 import { drawTown, townSpots } from "../town/town";
-import { FIGHTS, PROJECTS, farewell, recall, ROSTER, SLEEPERS, PRAYERS, TOWN_REPORTS, townHeroes, walkers, equippedWalkers, townReports, CALLER, walkTown, initTown, heroPlace } from "./mock-data";
+import { FIGHTS, PROJECTS, farewell, recall, ROSTER, SLEEPERS, PRAYERS, townHeroes, walkers, equippedWalkers, townReports, CALLER, walkTown, initTown, heroPlace } from "./mock-data";
 import { notices } from "./mock-notices";
 import { renderHerald, noticesInTown, showTownList, showArchivedTowns, showThemeChooser, type Notice } from "../town/herald";
 import { drawWorld, markers, plate, regionName, sleeping, type Project } from "../town/world";
@@ -27,7 +27,7 @@ import { noticeMarkMotion } from "../../core/notice-mark";
 import { initSideTabs } from "../town/side-tabs";
 import { renderMockParty } from "./mock-party";
 import { drawNoticeArrow } from "../town/notice-mark";
-import { SCENES, sceneSize, initSceneTabs, type Place, type Scene } from "./mock-scenes";
+import { SCENES, sceneSize, initSceneTabs, updateSceneTabs, type Place, type Scene } from "./mock-scenes";
 const SCALE = 2;
 const canvas = document.querySelector<HTMLCanvasElement>("#mock")!;
 const ctx = canvas.getContext("2d")!;
@@ -186,24 +186,28 @@ function hotspots(): Hot[] {
       const line = PRIEST_LINES[priestLine++ % PRIEST_LINES.length];
       document.querySelector<HTMLElement>("#messages")!.textContent = tr(`神父さま「${line}」`, `Priest: "${line}"`);
     });
-  if (place === "town") {
-    const spots: Hot[] = [questBoardHotspot(art, town.theme, () => sideTabs.show("quests")), { ...townSpots(art, town.theme).inn, act: () => go(byId("inn")) },
-      { ...townSpots(art, town.theme).church, act: () => go(byId("church")) }];
-    for (const hero of townHeroes()) {
-      spots.push({ x: hero.x - 16, y: hero.y - 76, w: 32, h: 80, act: () => commands(hero.name, hero.x, hero.y, false) });
-    }
-    spots.push({ x: 8, y: 8, w: 130, h: 22, text: tr("◀ ワールドマップ", "◀ World Map"), act: () => go(byId("world")) });
-    spots.push({ ...rosterPlate, act: () => showRoster(reportRoot, ROSTER, (name) => { recall(art, name); toast(tr(`${name} を よびもどした！ もんから もどってくる`, `${name} recalled! Returning through the gate`)); }) });
-    if (gateMenu) {
-      (["meadow", "cave", "forest"] as const).forEach((theme, i) => spots.push({
-        x: 410, y: 404 + i * 20, w: 140, h: 18, text: `▶ ${byId(theme).label}`, act: () => go(byId(theme)),
-      }));
-    } else {
-      spots.push({ x: 430, y: 488, w: 100, h: 52, text: tr("▼ フィールドへ", "▼ To the field"), act: () => { gateMenu = true; } });
-    }
-    return spots;
-  }
+  if (place === "town") return townHotspots();
   if (!place) return [];
+  return fieldHotspots(place);
+}
+function townHotspots(): Hot[] {
+  const spots: Hot[] = [questBoardHotspot(art, town.theme, () => sideTabs.show("quests")), { ...townSpots(art, town.theme).inn, act: () => go(byId("inn")) },
+    { ...townSpots(art, town.theme).church, act: () => go(byId("church")) }];
+  for (const hero of townHeroes()) {
+    spots.push({ x: hero.x - 16, y: hero.y - 76, w: 32, h: 80, act: () => commands(hero.name, hero.x, hero.y, false) });
+  }
+  spots.push({ x: 8, y: 8, w: 130, h: 22, text: tr("◀ ワールドマップ", "◀ World Map"), act: () => go(byId("world")) });
+  spots.push({ ...rosterPlate, act: () => showRoster(reportRoot, ROSTER, (name) => { recall(art, name); toast(tr(`${name} を よびもどした！ もんから もどってくる`, `${name} recalled! Returning through the gate`)); }) });
+  if (gateMenu) {
+    (["meadow", "cave", "forest"] as const).forEach((theme, i) => spots.push({
+      x: 410, y: 404 + i * 20, w: 140, h: 18, text: `▶ ${byId(theme).label}`, act: () => go(byId(theme)),
+    }));
+  } else {
+    spots.push({ x: 430, y: 488, w: 100, h: 52, text: tr("▼ フィールドへ", "▼ To the field"), act: () => { gateMenu = true; } });
+  }
+  return spots;
+}
+function fieldHotspots(place: "meadow" | "cave" | "forest"): Hot[] {
   const exits: Hot[] = FIELD_EXITS[place].map((exit) => ({ x: exit.x - 44, y: exit.y - 14, w: 88, h: 22, text: exit.text, act: () => go(byId(exit.to)) }));
   for (const fight of FIGHTS[place]) {
     if (fight.done) {
@@ -219,27 +223,6 @@ function hotspots(): Hot[] {
 function hit(x: number, y: number): Hot | undefined {
   return hotspots().find((h) => x >= h.x && x <= h.x + h.w && y >= h.y && y <= h.y + h.h);
 }
-function updateTabs(now: number): void {
-  for (const button of tabs.querySelectorAll<HTMLButtonElement>("button")) {
-    const scene = byId(button.dataset.id!);
-    const theme = scene.place && scene.place !== "town" && scene.place !== "inn" && scene.place !== "church" && scene.place !== "world" ? scene.place : undefined;
-    const count = button.querySelector<HTMLElement>(".count");
-    const alert = button.querySelector<HTMLElement>(".alert");
-    if (!count || !alert) continue;
-    if (scene.place === "world") count.textContent = `🏰 ${PROJECTS.length}`;
-    else if (scene.place === "town") count.textContent = `👤 ${7 + 3}`;
-    else if (scene.place === "inn") count.textContent = `💤 ${SLEEPERS.length}`;
-    else if (scene.place === "church") count.textContent = tr(`祈り ${PRAYERS.length}`, `Praying ${PRAYERS.length}`);
-    else if (theme) count.textContent = `⚔️ ${FIGHTS[theme].filter((f) => !f.done).length}`;
-    if (scene.place === "town") button.querySelector(".name")!.textContent = town.repo;
-    const unread = theme !== undefined && FIGHTS[theme].some((f) => f.done && !read.has(f.name))
-      || scene.place === "town" && TOWN_REPORTS.some((r) => !read.has(r.name));
-    const trouble = unread || theme !== undefined && current.place !== theme
-      && FIGHTS[theme].some((fight) => { const c = (now + fight.x * 7) % 4200; return !fight.done && c > 2600 && c < 3600; });
-    alert.style.visibility = trouble || (scene.place === "town" && current.place !== "town") ? "visible" : "hidden";
-  }
-}
-
 function frame(now: number): void {
   const dt = Math.min(100, now - last);
   last = now;
@@ -252,6 +235,14 @@ function frame(now: number): void {
   const motion = mark?.at === undefined ? undefined : noticeMarkMotion(Math.max(0, now - mark.at));
   if (mark?.at !== undefined && !motion) mark = undefined;
   const notice = mark && motion ? { id: mark.id, ...motion } : undefined;
+  drawScene(now, dt, w, h, notice);
+  drawNoticeArrow(ctx, notice);
+  drawNavigation(ctx, hotspots(), pointer, gateMenu);
+  drawFade(now, w, h);
+  updateSceneTabs(tabs, current, town.repo, read, now);
+  requestAnimationFrame(frame);
+}
+function drawScene(now: number, dt: number, w: number, h: number, notice?: Parameters<typeof drawNoticeArrow>[1]): void {
   if (current.place === "world") sleepingPlate = drawWorld(ctx, art, now, w, h, PROJECTS);
   else if (current.place === "town") {
     walkTown(art, now);
@@ -262,16 +253,13 @@ function frame(now: number): void {
   else if (current.place === "church") drawChurch(ctx, art, now, PRAYERS.map((prayer) => ({ id: prayer.name, ...prayer })), notice, town.repo);
   else if (current.place) drawField(ctx, art, current.place, now, FIGHTS[current.place], read, 0, notice, town.repo);
   else if (current.focus && ambient) drawFocus(ctx, art, battleBeat(current.focus, now), ambient, now, dt, w, h);
-  drawNoticeArrow(ctx, notice);
-  drawNavigation(ctx, hotspots(), pointer, gateMenu);
-
+}
+function drawFade(now: number, w: number, h: number): void {
   const flash = (now - fadeAt) / 300;
   if (flash < 1 || pending) {
     ctx.fillStyle = current.focus || returnTo ? `rgba(255,255,255,${pending ? flash : 1 - flash})` : `rgba(0,0,0,${pending ? Math.min(1, flash) : Math.max(0, 1 - flash)})`;
     ctx.fillRect(0, 0, w, h);
   }
-  updateTabs(now);
-  requestAnimationFrame(frame);
 }
 
 function mapPoint(event: MouseEvent): [number, number] {
@@ -290,11 +278,12 @@ canvas.addEventListener("click", (event) => {
 });
 
 initSceneTabs(tabs, (scene) => { returnTo = undefined; show(scene); });
-void (async () => {
+async function start(): Promise<void> {
   await art.load();
   initTown(art, town.theme);
   await document.fonts.load('10px "DotGothic16"');
   show(current);
   refreshHerald();
   requestAnimationFrame(frame);
-})();
+}
+void start();

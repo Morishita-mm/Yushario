@@ -10,6 +10,16 @@ import type { Sheets } from "../town/sheets";
 import type { Walker } from "../town/walkers";
 import { fights } from "./battles";
 import { FIELD_NAMES } from "./navigation";
+import { markers, type Project } from "../town/world";
+
+type Plate = { x: number; y: number; w: number; h: number };
+export function worldHotspots(art: Sheets, w: number, h: number, towns: Project[], sleeping: Plate, archived: Plate,
+  openList: (kind: "sleeping" | "archived" | TownTheme) => void, enter: (town: Project) => void) {
+  return [...markers(art, w, h, towns).map((marker) => ({ x: marker.x - 34, y: marker.y - 22, w: 68, h: 60, act: () => {
+    if (marker.projects.length > 1) openList(marker.theme);
+    else enter(marker.projects[0]);
+  } })), { ...sleeping, act: () => openList("sleeping") }, { ...archived, act: () => openList("archived") }];
+}
 
 export function localHotspots(art: Sheets, place: HeroPlace, heroes: TownHero[], walkers: Walker[], gateMenu: boolean,
   go: (place: HeroPlace, focused?: string) => void,

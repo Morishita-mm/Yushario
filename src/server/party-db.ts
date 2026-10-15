@@ -1,19 +1,6 @@
 import type { DatabaseSync } from "node:sqlite";
 import type { PartyMember } from "../core/party";
 
-export function createPartyTables(db: DatabaseSync): void {
-  db.exec(`CREATE TABLE IF NOT EXISTS quest_party (
-    session TEXT PRIMARY KEY, quest TEXT NOT NULL REFERENCES quests(id) ON DELETE CASCADE,
-    hero TEXT, role TEXT NOT NULL, note TEXT NOT NULL DEFAULT '', writer INTEGER NOT NULL DEFAULT 0, joinedAt INTEGER NOT NULL);
-    CREATE UNIQUE INDEX IF NOT EXISTS quest_party_writer ON quest_party(quest) WHERE writer=1;
-    CREATE UNIQUE INDEX IF NOT EXISTS quest_party_command ON quest_party(quest) WHERE role='command';
-    INSERT OR IGNORE INTO quest_party(session,quest,hero,role,note,writer,joinedAt)
-      SELECT b.session,b.quest,b.hero,'implement','',CASE WHEN q.session=b.session THEN 1 ELSE 0 END,q.createdAt
-      FROM quest_sessions b JOIN quests q ON q.id=b.quest;
-    UPDATE quests SET session=(SELECT p.session FROM quest_party p WHERE p.quest=quests.id AND p.role='implement' ORDER BY p.joinedAt,p.rowid LIMIT 1),
-      hero=(SELECT p.hero FROM quest_party p WHERE p.quest=quests.id AND p.role='implement' ORDER BY p.joinedAt,p.rowid LIMIT 1)
-      WHERE EXISTS (SELECT 1 FROM quest_party p WHERE p.quest=quests.id);`);
-}
 export class PartyDatabase {
   constructor(private readonly db: DatabaseSync) {}
   list(quest: string): PartyMember[] {

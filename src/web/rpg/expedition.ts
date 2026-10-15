@@ -2,7 +2,7 @@ import { tr } from "../language";
 import { connectSessionTerminal, sessionRequest, type Session } from "../terminal";
 import { loadSettings, loadTowns, type TownRecord } from "./ledger";
 import { coverMap } from "./talk";
-import { loadAgents, type AgentInfo } from "./agents";
+import { codexNotice, loadAgents, type AgentInfo } from "./agents";
 import type { EquipmentMaster } from "../../core/equipment";
 import { loadEquipment } from "./equipment";
 import { initExpeditionBases } from "./expedition-bases";
@@ -36,9 +36,10 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
   const weapon = document.querySelector<HTMLSelectElement>("#expedition-weapon")!;
   const accessory = document.querySelector<HTMLSelectElement>("#expedition-accessory")!;
   const describe = () => {
-    document.querySelector<HTMLElement>("#expedition-capability")!.textContent = agents.find((agent) => agent.id === preset.value)?.hero
-      ? tr("町・会話に 対応", "Town and conversation supported")
-      : tr("ターミナルのみ（勇者は出ない）", "Terminal only (no hero appears)");
+    document.querySelector<HTMLElement>("#expedition-capability")!.textContent = preset.value === "codex" ? codexNotice()
+      : agents.find((agent) => agent.id === preset.value)?.hero
+        ? tr("町・会話に 対応", "Town and conversation supported")
+        : tr("ターミナルのみ（勇者は出ない）", "Terminal only (no hero appears)");
     const items = equipment[preset.value];
     weapon.replaceChildren(new Option(tr("そうびなし（きほん）", "None (default)"), ""));
     accessory.replaceChildren(new Option(tr("そうびなし（きほん）", "None (default)"), ""));
@@ -209,7 +210,7 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
       if (launching !== request || !launch.open) return; // Closing never cancels or deletes a created session.
       const session = result as Session;
       // Terminal-only presets must never wait for a hero who cannot arrive.
-      if (!agents.find((agent) => agent.id === session.preset)?.hero) { prepareTerminal(); attach(session); return; }
+      if (session.preset === "codex" || !agents.find((agent) => agent.id === session.preset)?.hero) { prepareTerminal(); attach(session); return; }
       const towns = await loadTowns();
       if (launching !== request || !launch.open) return;
       closeLaunch();

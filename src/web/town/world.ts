@@ -5,6 +5,7 @@ import type { Sheets } from "./sheets";
 // The world map. Every project (repository) is a town in the region of its kind.
 // Only towns with agents in them are on the map; quiet ones sleep in a list. When one region has
 // too many towns, they are shown as one bundle that opens a list.
+// repo is the town key, not its display name (label).
 export interface Project { repo: string; label?: string; theme?: TownTheme; heroes: number; fighting: number; unread: number; calling: boolean; pinned?: boolean }
 
 const BUNDLE_AT = 5; // this many active towns in one region become one bundle

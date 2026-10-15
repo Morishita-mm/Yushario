@@ -26,7 +26,7 @@ export class QuestParty {
   private readonly observedEdits = new Set<string>();
   private readonly requests = new Map<string, { text: string; detail?: string }[]>();
   private readonly replies = new Map<string, { at: number; text: string }>();
-  latestReply(quest: string): string | undefined { return this.quests.get(quest) ? this.replies.get(quest)?.text : undefined; }
+  latestReply(quest: string): string | undefined { return this.quests.summary(quest) ? this.replies.get(quest)?.text : undefined; }
   constructor(readonly quests: QuestLedger, readonly pty: ReturnType<typeof createPtyServer>,
     private readonly broadcast: (value: object) => void, private readonly record: (event: AgentEvent) => void,
     private readonly name: (id: string) => string | undefined) {}
@@ -38,11 +38,12 @@ export class QuestParty {
     for (const key of this.warnings.keys()) if (key.startsWith(`${session}:`)) this.warnings.delete(key);
     for (const [id, invite] of this.invitations) if (invite.from === session || invite.session === session) this.invitations.delete(id);
   }
-  prune(): void {
-    for (const quest of this.replies.keys()) if (!this.quests.get(quest)) this.replies.delete(quest);
+  prune(knownQuests?: Set<string>): void {
+    const exists = (id: string) => knownQuests ? knownQuests.has(id) : Boolean(this.quests.summary(id));
+    for (const quest of this.replies.keys()) if (!exists(quest)) this.replies.delete(quest);
     const sessions = new Set([...this.turnStarts.keys(), ...this.requests.keys(), ...[...this.observedEdits, ...this.warned].map((key) => key.slice(0, key.lastIndexOf(":")))]);
     for (const session of sessions) if (!this.quests.member(session)) this.forgetSession(session);
-    for (const [id, warning] of this.warnings) if (!this.quests.get(warning.quest)) this.warnings.delete(id);
+    for (const [id, warning] of this.warnings) if (!exists(warning.quest)) this.warnings.delete(id);
   }
   private trimTurns(session: string): void {
     const keys = [...new Set([...this.observedEdits, ...this.warned])].filter((key) => key.startsWith(`${session}:`))
@@ -51,7 +52,7 @@ export class QuestParty {
   }
   snapshot() {
     this.prune();
-    for (const [id, invite] of this.invitations) if (!this.quests.get(invite.quest) || !agentAuthorized(true, Boolean(this.pty.agentSession(invite.from)?.active), this.quests.member(invite.from), invite.quest, "invite")) this.invitations.delete(id);
+    for (const [id, invite] of this.invitations) if (!this.quests.summary(invite.quest) || !agentAuthorized(true, Boolean(this.pty.agentSession(invite.from)?.active), this.quests.member(invite.from), invite.quest, "invite")) this.invitations.delete(id);
     return { type: "party-notices", invitations: [...this.invitations.values()], warnings: [...this.warnings.values()] };
   }
   private changed(): void { this.broadcast(this.snapshot()); }
@@ -115,8 +116,8 @@ export class QuestParty {
     }
     if (member && !event.subagent && ["Stop", "StopFailure"].includes(event.hook ?? "") && event.text !== undefined && at >= (this.replies.get(member.quest)?.at ?? -Infinity)) this.replies.set(member.quest, { at, text: event.text });
     if (!member || event.subagent || !["Stop", "StopFailure", "PostToolUse", "PostToolUseFailure"].includes(event.hook ?? "")) return;
-    const quest = this.quests.get(member.quest);
-    for (const report of quest?.events.filter((item) => item.kind === "report" && item.session === session.id && item.at >= at && (item.report?.startedAt ?? item.at) <= at) ?? []) {
+    if (member.writer) return;
+    for (const report of this.quests.reportsAfter(session.id, at)) {
       if (!this.observedEdits.has(`${session.id}:${report.report?.startedAt}`)) this.warn(member.writer, report, session);
     }
   }

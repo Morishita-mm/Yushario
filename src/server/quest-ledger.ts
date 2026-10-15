@@ -8,6 +8,7 @@ import { forgetCheckFingerprint } from "./checks";
 import { emptyTurns, recordTurn, type Turns } from "../core/turns";
 import type { TerminalSession } from "./pty-session";
 import { QuestDatabase } from "./quest-db";
+import { reviewResult } from "./review";
 import { serverLanguage, tr } from "./language";
 
 export class QuestLedger {
@@ -17,6 +18,8 @@ export class QuestLedger {
   private readonly submitted = new Map<string, string[]>();
   private readonly latestAt = new Map<string, number>();
   private readonly waiting = new Map<string, boolean>();
+  private closed = false;
+  private notificationPending = false;
   private partyState(id: string, state: Quest["state"]): Quest["state"] {
     return questStateForParty(state, this.party(id).map((member) => this.waiting.get(member.session) === true));
   }
@@ -41,13 +44,15 @@ export class QuestLedger {
   snapshot() { return { type: "quests" as const, quests: this.db.list(), bindings: this.db.bindings(), reports: this.db.reports() }; }
   list(): Quest[] { return this.db.list(); }
   get(id: string) { return this.db.get(id); }
+  summary(id: string) { return this.db.summary(id); }
+  reportsAfter(session: string, at: number) { return this.db.reportsAfter(session, at); }
   get checks() { return this.db.checks; }
   checksChanged(): void { this.notify(); }
   party(id: string) { return this.db.party.list(id); }
   member(session: string) { return this.db.party.member(session); }
   sessionForHero(hero: string): string | undefined { return this.db.bindings().find((binding) => binding.hero === hero)?.session; }
   join(id: string, session: TerminalSession, role: PartyRole, note = "", writer?: boolean, hero?: string, at = Date.now()): void {
-    const quest = this.get(id);
+    const quest = this.db.summary(id);
     if (!quest || quest.town !== session.project) throw new Error(tr("この町の 勇者を えらんで", "Choose a hero in this town"));
     const previous = this.member(session.id), wasWaiting = this.waiting.get(session.id);
     if (previous && previous.quest !== id) { this.forgetSession(session.id); forgetCheckFingerprint(this, previous.quest); }
@@ -57,20 +62,27 @@ export class QuestLedger {
       joinedAt: previous?.quest === id ? previous.joinedAt : at });
     if (wasWaiting) this.waiting.set(session.id, true);
     if (this.partyState(id, quest.state) !== quest.state) this.patch(id, { state: "waiting" }, at);
-    if (!quest.worktreePath && role === "implement") this.db.update({ ...this.db.get(id)!, worktreePath: session.cwd, worktreeBranch: session.branch });
+    if (!quest.worktreePath && role === "implement") this.db.update({ ...this.db.summary(id)!, worktreePath: session.cwd, worktreeBranch: session.branch });
     this.addEvent(id, { kind: "party", at, title: tr("パーティーを かえた", "Party updated"), session: session.id, hero });
   }
   current(session: string): Quest | undefined {
-    const binding = this.db.bindings().find((item) => item.session === session);
-    return binding ? this.db.get(binding.quest) : undefined;
+    const member = this.member(session);
+    return member ? this.db.summary(member.quest) : undefined;
   }
-  private notify(): void { this.changed(this.snapshot()); }
+  private notify(): void {
+    if (this.notificationPending || this.closed) return;
+    this.notificationPending = true;
+    queueMicrotask(() => {
+      this.notificationPending = false;
+      if (!this.closed) this.changed(this.snapshot());
+    });
+  }
   create(town: string, title: string, purpose = "", at = Date.now()): Quest {
     const quest: Quest = { id: randomUUID(), town, title: title.trim(), purpose, state: "open", createdAt: at, updatedAt: at };
     this.db.save(quest); this.notify(); return quest;
   }
   patch(id: string, patch: Partial<Pick<Quest, "title" | "purpose" | "state">>, at = Date.now()): Quest {
-    const previous = this.db.get(id);
+    const previous = this.db.summary(id);
     if (!previous) throw new Error(tr("クエストが みつからない", "Quest not found"));
     const quest: Quest = { ...previous, ...patch, state: this.partyState(id, patch.state ?? previous.state), updatedAt: at };
     this.db.update(quest);
@@ -78,21 +90,22 @@ export class QuestLedger {
     this.notify(); return quest;
   }
   assign(id: string, session: TerminalSession, hero?: string, at = Date.now()): void {
-    const quest = this.db.get(id);
+    const quest = this.db.summary(id);
     if (!quest || quest.town !== session.project) throw new Error(tr("この町の クエストを えらんで", "Choose a quest in this town"));
     const member = this.member(session.id);
     this.join(id, session, member?.quest === id ? member.role : "implement", member?.quest === id ? member.note : "", undefined, hero, at);
-    this.db.add({ quest: id, kind: "assigned", title: tr("勇者が ついた", "Hero assigned"), at, session: session.id, hero });
+    this.db.add({ quest: id, kind: "assigned", title: tr("勇者が ついた", "Hero assigned"), at, session: session.id, hero, result: { cwd: session.cwd } });
     this.setWorktree(id, { path: session.cwd, branch: session.branch }, at);
   }
-  addEvent(id: string, event: Omit<QuestEvent, "id" | "quest">): void {
-    const quest = this.db.get(id);
+  addEvent(id: string, event: Omit<QuestEvent, "id" | "quest">): number | undefined {
+    const quest = this.db.summary(id);
     if (!quest) return;
-    this.db.add(savedQuestEvent({ ...event, quest: id }, this.keepText()));
+    const eventId = this.db.add(savedQuestEvent({ ...event, quest: id }, this.keepText()));
     this.db.update({ ...quest, updatedAt: Math.max(quest.updatedAt, event.at) }); this.notify();
+    return eventId;
   }
   setWorktree(id: string, base: { path: string; branch?: string } | undefined, at = Date.now()): void {
-    const quest = this.db.get(id);
+    const quest = this.db.summary(id);
     if (!quest) throw new Error(tr("クエストが みつからない", "Quest not found"));
     forgetCheckFingerprint(this, id);
     this.db.update({ ...quest, worktreePath: base?.path, worktreeBranch: base?.branch, updatedAt: at }); this.notify();
@@ -101,9 +114,9 @@ export class QuestLedger {
   foldedWorktree(path: string): void {
     for (const quest of this.db.list()) if (quest.worktreePath === path) this.clearWorktree(quest.id);
   }
-  reviewed(session: string, at: number): void {
-    const quest = this.current(session);
-    if (quest) this.addEvent(quest.id, { kind: "reviewed", at, title: tr("かんてい ずみ", "Reviewed"), session, hero: quest.hero });
+  reviewed(session: string, at: number, questId?: string): void {
+    const quest = questId ? this.get(questId) : this.current(session);
+    if (quest) this.addEvent(quest.id, { kind: "reviewed", at, title: tr("かんてい ずみ", "Reviewed"), session: session || undefined, hero: quest.hero });
   }
   requested(session: TerminalSession, text: string, at = Date.now(), hero?: string): void {
     let quest = this.current(session.id);
@@ -127,7 +140,7 @@ export class QuestLedger {
         const recalled = old && this.party(old.id).find((member) => member.hero === event.agent);
         if (old && recalled && canRecallHero(session.recalledHero, event.agent, terminalEnded(recalled.session))) {
           this.db.party.remove(recalled.session); this.db.party.put({ ...recalled, session: session.id });
-          this.addEvent(old.id, { kind: "assigned", at, title: tr("勇者が ついた", "Hero assigned"), session: session.id, hero: event.agent });
+          this.addEvent(old.id, { kind: "assigned", at, title: tr("勇者が ついた", "Hero assigned"), session: session.id, hero: event.agent, result: { cwd: session.cwd } });
           quest = this.current(session.id);
         }
       }
@@ -159,8 +172,12 @@ export class QuestLedger {
     this.turns.set(session.id, turns); recordTurn(turns, event, at);
     if (event.hook === "Stop" || event.hook === "StopFailure") {
       const report = turns.updates.get(at);
-      this.addEvent(quest.id, { kind: "report", title: reportTitle(report, serverLanguage()), at,
-        session: session.id, hero: event.agent, report, text: event.text });
+      const questId = quest.id, eventId = this.addEvent(questId, { kind: "report", title: reportTitle(report, serverLanguage()), at,
+        session: session.id, hero: event.agent, report, text: event.text, result: { cwd: session.cwd } });
+      // Save and broadcast the report first. Slow Git must never delay the hook.
+      if (eventId !== undefined) void reviewResult(session.cwd).then((result) => {
+        if (!this.closed && this.db.attachResult(eventId, questId, session.id, at, result)) this.notify();
+      }).catch(() => undefined);
     }
     for (const [endedAt, report] of turns.updates) if (report && endedAt !== at) {
       this.db.correctReport(session.id, endedAt, report, reportTitle(report, serverLanguage())); this.notify();
@@ -171,5 +188,5 @@ export class QuestLedger {
     for (const quest of this.list()) if (!town || quest.town === town) this.forgetQuest(quest.id);
     this.db.clear(town); this.previews.clearTown(town); this.notify();
   }
-  close(): void { this.db.close(); }
+  close(): void { this.closed = true; this.db.close(); }
 }

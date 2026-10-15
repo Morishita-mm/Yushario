@@ -8,7 +8,7 @@ import { partyEventTitle } from "../../core/party";
 export function questCard(quest: QuestDetail, heroName: string,
   save: (patch: { title: string; purpose: string; state: QuestState }) => Promise<void>,
   focus: () => void, report: (hero: string, at: number) => void, remove: () => Promise<void>,
-  embark?: () => void, fold?: () => Promise<void>, preview?: HTMLElement, party?: PartyControls): HTMLElement {
+  embark?: () => void, fold?: () => Promise<void>, preview?: HTMLElement, party?: PartyControls, review?: () => void): HTMLElement {
   const box = document.createElement("div"); box.className = "quest-card";
   const form = document.createElement("form");
   form.oninput = form.onchange = () => { form.dataset.dirty = "true"; };
@@ -36,6 +36,9 @@ export function questCard(quest: QuestDetail, heroName: string,
   who.disabled = !heroName; who.onclick = focus; box.append(who, status);
   if (quest.worktreePath) {
     const base = document.createElement("p"); base.className = "hint"; base.textContent = `⑂ ${quest.worktreeBranch ?? "HEAD"} — ${quest.worktreePath}`; box.append(base);
+  }
+  if (review) {
+    const button = document.createElement("button"); button.type = "button"; button.textContent = tr("▶ かんてい", "▶ Review"); button.onclick = review; box.append(button);
   }
   if (embark) {
     const button = document.createElement("button"); button.type = "button"; button.textContent = tr("▶ しゅつじん", "▶ Embark"); button.onclick = embark; box.append(button);
@@ -66,6 +69,10 @@ export function questCard(quest: QuestDetail, heroName: string,
       const r = event.report, duration = Math.max(0, Math.round((r.endedAt - r.startedAt - (r.waitedMs ?? 0)) / 1000));
       summary.textContent = `${r.files.join(", ")} · ${tr("テストの じっこう", "Test runs")} ○${r.tests.passed} ×${r.tests.failed} · ${duration}s`;
       row.append(summary);
+    }
+    if (event.kind === "report" && event.result) {
+      const result = document.createElement("p"); result.className = "hint";
+      result.textContent = `${event.result.branch ?? "—"} · HEAD ${event.result.head ?? "—"}`; row.append(result);
     }
     if (event.evidence) row.append(evidenceView(event.evidence));
     if (event.text) { const body = document.createElement("pre"); body.className = "quest-event-body"; body.textContent = event.text; row.append(body); }

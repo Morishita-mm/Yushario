@@ -13,13 +13,14 @@ export async function handlePreview(request: IncomingMessage, response: ServerRe
   };
   try {
     const questId = url.searchParams.get("quest"), quest = questId ? quests.get(questId) : undefined;
-    const town = quest?.town ?? url.searchParams.get("town");
-    if (questId && !quest || !town || !towns.some((item) => townKey(item) === town)) {
+    // town in query/JSON is the town key, not its display name.
+    const key = quest?.town ?? url.searchParams.get("town");
+    if (questId && !quest || !key || !towns.some((item) => townKey(item) === key)) {
       json(404, { error: tr("町か クエストが みつからない", "Town or quest not found") }); return;
     }
-    const links = quests.previews.list(questId, town);
+    const links = quests.previews.list(questId, key);
     if (request.method === "GET") {
-      const candidates = [...new Set(sessions.filter((session) => session.project === town &&
+      const candidates = [...new Set(sessions.filter((session) => session.project === key &&
         (!questId || quests.current(session.id)?.id === questId || !quests.current(session.id)))
         .flatMap((session) => session.previewUrls ?? []))];
       json(200, { links, candidates: candidates.filter((candidate) => previewUrl(candidate, port).ok) }); return;
@@ -43,6 +44,6 @@ export async function handlePreview(request: IncomingMessage, response: ServerRe
     if (input?.name !== undefined && (typeof input.name !== "string" || input.name.length > 200)) {
       json(400, { error: tr("名前は 200文字まで", "Names may have up to 200 characters") }); return;
     }
-    json(201, quests.previews.add(questId, town, typeof input?.name === "string" ? input.name.trim() : "", checked.url));
+    json(201, quests.previews.add(questId, key, typeof input?.name === "string" ? input.name.trim() : "", checked.url));
   } catch { json(400, { error: tr("プレビューを のこせない", "Could not save preview") }); }
 }

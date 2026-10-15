@@ -1,3 +1,4 @@
+// town is the town key, not its display name.
 export type PreviewLink = { id: string; quest: string | null; town: string; name: string; url: string };
 export type PreviewPage = { url: string; title: string; errors: string[]; count: number };
 export type PreviewUrlResult = { ok: true; url: string; origin: string } | { ok: false; reason: "local" | "port" | "self" | "invalid" };

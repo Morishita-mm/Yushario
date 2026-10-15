@@ -23,10 +23,19 @@ export function hasTrustPrompt(output: string): boolean {
   return /(?:Doyoutrust(?:thefilesin)?thisfolder|Yes,Itrustthisfolder|Isthisaprojectyoucreatedoroneyoutrust\?|Trustprojectfolder\?)/i.test(plain);
 }
 
+// Esc is a request, not proof of a stop. Only a subsequent main ready/end hook confirms it.
+export function stopRequestAfterEvent(current: number | undefined, event: AgentEvent, at: number): number | undefined {
+  if (event.subagent || at < (current ?? -Infinity)) return current;
+  if (event.hook === "Interrupt") return at;
+  if (["SessionStart", "Stop", "StopFailure", "PostCompact", "SessionEnd", "InterruptConfirmed"].includes(event.hook ?? "")) return undefined;
+  return current;
+}
+
 // Notifications and subagents cannot change the main conversation's readiness.
 export function waitingAfterEvent(event: AgentEvent, interrupted = false): boolean | undefined {
   if (event.subagent) return;
-  if (["SessionStart", "Stop", "StopFailure", "PostCompact", "Interrupt"].includes(event.hook ?? "")) return true;
+  if (event.hook === "Interrupt") return false;
+  if (["SessionStart", "Stop", "StopFailure", "PostCompact", "InterruptConfirmed"].includes(event.hook ?? "")) return true;
   if (["UserPromptSubmit", "PreToolUse", "PostToolUse", "PostToolUseFailure", "PreCompact"].includes(event.hook ?? "")) {
     // Tool completion/failure hooks can arrive after Esc; only a new prompt starts work again.
     if (interrupted && event.hook !== "UserPromptSubmit") return;

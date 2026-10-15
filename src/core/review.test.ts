@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { diffLines, parseGitNumstat, parseGitStatus, safeReviewPath } from "./review";
+import { diffLines, parseGitNameStatus, parseGitNumstat, parseGitStatus, safeReviewPath } from "./review";
 import { absoluteFile, editorUrl, fileReference } from "./file-path";
 import { reportTitle } from "./quests";
 import type { TalkReport } from "./turns";
@@ -16,6 +16,12 @@ describe("git review records", () => {
       { path: "gone.ts", status: "deleted" }, { path: "renamed.ts", oldPath: "old\tname.ts", status: "renamed" },
       { path: "new\nfile.ts", status: "untracked" },
     ] });
+  });
+  it("reads net branch changes with rename pairs and NUL-safe paths", () => {
+    expect(parseGitNameStatus("A\0new\nfile.ts\0M\0a b.ts\0D\0gone.ts\0R100\0old\tfile.ts\0renamed.ts\0")).toEqual([
+      { path: "new\nfile.ts", status: "added" }, { path: "a b.ts", status: "modified" }, { path: "gone.ts", status: "deleted" },
+      { path: "renamed.ts", oldPath: "old\tfile.ts", status: "renamed" },
+    ]);
   });
   it("reads numstat renames, binary and unusual paths", () => {
     expect(parseGitNumstat("2\t1\tsrc/a b.ts\0-\t-\tasset.png\0 0\t1\tbad\0"

@@ -6,8 +6,9 @@ import type { QuestCheck, WorkFingerprint, CheckEvidence } from "./checks";
 
 export const QUEST_STATES = ["open", "active", "waiting", "review", "done", "dropped"] as const;
 export type QuestState = typeof QUEST_STATES[number];
+// town is the town key, not its display name; JSON/storage keep the existing field name.
 export type Quest = { id: string; town: string; title: string; purpose: string; state: QuestState; createdAt: number; updatedAt: number; session?: string; hero?: string; writerSession?: string; worktreePath?: string; worktreeBranch?: string; checks?: QuestCheck[]; fingerprint?: WorkFingerprint };
-export type QuestEvent = { id: number; quest: string; kind: "request" | "report" | "state" | "assigned" | "reviewed" | "party" | "handoff" | "command" | "note" | "outside-role" | "check"; at: number; title: string; session?: string; hero?: string; report?: TalkReport; text?: string; evidence?: CheckEvidence };
+export type QuestEvent = { id: number; quest: string; kind: "request" | "report" | "state" | "assigned" | "reviewed" | "party" | "handoff" | "command" | "note" | "outside-role" | "check"; at: number; title: string; session?: string; hero?: string; report?: TalkReport; text?: string; evidence?: CheckEvidence; result?: import("./review-base").ReviewResult };
 export type QuestDetail = Quest & { events: QuestEvent[] };
 export type QuestBinding = { session: string; quest: string; hero?: string };
 export type QuestReportLink = { hero: string; at: number; title: string };
