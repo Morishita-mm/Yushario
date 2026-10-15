@@ -69,6 +69,13 @@ export class QuestLedger {
     if (!quest.worktreePath && role === "implement") this.db.update({ ...this.db.summary(id)!, worktreePath: session.cwd, worktreeBranch: session.branch });
     this.addEvent(id, { kind: "party", at, title: tr("パーティーを かえた", "Party updated"), session: session.id, hero });
   }
+  // Leaves the party only; the hero's terminal keeps running.
+  leave(id: string, session: string, at = Date.now()): void {
+    const member = this.member(session);
+    if (member?.quest !== id) return;
+    this.forgetSession(session); this.db.party.remove(session); forgetCheckFingerprint(this, id);
+    this.addEvent(id, { kind: "party", at, title: tr("パーティーから はずれた", "Left the party"), session, hero: member.hero });
+  }
   current(session: string): Quest | undefined {
     const member = this.member(session);
     return member ? this.db.summary(member.quest) : undefined;

@@ -1,11 +1,4 @@
-.quest-party { border-top: 2px solid #7782a0; margin-top: 18px; padding-top: 8px; }
-.party-member { padding: 10px 0; border-bottom: 1px solid #55617b; }
-.party-member p { margin: 5px 0; overflow-wrap: anywhere; }
-.party-member button, .party-introduction button, .quest-handoff button { margin: 4px 6px 4px 0; }
-.party-introduction, .party-role-editor, .quest-handoff { padding: 10px; margin-top: 12px; border: 1px solid #7782a0; }
-.quest-party summary { cursor: pointer; margin: 8px 0; }
-.quest-party label { display: block; margin: 8px 0; }
-.quest-party textarea, .quest-party select, .quest-party input:not([type=checkbox]) { display: block; width: 100%; margin-top: 5px; box-sizing: border-box; }
-.quest-party input[type=checkbox] { margin-left: 10px; }
-.quest-party textarea { resize: vertical; min-height: 100px; }
+.quest-party { display: grid; gap: 4px; }
 .party-confirmation pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.party-confirmation label { display: block; margin: 8px 0; }
+.party-confirmation textarea, .party-confirmation select, .party-confirmation input:not([type=checkbox]) { display: block; width: 100%; margin-top: 5px; box-sizing: border-box; }

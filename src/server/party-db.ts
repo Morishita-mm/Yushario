@@ -30,7 +30,8 @@ export class PartyDatabase {
     return row ? String(row.session) : undefined;
   }
   syncLead(quest: string): void {
-    const lead = this.list(quest).find((member) => member.role === "implement");
+    // The quest's owner is the hero who writes; an implement role is only the fallback.
+    const members = this.list(quest), lead = members.find((member) => member.writer) ?? members.find((member) => member.role === "implement");
     this.db.prepare("UPDATE quests SET session=?,hero=? WHERE id=?").run(lead?.session ?? null, lead?.hero ?? null, quest);
   }
   remove(session: string): void {

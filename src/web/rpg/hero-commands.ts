@@ -113,6 +113,6 @@ export function initHeroActions(hero: (id: string) => RoomAgent | undefined, tal
       } : {}),
     };
   }
-  return { observe, options,
+  return { observe, options, farewell: (id: string) => act(id, "farewell"),
     reset: () => { waiting.clear(); eventAt.clear(); interrupted.clear(); } };
 }

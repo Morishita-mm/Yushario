@@ -1,0 +1,36 @@
+/* Dragon Quest style formation window: black panels, a double white frame, and a ▶ cursor on the chosen line. */
+.party-window { position: fixed; inset: 0; margin: auto; width: min(860px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto;
+  padding: 14px; box-sizing: border-box; background: #000; color: #fff; border: 0; font-family: "DotGothic16", system-ui, sans-serif; font-size: 15px; }
+.party-window::backdrop { background: #0009; }
+.party-window:not([open]) { display: none; }
+.party-window { display: grid; gap: 10px; align-content: start; }
+.pw-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.pw-head h3 { margin: 0; font-weight: normal; color: #ffe066; min-width: 0; overflow-wrap: anywhere; }
+.pw-box { border: 3px double #fff; border-radius: 8px; padding: 10px 12px; display: grid; gap: 4px; align-content: start; min-width: 0; }
+.pw-box h4 { margin: 0 0 4px; font-weight: normal; color: #b9b1cc; font-size: 13px; letter-spacing: .08em; }
+.pw-box[hidden] { display: none; }
+.pw-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
+.pw-command { font: inherit; color: #fff; background: transparent; border: 0; padding: 4px 4px 4px 22px; text-align: left; cursor: pointer; position: relative; }
+.pw-command::before { content: "▶"; position: absolute; left: 4px; visibility: hidden; color: #fff; }
+.pw-command:hover::before, .pw-command:focus-visible::before, .pw-command[aria-pressed="true"]::before { visibility: visible; }
+.pw-command:focus-visible { outline: none; }
+.pw-command:disabled { color: #777; cursor: default; }
+.pw-command.primary { color: #ffe066; }
+.pw-hero { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 10px; width: 100%; }
+.pw-name { min-width: 0; overflow-wrap: anywhere; }
+.pw-badge { font-size: 12px; color: #9fd6ff; white-space: nowrap; }
+.pw-badge.writer { color: #ffe066; }
+.pw-state { grid-column: 1 / -1; font-size: 12px; color: #b9b1cc; }
+.pw-state:empty { display: none; }
+.pw-empty { margin: 0; color: #888; }
+.pw-commands { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+.pw-commands h4 { grid-column: 1 / -1; }
+.pw-message { min-height: 4.5em; gap: 8px; }
+.pw-message p { margin: 0; line-height: 1.7; overflow-wrap: anywhere; }
+.pw-step { color: #ffe066; }
+.pw-warn { color: #ffb3a0; }
+.pw-chips, .pw-row { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.pw-message textarea { font: inherit; width: 100%; box-sizing: border-box; color: #fff; background: #111; border: 1px solid #fff; padding: 6px; resize: vertical; }
+.pw-message label { display: flex; align-items: center; gap: 6px; }
+.quest-team h4 { margin: 0 0 4px; font-weight: normal; color: #f9c22b; }
+.party-list { margin: 0 0 6px; padding-left: 1.2em; }

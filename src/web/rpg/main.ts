@@ -80,7 +80,7 @@ const sideTabs = initSideTabs();
 const previews = initPreview(talk.draft);
 const quests = initQuests(() => scene.currentTown, () => scene.projects, (id) => room.agents.get(id), (id) => scene.names.get(id),
   (id) => { sideTabs.show("party"); scene.select(id, true); }, (id, at) => talk.open(id, at), (n) => sideTabs.count("quests", n), expedition.openLaunch, scene.townName, previews.section, (session) => void expedition.openTerminal(session),
-  (session, text) => talk.draft(session, text), (town) => [...room.agents.values()].filter((agent) => agent.project === town));
+  (session, text) => talk.draft(session, text), (town) => [...room.agents.values()].filter((agent) => agent.project === town), (hero) => void actions.farewell(hero));
 talk.setQuestControls(quests.current, quests.choose, quests.reportTitle);
 scene.openQuests = () => sideTabs.show("quests");
 const status = new Status(

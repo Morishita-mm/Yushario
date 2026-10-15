@@ -19,7 +19,7 @@ export function agentAuthorized(tokenMatches: boolean, active: boolean, member: 
     && (action === "read" || action === "note" || member.role === "command" && ["send", "invite", "review"].includes(action));
 }
 export function roleLabel(role: PartyRole, language: Language): string {
-  const labels = { implement: ["じっそう", "Implement"], review: ["レビュー", "Review"], research: ["しらべ", "Research"], test: ["ためし", "Test"], command: ["しき", "Command"] };
+  const labels = { implement: ["担当", "Owner"], review: ["レビュー", "Review"], research: ["調べる", "Research"], test: ["テスト", "Test"], command: ["しき", "Command"] };
   return labels[role][language === "ja" ? 0 : 1];
 }
 export function roleIntroduction(member: Pick<PartyMember, "role" | "note" | "writer">, language: Language): string {

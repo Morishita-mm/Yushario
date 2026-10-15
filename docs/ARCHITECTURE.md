@@ -109,7 +109,7 @@ Yushario と勇者は同じ OS 利用者で動く。悪意ある同一利用者�
 | `src/web/rpg/expedition.ts` | 出陣・端末の窓。出陣直後はパス欄へフォーカスし、読込後にその欄を隠す時だけ種類／行き先へ移す | core の型, DOM, HTTP, terminal |
 | `src/web/rpg/expedition-bases.ts`, `worktrees.css`, `src/web/town/party-list.ts` | 出陣の拠点・新しい branch／path の下書き・同じ場所の警告、勇者を拠点ごとにまとめる共通一覧 | core, DOM, HTTP |
 | `src/web/rpg/quests.ts`, `quest-settings.ts`, `talk-quest.ts` | クエストのタブと札、題・目的・ためすことの未保存入力とフォーカスの維持、見出しで名前を付けた窓と表示中のresizeでの位置更新、会話からの選び直し、本文保存と記録削除の設定 | core, web/town, HTTP/WS |
-| `src/web/town/quest-party.ts`, `quest-handoff.ts`, `quest-party.css`, `src/web/rpg/party-notices.ts` | 本体・モック共通のパーティー・紹介文の下書き・巻物、でんれいの仲間の確認と役割外の変更。確認窓は見出しで名前を付け、表示中だけresizeで位置更新し、閉じる時に監視を外す | core, DOM, HTTP/WS |
+| `src/web/town/quest-party.ts`, `party-window.ts`, `party-window.css`, `quest-party.css`, `src/web/rpg/party-notices.ts` | 本体・モック共通の札のパーティー一覧と、ドラクエ風の編成窓（手伝ってもらう・担当を交代する・外す・しき役）、でんれいの仲間の確認と役割外の変更。確認窓は見出しで名前を付け、表示中だけresizeで位置更新し、閉じる時に監視を外す | core, DOM, HTTP/WS |
 | `src/web/town/quest-checks.ts`, `check-marks.ts`, `checks.css` | 本体・モック共通のためすこと、札・一覧・報告の印と見出しで名前を付けた証拠の窓、done の確認 | core, DOM, HTTP |
 | `src/web/town/quest-list.ts`, `quest-card.ts`, `quest-board.ts` | 本体・モック共通のクエスト一覧・札・掲示板の入口。一覧は「あなたの番／勇者が作業中／おわった」に分け、札は6段階の帯と「次にやること」を上に出す。編集・追加・パーティー・全出来事は開いた状態を保つ折り畳みにする（段階22）。一覧更新は操作中の新規／クエストID／条件ID／町の折り畳みへフォーカスを戻し、削除時だけ隣接項目へ移す | core の型・関数, DOM, art data |
 | `src/web/rpg/preview.ts`, `src/web/town/quest-preview.ts`, `preview-controls.ts`, `preview-tabs.ts`, `preview.css` | 本体・モック共通のプレビュー区画、名前付きの別タブ、エラーの一覧と会話への下書き。町のプレビューとエラーの窓は見出しで名前を付ける | core, DOM, HTTP |
@@ -188,7 +188,7 @@ Codex の PostToolUse は成否不明として扱い、成功数・報告のテ�
 | `/api/quests/:id` | GET 出来事つきの札、PATCH `{title?,purpose?,state?}`、DELETE クエストと出来事・結び付きを削除 |
 | `/api/quests/:id/adopt` | POST `{reason?,pr?}`（理由500文字まで、PR は https の URL だけ）。サーバーが保存拠点の branch・HEAD・作業状態の指紋と各ためすことの印を読み、出来事 `adopted` に残してから state を done にする。merge・push・PR 作成はしない（段階21） |
 | `/api/quests/:id/assign` | POST `{session}` で同じ町の端末に結び付け、cwd・branch を既定の拠点にする。勇者は同時に1つだけ |
-| `/api/quests/:id/party` | GET 勇者・役割・一言・書き換える役・状態・拠点・`active`（生存）・`canTalk`（会話対応）。プレビューは終了 writer を候補にせず、生存中の会話対応の仲間を人が選ぶ。POST `{session,role,note,writer?}` で人が所属と役割を変更。1人の勇者は1クエスト、指揮役・書き換える役は各1人まで |
+| `/api/quests/:id/party` | GET 勇者・役割・一言・書き換える役・状態・拠点・`active`（生存）・`canTalk`（会話対応）。プレビューは終了 writer を候補にせず、生存中の会話対応の仲間を人が選ぶ。POST `{session,role,note,writer?}` で人が所属と役割を変更。1人の勇者は1クエスト、指揮役・書き換える役は各1人まで | DELETE `?session=<id>` でパーティーから外す（勇者は止めない）。handoff で担当を移すと、前の担当（implement）は research の手伝いになる。クエストの担当（session・hero）は書き換える役を優先する（段階23）。
 | `/api/quests/:id/scroll` | GET `{text,reply?}`。台帳の事実だけの下書きと、差し込める直近の返事（本文保存なしならメモリだけ） |
 | `/api/quests/:id/send`, `/summary`, `/handoff` | POST 人が直した紹介文／選んで内容を確認した定型文／巻物を、通常と同じ配送で送る。summary は画面で確認した `{text}` をそのまま使い、サーバーで再生成しない。handoff は `{session?,preset?,cwd?,text,writer?}`、新規出陣と書き換える役の移動は人の操作だけ。会話非対応の受け手は409、預かり・新規起動・所属変更の前に断る |
 | `/api/party-notices` と `/:id` | GET 確認と警告、POST `{yes:boolean}` で仲間・役割の依頼に人が回答、DELETE で警告を既読に。画面用認可だけ |

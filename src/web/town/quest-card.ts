@@ -27,6 +27,7 @@ export type QuestCardActions = {
   preview?: HTMLElement;
   party?: PartyControls;
   review?: () => void;
+  reload?: () => void;
 };
 const STEP_NAMES: Record<typeof QUEST_STEPS[number], () => string> = {
   write: () => tr("依頼", "Request"), assign: () => tr("任せる", "Assign"), send: () => tr("指示", "Send"),
@@ -63,13 +64,12 @@ export function questCard(quest: QuestDetail, actions: QuestCardActions): HTMLEl
   }));
   const tools = foldable(quest.id, "tools", tr("合格条件を足す・プレビューをつなぐ", "Add acceptance checks · connect a preview"));
   tools.append(questChecks(quest)); if (actions.preview) tools.append(actions.preview);
-  // A party of one stays folded; once others joined or a handoff happened, it starts open.
-  const together = quest.events.some((event) => event.kind === "handoff") || quest.events.filter((event) => event.kind === "party").length > 1;
-  const team = foldable(quest.id, "party", tr("パーティーと引き継ぎ", "Party and handoff"), together);
-  team.append(questParty(quest, actions.party));
+  // Who is on the quest is always visible; forming the party opens its own window.
+  const team = element("section", "quest-team");
+  team.append(element("h4", undefined, tr("パーティー", "Party")), questParty(quest, actions.party, () => actions.reload?.()));
   const history = foldable(quest.id, "events", tr(`これまでの出来事（${quest.events.length}）`, `Everything so far (${quest.events.length})`));
   for (const event of quest.events) history.append(eventRow(event, actions.talk));
-  box.append(editing, tools, team, history);
+  box.append(team, editing, tools, history);
   return box;
 }
 

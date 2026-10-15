@@ -21,7 +21,7 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
   hero: (id: string) => RoomAgent | undefined, name: (id: string) => string | undefined,
   select: (id: string) => void, talk: (id: string, at?: number) => void, counted: (count: number) => void,
   embark: (quest: Quest) => void, townName: (key: string) => string, preview?: (quest: Quest) => HTMLElement, terminal?: (session: string) => void,
-  draft?: (session: string, text: string) => void, heroesIn: (town: string) => RoomAgent[] = () => []) {
+  draft?: (session: string, text: string) => void, heroesIn: (town: string) => RoomAgent[] = () => [], farewell?: (hero: string) => void) {
   const root = document.querySelector<HTMLElement>("#quests")!;
   const dialog = document.createElement("dialog"); dialog.className = "report-window quest-window";
   const heading = document.createElement("h3"), content = document.createElement("div"), close = document.createElement("button");
@@ -101,8 +101,10 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
         review: (id, session) => { dialog.close(); openReview(name(id) ?? hero(id)?.name ?? id, hero(id) ? session : { quest: quest.id },
           hero(id) ? (text) => text && draft ? draft(session, text) : talk(id) : undefined, hero(id) ? () => terminal?.(session) : undefined); },
         embark: () => { dialog.close(); embark(quest); },
+        farewell, sessionName: (session) => { const agent = heroesIn(quest.town).find((item) => item.terminal === session); return agent && (name(agent.id) ?? agent.name); },
       },
       review: () => reviewQuest(quest),
+      reload: () => void open(id),
     }));
     show(quest.title);
   }

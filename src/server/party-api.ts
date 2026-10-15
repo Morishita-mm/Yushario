@@ -40,6 +40,11 @@ export async function handlePartyRequest(request: IncomingMessage, response: Ser
       const checks = quest.checks?.map((check) => ({ title: check.name, mark: checkMark(check.evidence, quest.fingerprint) })) ?? [];
       partyJson(response, 200, { text: handoffScroll(quest, checks, serverLanguage()), reply: party.latestReply(id) ?? quest.events.find((event) => event.kind === "report")?.text }); return;
     }
+    if (action === "party" && request.method === "DELETE") {
+      const session = url.searchParams.get("session") ?? "";
+      if (party.quests.member(session)?.quest !== id) throw new Error(tr("この パーティーの 勇者を えらんで", "Choose a hero in this party"));
+      party.quests.leave(id, session); partyJson(response, 200, partyView(party, id)); return;
+    }
     if (request.method !== "POST") { response.writeHead(405).end(); return; }
     const body = await partyBody(request, response); if (!body) return;
     if (action === "party") {
@@ -72,8 +77,12 @@ export async function handlePartyRequest(request: IncomingMessage, response: Ser
       }
       const delivered = party.send(id, session.id, body.text, action === "handoff" ? "handoff" : "request");
       if (action === "handoff" && body.writer === true) {
+        const previous = party.quests.party(id).find((member) => member.writer && member.session !== session!.id);
         const member = party.quests.member(session.id)!;
-        party.quests.join(id, session, member.role, member.note, true);
+        party.quests.join(id, session, "implement", member.note, true);
+        // The previous owner stays as a helper who no longer writes.
+        const old = previous && party.pty.getSession(previous.session);
+        if (old && previous.role === "implement") party.quests.join(id, old, "research", previous.note, false);
       }
       partyJson(response, 200, { delivered, session }); return;
     }
