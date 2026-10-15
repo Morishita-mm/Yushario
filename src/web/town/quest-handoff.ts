@@ -9,7 +9,7 @@ import { partyButton, partyField, partyRequest, type PartyControls, type PartyHe
 const drafts = new Map<string, string>();
 export function questHandoff(quest: QuestDetail, members: PartyHero[], sessions: Session[], controls: PartyControls | undefined, status: HTMLElement, agents: AgentInfo[] = []): HTMLElement {
   const root = document.createElement("details"); root.className = "quest-handoff";
-  const heading = document.createElement("summary"); heading.textContent = tr("▶ ひきつぎ", "▶ Handoff"); root.append(heading);
+  const heading = document.createElement("summary"); heading.textContent = tr("ひきつぎ", "Handoff"); root.append(heading);
   root.addEventListener("toggle", () => { if (root.open) root.closest<HTMLElement>(".quest-party")!.dataset.dirty = "true"; });
   const draft = document.createElement("textarea"); draft.rows = 12; draft.maxLength = 8000;
   draft.value = drafts.get(quest.id) ?? handoffScroll(quest, quest.checks?.map((check) => ({ title: check.name, mark: checkMark(check.evidence, quest.fingerprint) })) ?? [], language);

@@ -77,7 +77,7 @@ export function questParty(quest: QuestDetail, controls?: PartyControls): HTMLEl
       }
       content.append(row);
     }
-    const add = document.createElement("details"), title = document.createElement("summary"); title.textContent = tr("▶ 仲間を たす", "▶ Add a hero"); add.append(title);
+    const add = document.createElement("details"), title = document.createElement("summary"); title.textContent = tr("仲間を たす", "Add a hero"); add.append(title);
     const select = document.createElement("select");
     for (const session of sessions.filter((item) => item.project === quest.town && !item.exited && !members.some((member) => member.session === item.id))) {
       const canTalk = agents.some((agent) => agent.id === session.preset && agent.hero);
