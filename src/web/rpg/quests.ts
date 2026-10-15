@@ -7,6 +7,7 @@ import { coverMap } from "./talk";
 import type { Project } from "../town/world";
 import { worktreeRequest, type BaseInfo } from "./expedition-bases";
 import { openReview } from "./review-window";
+import { reportQuestTitle } from "./report-links";
 
 const token = new URLSearchParams(location.search).get("token") ?? "";
 export async function questRequest(path = "", method = "GET", body?: unknown): Promise<any> {
@@ -32,7 +33,6 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
   } });
   let quests: Quest[] = [], bindings: QuestBinding[] = [], signature = "", selected: string | undefined;
   let generation = 0;
-  let reportLinks: QuestReportLink[] = [];
   const label = townName;
   const heroLabel = (quest: Quest) => quest.hero ? name(quest.hero) ?? hero(quest.hero)?.name ?? quest.hero : "";
   function show(title: string): void { heading.textContent = title; coverMap(dialog); if (!dialog.open) dialog.showModal(); }
@@ -92,13 +92,13 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
     renderQuestList(root, list, label, heroLabel, (quest) => { void open(quest.id); }, () => create(), Date.now());
   }
   function set(data: { quests: Quest[]; bindings: QuestBinding[]; reports?: QuestReportLink[] }): void {
-    quests = data.quests; bindings = data.bindings; reportLinks = data.reports ?? []; signature = ""; render();
+    quests = data.quests; bindings = data.bindings; signature = ""; render();
     if (selected && dialog.open) {
       if (!quests.some((quest) => quest.id === selected)) dialog.close();
       else if (!editing()) void open(selected, true);
     }
   }
   return { set, render, choose, open,
-    reportTitle: (hero: string, at: number) => reportLinks.find((report) => report.hero === hero && report.at === at)?.title,
+    reportTitle: (hero: string, at: number) => reportQuestTitle(hero, at, quests),
     current: (session: string) => quests.find((quest) => quest.id === bindings.find((item) => item.session === session)?.quest) };
 }

@@ -143,7 +143,7 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
     chooseDestination();
     status.textContent = tr("よみこみ中…", "Loading…");
     document.querySelector<HTMLElement>("#expedition-capability")!.textContent = "";
-    launch.showModal();
+    launch.showModal(); path.focus();
     const selectedTown = quest?.town ?? currentTown();
     void Promise.allSettled([loadTowns(), loadAgents(), loadEquipment(), loadSettings()]).then(([towns, kinds, gear, settings]) => {
       if (launching !== request || !launch.open) return;
@@ -165,6 +165,7 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
         }
         if (!startupCwd && !selectedTown && destination.options.length > 1) destination.selectedIndex = 0;
       } else errors.push(tr("町の台帳を よみこめませんでした。ほかの フォルダを 指定できます。", "Could not load towns. Choose another folder."));
+      const focusedPath = document.activeElement === path;
       chooseDestination();
       void loadBases();
       destination.disabled = false;
@@ -180,6 +181,7 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
       } else {
         errors.push(kinds.reason instanceof Error ? kinds.reason.message : tr("勇者の 種類を よみこめませんでした。", "Could not load hero kinds."));
       }
+      if (focusedPath && path.hidden) (preset.disabled ? destination : preset).focus();
       status.textContent = errors.join("\n");
       if (noAgent) {
         const link = Object.assign(document.createElement("a"), { href: CLAUDE_SETUP, textContent: CLAUDE_SETUP, target: "_blank", rel: "noopener" });

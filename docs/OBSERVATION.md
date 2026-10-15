@@ -1,11 +1,11 @@
 # 観察の仕様（柱C：チームが部屋にいる → エージェントの町）
 
-複数の Claude Code / pi エージェントを、RPG 風の町とフィールドにいるドットキャラクター（勇者）として表示する。
-作業はモンスターとの戦い、完了後は町でひとやすみ、会話の整理と居眠りは宿屋、サブエージェントは勇者パーティーの仲間、という **物語** として見せる。
+複数の Claude Code・pi・Codex エージェントを、RPG 風の町とフィールドにいるドットキャラクター（勇者）として表示する。
+作業はモンスターとの戦い、完了後は町でひとやすみ、会話の整理は教会、居眠りは宿屋、サブエージェントは勇者パーティーの仲間、という **物語** として見せる。
 売りは **エージェントの様子を細かく描写すること**。「作業中」の一言で済ませず、
 **何を・どう・どれくらい** やっているかを、視界の端でも読み取れる形で見せる。
 
-現在の対象は **Claude Code・pi・Codex 0.162.1**。shell はターミナルのみ（勇者は出ない）。Codex の制限は下記「Codex」の表、操作と対応範囲の最新仕様は `docs/PLATFORM.md` 段階20、現在の構成は `docs/ARCHITECTURE.md` を参照。
+現在の対象は **Claude Code・pi・Codex 0.162.1**。shell はターミナルのみ（勇者は出ない）。Codex の制限は下記「Codex」の表、操作と対応範囲の最新仕様は `docs/PLATFORM.md` の最新段階、現在の構成は `docs/ARCHITECTURE.md` を参照。
 
 ## 方針の選択肢
 
@@ -57,7 +57,7 @@ Claude Code 2.1.295 の実行ファイルで、以下のイベント名と入力
 
 コンテキスト使用率は、今と同じく transcript の末尾から読む（`context`、0〜1）。
 
-pi は拡張で同じ AgentEvent に変換する。session_start / before_agent_start / tool_call / tool_result / agent_settled が開始・依頼・ツール・完了の境界。作業中に入力した指示（`input` の `streamingBehavior: "steer"`）も依頼（UserPromptSubmit）として送る。最終成否は agent_before_settle とキャンセル信号で判定し、中断は失敗に数えない。UI 入力の開始だけ waiting_input、終了は作業中なら thinking、待機中なら idle。整理失敗・キャンセルは PostCompact/idle の detail で成功と区別する。
+pi は拡張で同じ AgentEvent に変換する。session_start / before_agent_start / tool_call / tool_result / agent_settled が開始・依頼・ツール・完了の境界。作業中に入力した指示（`input` の `streamingBehavior: "steer"`）も依頼（UserPromptSubmit）として送る。最終成否は agent_before_settle とキャンセル信号で判定する。中断が完了した agent_settled は InterruptConfirmed/idle を送り、停止要求の Interrupt と区別する（中断は失敗に数えない）。UI 入力の開始だけ waiting_input、終了は作業中なら thinking、待機中なら idle。整理失敗・キャンセルは PostCompact/idle の detail で成功と区別する。
 `/new`・再開・fork で SessionStart の ID が変わった時は旧勇者だけ退場し、端末は継続する。reload は同じ勇者のまま。PTY 終了時も必ず退場する。
 
 ## Codex（段階20）
@@ -104,8 +104,10 @@ pi は拡張で同じ AgentEvent に変換する。session_start / before_agent_
 | `delegate` | Task / Agent（サブエージェント起動） | パーティーでドラゴンに挑む | `agent_type` |
 | `ask` | AskUserQuestion、PermissionRequest、waiting_input の Notification のみ | 画面の手前（あなたの前）に来て手を振る（！の吹き出し） | ツール名 |
 | `tool` | MCP ツール（`mcp__*`）など上以外 | 道具屋の前に立つ | サーバー名（`mcp__<server>__` の部分） |
-| `rest` | PreCompact 〜 PostCompact | 宿屋で会話を整理する（成功時だけ MP 回復の語り） | — |
-| `idle` | Stop / Interrupt の後、入力不要の通知 | 町でひとやすみ、次の依頼を待つ（居眠り時は宿屋） | — |
+| `rest` | PreCompact 〜 PostCompact | 教会で会話を整理する（成功時だけ MP 回復の語り） | — |
+| `idle` | Stop / StopFailure / InterruptConfirmed の後、入力不要の通知 | 町でひとやすみ（居眠り時は宿屋）。通知だけでは停止確認にならない | — |
+
+`Interrupt` は停止の要求だけ。確認待ちの間は次の依頼・装備・操作を受けず、本体の新しい SessionStart・Stop・StopFailure・PostCompact・SessionEnd・InterruptConfirmed で確認する。経過時間・古い知らせ・仲間やツールの終了・idle 通知だけでは確認しない。端末は直接操作でき、30秒後も未確認なら「まだ とまったか わからない」と出す。
 
 分類に迷うものは `tool` にまとめる。種類を増やすのは、実際に使って見分けたくなってからにする。
 
@@ -120,7 +122,7 @@ pi は拡張で同じ AgentEvent に変換する。session_start / before_agent_
 | 苦戦 | 直近 5 分で失敗が 3 回以上 | 汗の吹き出し、HP が減る |
 | 立ち直り | 苦戦の後に成功 | 武器を掲げて喜ぶ（ハートの吹き出し） |
 | ノッている | 1 分間に `edit` が 5 回以上で、失敗なし | 剣を振る速さが上がる、♪ の吹き出し |
-| 疲れ | `context` が 0.7 以上 | 剣を振るのが遅くなる、MP が少ない（MP 1 割以下でやすむ＝宿屋で /compact を提案） |
+| 疲れ | `context` が 0.7 以上 | 剣を振るのが遅くなる、MP が少ない（MP 1 割以下でやすむ＝教会で /compact を提案） |
 | 呼んでいる時間 | `ask` が 1 分以上放置 | 手を振る速さが上がる |
 | 居眠り | イベントが 10 分以上届かない | 宿屋のベッドで寝る（Zz の吹き出し） |
 
@@ -161,7 +163,7 @@ interface AgentEvent {
   agent?: string;          // session_id。無い場合は従来どおり1体（"default"）として扱う
   name?: string;           // cwd の末尾
   terminal?: string;       // アプリの PTY ID（外から来た勇者は無し）
-  project?: string;        // リポジトリ名／町
+  project?: string;        // 表示名でない町の鍵（共通 git ディレクトリの実パス等）
   text?: string;           // 依頼・最後の返答、最大8000文字。本文保存は利用者の選択時だけ
   hook?: string;           // hook_event_name
   target?: string;         // 手元の表示（上の範囲に切り詰め済み）

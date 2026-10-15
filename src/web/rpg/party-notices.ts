@@ -6,7 +6,7 @@ import { language, tr } from "../language";
 import { coverMap } from "./talk";
 
 type Invitation = { id: string; quest: string; town: string; from: string; session?: string; role: PartyRole; note: string; preset?: string; cwd?: string; at: number };
-type Warning = { id: string; quest: string; town: string; hero: string; at: number };
+type Warning = { id: string; quest: string; town: string; hero: string; at: number; count?: number };
 let invitations: Invitation[] = [], warnings: Warning[] = [];
 export function setPartyNotices(value: { invitations?: Invitation[]; warnings?: Warning[] }): void { invitations = value.invitations ?? []; warnings = value.warnings ?? []; }
 export function partyNotices(room: Room, names: Map<string, string>): Notice[] {
@@ -14,7 +14,7 @@ export function partyNotices(room: Room, names: Map<string, string>): Notice[] {
   return [...invitations.map((invite): Notice => ({ kind: "party-invite", id: invite.id, repo: invite.town, at: invite.at,
     text: tr(`しき ${name(invite.from)}が 仲間を よびたい · ${roleLabel(invite.role, language)}`, `Commander ${name(invite.from)} wants a hero · ${roleLabel(invite.role, language)}`), ago: tr("たしかめて", "Confirm") })),
   ...warnings.map((warning): Notice => ({ kind: "outside-role", id: warning.id, repo: warning.town, hero: warning.hero, at: warning.at,
-    text: tr(`${name(warning.hero)}が やくわりの そとで ファイルを かえた`, `${name(warning.hero)} changed files outside their role`), ago: "" }))];
+    text: tr(`${name(warning.hero)}が やくわりの そとで ファイルを かえた`, `${name(warning.hero)} changed files outside their role`) + ((warning.count ?? 1) > 1 ? tr(` · ${warning.count}件 · クエストで みる`, ` · ${warning.count} warnings · View quest`) : ""), ago: "" }))];
 }
 export function pickPartyNotice(notice: Notice, openQuest: (id: string) => Promise<void>): boolean {
   if (notice.kind !== "party-invite" && notice.kind !== "outside-role") return false;

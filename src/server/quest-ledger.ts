@@ -3,7 +3,7 @@ import type { AgentEvent } from "../core/events";
 import type { PartyRole } from "../core/party";
 import { canRecallHero } from "../core/hook-trust";
 import { finishedQuest, questForRecall, questStateAfterEvent, questStateForParty, questTitle, reportTitle, savedQuestEvent, type Quest, type QuestEvent, type QuestBinding, type QuestReportLink } from "../core/quests";
-import { askingAfterEvent } from "../core/session-actions";
+import { askingAfterEvent, staleSessionEnd } from "../core/session-actions";
 import { forgetCheckFingerprint } from "./checks";
 import { emptyTurns, recordTurn, type Turns } from "../core/turns";
 import type { TerminalSession } from "./pty-session";
@@ -41,11 +41,13 @@ export class QuestLedger {
   }
   constructor(private readonly changed: (message: { type: "quests"; quests: Quest[]; bindings: QuestBinding[]; reports: QuestReportLink[] }) => void,
     private readonly keepText: () => boolean) {}
-  snapshot() { return { type: "quests" as const, quests: this.db.list(), bindings: this.db.bindings(), reports: this.db.reports() }; }
+  snapshot() { return { type: "quests" as const, quests: this.db.list(), bindings: this.db.bindings(), reports: [] as QuestReportLink[] }; }
   list(): Quest[] { return this.db.list(); }
   get(id: string) { return this.db.get(id); }
   summary(id: string) { return this.db.summary(id); }
   reportsAfter(session: string, at: number) { return this.db.reportsAfter(session, at); }
+  reportLink(hero: string, at: number) { return this.db.reportLink(hero, at); }
+  reportQuest(session: string, at: number) { return this.db.reportQuest(session, at); }
   get checks() { return this.db.checks; }
   checksChanged(): void { this.notify(); }
   party(id: string) { return this.db.party.list(id); }
@@ -130,7 +132,10 @@ export class QuestLedger {
     const pending = this.submitted.get(session) ?? [];
     pending.push(text); this.submitted.set(session, pending);
   }
-  observe(session: TerminalSession, event: AgentEvent, at: number, terminalEnded: (id: string) => boolean = () => false): void {
+  observe(session: TerminalSession, event: AgentEvent, at: number, terminalEnded: (id: string) => boolean = () => false): void | false {
+    const previousAt = this.latestAt.get(session.id);
+    if (staleSessionEnd(event, at, previousAt)) return false;
+    this.latestAt.set(session.id, Math.max(at, previousAt ?? -Infinity));
     if (event.hook === "SessionEnd" && !event.subagent) { this.forgetSession(session.id); return; }
     let quest = this.current(session.id);
     if (event.hook === "SessionStart" && !event.subagent) {
@@ -160,7 +165,7 @@ export class QuestLedger {
     if (!event.subagent && event.agent && member && member.hero !== event.agent) {
       this.db.party.put({ ...member, hero: event.agent }); quest = this.current(session.id)!;
     }
-    if (at >= (this.latestAt.get(session.id) ?? -Infinity)) {
+    if (at >= (previousAt ?? -Infinity)) {
       const asking = askingAfterEvent(event);
       if (asking !== undefined) this.waiting.set(session.id, asking);
       const state = this.partyState(quest.id, questStateAfterEvent(quest.state, event));

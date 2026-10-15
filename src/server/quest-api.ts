@@ -22,7 +22,11 @@ export async function handleQuestRequest(request: IncomingMessage, response: Ser
       if (key && !towns.some((item) => townKey(item) === key)) { json(response, 404, { error: tr("町が みつからない", "Town not found") }); return; }
       quests.clear(key); response.writeHead(204).end(); return;
     }
-    if (id && !quests.get(id)) { json(response, 404, { error: tr("クエストが みつからない", "Quest not found") }); return; }
+    if (id === "report-link" && method === "GET") {
+      const at = Number(url.searchParams.get("at"));
+      json(response, 200, Number.isFinite(at) ? quests.reportLink(url.searchParams.get("hero") ?? "", at) ?? null : null); return;
+    }
+    if (id && !quests.summary(id)) { json(response, 404, { error: tr("クエストが みつからない", "Quest not found") }); return; }
     if (id && !parts[4] && method === "GET") { json(response, 200, quests.get(id)); return; }
     if (id && !parts[4] && method === "DELETE") { quests.delete(id); response.writeHead(204).end(); return; }
     if (id && parts[4] === "base" && method === "DELETE") { quests.clearWorktree(id); response.writeHead(204).end(); return; }

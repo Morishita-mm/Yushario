@@ -1,4 +1,4 @@
-import { previewNotice, type PreviewLink, type PreviewPage } from "../../core/preview";
+import { previewNotice, previewRecipients, type PreviewLink, type PreviewPage } from "../../core/preview";
 import type { Quest } from "../../core/quests";
 import type { RoomAgent } from "../../core/room";
 import { tr } from "../language";
@@ -48,11 +48,13 @@ export function initPreview(tell: (session: string, text: string) => void) {
       const value = mount.scope;
       const signature = JSON.stringify([value.links, value.candidates, value.links.map((link) => pages.get(link.id)), value.error, value.session, value.party]);
       if (signature === mount.signature) continue; mount.signature = signature;
-      const writer = value.party.find((member) => member.session === value.session);
-      const recipients: PreviewRecipient[] | undefined = value.quest && (!writer?.active || !writer.canTalk)
-        ? value.party.filter((member) => !value.session || member.session === value.session).map((member) => ({ session: member.session,
-          name: `${member.name}${member.canTalk ? "" : tr(" · ターミナルのみ", " · Terminal only")}`, disabled: !member.active || !member.canTalk })) : undefined;
-      const draft = value.quest || value.session ? (text: string, chosen?: string) => { const target = chosen ?? value.session; if (target) tell(target, text); } : undefined;
+      const recipients: PreviewRecipient[] | undefined = value.quest
+        ? previewRecipients(value.party, value.session)?.map((member) => ({ session: member.session,
+          name: `${member.name}${member.canTalk ? "" : tr(" · ターミナルのみ", " · Terminal only")}`, disabled: !member.canTalk })) : undefined;
+      const draft = value.quest || value.session ? (text: string, chosen?: string) => {
+        const target = recipients ? chosen : value.session;
+        if (target) tell(target, text);
+      } : undefined;
       if (mount.full) {
         const inputs = [...root.querySelectorAll("input")], focused = inputs.indexOf(document.activeElement as HTMLInputElement);
         const fields = inputs.map((input) => input.value);

@@ -1,6 +1,14 @@
 // town is the town key, not its display name.
 export type PreviewLink = { id: string; quest: string | null; town: string; name: string; url: string };
 export type PreviewPage = { url: string; title: string; errors: string[]; count: number };
+export type PreviewPartyHero = { session: string; name: string; active: boolean; canTalk?: boolean };
+
+// A usable writer is the direct recipient; otherwise the human chooses a live party member.
+export function previewRecipients(party: PreviewPartyHero[], writerSession?: string): PreviewPartyHero[] | undefined {
+  if (party.some((member) => member.session === writerSession && member.active && member.canTalk)) return;
+  return party.filter((member) => member.active);
+}
+
 export type PreviewUrlResult = { ok: true; url: string; origin: string } | { ok: false; reason: "local" | "port" | "self" | "invalid" };
 
 // Deliberately accept only literal loopback hosts, never DNS aliases or URL credentials.

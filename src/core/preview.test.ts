@@ -1,5 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { previewDraft, previewNotice, previewOutput, previewUrl, previewUrls } from "./preview";
+import { previewDraft, previewNotice, previewOutput, previewRecipients, previewUrl, previewUrls } from "./preview";
+
+describe("preview recipients", () => {
+  const writer = { session: "writer", name: "Writer", active: true, canTalk: true };
+  const other = { session: "reviewer", name: "Reviewer", active: true, canTalk: true };
+  const shell = { session: "shell", name: "Shell", active: true, canTalk: false };
+  it("uses a live conversation-capable writer directly", () => {
+    expect(previewRecipients([writer, other], writer.session)).toBeUndefined();
+  });
+  it("offers live party members when a saved writer has ended", () => {
+    expect(previewRecipients([{ ...writer, active: false }, other, shell], writer.session)).toEqual([other, shell]);
+  });
+  it("also falls back for missing or terminal-only writers", () => {
+    expect(previewRecipients([other], "removed")).toEqual([other]);
+    expect(previewRecipients([shell, other], shell.session)).toEqual([shell, other]);
+    expect(previewRecipients([other])).toEqual([other]);
+    expect(previewRecipients([{ ...writer, active: false }], writer.session)).toEqual([]);
+  });
+});
 
 describe("local preview URLs", () => {
   it("accepts only literal local HTTP(S), with a real port", () => {

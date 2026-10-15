@@ -120,7 +120,7 @@ describe("Room", () => {
     const agent = room.apply(a({ hook: "PreToolUse", tool: "Read", target: "README.md", subagent: { id: "h1" } }), 2)!;
     expect(agent.activity).toBe("delegate");
     expect(agent.running).toBe(true);
-    expect(agent.helpers).toEqual([{ id: "h1", type: "general-purpose", activity: "read", target: "README.md" }]);
+    expect(agent.helpers).toEqual([{ id: "h1", type: "general-purpose", activity: "read", target: "README.md", latestAt: 2 }]);
     room.apply(a({ hook: "PostToolUse", tool: "Read", subagent: { id: "h1" } }), 3);
     expect(agent.running).toBe(true);
     room.apply(a({ hook: "SubagentStop", subagent: { id: "h1" } }), 4);

@@ -1,6 +1,6 @@
 import { classifyActivity, toolActivity, type Activity } from "./activity";
 import type { AgentEvent, TaskStatus } from "./events";
-import { stopRequestAfterEvent } from "./session-actions";
+import { staleSessionEnd, stopRequestAfterEvent } from "./session-actions";
 import { attachReports, emptyTurns, recordTurn, type TalkEntry, type Turns } from "./turns";
 
 // How an agent is doing, derived from its recent history (docs/OBSERVATION.md).
@@ -27,7 +27,7 @@ const HISTORY_LIMIT = 20;
 export type { TalkEntry, TalkReport } from "./turns";
 
 export interface RoomTask { id: string; subject?: string; status: Exclude<TaskStatus, "deleted"> }
-export interface Helper { id: string; type?: string; activity: Activity; target?: string }
+export interface Helper { id: string; type?: string; activity: Activity; target?: string; latestAt?: number }
 export interface LogEntry { at: number; activity: Activity; target?: string; outcome?: "ok" | "failed" }
 
 export type DownState = { at: number; active: boolean };
@@ -77,7 +77,7 @@ export class Room {
     const id = event.agent ?? "default";
     if (event.hook === "SessionEnd" && !event.subagent) {
       const current = this.agents.get(id);
-      if (current?.stopRequestedAt !== undefined && at < current.stopRequestedAt) return current;
+      if (staleSessionEnd(event, at, current?.lastEventAt)) return current;
       this.agents.delete(id);
       this.turns.delete(id);
       this.stoppedHelpers.delete(id);
@@ -152,6 +152,7 @@ function updateTask(agent: RoomAgent, task: NonNullable<AgentEvent["task"]>): vo
 function updateHelper(agent: RoomAgent, event: AgentEvent, at: number, stopped: Map<string, number>): void {
   const { id, type } = event.subagent!;
   const index = agent.helpers.findIndex((helper) => helper.id === id);
+  if (index >= 0 && at < (agent.helpers[index].latestAt ?? -Infinity)) return;
   if (event.hook === "SubagentStop") {
     stopped.set(id, Math.max(at, stopped.get(id) ?? -Infinity));
     if (stopped.size > 256) {
@@ -168,6 +169,7 @@ function updateHelper(agent: RoomAgent, event: AgentEvent, at: number, stopped: 
   }
   const helper = index >= 0 ? agent.helpers[index] : { id, activity: "think" as Activity };
   if (index < 0) agent.helpers.push(helper);
+  helper.latestAt = at;
   if (type) helper.type = type;
   const activity = classifyActivity(event);
   if (activity) {

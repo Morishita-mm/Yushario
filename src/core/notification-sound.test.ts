@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canPlaySound, notificationSound as chooseSound, type NotificationSound, type SoundNotice } from "./notification-sound";
+import { canPlaySound, notificationSound as chooseSound, rememberPermissionSound, type NotificationSound, type SoundNotice } from "./notification-sound";
 import type { SoundMode } from "./town-ledger";
 
 function notificationSound(notice: SoundNotice, live: boolean, seen: ReadonlySet<string>,
@@ -39,6 +39,18 @@ describe("notification sounds", () => {
     expect(notificationSound(permission, true, seen)).toBeUndefined();
     expect(notificationSound({ type: "permission", id: "request-2" }, true, seen)).toBe("permission");
     expect([...seen]).toEqual([permission.id]);
+  });
+
+  it("bounds remembered permission IDs while keeping recent and replayed requests silent", () => {
+    const seen = new Set<string>();
+    for (let i = 0; i < 1000; i++) rememberPermissionSound(seen, String(i));
+    expect(seen.size).toBe(256);
+    expect(seen.has('0')).toBe(false);
+    expect(notificationSound({ type: 'permission', id: '999' }, true, seen)).toBeUndefined();
+    rememberPermissionSound(seen, '744'); rememberPermissionSound(seen, 'new');
+    expect(seen.has('744')).toBe(true);
+    expect(seen.has('745')).toBe(false);
+    expect(seen.size).toBe(256);
   });
 
   it("ignores subagent Stop and StopFailure", () => {

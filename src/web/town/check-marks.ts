@@ -2,13 +2,13 @@ import { checkMark, type CheckMark, type QuestCheck, type WorkFingerprint, type 
 import { clock, tr } from "../language";
 import "./checks.css";
 
-export const checkMarkLabel = (mark: CheckMark): string => ({ unrun: tr("みじっこう", "Not run"), passed: tr("ごうかく", "Passed"), failed: tr("しっぱい", "Failed"), stale: tr("ふるい", "Stale") })[mark];
-const symbols: Record<CheckMark, string> = { unrun: "·", passed: "✔", failed: "✖", stale: "↺" };
+export const checkMarkLabel = (mark: CheckMark): string => ({ unrun: tr("みじっこう", "Not run"), passed: tr("ごうかく", "Passed"), failed: tr("しっぱい", "Failed"), stale: tr("ふるい", "Stale"), unknown: tr("ふめい", "Unknown") })[mark];
+const symbols: Record<CheckMark, string> = { unrun: "·", passed: "✔", failed: "✖", stale: "↺", unknown: "?" };
 export function evidenceView(evidence?: CheckEvidence): HTMLElement {
   const box = document.createElement("div"); box.className = "check-evidence";
   if (!evidence) { box.textContent = tr("まだ ためしていない", "Not tried yet"); return box; }
   const command = document.createElement("pre"); command.textContent = evidence.command;
-  const facts = document.createElement("p"); facts.textContent = `${evidence.passed ? tr("成功", "Success") : tr("失敗", "Failure")} · ${clock(evidence.at, true)} · ${evidence.hero ?? evidence.session}`;
+  const facts = document.createElement("p"); facts.textContent = `${evidence.passed === undefined ? tr("ふめい", "Unknown") : evidence.passed ? tr("成功", "Success") : tr("失敗", "Failure")} · ${clock(evidence.at, true)} · ${evidence.hero ?? evidence.session}`;
   const state = document.createElement("p"); state.textContent = evidence.fingerprint ? `HEAD ${evidence.fingerprint.head.slice(0, 8)}` : tr("じょうたい ふめい", "State unknown");
   const base = document.createElement("p"); base.textContent = `${tr("拠点", "Base")} · ${evidence.base ?? tr("ふめい", "Unknown")}`;
   box.append(command, facts, state, base); return box;

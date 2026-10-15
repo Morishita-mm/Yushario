@@ -12,6 +12,9 @@ export function mockChecks(id: string): QuestCheck[] {
     { id: `${id}-lint`, name: "lint", command: "npm run lint", evidence: {
       at: Date.now() - 120000, command: "npm run lint", passed: true, session: "mock-terminal", base: mockFingerprint.base, hero: "Hero", checks: [`${id}-lint`], fingerprint: { ...mockFingerprint, changes: "old" } } },
     { id: `${id}-build`, name: tr("ビルド", "Build"), command: "npm run build" },
+    { id: `${id}-unknown`, name: tr("複合テスト", "Compound test"), command: "npm test", evidence: {
+      at: Date.now() - 10000, command: "npm test || true", session: "mock-terminal", base: mockFingerprint.base,
+      hero: "Hero", checks: [`${id}-unknown`], fingerprint: mockFingerprint } },
   ];
 }
 export function mockReportChecks(root: HTMLElement): void {

@@ -1,5 +1,5 @@
 import type { Quest } from "../../core/quests";
-import { previewUrl, type PreviewLink, type PreviewPage } from "../../core/preview";
+import { previewUrl, previewRecipients, type PreviewLink, type PreviewPage } from "../../core/preview";
 import { tr } from "../language";
 import { questPreview } from "../town/quest-preview";
 import { previewControls } from "../town/preview-controls";
@@ -25,8 +25,12 @@ export function initMockPreview() {
           if (!result.ok) throw new Error(tr("この PC の 別の ポートを えらんで", "Choose another local port"));
           list(quest).push({ id: `mock-preview-${Date.now()}`, quest: quest.id, town: quest.town, name, url: result.url }); render();
         }, remove: async (id) => { links.set(quest.id, list(quest).filter((link) => link.id !== id)); render(); },
-        recipients: [{ session: "party-0", name: tr("アレン", "Allen") }, { session: "party-1", name: tr("ミラ", "Mira") },
-          { session: "party-2", name: tr("ルカ · ターミナルのみ", "Luca · Terminal only"), disabled: true }],
+        recipients: previewRecipients([
+          { session: "departed-writer", name: tr("たびだった 勇者", "Departed hero"), active: false, canTalk: true },
+          { session: "party-0", name: tr("アレン", "Allen"), active: true, canTalk: true },
+          { session: "party-1", name: tr("ミラ", "Mira"), active: true, canTalk: true },
+          { session: "party-2", name: tr("ルカ · ターミナルのみ", "Luca · Terminal only"), active: true, canTalk: false },
+        ], "departed-writer")?.map((member) => ({ ...member, disabled: !member.canTalk })),
         tell: (text, session) => {
           const draft = document.createElement("textarea"); draft.rows = 7; draft.value = text; draft.setAttribute("aria-label", tr("勇者への 下書き", "Draft for hero")); draft.dataset.session = session ?? ""; root.append(draft); draft.focus();
         } }));

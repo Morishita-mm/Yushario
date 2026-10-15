@@ -1,5 +1,5 @@
 import { tr } from "../language";
-import { canPlaySound, notificationSound, type NotificationSound, type PlayedSounds,
+import { canPlaySound, notificationSound, rememberPermissionSound, type NotificationSound, type PlayedSounds,
   type SoundNotice } from "../../core/notification-sound";
 import type { SoundMode } from "../../core/town-ledger";
 import { loadSettings, saveSettings } from "./ledger";
@@ -49,7 +49,7 @@ function play(sound: NotificationSound): void {
 export function notifySound(notice: SoundNotice, live: boolean, followedId: string | undefined): void {
   const sound = notificationSound(notice, live, seenPermissions, mode, followedId);
   // Remember even silent/replayed requests so enabling audio cannot ring an old request.
-  if (notice.type === "permission") seenPermissions.add(notice.id);
+  if (notice.type === "permission") rememberPermissionSound(seenPermissions, notice.id);
   if (sound) play(sound);
 }
 

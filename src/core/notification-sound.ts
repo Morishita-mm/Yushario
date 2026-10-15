@@ -8,6 +8,12 @@ export type SoundNotice =
   | { type: "attention"; reason: string };
 export type PlayedSounds = Partial<Record<NotificationSound, number>>;
 
+// The active permission queue holds 16 requests; retain a bounded replay window.
+export function rememberPermissionSound(seen: Set<string>, id: string): void {
+  seen.delete(id); seen.add(id);
+  if (seen.size > 256) seen.delete(seen.values().next().value!);
+}
+
 export function notificationSound(
   notice: SoundNotice, live: boolean, seenPermissions: ReadonlySet<string>, mode: SoundMode,
   followedId: string | undefined,

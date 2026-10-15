@@ -4,6 +4,7 @@
 .check-failed { --check-color: #ffadad; --check-border: #bf7373; }
 .check-stale { --check-color: #ffd17b; --check-border: #a78958; }
 .check-unrun { --check-color: #c3c8d1; }
+.check-unknown { --check-color: #ffd17b; --check-border: #a78958; }
 .check-mark:focus-visible { outline: 2px solid #f9c22b; outline-offset: 2px; }
 .quest-checks { border-top: 1px solid #59616b; margin-top: 14px; padding-top: 8px; }
 .quest-card .quest-checks h4 { color: #f9c22b; margin: 4px 0; }

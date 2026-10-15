@@ -56,7 +56,7 @@ function record(event: AgentEvent): boolean {
   const session = event.terminal ? pty.getSession(event.terminal) : undefined;
   if (session) {
     event = { ...event, project: session.project, branch: session.branch ?? "" };
-    try { quests.observe(session, event, at, (id) => !pty.getSession(id) || Boolean(pty.getSession(id)?.exited)); } catch (error) { console.error("Quest save failed:", error); }
+    try { if (quests.observe(session, event, at, (id) => !pty.getSession(id) || Boolean(pty.getSession(id)?.exited)) === false) return false; } catch (error) { console.error("Quest save failed:", error); }
   }
   if (session && AGENTS[session.preset].hero) {
     try { ledger.observe(session.project, now); }

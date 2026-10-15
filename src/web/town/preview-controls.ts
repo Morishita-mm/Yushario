@@ -39,7 +39,10 @@ export function previewControls(key: string, links: PreviewLink[], pages: Map<st
         const draft = document.createElement("button"); draft.type = "button"; draft.textContent = tr("▶ 勇者に つたえる", "▶ Tell hero");
         draft.disabled = Boolean(recipients);
         recipient.onchange = () => { draft.disabled = !recipient.value || recipient.selectedOptions[0].disabled; };
-        draft.onclick = () => { dialog.close(); box.closest("dialog")?.close(); tell(previewDraft(page, language), recipients ? recipient.value : undefined); }; dialog.append(draft);
+        draft.onclick = () => {
+          if (draft.disabled || recipients && !recipients.some((member) => member.session === recipient.value && !member.disabled)) return;
+          dialog.close(); box.closest("dialog")?.close(); tell(previewDraft(page, language), recipients ? recipient.value : undefined);
+        }; dialog.append(draft);
       }
       const close = document.createElement("button"); close.type = "button"; close.textContent = tr("▶ とじる", "▶ Close"); close.onclick = () => dialog.close(); dialog.append(close);
       dialog.addEventListener("close", () => dialog.remove(), { once: true });

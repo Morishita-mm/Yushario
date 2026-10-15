@@ -2,9 +2,9 @@ import { commandActivity } from "./activity";
 import type { AgentEvent } from "./events";
 
 export type WorkFingerprint = { head: string; changes: string; base?: string };
-export type CheckEvidence = { command: string; passed: boolean; at: number; hero?: string; session: string; base?: string; fingerprint?: WorkFingerprint; checks: string[] };
+export type CheckEvidence = { command: string; passed?: boolean; at: number; hero?: string; session: string; base?: string; fingerprint?: WorkFingerprint; checks: string[] };
 export type QuestCheck = { id: string; name: string; command: string; evidence?: CheckEvidence };
-export type CheckMark = "unrun" | "passed" | "failed" | "stale";
+export type CheckMark = "unrun" | "passed" | "failed" | "stale" | "unknown";
 export type CheckCandidate = { name: string; command: string };
 
 export function sameFingerprint(a?: WorkFingerprint, b?: WorkFingerprint): boolean {
@@ -12,6 +12,7 @@ export function sameFingerprint(a?: WorkFingerprint, b?: WorkFingerprint): boole
 }
 export function checkMark(evidence: CheckEvidence | undefined, current: WorkFingerprint | undefined): CheckMark {
   if (!evidence) return "unrun";
+  if (evidence.passed === undefined) return "unknown";
   if (!evidence.passed) return "failed";
   // Unknown states never earn a pass. The UI also shows "State unknown".
   return evidence.base === current?.base && sameFingerprint(evidence.fingerprint, current) ? "passed" : "stale";
@@ -24,36 +25,53 @@ export function checkBasePath(quest: { town: string; worktreePath?: string }, wr
   sessions: { id: string; cwd: string; project: string; exited?: unknown }[]): string | undefined {
   return quest.worktreePath ?? sessions.find((session) => session.id === writer && session.project === quest.town && !session.exited)?.cwd;
 }
-// Only simple command words, quotes and separators. Complex shell syntax stays unverified.
-function commandWords(command: string): string[][] {
-  if (/[$`\\\\(){}<>]/.test(command)) return [];
+// A deliberately small recognizer, not a shell parser. Unsafe syntax can only
+// identify an UNKNOWN attempt; it never certifies either success or failure.
+function commandWords(command: string): { parts: string[][]; certain: boolean } {
   const parts: string[][] = [], words: string[] = [];
-  let word = "", quote = "", started = false;
+  let word = "", quote = "", started = false, certain = true, afterAnd = false;
   const finishWord = () => { if (started) words.push(word); word = ""; started = false; };
   const finishPart = () => { finishWord(); if (words.length) parts.push(words.splice(0)); };
   for (let i = 0; i < command.length; i++) {
     const char = command[i];
-    if (quote) { if (char === quote) quote = ""; else word += char; continue; }
-    if (char === "'" || char === '"') { quote = char; started = true; continue; }
+    if (quote) {
+      if (quote === '"' && "$`\\".includes(char)) certain = false;
+      if (char === quote) quote = ""; else word += char;
+      continue;
+    }
+    if (char === "'" || char === '"') { quote = char; started = true; afterAnd = false; continue; }
     if (char === "#" && !started) {
       while (i < command.length && command[i] !== "\n") i++;
+      if (i < command.length) certain = false;
       finishPart(); continue;
     }
-    if (";&|\n".includes(char)) { finishPart(); continue; }
+    if (char === "&" && command[i + 1] === "&") {
+      finishWord(); if (!words.length) certain = false;
+      finishPart(); afterAnd = true; i++; continue;
+    }
+    if (";&|\n\r(){}<>$`\\".includes(char)) { certain = false; finishPart(); continue; }
     if (/\s/.test(char)) { finishWord(); continue; }
-    word += char; started = true;
+    word += char; started = true; afterAnd = false;
   }
-  if (quote) return [];
+  if (quote || afterAnd) certain = false;
   finishPart();
-  return parts.map((part) => {
+  for (const part of parts) {
     while (/^[A-Za-z_][A-Za-z0-9_]*=/.test(part[0] ?? "")) part.shift();
-    return part;
-  });
+    if (!part.length || /^(if|then|else|elif|fi|for|while|until|do|done|case|esac|function|select|!|time)$/.test(part[0])) {
+      certain = false;
+      part.shift(); // May identify an unknown attempt, never infer a branch ran.
+    }
+  }
+  return { parts, certain: certain && parts.length > 0 };
 }
+function matches(words: string[], needle: string[]): boolean {
+  return needle.length > 0 && needle.every((word, index) => words[index] === word);
+}
+export function certainCheckCommand(command: string): boolean { return commandWords(command).certain; }
 export function commandMatchesCheck(command: string, shape: string): boolean {
-  const needles = commandWords(shape);
-  if (needles.length !== 1 || !needles[0].length) return false;
-  return commandWords(command).some((words) => needles[0].every((word, index) => words[index] === word));
+  const needle = commandWords(shape), parsed = commandWords(command);
+  return needle.certain && needle.parts.length === 1 && parsed.certain
+    && parsed.parts.some((words) => matches(words, needle.parts[0]));
 }
 export function checkCommand(event: AgentEvent): string | undefined {
   // Codex 0.162.1 documents tool output, not a structured exit status.
@@ -64,9 +82,13 @@ export function checkCommand(event: AgentEvent): string | undefined {
 export function evidenceChecks(event: AgentEvent, checks: QuestCheck[]): string[] | undefined {
   const command = checkCommand(event);
   if (!command) return;
-  const matches = checks.filter((check) => commandMatchesCheck(command, check.command)).map((check) => check.id);
-  const test = commandWords(command).some((words) => commandActivity(words.join(" ")) === "test");
-  return matches.length || test ? matches : undefined;
+  const parsed = commandWords(command);
+  const ids = checks.filter((check) => {
+    const needle = commandWords(check.command);
+    return needle.certain && needle.parts.length === 1 && parsed.parts.some((words) => matches(words, needle.parts[0]));
+  }).map((check) => check.id);
+  const test = parsed.parts.some((words) => commandActivity(words.join(" ")) === "test");
+  return ids.length || test ? ids : undefined;
 }
 export function checkCandidates(input: unknown): CheckCandidate[] {
   if (!input || typeof input !== "object" || Array.isArray(input)) return [];

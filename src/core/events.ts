@@ -13,13 +13,13 @@ export interface AgentEvent {
   source?: string;
   tool?: string;
   context?: number; // Context window usage, when known (0–1).
-  // Room fields (docs/OBSERVATION.md), for local display only.
+  // Room and local quest ledger fields (docs/OBSERVATION.md).
   agent?: string; // Session id; one character per session.
   name?: string; // Display name (last segment of the working directory).
   terminal?: string; // Embedded terminal session id.
   project?: string; // Town key, not a display name (shared by its worktrees).
   branch?: string; // Local branch, for the base's name badge.
-  text?: string; // Prompt/final reply for local conversation display only.
+  text?: string; // Local prompt/final reply; ledger body saved only when opted in.
   hook?: string; // Harness hook name, e.g. "PreToolUse".
   target?: string; // What the activity is about: file basename, command head, domain…
   command?: string; // Completed command input, transient until check matching; never replayed.

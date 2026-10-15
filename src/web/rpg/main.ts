@@ -2,6 +2,7 @@ import { language, tr } from "../language";
 import "@fontsource/dotgothic16/400.css";
 import type { AgentEvent } from "../../core/events";
 import { parsePermission, parseRelayEvent } from "./relay-message";
+import { staleSessionEnd } from "../../core/session-actions";
 import { Room } from "../../core/room";
 import { narrate, stats } from "../../core/story";
 import { Messages, Status } from "./hud";
@@ -119,7 +120,8 @@ const notices = initNotices(document.querySelector<HTMLElement>("#herald")!, (no
 
 const endedTerminals = new Set<string>();
 const endedAgents = new Set<string>(); // Sound only: Room may recreate a hero from a late hook.
-function currentTerminal(event: AgentEvent): boolean {
+function currentTerminal(event: AgentEvent, at: number): boolean {
+  if (staleSessionEnd(event, at, room.agents.get(event.agent ?? "default")?.lastEventAt)) return false;
   if (event.terminal) {
     if (endedTerminals.has(event.terminal)) return false;
     const previous = room.agents.get(event.agent ?? "default")?.terminal;
@@ -139,7 +141,7 @@ function currentTerminal(event: AgentEvent): boolean {
 
 // A live event: update the world, then tell it as a story.
 function live(event: AgentEvent, at: number, audible: boolean): void {
-  if (!currentTerminal(event)) return;
+  if (!currentTerminal(event, at)) return;
   const before = room.agents.get(event.agent ?? "default");
   const level = before ? stats(before, at).level : 1;
   const previousContext = before?.context;
@@ -167,7 +169,7 @@ function replay(events: { event?: unknown; at?: unknown }[]): void {
   const told: [AgentEvent, number][] = [];
   for (const item of events) {
     const parsed = parseRelayEvent(item?.event, item?.at);
-    if (!parsed || !currentTerminal(parsed.event)) continue;
+    if (!parsed || !currentTerminal(parsed.event, parsed.at)) continue;
     actions.observe(parsed.event, parsed.at);
     const present = room.agents.has(parsed.event.agent ?? "default");
     room.apply(parsed.event, parsed.at);
@@ -229,11 +231,19 @@ function connect(): void {
   current.onopen = () => { connectionLabel.textContent = ""; };
   current.onmessage = receiveMessage;
   current.onerror = () => current.close();
-  current.onclose = () => {
-    status.permissions.clear(); setPartyNotices({});
-    connectionLabel.textContent = tr("せつだん… さいせつぞく まち", "Disconnected… Reconnecting");
-    setTimeout(connect, 3000);
-  };
+  current.onclose = () => { status.permissions.clear(); setPartyNotices({}); void reconnect(); };
+}
+async function reconnect(): Promise<void> {
+  connectionLabel.textContent = tr("せつだん… さいせつぞく まち", "Disconnected… Reconnecting");
+  try {
+    // Browsers hide the WS handshake status. A read-only API distinguishes 403 from an outage.
+    const response = await fetch(`/api/sessions?token=${encodeURIComponent(token)}`, { cache: "no-store", signal: AbortSignal.timeout(3000) });
+    if (response.status === 403) {
+      connectionLabel.textContent = tr("サーバーが 起動しなおした。ターミナルに出た 新しい URL を ひらいて", "Server restarted. Open the new URL shown in the terminal.");
+      return;
+    }
+  } catch { /* An unreachable server is still a temporary disconnect. */ }
+  setTimeout(connect, 3000);
 }
 
 let lastStatus = 0;

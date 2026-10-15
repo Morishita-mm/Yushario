@@ -17,7 +17,7 @@ export function requirePartyConversation(preset: string): void {
 }
 
 export type PartyInvite = { id: string; quest: string; town: string; from: string; role: PartyRole; note: string; session?: string; preset?: string; cwd?: string; at: number };
-export type PartyWarning = { id: string; quest: string; town: string; hero: string; at: number };
+export type PartyWarning = { id: string; quest: string; town: string; hero: string; at: number; count?: number };
 export class QuestParty {
   private readonly invitations = new Map<string, PartyInvite>();
   private readonly warnings = new Map<string, PartyWarning>();
@@ -58,7 +58,7 @@ export class QuestParty {
   private changed(): void { this.broadcast(this.snapshot()); }
   invite(input: Omit<PartyInvite, "id" | "at" | "town">): PartyInvite {
     if (this.invitations.size >= 32) throw new Error(tr("さきに でんれいに こたえて", "Answer the herald first"));
-    const quest = this.quests.get(input.quest);
+    const quest = this.quests.summary(input.quest);
     if (!quest) throw new Error(tr("クエストが みつからない", "Quest not found"));
     const invite = { ...input, id: randomUUID(), at: Date.now(), town: quest.town };
     this.invitations.set(invite.id, invite); this.changed(); return invite;
@@ -126,8 +126,12 @@ export class QuestParty {
     if (!outsideRole({ ...this.quests.member(session.id)!, writer }, report.report?.files ?? []) || this.warned.has(key)) return;
     this.warned.add(key); this.trimTurns(session.id);
     const hero = report.hero ?? session.id;
-    const notice = { id: key, quest: report.quest, town: session.project, hero, at: report.at };
-    this.warnings.set(key, notice);
+    // One unread payload per live terminal (at most 16), without losing the
+    // number of warnings. Every individual fact remains in the quest ledger.
+    const previous = [...this.warnings.values()].find((warning) => warning.id.startsWith(`${session.id}:`));
+    const id = previous?.id ?? key;
+    this.warnings.set(id, { id, quest: report.quest, town: session.project, hero, at: report.at,
+      count: Math.min(Number.MAX_SAFE_INTEGER, (previous?.count ?? 0) + 1) });
     this.quests.addEvent(report.quest, { kind: "outside-role", at: report.at, session: session.id, hero,
       title: tr(`${this.name(hero) ?? hero}が やくわりの そとで ファイルを かえた`, `${this.name(hero) ?? hero} changed files outside their role`) });
     this.changed();

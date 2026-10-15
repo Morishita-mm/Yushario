@@ -1,4 +1,5 @@
 import type { DatabaseSync } from "node:sqlite";
+import { certainCheckCommand } from "../core/checks";
 
 // Versions 1 and 2 are unchanged. Version 3 also adopts tables created outside
 // user_version by stages 18–19.5, so all later schema changes have one owner.
@@ -9,7 +10,22 @@ export const migrations = [(db: DatabaseSync) => db.exec(`
     kind TEXT NOT NULL, at INTEGER NOT NULL, title TEXT NOT NULL, session TEXT, hero TEXT, report TEXT, text TEXT);
   CREATE TABLE quest_sessions (session TEXT PRIMARY KEY, quest TEXT NOT NULL REFERENCES quests(id) ON DELETE CASCADE, hero TEXT);
   CREATE INDEX quest_events_quest ON quest_events(quest, at);
-`), (db: DatabaseSync) => db.exec(`ALTER TABLE quests ADD COLUMN worktreePath TEXT; ALTER TABLE quests ADD COLUMN worktreeBranch TEXT;`), migrateAdditionalTables];
+`), (db: DatabaseSync) => db.exec(`ALTER TABLE quests ADD COLUMN worktreePath TEXT; ALTER TABLE quests ADD COLUMN worktreeBranch TEXT;`), migrateAdditionalTables, migrateCheckReads];
+
+function migrateCheckReads(db: DatabaseSync): void {
+  db.exec(`CREATE INDEX quest_report_hero ON quest_events(hero,at) WHERE kind='report';
+    CREATE INDEX quest_report_session ON quest_events(session,at) WHERE kind='report';
+    ALTER TABLE quest_checks ADD COLUMN latestEvent INTEGER REFERENCES quest_events(id) ON DELETE SET NULL;
+    UPDATE quest_checks SET latestEvent=(SELECT h.id FROM quest_events h JOIN quest_check_evidence e ON e.event=h.id
+      WHERE h.quest=quest_checks.quest AND EXISTS (SELECT 1 FROM json_each(e.matches) m WHERE m.value=quest_checks.id)
+      ORDER BY h.at DESC,h.id DESC LIMIT 1);`);
+  const unknown = db.prepare("UPDATE quest_check_evidence SET passed=-1 WHERE event=?");
+  // Old evidence kept only 200 characters: a cut command cannot prove safety.
+  for (const row of db.prepare("SELECT event,command FROM quest_check_evidence").iterate()) {
+    const command = String(row.command);
+    if (command.length >= 200 || !certainCheckCommand(command)) unknown.run(row.event);
+  }
+}
 
 function migrateAdditionalTables(db: DatabaseSync): void {
   db.exec(`CREATE TABLE IF NOT EXISTS quest_party (

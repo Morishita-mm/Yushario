@@ -45,10 +45,11 @@ export class QuestDatabase {
   }
   summary(id: string): Quest | undefined {
     const quest = this.db.prepare("SELECT * FROM quests WHERE id=?").get(id) as unknown as Quest | undefined;
-    return quest && { ...quest, writerSession: this.party.writerSession(id), checks: this.checks.list(id), fingerprint: this.checks.fingerprints.get(id) };
+    return quest && { ...quest, writerSession: this.party.writerSession(id) };
   }
   get(id: string): QuestDetail | undefined {
-    const quest = this.summary(id);
+    const summary = this.summary(id);
+    const quest = summary && { ...summary, checks: this.checks.list(id), fingerprint: this.checks.fingerprints.get(id) };
     if (!quest) return;
     const events = this.db.prepare("SELECT * FROM quest_events WHERE quest=? ORDER BY at DESC, id DESC").all(id)
       .map((row) => {
@@ -81,8 +82,13 @@ export class QuestDatabase {
     return this.db.prepare("SELECT * FROM quest_events WHERE kind='report' AND session=? AND at>=? AND json_extract(report,'$.startedAt')<=?").all(session, at, at)
       .map((row) => ({ ...row, report: JSON.parse(String(row.report)) })) as unknown as QuestEvent[];
   }
-  reports(): QuestReportLink[] {
-    return this.db.prepare("SELECT e.hero,e.at,q.title FROM quest_events e JOIN quests q ON q.id=e.quest WHERE e.kind='report' AND e.hero IS NOT NULL").all() as unknown as QuestReportLink[];
+  reportLink(hero: string, at: number): (QuestReportLink & { quest: string }) | undefined {
+    return this.db.prepare("SELECT e.hero,e.at,e.quest,q.title FROM quest_events e JOIN quests q ON q.id=e.quest WHERE e.kind='report' AND e.hero=? AND e.at=? ORDER BY e.id DESC LIMIT 1")
+      .get(hero, at) as (QuestReportLink & { quest: string }) | undefined;
+  }
+  reportQuest(session: string, at: number): Quest | undefined {
+    const row = this.db.prepare("SELECT quest FROM quest_events WHERE kind='report' AND session=? AND at=? ORDER BY id DESC LIMIT 1").get(session, at);
+    return row && this.summary(String(row.quest));
   }
   correctReport(session: string, at: number, report: QuestEvent["report"], title: string): void {
     this.db.prepare("UPDATE quest_events SET report=json_set(json(?),'$.result',json_extract(report,'$.result')),title=? WHERE kind='report' AND session=? AND at=?")

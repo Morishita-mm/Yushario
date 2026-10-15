@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Room } from "./room";
-import { stopRequestAfterEvent, waitingAfterEvent } from "./session-actions";
+import { staleSessionEnd, stopRequestAfterEvent, waitingAfterEvent } from "./session-actions";
 import type { AgentEvent } from "./events";
 
 const helper = (hook: string): AgentEvent => ({ state: "working", agent: "hero", hook, subagent: { id: "helper" }, tool: "Read" });
@@ -18,6 +18,15 @@ describe("finished helpers", () => {
     for (const at of [1, 3]) expect(room.apply(helper("SubagentStart"), at)!.helpers).toEqual([]);
     expect(room.apply(helper("SubagentStart"), 4)!.helpers).toHaveLength(1);
   });
+  it("keeps a reused ID alive when the prior generation's Stop arrives", () => {
+    const room = new Room();
+    for (const [hook, at] of [["SubagentStart", 1], ["SubagentStop", 3], ["SubagentStart", 4], ["SubagentStop", 3], ["PreToolUse", 5]] as const) room.apply(helper(hook), at);
+    expect(room.agents.get("hero")!.helpers).toMatchObject([{ id: "helper", latestAt: 5 }]);
+    room.apply(helper("SubagentStop"), 4);
+    expect(room.agents.get("hero")!.helpers).toHaveLength(1);
+    room.apply(helper("SubagentStop"), 6);
+    expect(room.agents.get("hero")!.helpers).toEqual([]);
+  });
   it("keeps at most 256 finish clocks and forgets them on main SessionEnd", () => {
     const room = new Room();
     for (let i = 0; i < 300; i++) room.apply({ ...helper("SubagentStop"), subagent: { id: String(i) } }, i);
@@ -26,6 +35,33 @@ describe("finished helpers", () => {
     expect(room.apply({ ...helper("PreToolUse"), subagent: { id: "0" } }, 0)!.helpers).toHaveLength(1);
     room.apply({ state: "idle", agent: "hero", hook: "SessionEnd" }, 400);
     expect(room.apply(helper("SubagentStart"), 500)!.helpers).toHaveLength(1);
+  });
+});
+
+describe("session end ordering", () => {
+  it("shares the same end boundary for terminal consumers and the ledger", () => {
+    const end: AgentEvent = { state: "idle", hook: "SessionEnd" };
+    expect(staleSessionEnd(end, 19, 20)).toBe(true);
+    expect(staleSessionEnd(end, 20, 20)).toBe(false);
+    expect(staleSessionEnd(end, 19, undefined)).toBe(false);
+    expect(staleSessionEnd({ ...end, subagent: { id: "helper" } }, 19, 20)).toBe(false);
+  });
+  it("does not lose the hero or the turn after an old end, with or without Esc", () => {
+    for (const interrupt of [false, true]) {
+      const room = new Room();
+      const event = (hook: string, extra = {}): AgentEvent => ({ state: "working", agent: "hero", hook, ...extra });
+      room.apply(event("SessionStart"), 10);
+      room.apply(event("UserPromptSubmit", { text: "request" }), 11);
+      room.apply(event("PostToolUse", { tool: "Edit", target: "a.ts" }), 15);
+      const agent = room.apply(event(interrupt ? "Interrupt" : "PreToolUse", { tool: "Bash" }), 20);
+      room.apply(event("SessionEnd"), 19);
+      expect(room.agents.get("hero")).toBe(agent);
+      room.apply(event("InterruptConfirmed"), 22);
+      room.apply(event("Stop", { text: "done" }), 23);
+      expect(agent!.talk.at(-1)?.report?.files).toEqual(["a.ts"]);
+      room.apply(event("SessionEnd"), 24);
+      expect(room.agents.size).toBe(0);
+    }
   });
 });
 

@@ -19,6 +19,18 @@ describe("bounded turn aggregation", () => {
     expect(turns.current.active).toBeUndefined();
   });
 
+  it("does not count a test whose command shape hides its result", () => {
+    const turns = emptyTurns();
+    recordTurn(turns, { state: "thinking", hook: "UserPromptSubmit" }, 0);
+    recordTurn(turns, { state: "working", hook: "PostToolUse", tool: "Bash", target: "npm test || true" }, 1);
+    recordTurn(turns, { state: "error", hook: "PostToolUseFailure", tool: "Bash", target: "true; npm test" }, 2);
+    recordTurn(turns, { state: "working", hook: "PostToolUse", tool: "Bash", target: "npm test" }, 3);
+    recordTurn(turns, { state: "success", hook: "Stop" }, 4);
+    const talk: TalkEntry[] = [{ at: 4, from: "hero", text: "done" }];
+    attachReports(talk, turns);
+    expect(talk[0].report?.tests).toEqual({ passed: 1, failed: 0, last: "passed" });
+  });
+
   it("also bounds input that has no prompt, no text and no completed turns", () => {
     const turns = emptyTurns();
     for (let at = 0; at < 10_000; at++) recordTurn(turns, { state: "working", tool: "Read", hook: "PreToolUse" }, at);

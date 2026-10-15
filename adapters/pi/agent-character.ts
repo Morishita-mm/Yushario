@@ -27,7 +27,7 @@ function target(input: Record<string, unknown>): string | undefined {
 export default function (pi: ExtensionAPI): void {
   let project: Promise<string> = Promise.resolve("");
   let reply = "";
-  let outcome: "Stop" | "StopFailure" | "Interrupt" = "Stop";
+  let outcome: "Stop" | "StopFailure" | "InterruptConfirmed" = "Stop";
   let active = false;
   let runSignal: AbortSignal | undefined;
   function send(ctx: ExtensionContext, hook: string, state: AgentState, extra: Partial<AgentEvent> = {}): Promise<void> {
@@ -78,15 +78,15 @@ export default function (pi: ExtensionAPI): void {
   });
   // Use the final boundary, not an assistant from an earlier retry or an error-shaped abort.
   pi.on("agent_before_settle", (event) => {
-    outcome = runSignal?.aborted || event.outcome === "aborted" ? "Interrupt"
+    outcome = runSignal?.aborted || event.outcome === "aborted" ? "InterruptConfirmed"
       : event.outcome === "error" ? "StopFailure" : "Stop";
   });
   // agent_end can still be followed by recovery/compaction; only settled is ready for the next say.
   pi.on("agent_settled", (_event, ctx) => {
     // pi skips agent_before_settle on a direct abort; the captured operation signal is final.
-    if (runSignal?.aborted) outcome = "Interrupt";
+    if (runSignal?.aborted) outcome = "InterruptConfirmed";
     active = false; runSignal = undefined;
-    send(ctx, outcome, outcome === "StopFailure" ? "error" : outcome === "Interrupt" ? "idle" : "success",
+    send(ctx, outcome, outcome === "StopFailure" ? "error" : outcome === "InterruptConfirmed" ? "idle" : "success",
       outcome === "Stop" ? { text: reply } : {});
   });
   pi.on("session_before_compact", (_event, ctx) => { send(ctx, "PreCompact", "working"); });

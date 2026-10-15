@@ -23,6 +23,11 @@ export function hasTrustPrompt(output: string): boolean {
   return /(?:Doyoutrust(?:thefilesin)?thisfolder|Yes,Itrustthisfolder|Isthisaprojectyoucreatedoroneyoutrust\?|Trustprojectfolder\?)/i.test(plain);
 }
 
+// An old end is not a terminal boundary, even when no stop was requested.
+export function staleSessionEnd(event: AgentEvent, at: number, latestAt: number | undefined): boolean {
+  return event.hook === "SessionEnd" && !event.subagent && at < (latestAt ?? -Infinity);
+}
+
 // Esc is a request, not proof of a stop. Only a subsequent main ready/end hook confirms it.
 export function stopRequestAfterEvent(current: number | undefined, event: AgentEvent, at: number): number | undefined {
   if (event.subagent || at < (current ?? -Infinity)) return current;

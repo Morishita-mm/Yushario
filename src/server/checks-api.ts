@@ -12,8 +12,8 @@ export async function handleChecksRequest(request: IncomingMessage, response: Se
   if (!report && parts[4] !== "checks" && !(parts[3] && !parts[4] && request.method === "GET")) return false;
   const json = (status: number, value: unknown) => response.writeHead(status, { "Content-Type": "application/json", "Cache-Control": "no-store" }).end(JSON.stringify(value));
   try {
-    const quest = report ? quests.list().find((quest) => quests.get(quest.id)?.events.some((event) => event.kind === "report"
-      && event.session === url.searchParams.get("session") && event.at === Number(url.searchParams.get("at")))) : quests.get(decodeURIComponent(parts[3]));
+    const quest = report ? quests.reportQuest(url.searchParams.get("session") ?? "", Number(url.searchParams.get("at")))
+      : quests.summary(decodeURIComponent(parts[3]));
     if (!quest) { if (report) { json(200, { checks: [] }); return true; } return false; }
     const known = sessions(), base = questCheckBase(quests, quest.id, known);
     if (request.method === "GET") {
