@@ -59,8 +59,11 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
     dispose?.(); dispose = undefined; attached = undefined;
     dialog.close();
   }
-  function closeLaunch(): void { launching++; launch.close(); }
-  for (const [window, close] of [[launch, closeLaunch], [dialog, closeTerminal]] as const) {
+  // Where to go back when the person closes the launch window without launching (e.g. the party window).
+  let back: (() => void) | undefined;
+  function closeLaunch(): void { launching++; back = undefined; launch.close(); }
+  function cancelLaunch(): void { const previous = back; closeLaunch(); previous?.(); }
+  for (const [window, close] of [[launch, cancelLaunch], [dialog, closeTerminal]] as const) {
     window.addEventListener("cancel", (event) => { event.preventDefault(); close(); });
     window.addEventListener("click", (event) => {
       if (event.target !== window) return;
@@ -80,7 +83,7 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
     const id = attached && !attached.exited ? talkHero(attached.id) : undefined;
     if (id) { closeTerminal(); openTalk(id); }
   });
-  document.querySelector("#expedition-close")!.addEventListener("click", closeLaunch);
+  document.querySelector("#expedition-close")!.addEventListener("click", cancelLaunch);
 
   function updateTitle(): void {
     talk.hidden = !attached || Boolean(attached.exited) || !talkHero(attached.id);
@@ -132,8 +135,8 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
   destination.addEventListener("change", () => { chooseDestination(); void loadBases(); });
   path.addEventListener("change", () => void loadBases());
   document.querySelector("#expedition")!.addEventListener("click", () => openLaunch());
-  function openLaunch(selectedQuest?: Quest): void {
-    quest = selectedQuest; bases.setQuest(quest); void bases.load("");
+  function openLaunch(selectedQuest?: Quest, returnTo?: () => void): void {
+    quest = selectedQuest; back = returnTo; bases.setQuest(quest); void bases.load("");
     const request = ++launching;
     preset.replaceChildren();
     preset.disabled = true;

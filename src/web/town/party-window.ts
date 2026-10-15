@@ -69,7 +69,7 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
       town.append(row);
     }
     if (!free.length) town.append(el("p", "pw-empty", tr("ほかに いない", "No one else")));
-    if (controls) town.append(command(tr("＋ 新しく 出陣させる", "＋ Embark a new hero"), () => { exit(); controls.embark(); }));
+    if (controls) town.append(command(tr("＋ 新しく 出陣させる", "＋ Embark a new hero"), () => { exit(); controls.embark(() => openPartyWindow(quest, controls, changed)); }));
   }
   function showCommands(heading: string, ...buttons: HTMLButtonElement[]): void {
     commands.hidden = false;

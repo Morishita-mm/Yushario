@@ -7,7 +7,7 @@ import "./quest-party.css";
 
 export type PartyHero = PartyMember & { name: string; active: boolean; canTalk?: boolean; waiting?: boolean; sessionInfo?: Session };
 export type PartyControls = {
-  talk: (hero: string, session: string) => void; review: (hero: string, session: string) => void; embark: () => void;
+  talk: (hero: string, session: string) => void; review: (hero: string, session: string) => void; embark: (back?: () => void) => void;
   farewell?: (hero: string) => void; sessionName?: (session: string) => string | undefined; mock?: PartyHero[];
 };
 const token = new URLSearchParams(location.search).get("token") ?? "";
