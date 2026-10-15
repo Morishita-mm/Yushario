@@ -7,6 +7,7 @@ import type { EquipmentMaster } from "../../core/equipment";
 import { loadEquipment } from "./equipment";
 import { initExpeditionBases } from "./expedition-bases";
 import type { Quest } from "../../core/quests";
+export type Landing = { assign: boolean; arrived: (session: Session) => void };
 import { townLabel } from "../../core/town-ledger";
 import "./worktrees.css";
 
@@ -14,7 +15,7 @@ const CLAUDE_SETUP = "https://code.claude.com/docs/en/setup";
 
 // Page-local windows. All session ownership stays on the server.
 export function initExpedition(currentTown: () => string | undefined, heroName: (terminal: string) => string | undefined,
-  launched: (session: Session, towns: TownRecord[]) => void, talkHero: (terminal: string) => string | undefined,
+  launched: (session: Session, towns: TownRecord[], quiet: boolean) => void, talkHero: (terminal: string) => string | undefined,
   openTalk: (id: string) => void, townName: (key: string) => string) {
   const launch = document.querySelector<HTMLDialogElement>("#expedition-dialog")!;
   const dialog = document.querySelector<HTMLDialogElement>("#session-dialog")!;
@@ -61,6 +62,9 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
   }
   // Where to go back when the person closes the launch window without launching (e.g. the party window).
   let back: (() => void) | undefined;
+  // Where a launch from a quest or the party window lands instead of the talk window, and whether the
+  // new hero takes the quest. Without it (the header button), the hero's talk window opens as before.
+  let landing: Landing | undefined;
   function closeLaunch(): void { launching++; back = undefined; launch.close(); }
   function cancelLaunch(): void { const previous = back; closeLaunch(); previous?.(); }
   for (const [window, close] of [[launch, cancelLaunch], [dialog, closeTerminal]] as const) {
@@ -135,8 +139,8 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
   destination.addEventListener("change", () => { chooseDestination(); void loadBases(); });
   path.addEventListener("change", () => void loadBases());
   document.querySelector("#expedition")!.addEventListener("click", () => openLaunch());
-  function openLaunch(selectedQuest?: Quest, returnTo?: () => void): void {
-    quest = selectedQuest; back = returnTo; bases.setQuest(quest); void bases.load("");
+  function openLaunch(selectedQuest?: Quest, returnTo?: () => void, land?: Landing): void {
+    quest = selectedQuest; back = returnTo; landing = land; bases.setQuest(quest); void bases.load("");
     const request = ++launching;
     preset.replaceChildren();
     preset.disabled = true;
@@ -205,7 +209,8 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
         ...(weapon.value ? { weapon: weapon.value } : {}), ...(accessory.value ? { accessory: accessory.value } : {}) });
     }).then(async (result) => {
       if (!result) return;
-      if (selectedQuest) {
+      const land = landing;
+      if (selectedQuest && (land?.assign ?? true)) {
         const token = new URLSearchParams(location.search).get("token") ?? "";
         const response = await fetch(`/api/quests/${encodeURIComponent(selectedQuest.id)}/assign?${new URLSearchParams({ token })}`, {
           method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ session: (result as Session).id }),
@@ -219,7 +224,8 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
       const towns = await loadTowns();
       if (launching !== request || !launch.open) return;
       closeLaunch();
-      launched(session, towns);
+      launched(session, towns, Boolean(land));
+      land?.arrived(session);
     }).catch((error: Error) => {
       if (launching === request && launch.open) status.textContent = error.message;
     }).finally(() => { if (launching === request) start.disabled = false; });

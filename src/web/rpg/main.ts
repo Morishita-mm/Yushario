@@ -58,13 +58,14 @@ let socket: WebSocket | undefined;
 const expedition = initExpedition(() => scene.currentTown, (terminal) => {
   const agent = [...room.agents.values()].find((item) => item.terminal === terminal);
   return agent && (scene.names.get(agent.id) ?? agent.name);
-}, arrived, (terminal) => [...room.agents.values()].find((agent) => agent.terminal === terminal)?.id,
+}, (session, towns, quiet) => arrived(session, towns, false, quiet), (terminal) => [...room.agents.values()].find((agent) => agent.terminal === terminal)?.id,
   (id) => talk.open(id), scene.townName);
-function arrived(session: Session, towns: TownRecord[], recalled = false): void {
+function arrived(session: Session, towns: TownRecord[], recalled = false, quiet = false): void {
   equipment.remember(session);
   // Launch and recall both register the town before the hero reaches its gate.
   scene.setTowns(towns); scene.expectArrival(session.id);
-  scene.enterTown(session.project, () => talk.openSession(session.id, recalled, session.preset));
+  // A launch from a quest or the party window returns there instead of opening the talk window.
+  scene.enterTown(session.project, () => { if (!quiet) talk.openSession(session.id, recalled, session.preset); });
 }
 initRoster((session, towns) => arrived(session, towns, true), scene.townName);
 initHelp();

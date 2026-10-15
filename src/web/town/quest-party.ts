@@ -10,7 +10,7 @@ export type PartyHero = PartyMember & { name: string; active: boolean; canTalk?:
 // What a card shows beyond the party record: the hero's picture, gear, MP and level.
 export type HeroInfo = { portrait?: HTMLCanvasElement; gear?: string; mp?: number; level?: number; here?: boolean };
 export type PartyControls = {
-  talk: (hero: string, session: string) => void; review: (hero: string, session: string) => void; embark: (back?: () => void) => void;
+  talk: (hero: string, session: string) => void; review: (hero: string, session: string) => void; embark: (back?: () => void, arrived?: (session: Session) => void) => void;
   farewell?: (hero: string) => void; sessionName?: (session: string) => string | undefined; heroInfo?: (session: string) => HeroInfo; mock?: PartyHero[];
 };
 const token = new URLSearchParams(location.search).get("token") ?? "";

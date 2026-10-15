@@ -5,6 +5,7 @@ import { questCard, type TownHero } from "../town/quest-card";
 import { partyRequest, type HeroInfo, type PartyControls } from "../town/quest-party";
 import type { TacticStatus } from "../../core/tactics";
 import { openPartyWindow } from "../town/party-window";
+import type { Landing } from "./expedition";
 import { questStateLabel, renderQuestList } from "../town/quest-list";
 import { coverMap } from "./talk";
 import type { Project } from "../town/world";
@@ -23,7 +24,7 @@ export async function questRequest(path = "", method = "GET", body?: unknown): P
 export function initQuests(town: () => string | undefined, projects: () => Project[],
   hero: (id: string) => RoomAgent | undefined, name: (id: string) => string | undefined,
   select: (id: string) => void, talk: (id: string, at?: number) => void, counted: (count: number) => void,
-  embark: (quest: Quest, back?: () => void) => void, townName: (key: string) => string, preview?: (quest: Quest) => HTMLElement, terminal?: (session: string) => void,
+  embark: (quest: Quest, back?: () => void, landing?: Landing) => void, townName: (key: string) => string, preview?: (quest: Quest) => HTMLElement, terminal?: (session: string) => void,
   draft?: (session: string, text: string) => void, heroesIn: (town: string) => RoomAgent[] = () => [], farewell?: (hero: string) => void,
   heroInfo?: (session: string) => HeroInfo) {
   const root = document.querySelector<HTMLElement>("#quests")!;
@@ -65,7 +66,8 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
       talk: (id, session) => { dialog.close(); if (hero(id)) talk(id); else terminal?.(session); },
       review: (id, session) => { dialog.close(); openReview(name(id) ?? hero(id)?.name ?? id, hero(id) ? session : { quest: quest.id },
         hero(id) ? (text) => text && draft ? draft(session, text) : talk(id) : undefined, hero(id) ? () => terminal?.(session) : undefined); },
-      embark: (back) => { dialog.close(); embark(quest, back); },
+      // A hero launched from the party window joins nothing yet; the window comes back with it chosen.
+      embark: (back, arrived) => { dialog.close(); embark(quest, back, { assign: false, arrived: (session) => arrived?.(session) }); },
       farewell, heroInfo, sessionName: (session) => { const agent = heroesIn(quest.town).find((item) => item.terminal === session); return agent && (name(agent.id) ?? agent.name); },
     };
   }
@@ -102,7 +104,8 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
         return sendRequest(id, session, text);
       } : undefined,
       terminal: session ? () => { dialog.close(); terminal?.(session); } : undefined,
-      embark: () => { dialog.close(); embark(quest); },
+      // A hero launched for an ownerless quest becomes its owner; the card comes back at "send the request".
+      embark: () => { dialog.close(); embark(quest, undefined, { assign: true, arrived: () => void open(quest.id) }); },
       fold: async () => {
         if (!quest.worktreePath) return;
         const info = await worktreeRequest<BaseInfo>("GET", quest.worktreePath);
@@ -183,7 +186,7 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
       primary.disabled = only.disabled = team.disabled = true;
       try {
         const quest: Quest = await questRequest("", "POST", { town: towns.value, title: questTitle(text), purpose: text });
-        if (choice === "embark" && send) { dialog.close(); embark(quest); return; }
+        if (choice === "embark" && send) { dialog.close(); embark(quest, undefined, { assign: true, arrived: () => void open(quest.id) }); return; }
         if (choice && choice !== "embark") {
           await questRequest(`/${quest.id}/assign`, "POST", { session: choice });
           if (send) status.textContent = await sendRequest(quest.id, choice, text) ? tr("依頼を 届けた", "Request delivered") : tr("依頼を あずけた。勇者の 手が あいたら 届く", "Request held until the hero is free");

@@ -24,7 +24,8 @@ export const memberBadge = (member: PartyHero): string => member.writer ? tr("�
   : member.role === "command" ? tr("しき", "Command") : tr(`手伝い · ${roleLabel(member.role, language)}`, `Helper · ${roleLabel(member.role, language)}`);
 
 // `request`: a request not sent yet. The window then ends with "form the party, then send it to the owner".
-export function openPartyWindow(quest: QuestDetail, controls: PartyControls | undefined, changed: () => void, request?: string): void {
+// `focus`: a hero just launched from this window, chosen again when the window comes back.
+export function openPartyWindow(quest: QuestDetail, controls: PartyControls | undefined, changed: () => void, request?: string, focus?: string): void {
   document.querySelector("#party-window")?.remove();
   const dialog = el("dialog", "party-window"); dialog.id = "party-window";
   const title = el("h3", undefined, tr(`パーティー へんせい — ${quest.title}`, `Party — ${quest.title}`)); title.id = "party-window-title";
@@ -49,7 +50,9 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
   // The town's own name for a hero first, so the same hero reads the same everywhere. Never a raw session id;
   // heroes sharing a folder name are told apart by their CLI.
   const baseName = (session: string) => {
-    const name = controls?.sessionName?.(session) ?? members.find((member) => member.session === session)?.name;
+    // A hero still walking in has not told its name yet; its folder names it, as in town.
+    const folder = sessions.find((item) => item.id === session)?.cwd.split(/[\\/]/).filter(Boolean).pop();
+    const name = controls?.sessionName?.(session) ?? members.find((member) => member.session === session && member.name !== session)?.name ?? folder;
     return name && name !== session ? name : tr("去った勇者", "A hero who left");
   };
   const presetOf = (session: string) => members.find((member) => member.session === session)?.sessionInfo?.preset ?? sessions.find((item) => item.id === session)?.preset;
@@ -113,9 +116,14 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
     }
     const free = sessions.filter((session) => session.project === quest.town && !session.exited && !members.some((member) => member.session === session.id));
     const row = el("div", "pw-cards small");
-    for (const session of free) row.append(card(session.id, session.preset, canTalk(session) ? tr("町に いる", "In town") : tr("ターミナルのみ", "Terminal only"), false, "", () => chooseTownHero(session), true));
+    for (const session of free) {
+      // A hero just launched is still walking in; it can already be chosen.
+      const walking = controls?.heroInfo?.(session.id).here === false;
+      row.append(card(session.id, session.preset, !canTalk(session) ? tr("ターミナルのみ", "Terminal only") : walking ? tr("町に 向かっている", "Walking into town") : tr("町に いる", "In town"), false, "", () => chooseTownHero(session), true));
+    }
     if (controls) {
-      const embark = command("", () => { exit(); controls.embark(() => openPartyWindow(quest, controls, changed, pending ? draft.value : undefined)); });
+      const embark = command("", () => { exit(); controls.embark(() => openPartyWindow(quest, controls, changed, pending ? draft.value : undefined),
+        (session) => openPartyWindow(quest, controls, changed, pending ? draft.value : undefined, session.id)); });
       embark.classList.add("pw-card", "small", "pw-add"); embark.append(el("span", "pw-plus", "＋"), el("span", undefined, tr("新しく 出陣させる", "Embark a new hero")));
       row.append(embark);
     }
@@ -263,5 +271,5 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
     pending.append(el("h4", undefined, tr("依頼（編成が 終わったら 送る）", "Request (sent when the party is ready)")), draft, send);
   }
   dialog.showModal(); guide();
-  void reload().catch(fail);
+  void reload().then(() => { const arrived = sessions.find((session) => session.id === focus); if (arrived) chooseTownHero(arrived); }).catch(fail);
 }
