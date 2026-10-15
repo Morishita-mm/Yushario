@@ -8,7 +8,7 @@ import { iconLabel } from "../icons.js";
 
 export type PartyHero = PartyMember & { name: string; active: boolean; canTalk?: boolean; waiting?: boolean; sessionInfo?: Session };
 // What a card shows beyond the party record: the hero's picture, gear, MP and level.
-export type HeroInfo = { portrait?: HTMLCanvasElement; gear?: string; hp?: number; mp?: number; level?: number; here?: boolean };
+export type HeroInfo = { portrait?: HTMLCanvasElement; gear?: string; mp?: number; level?: number; here?: boolean };
 export type PartyControls = {
   talk: (hero: string, session: string) => void; review: (hero: string, session: string) => void; embark: (back?: () => void, arrived?: (session: Session) => void) => void;
   farewell?: (hero: string) => void; sessionName?: (session: string) => string | undefined; heroInfo?: (session: string) => HeroInfo; savedGear?: (preset: string | undefined, gear: { weapon?: string; accessory?: string }) => string; mock?: PartyHero[];

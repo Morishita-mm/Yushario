@@ -139,12 +139,11 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
     commands.replaceChildren(title, ...buttons, command(tr("やめる", "Cancel"), () => { commands.hidden = true; guide(); }));
     buttons[0]?.focus();
   }
-  // A departed member is one line: name, HP, MP, model and effort. No picture.
+  // A departed member is one line: name, model and effort. No picture.
   function goneRow(member: PartyHero): HTMLButtonElement {
     const entry = roster.find((item) => item.sessionId === member.hero), info = controls?.heroInfo?.(member.session) ?? {};
-    const value = (n?: number) => n === undefined ? "？" : String(Math.round(n * 100));
     const gear = entry ? controls?.savedGear?.(entry.preset, entry) : info.gear;
-    const row = command(`${entry?.name ?? nameOf(member.session)} · HP ${value(info.hp)} · MP ${value(info.mp)} · ${gear ?? tr("モデル・effort 不明", "Model and effort unknown")}`, () => chooseGone(member, entry));
+    const row = command(`${entry?.name ?? nameOf(member.session)} · ${gear ?? tr("モデル・effort 不明", "Model and effort unknown")}`, () => chooseGone(member, entry));
     row.classList.add("pw-gone-row"); return row;
   }
   function chooseGone(member: PartyHero, entry: { sessionId: string; name?: string } | undefined): void {
