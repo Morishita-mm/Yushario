@@ -114,9 +114,11 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
     add.classList.add("pw-card", "pw-add"); add.append(el("span", "pw-plus", "＋"), el("span", undefined, tr("仲間を 足す", "Add a hero")));
     slots.append(add);
     party.replaceChildren(el("h4", undefined, tr(`いまの パーティー（${present.length}）`, `The party (${present.length})`)), slots);
-    away.hidden = !gone.length;
-    away.replaceChildren(el("h4", undefined, tr(`町を 去った 仲間（${gone.length}）`, `Party members who left (${gone.length})`)));
-    for (const member of gone) away.append(goneRow(member));
+    // Folded by default, so many departed members never push the party out of view; stays as the person left it.
+    const fold = el("details", "pw-away-fold"); fold.open = away.dataset.open === "true";
+    fold.addEventListener("toggle", () => { away.dataset.open = String(fold.open); });
+    fold.append(el("summary", undefined, tr(`町を 去った 仲間（${gone.length}）`, `Party members who left (${gone.length})`)), ...gone.map(goneRow));
+    away.hidden = !gone.length; away.replaceChildren(fold);
     const free = sessions.filter((session) => session.project === quest.town && !session.exited && !members.some((member) => member.session === session.id));
     const row = el("div", "pw-cards small");
     for (const session of free) {

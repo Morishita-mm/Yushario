@@ -70,3 +70,5 @@
 .pw-request { gap: 8px; }
 .pw-request textarea { font: inherit; width: 100%; box-sizing: border-box; color: #fff; background: #111; border: 1px solid #fff; padding: 6px; resize: vertical; }
 .pw-away .pw-gone-row { width: 100%; text-align: left; color: #b9b1cc; font-size: 13px; overflow-wrap: anywhere; }
+.pw-away-fold > summary { cursor: pointer; color: #b9b1cc; font-size: 13px; letter-spacing: .08em; }
+.pw-away-fold[open] > summary { margin-bottom: 4px; }
