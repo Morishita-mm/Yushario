@@ -5,6 +5,7 @@ import { parsePermission, parseRelayEvent } from "./relay-message";
 import { staleSessionEnd } from "../../core/session-actions";
 import { Room } from "../../core/room";
 import { narrate, stats } from "../../core/story";
+import { heroPortrait } from "../town/hero-portrait";
 import { Messages, Status } from "./hud";
 import { Scene } from "./scene";
 import { loadTowns, type TownRecord } from "./ledger";
@@ -80,7 +81,11 @@ const sideTabs = initSideTabs();
 const previews = initPreview(talk.draft);
 const quests = initQuests(() => scene.currentTown, () => scene.projects, (id) => room.agents.get(id), (id) => scene.names.get(id),
   (id) => { sideTabs.show("party"); scene.select(id, true); }, (id, at) => talk.open(id, at), (n) => sideTabs.count("quests", n), expedition.openLaunch, scene.townName, previews.section, (session) => void expedition.openTerminal(session),
-  (session, text) => talk.draft(session, text), (town) => [...room.agents.values()].filter((agent) => agent.project === town), (hero) => void actions.farewell(hero));
+  (session, text) => talk.draft(session, text), (town) => [...room.agents.values()].filter((agent) => agent.project === town), (hero) => void actions.farewell(hero),
+  (session) => {
+    const agent = [...room.agents.values()].find((item) => item.terminal === session), now = agent && stats(agent, Date.now());
+    return { portrait: heroPortrait(scene.art, agent?.id), gear: equipment.brief(session), mp: now?.mp, level: now?.level };
+  });
 talk.setQuestControls(quests.current, quests.choose, quests.reportTitle);
 scene.openQuests = () => sideTabs.show("quests");
 const status = new Status(
@@ -93,7 +98,7 @@ const status = new Status(
   namesChanged,
   (id) => scene.select(id, true),
   equipment.describe,
-  (n) => sideTabs.count("party", n), scene.townName, reviewHero,
+  (n) => sideTabs.count("party", n), scene.townName, reviewHero, equipment.brief,
 );
 function namesChanged(names: Record<string, string>): void {
   scene.savedNames.clear();

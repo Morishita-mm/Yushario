@@ -80,3 +80,9 @@ export function equipmentCommands(current: Equipment, next: Equipment, master: A
   }
   return commands;
 }
+// The model and effort a hero was equipped with. Undefined means not known: launched with
+// the default, or changed inside the CLI where the app cannot see it.
+export function gearSummary(gear: Equipment, items?: AgentEquipment): { model?: string; effort?: string } {
+  const weapon = items?.weapons.find((item) => item.id === gear.weapon), accessory = items?.accessories.find((item) => item.id === gear.accessory);
+  return { model: weapon?.model, effort: accessory?.value };
+}

@@ -1,5 +1,5 @@
 import { tr } from "../language";
-import type { AgentEquipment, Equipment, EquipmentMaster } from "../../core/equipment";
+import { gearSummary, type AgentEquipment, type Equipment, type EquipmentMaster } from "../../core/equipment";
 import type { RoomAgent } from "../../core/room";
 import { equipmentTiers, type EquipmentTiers } from "../../core/battle-presentation";
 import { sessionRequest, type Session } from "../terminal";
@@ -37,6 +37,13 @@ export function initEquipment(hero: (id: string) => RoomAgent | undefined, name:
   function describe(terminal?: string): string[] {
     const session = terminal ? sessions.get(terminal) : undefined;
     return session && master[session.preset] ? equipmentLabels(session, master[session.preset]) : [];
+  }
+  // "opus · high"; anything the app cannot know (default gear, or changed inside the CLI) is "unknown".
+  function brief(terminal?: string): string {
+    const session = terminal ? sessions.get(terminal) : undefined;
+    const { model, effort } = session ? gearSummary(session, master[session.preset]) : {};
+    if (!model && !effort) return tr("モデル・effort 不明", "Model and effort unknown");
+    return `${model ?? tr("モデル 不明", "model unknown")} · ${effort ?? tr("effort 不明", "effort unknown")}`;
   }
   function tiers(terminal?: string): EquipmentTiers {
     const session = terminal ? sessions.get(terminal) : undefined;
@@ -112,5 +119,5 @@ export function initEquipment(hero: (id: string) => RoomAgent | undefined, name:
     }
     render();
   }
-  return { refresh, remember, describe, tiers, changed, setPending, open, reset: () => { pending = new Set(); } };
+  return { refresh, remember, describe, brief, tiers, changed, setPending, open, reset: () => { pending = new Set(); } };
 }

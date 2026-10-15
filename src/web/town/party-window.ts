@@ -32,7 +32,7 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
   const close = () => { exit(); changed(); };
   const head = el("div", "pw-head"); head.append(title, command(tr("とじる", "Close"), close));
   const party = el("section", "pw-box"), town = el("section", "pw-box"), commands = el("section", "pw-box pw-commands"), message = el("section", "pw-box pw-message");
-  const columns = el("div", "pw-columns"); columns.append(party, town);
+  const columns = el("div", "pw-rows"); columns.append(party, town);
   dialog.append(head, columns, commands, message); document.body.append(dialog);
   dialog.addEventListener("cancel", (event) => { event.preventDefault(); close(); });
   dialog.addEventListener("keydown", (event) => event.stopPropagation());
@@ -52,24 +52,39 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
     [members, sessions, agents] = await Promise.all([partyRequest(`${prefix}/party`), partyRequest("sessions"), partyRequest("agents")]);
     render();
   }
+  // A card per hero, like a party screen: picture, name, role, CLI, model and effort, MP and state.
+  function card(session: string, preset: string | undefined, badge: string, writer: boolean, state: string, pick: () => void, small = false): HTMLButtonElement {
+    const info = controls?.heroInfo?.(session) ?? {}, node = command("", pick); node.classList.add("pw-card"); if (small) node.classList.add("small");
+    if (writer) node.classList.add("writer");
+    const picture = el("span", "pw-picture"); if (info.portrait) picture.append(info.portrait);
+    const mp = el("span", "pw-mp"), fill = el("span"); fill.style.width = `${Math.round((info.mp ?? 0) * 100)}%`; mp.append(fill);
+    mp.title = `MP ${info.mp === undefined ? "？" : Math.round(info.mp * 100)}`; mp.classList.toggle("unknown", info.mp === undefined);
+    node.append(picture, el("span", "pw-name", nameOf(session)), el("span", writer ? "pw-badge writer" : "pw-badge", badge),
+      el("span", "pw-kind", `${preset ?? "?"}${info.level !== undefined ? ` · Lv ${info.level}` : ""}`), el("span", "pw-gear", info.gear ?? tr("モデル・effort 不明", "Model and effort unknown")));
+    if (!small) node.append(mp);
+    node.append(el("span", "pw-state", state));
+    node.setAttribute("aria-label", [nameOf(session), badge, preset, info.gear, state].filter(Boolean).join(" · "));
+    return node;
+  }
   function render(): void {
     commands.hidden = true;
-    party.replaceChildren(el("h4", undefined, tr("いまの パーティー", "The party")));
-    if (!members.length) party.append(el("p", "pw-empty", tr("まだ だれも いない", "Nobody yet")));
-    for (const member of members) {
-      const row = command("", () => chooseMember(member)); row.classList.add("pw-hero");
-      row.append(el("span", "pw-name", nameOf(member.session)), el("span", member.writer ? "pw-badge writer" : "pw-badge", memberBadge(member)), el("span", "pw-state", memberState(member)));
-      party.append(row);
-    }
-    town.replaceChildren(el("h4", undefined, tr("町に いる 勇者", "Heroes in town")));
+    const slots = el("div", "pw-cards");
+    for (const member of members) slots.append(card(member.session, member.sessionInfo?.preset, memberBadge(member), member.writer, memberState(member), () => chooseMember(member)));
+    const add = command("", () => { (town.querySelector<HTMLButtonElement>(".pw-card") ?? town.querySelector<HTMLButtonElement>(".pw-command"))?.focus();
+      say(tr("下の「町に いる 勇者」から えらぶか、新しく 出陣させよう。", "Pick a hero in town below, or embark a new one.")); });
+    add.classList.add("pw-card", "pw-add"); add.append(el("span", "pw-plus", "＋"), el("span", undefined, tr("仲間を 足す", "Add a hero")));
+    slots.append(add);
+    party.replaceChildren(el("h4", undefined, tr(`いまの パーティー（${members.length}）`, `The party (${members.length})`)), slots);
     const free = sessions.filter((session) => session.project === quest.town && !session.exited && !members.some((member) => member.session === session.id));
-    for (const session of free) {
-      const row = command("", () => chooseTownHero(session)); row.classList.add("pw-hero");
-      row.append(el("span", "pw-name", nameOf(session.id)), el("span", "pw-badge", session.preset), el("span", "pw-state", canTalk(session) ? "" : tr("ターミナルのみ", "Terminal only")));
-      town.append(row);
+    const row = el("div", "pw-cards small");
+    for (const session of free) row.append(card(session.id, session.preset, canTalk(session) ? tr("町に いる", "In town") : tr("ターミナルのみ", "Terminal only"), false, "", () => chooseTownHero(session), true));
+    if (controls) {
+      const embark = command("", () => { exit(); controls.embark(() => openPartyWindow(quest, controls, changed)); });
+      embark.classList.add("pw-card", "small", "pw-add"); embark.append(el("span", "pw-plus", "＋"), el("span", undefined, tr("新しく 出陣させる", "Embark a new hero")));
+      row.append(embark);
     }
+    town.replaceChildren(el("h4", undefined, tr("町に いる 勇者", "Heroes in town")), row);
     if (!free.length) town.append(el("p", "pw-empty", tr("ほかに いない", "No one else")));
-    if (controls) town.append(command(tr("＋ 新しく 出陣させる", "＋ Embark a new hero"), () => { exit(); controls.embark(() => openPartyWindow(quest, controls, changed)); }));
   }
   function showCommands(heading: string, ...buttons: HTMLButtonElement[]): void {
     commands.hidden = false;

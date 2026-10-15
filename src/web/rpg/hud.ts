@@ -35,6 +35,7 @@ export class Status {
     private readonly counted: (n: number) => void,
     private readonly townName: (key: string) => string = (key) => townNameForKey(key, []),
     private readonly review?: (id: string) => void,
+    private readonly gear?: (terminal?: string) => string,
   ) {
     this.rename = initNameEditor(() => this.detailed, namesChanged);
     const close = () => this.closeDetails();
@@ -94,11 +95,11 @@ export class Status {
     this.counted(agents.length);
     const waiting = (id: string) => [...this.permissions.values()].some((item) => (item.agent ?? "default") === id);
     const signature = JSON.stringify([chosen?.id, agents.map((agent) => [agent.id, names.get(agent.id) ?? agent.name, agent.project, this.townName(agent.project ?? agent.name), agent.branch,
-      agent.activity, agent.target, interruptStatus(agent, now), stats(agent, now), waiting(agent.id)])]);
+      agent.activity, agent.target, interruptStatus(agent, now), stats(agent, now), waiting(agent.id), this.gear?.(agent.terminal)])]);
     if (signature !== this.listSignature) {
       this.listSignature = signature;
       renderPartyList(this.list, agents, (agent) => compactRow(agent, now, names.get(agent.id) ?? agent.name,
-        agent === chosen, waiting(agent.id), () => this.commands(agent.id)), this.townName);
+        agent === chosen, waiting(agent.id), () => this.commands(agent.id), this.gear?.(agent.terminal)), this.townName);
     }
     if (agents.length) cards.push(this.list);
     const chosenPermission = [...this.permissions.values()].find((item) => (item.agent ?? "default") === chosen?.id);

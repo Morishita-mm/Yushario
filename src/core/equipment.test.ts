@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { equipmentArgs, equipmentCommands, equipmentInput, isEquipmentId, parseEquipmentMaster, resolveEquipmentMaster } from "./equipment";
+import { gearSummary, equipmentArgs, equipmentCommands, equipmentInput, isEquipmentId, parseEquipmentMaster, resolveEquipmentMaster } from "./equipment";
 
 const items = {
   weapons: [{ id: "dagger", name: "たんけん", model: "provider/light" }, { id: "steel", name: "つるぎ", model: "provider/normal" }],
@@ -60,5 +60,12 @@ describe("equipment CLI delivery", () => {
     expect(() => equipmentCommands({ weapon: "steel" }, {}, items, controls)).toThrow("そうびなし");
     expect(() => equipmentCommands({}, { weapon: "steel" }, items, { ...controls, modelCommand: "" })).toThrow("途中");
     expect(() => equipmentCommands({}, { accessory: "low" }, items, { ...controls, thinkingCommand: "" })).toThrow("途中");
+  });
+  it("names the equipped model and effort, and nothing it cannot know", () => {
+    const items = { weapons: [{ id: "legend", name: "でんせつの つるぎ", model: "opus" }], accessories: [{ id: "high", name: "はちまき", value: "high" }] };
+    expect(gearSummary({ weapon: "legend", accessory: "high" }, items)).toEqual({ model: "opus", effort: "high" });
+    expect(gearSummary({}, items)).toEqual({ model: undefined, effort: undefined });
+    expect(gearSummary({ weapon: "missing" }, items).model).toBeUndefined();
+    expect(gearSummary({ weapon: "legend" })).toEqual({ model: undefined, effort: undefined });
   });
 });

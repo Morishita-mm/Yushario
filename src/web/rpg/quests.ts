@@ -2,6 +2,7 @@ import { questTitle, type Quest, type QuestBinding, type QuestDetail, type Quest
 import type { RoomAgent } from "../../core/room";
 import { tr } from "../language";
 import { questCard, type TownHero } from "../town/quest-card";
+import type { HeroInfo } from "../town/quest-party";
 import { questStateLabel, renderQuestList } from "../town/quest-list";
 import { coverMap } from "./talk";
 import type { Project } from "../town/world";
@@ -21,7 +22,8 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
   hero: (id: string) => RoomAgent | undefined, name: (id: string) => string | undefined,
   select: (id: string) => void, talk: (id: string, at?: number) => void, counted: (count: number) => void,
   embark: (quest: Quest, back?: () => void) => void, townName: (key: string) => string, preview?: (quest: Quest) => HTMLElement, terminal?: (session: string) => void,
-  draft?: (session: string, text: string) => void, heroesIn: (town: string) => RoomAgent[] = () => [], farewell?: (hero: string) => void) {
+  draft?: (session: string, text: string) => void, heroesIn: (town: string) => RoomAgent[] = () => [], farewell?: (hero: string) => void,
+  heroInfo?: (session: string) => HeroInfo) {
   const root = document.querySelector<HTMLElement>("#quests")!;
   const dialog = document.createElement("dialog"); dialog.className = "report-window quest-window";
   const heading = document.createElement("h3"), content = document.createElement("div"), close = document.createElement("button");
@@ -101,7 +103,7 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
         review: (id, session) => { dialog.close(); openReview(name(id) ?? hero(id)?.name ?? id, hero(id) ? session : { quest: quest.id },
           hero(id) ? (text) => text && draft ? draft(session, text) : talk(id) : undefined, hero(id) ? () => terminal?.(session) : undefined); },
         embark: (back) => { dialog.close(); embark(quest, back); },
-        farewell, sessionName: (session) => { const agent = heroesIn(quest.town).find((item) => item.terminal === session); return agent && (name(agent.id) ?? agent.name); },
+        farewell, heroInfo, sessionName: (session) => { const agent = heroesIn(quest.town).find((item) => item.terminal === session); return agent && (name(agent.id) ?? agent.name); },
       },
       review: () => reviewQuest(quest),
       reload: () => void open(id),

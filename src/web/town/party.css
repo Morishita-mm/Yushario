@@ -48,3 +48,4 @@
 .permission-content { max-height: 160px; overflow-y: auto; white-space: pre-wrap; overflow-wrap: anywhere; font: 12px/1.5 monospace; margin: 6px 0; padding: 6px; background: #0a0a1a; }
 .permission .permission-time { color: #ffe066; font-variant-numeric: tabular-nums; }
 .permission button:disabled { opacity: 0.4; cursor: not-allowed; }
+.compact-gear { grid-column: 1 / -1; font-size: 11px; color: #9fd6ff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

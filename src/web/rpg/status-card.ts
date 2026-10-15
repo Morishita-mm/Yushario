@@ -43,7 +43,7 @@ function levelLabel(level: number): HTMLElement {
 }
 function hpColor(hp: number): string { return hp > 0.5 ? "#7ee08a" : hp > 0.25 ? "#ffd35a" : "#ff6b5b"; }
 
-export function compactRow(agent: RoomAgent, now: number, name: string, selected: boolean, waiting: boolean, pick: () => void): HTMLElement {
+export function compactRow(agent: RoomAgent, now: number, name: string, selected: boolean, waiting: boolean, pick: () => void, gear?: string): HTMLElement {
   const { level, hp, mp } = stats(agent, now);
   const row = element("button", "compact-hero"); row.type = "button"; row.dataset.hero = agent.id;
   row.classList.toggle("selected", selected); row.classList.toggle("waiting", waiting || agent.activity === "ask");
@@ -56,6 +56,7 @@ export function compactRow(agent: RoomAgent, now: number, name: string, selected
   row.append(badge, levelLabel(level));
   const bars = element("span", "compact-bars"); bars.append(bar("HP", hp, hpColor(hp)), bar("MP", mp, "#62b8ff"));
   row.append(bars, element("span", "compact-doing", doing));
+  if (gear) row.append(element("span", "compact-gear", gear));
   row.addEventListener("click", pick);
   return row;
 }
