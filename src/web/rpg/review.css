@@ -27,6 +27,12 @@
 .diff-line.meta { color: #9eb9df; }
 .diff-number { display: inline-block; width: 42px; padding: 0 5px; text-align: right; color: #a5b0c0; border-right: 1px solid #63708966; flex-shrink: 0; user-select: none; }
 .diff-text { white-space: pre; padding: 0 8px; }
+.diff-pick { font: inherit; background: transparent; border: 0; border-right: 1px solid #63708966; border-radius: 0; cursor: pointer; }
+.diff-pick:hover, .diff-pick:focus-visible { color: #ffe066; }
+.diff-line.picked { outline: 1px solid #ffe066; outline-offset: -1px; }
+.diff-line.picked .diff-pick { background: #ffe066; color: #1a1d2b; }
+.review-decide { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.review-decide button { flex: none; white-space: nowrap; }
 .report-review { display: flex; gap: 10px; align-items: center; margin-top: 8px; }
 .reviewed-mark { color: #b0d9be; font-size: 12px; }
 @media (max-width: 760px) { .review-columns { grid-template-columns: minmax(140px, 35%) minmax(0, 1fr); } }

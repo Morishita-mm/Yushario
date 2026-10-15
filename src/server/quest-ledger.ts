@@ -9,6 +9,8 @@ import { emptyTurns, recordTurn, type Turns } from "../core/turns";
 import type { TerminalSession } from "./pty-session";
 import { QuestDatabase } from "./quest-db";
 import { reviewResult } from "./review";
+import type { ReviewResult } from "../core/review-base";
+import type { QuestDecision } from "../core/decisions";
 import { serverLanguage, tr } from "./language";
 
 export class QuestLedger {
@@ -118,7 +120,20 @@ export class QuestLedger {
   }
   reviewed(session: string, at: number, questId?: string): void {
     const quest = questId ? this.get(questId) : this.current(session);
-    if (quest) this.addEvent(quest.id, { kind: "reviewed", at, title: tr("かんてい ずみ", "Reviewed"), session: session || undefined, hero: quest.hero });
+    // Opening the window is not reading everything or approving it.
+    if (quest) this.addEvent(quest.id, { kind: "reviewed", at, title: tr("かんていを ひらいた", "Opened review"), session: session || undefined, hero: quest.hero });
+  }
+  verdict(session: string, questId: string | undefined, result: ReviewResult, decision: QuestDecision, at = Date.now()): boolean {
+    const quest = questId ? this.get(questId) : this.current(session);
+    if (!quest) return false;
+    const title = decision.verdict === "approved" ? tr("鑑定：みとめた", "Review: approved") : tr("鑑定：なおしが いる", "Review: changes needed");
+    this.addEvent(quest.id, { kind: "verdict", at, title, session: session || undefined, hero: quest.hero, result, decision });
+    return true;
+  }
+  // Records exactly which base state was accepted, then marks the quest done. Not a merge.
+  adopt(id: string, result: ReviewResult | undefined, decision: QuestDecision, at = Date.now()): Quest {
+    if (!this.addEvent(id, { kind: "adopted", at, title: tr("うけとった", "Accepted"), result, decision })) throw new Error(tr("クエストが みつからない", "Quest not found"));
+    return this.patch(id, { state: "done" }, at);
   }
   requested(session: TerminalSession, text: string, at = Date.now(), hero?: string): void {
     let quest = this.current(session.id);

@@ -20,7 +20,8 @@ export async function questRequest(path = "", method = "GET", body?: unknown): P
 export function initQuests(town: () => string | undefined, projects: () => Project[],
   hero: (id: string) => RoomAgent | undefined, name: (id: string) => string | undefined,
   select: (id: string) => void, talk: (id: string, at?: number) => void, counted: (count: number) => void,
-  embark: (quest: Quest) => void, townName: (key: string) => string, preview?: (quest: Quest) => HTMLElement, terminal?: (session: string) => void) {
+  embark: (quest: Quest) => void, townName: (key: string) => string, preview?: (quest: Quest) => HTMLElement, terminal?: (session: string) => void,
+  draft?: (session: string, text: string) => void) {
   const root = document.querySelector<HTMLElement>("#quests")!;
   const dialog = document.createElement("dialog"); dialog.className = "report-window quest-window";
   const heading = document.createElement("h3"), content = document.createElement("div"), close = document.createElement("button");
@@ -51,8 +52,13 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
           if (latest.state !== quest.state && !confirm(tr(`この クエストは いま「${questStateLabel(latest.state)}」に なっている。「${questStateLabel(patch.state)}」に かえる？`,
             `This quest is now "${questStateLabel(latest.state)}". Change it to "${questStateLabel(patch.state)}"?`))) throw new Error(tr("ほぞんを やめた", "Save cancelled"));
         }
-        await questRequest(`/${id}`, "PATCH", patch);
-        if (shown) shown = { ...shown, ...patch };
+        const { adoption, ...fields } = patch;
+        // "Done" goes through adopt, so the server records which state was accepted.
+        const edits = adoption ? { ...fields, state: undefined } : fields;
+        if (edits.title !== undefined || edits.purpose !== undefined || edits.state !== undefined) await questRequest(`/${id}`, "PATCH", edits);
+        if (adoption) await questRequest(`/${encodeURIComponent(id)}/adopt`, "POST", { ...(adoption.reason.trim() ? { reason: adoption.reason } : {}), ...(adoption.pr.trim() ? { pr: adoption.pr } : {}) });
+        if (shown) shown = { ...shown, ...fields };
+        if (adoption) await open(id); // Show the accepted record at once.
       },
       () => { if (quest.hero && hero(quest.hero)) { dialog.close(); select(quest.hero); } },
       (id, at) => { if (hero(id)) { dialog.close(); talk(id, at); } },
@@ -66,7 +72,7 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
       }, preview?.(quest), {
         talk: (id, session) => { dialog.close(); if (hero(id)) talk(id); else terminal?.(session); },
         review: (id, session) => { dialog.close(); openReview(name(id) ?? hero(id)?.name ?? id, hero(id) ? session : { quest: quest.id },
-          hero(id) ? () => talk(id) : undefined, hero(id) ? () => terminal?.(session) : undefined); },
+          hero(id) ? (text) => text && draft ? draft(session, text) : talk(id) : undefined, hero(id) ? () => terminal?.(session) : undefined); },
         embark: () => { dialog.close(); embark(quest); },
       }, () => { dialog.close(); openReview(quest.title, { quest: quest.id }, undefined, undefined); }));
     show(quest.title);

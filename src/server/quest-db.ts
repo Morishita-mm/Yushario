@@ -54,8 +54,8 @@ export class QuestDatabase {
     const events = this.db.prepare("SELECT * FROM quest_events WHERE quest=? ORDER BY at DESC, id DESC").all(id)
       .map((row) => {
         const saved = row.report ? JSON.parse(String(row.report)) : undefined;
-        const { result, ...report } = saved ?? {};
-        return { ...row, report: report.kind ? report : undefined, result, text: row.text ?? undefined };
+        const { result, decision, ...report } = saved ?? {};
+        return { ...row, report: report.kind ? report : undefined, result, decision, text: row.text ?? undefined };
       }) as unknown as QuestEvent[];
     return { ...quest, events: events.map((event) => event.kind === "check" ? { ...event, evidence: this.checks.event(event.id) } : event) };
   }
@@ -72,7 +72,7 @@ export class QuestDatabase {
   add(event: Omit<QuestEvent, "id">): number {
     return Number(this.db.prepare("INSERT INTO quest_events(quest,kind,at,title,session,hero,report,text) VALUES (?,?,?,?,?,?,?,?)")
       .run(event.quest, event.kind, event.at, event.title, event.session ?? null, event.hero ?? null,
-        event.report || event.result ? JSON.stringify({ ...event.report, result: event.result }) : null, event.text ?? null).lastInsertRowid);
+        event.report || event.result || event.decision ? JSON.stringify({ ...event.report, result: event.result, decision: event.decision }) : null, event.text ?? null).lastInsertRowid);
   }
   attachResult(id: number, quest: string, session: string, at: number, result: NonNullable<QuestEvent["result"]>): boolean {
     return this.db.prepare("UPDATE quest_events SET report=json_set(report,'$.result',json(?)) WHERE id=? AND quest=? AND kind='report' AND session=? AND at=? AND json_extract(report,'$.result.cwd')=?")

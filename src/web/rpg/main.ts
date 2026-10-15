@@ -79,7 +79,8 @@ const equipment = initEquipment((id) => room.agents.get(id), (id) => scene.names
 const sideTabs = initSideTabs();
 const previews = initPreview(talk.draft);
 const quests = initQuests(() => scene.currentTown, () => scene.projects, (id) => room.agents.get(id), (id) => scene.names.get(id),
-  (id) => { sideTabs.show("party"); scene.select(id, true); }, (id, at) => talk.open(id, at), (n) => sideTabs.count("quests", n), expedition.openLaunch, scene.townName, previews.section, (session) => void expedition.openTerminal(session));
+  (id) => { sideTabs.show("party"); scene.select(id, true); }, (id, at) => talk.open(id, at), (n) => sideTabs.count("quests", n), expedition.openLaunch, scene.townName, previews.section, (session) => void expedition.openTerminal(session),
+  (session, text) => talk.draft(session, text));
 talk.setQuestControls(quests.current, quests.choose, quests.reportTitle);
 scene.openQuests = () => sideTabs.show("quests");
 const status = new Status(
@@ -108,7 +109,7 @@ function reviewHero(id: string, at?: number): void {
   if (!terminal) return;
   const reportAt = at ?? [...agent.talk].reverse().find((entry) => entry.report?.files.length)?.at;
   talk.close(); status.closeDetails();
-  openReview(scene.names.get(id) ?? agent.name, terminal, () => talk.open(id, reportAt),
+  openReview(scene.names.get(id) ?? agent.name, terminal, (draft) => draft ? talk.draft(terminal, draft) : talk.open(id, reportAt),
     () => void expedition.openTerminal(terminal), () => { if (reportAt !== undefined) markReviewed(id, reportAt); });
 }
 

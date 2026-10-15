@@ -98,7 +98,7 @@ async function dispatchHttp(request: IncomingMessage, response: ServerResponse):
   const townApi = url.pathname === "/api/towns" || url.pathname.startsWith("/api/towns/")
     || url.pathname === "/api/settings" || url.pathname === "/api/names" || url.pathname.startsWith("/api/names/");
   const questApi = url.pathname === "/api/quests" || url.pathname.startsWith("/api/quests/");
-  const reviewApi = url.pathname === "/api/review" || url.pathname === "/api/review/diff";
+  const reviewApi = url.pathname === "/api/review" || url.pathname === "/api/review/diff" || url.pathname === "/api/review/verdict";
   const worktreeApi = url.pathname === "/api/worktrees";
   const previewApi = url.pathname === "/api/previews";
   const partyApi = url.pathname === "/api/party-notices" || url.pathname.startsWith("/api/party-notices/") || /^\/api\/quests\/[^/]+\/(party|scroll|send|summary|handoff)$/.test(url.pathname);
@@ -108,7 +108,8 @@ async function dispatchHttp(request: IncomingMessage, response: ServerResponse):
     else if (previewApi) await handlePreview(request, response, url, port, quests, ledger.towns, pty.listSessions());
     else if (worktreeApi) await handleWorktrees(request, response, url, pty.listSessions, (path) => quests.foldedWorktree(path));
     else if (reviewApi) await handleReview(request, response, url, pty.getSession(url.searchParams.get("session") ?? ""),
-      url.searchParams.has("quest") ? quests.get(url.searchParams.get("quest") ?? "") : undefined, () => reviewed(url));
+      url.searchParams.has("quest") ? quests.get(url.searchParams.get("quest") ?? "") : undefined, () => reviewed(url),
+      (result, decision) => quests.verdict(url.searchParams.get("session") ?? "", url.searchParams.get("quest") ?? undefined, result, decision));
     else if (questApi) {
       if (!await handleChecksRequest(request, response, url, quests, pty.listSessions)) await handleQuestRequest(request, response, url, quests, ledger.towns, pty.getSession);
     }

@@ -1,5 +1,6 @@
 import { diffLines, type Review, type ReviewDiff, type ReviewFile } from "../../core/review";
-import { tr } from "../language";
+import { language, tr } from "../language";
+import { fixRequest, type FixLine, type Verdict } from "../../core/decisions";
 import { element, option } from "../town/command";
 import { coverMap } from "./talk";
 import { fileOpen } from "./file-open";
@@ -21,7 +22,7 @@ export function markReviewed(hero: string, at: number): void {
 }
 
 // The app and mock use this same reader; the mock supplies only its sample git data.
-export function openReview(name: string, session: string | { quest: string }, talk: (() => void) | undefined, terminal: (() => void) | undefined,
+export function openReview(name: string, session: string | { quest: string }, talk: ((draft?: string) => void) | undefined, terminal: (() => void) | undefined,
   reviewed?: () => void, sample?: { review: Review; diffs: Record<string, ReviewDiff>; branchReview?: Review; branchDiffs?: Record<string, ReviewDiff> }): void {
   document.querySelector("#review-dialog")?.remove();
   const dialog = element("dialog", "report-window review-window"); dialog.id = "review-dialog";
@@ -45,7 +46,24 @@ export function openReview(name: string, session: string | { quest: string }, ta
   modeLabel.append(mode); baseLabel.append(base); comparison.append(modeLabel, baseLabel);
   mode.onchange = base.onchange = () => { void load(); };
   const columns = element("div", "review-columns"); columns.append(files, diff);
-  content.append(toolbar, comparison, status, columns); dialog.append(heading, content); document.body.append(dialog);
+  // Chosen lines become a fix request draft; a verdict is recorded against the state the server reads.
+  const picked = new Map<string, FixLine>(), decide = element("div", "review-decide");
+  const fix = option(tr("▶ えらんだ所を なおしてもらう", "▶ Ask to fix chosen lines"), () => {
+    close(); talk?.(fixRequest([...picked.values()], { mode: mode.value as "uncommitted" | "branch", base: mode.value === "branch" ? base.value || undefined : undefined, head: current?.head }, language));
+  }, true);
+  const judge = (verdict: Verdict) => void (async () => {
+    if (sample) { status.textContent = tr("（見本）判断を のこした", "(Sample) Verdict saved"); return; }
+    const params = new URLSearchParams({ token, ...(typeof session === "string" ? { session } : { quest: session.quest }) });
+    const response = await fetch(`/api/review/verdict?${params}`, { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ verdict, mode: mode.value, ...(mode.value === "branch" && base.value ? { base: base.value } : {}) }) });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error ?? tr("のこせなかった", "Could not save"));
+    status.textContent = `${verdict === "approved" ? tr("みとめた", "Approved") : tr("なおしが いると のこした", "Marked as needing changes")} · HEAD ${data.head || "—"}${data.known ? "" : tr(" · じょうたい ふめい", " · State unknown")}`;
+  })().catch((error: Error) => { status.textContent = error.message; });
+  if (talk) decide.append(fix);
+  decide.append(option(tr("▶ みとめる", "▶ Approve"), () => judge("approved")), option(tr("▶ なおしが いる", "▶ Needs changes"), () => judge("changes")));
+  const pickedChanged = () => { fix.disabled = !picked.size; fix.textContent = tr(`▶ えらんだ所を なおしてもらう（${picked.size}）`, `▶ Ask to fix chosen lines (${picked.size})`); };
+  content.append(toolbar, comparison, status, decide, columns); dialog.append(heading, content); document.body.append(dialog);
   dialog.addEventListener("cancel", (event) => { event.preventDefault(); close(); });
   dialog.addEventListener("keydown", (event) => { event.stopPropagation(); if (event.key === "Escape" && !event.isComposing) { event.preventDefault(); close(); } });
   dialog.addEventListener("click", (event) => {
@@ -78,8 +96,17 @@ export function openReview(name: string, session: string | { quest: string }, ta
         const pre = element("pre", "diff-lines");
         for (const line of diffLines(result.text)) {
           const row = element("span", `diff-line ${line.kind}`);
-          row.append(element("span", "diff-number", line.old === undefined ? "" : String(line.old)),
-            element("span", "diff-number", line.next === undefined ? "" : String(line.next)), element("span", "diff-text", line.text));
+          const next = line.next === undefined || !talk ? element("span", "diff-number", line.next === undefined ? "" : String(line.next)) : element("button", "diff-number diff-pick", String(line.next));
+          if (next instanceof HTMLButtonElement) {
+            const key = `${file.path}:${line.next}`; next.type = "button";
+            next.title = tr("この行を えらぶ", "Choose this line"); next.setAttribute("aria-pressed", String(picked.has(key)));
+            row.classList.toggle("picked", picked.has(key));
+            next.onclick = () => {
+              if (picked.has(key)) picked.delete(key); else picked.set(key, { path: file.path, line: line.next!, text: line.text });
+              next.setAttribute("aria-pressed", String(picked.has(key))); row.classList.toggle("picked", picked.has(key)); pickedChanged();
+            };
+          }
+          row.append(element("span", "diff-number", line.old === undefined ? "" : String(line.old)), next, element("span", "diff-text", line.text));
           pre.append(row);
         }
         diff.append(pre);
@@ -87,7 +114,7 @@ export function openReview(name: string, session: string | { quest: string }, ta
     } catch (error) { if (version === generation && dialog.open) diff.replaceChildren(element("p", "hint", error instanceof Error ? error.message : String(error))); }
   }
   async function load(): Promise<void> {
-    const version = ++generation; reload.disabled = true; files.replaceChildren(); diff.replaceChildren();
+    const version = ++generation; reload.disabled = true; files.replaceChildren(); diff.replaceChildren(); picked.clear(); pickedChanged();
     status.textContent = tr("よんでいる…", "Reading…");
     try {
       current = sample ? (mode.value === "branch" ? sample.branchReview ?? sample.review : sample.review) : await request<Review>();

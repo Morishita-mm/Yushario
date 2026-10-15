@@ -5,6 +5,9 @@ import { isAbsolute, join, relative } from "node:path";
 import { parseGitNameStatus, parseGitNumstat, parseGitStatus, safeReviewPath, type Review, type ReviewDiff } from "../core/review";
 import { defaultReviewBase, reviewBasePath, validReviewBranch, type ReviewResult } from "../core/review-base";
 import type { QuestDetail } from "../core/quests";
+import { validVerdict, type QuestDecision } from "../core/decisions";
+import { workFingerprint } from "./checks";
+import { readJsonBody, ACTION_BODY_LIMIT } from "./http-body";
 import { tr } from "./language";
 
 const LIMIT = 1024 * 1024;
@@ -124,9 +127,25 @@ export async function reviewResult(cwd: string): Promise<ReviewResult> {
   return { cwd, branch: branch.trim(), head: head.trim() };
 }
 export async function handleReview(request: IncomingMessage, response: ServerResponse, url: URL,
-  session: { cwd: string } | undefined, quest: QuestDetail | undefined, reviewed: () => void): Promise<void> {
+  session: { cwd: string } | undefined, quest: QuestDetail | undefined, reviewed: () => void,
+  decided: (result: ReviewResult, decision: QuestDecision) => boolean): Promise<void> {
   const json = (status: number, value: unknown) => response.writeHead(status, { "Content-Type": "application/json", "Cache-Control": "no-store" }).end(JSON.stringify(value));
-  if (request.method !== "GET") { response.writeHead(405, { Allow: "GET" }).end(); return; }
+  const verdict = url.pathname === "/api/review/verdict";
+  if (request.method !== (verdict ? "POST" : "GET")) { response.writeHead(405, { Allow: verdict ? "POST" : "GET" }).end(); return; }
+  if (verdict) {
+    const body = await readJsonBody(request, response, ACTION_BODY_LIMIT);
+    if (!body.ok) return;
+    const choice = validVerdict(body.value);
+    if (!choice) { json(400, { error: tr("判断を えらんで", "Choose a verdict") }); return; }
+    if (url.searchParams.has("quest") ? !quest : !session) { json(404, { error: tr("鑑定する 拠点が みつからない", "Review base not found") }); return; }
+    try {
+      const cwd = await checkedBase(session, quest), [result, fingerprint] = await Promise.all([reviewResult(cwd), workFingerprint(cwd)]);
+      // The server reads which state was judged; the person only chose the verdict.
+      if (!decided(result, { ...choice, ...(fingerprint ? { changes: fingerprint.changes } : {}) })) { json(404, { error: tr("クエストが みつからない", "Quest not found") }); return; }
+      json(200, { ...result, known: Boolean(fingerprint) });
+    } catch (error) { json(error instanceof ReviewError ? error.status : 400, { error: error instanceof ReviewError ? error.message : tr("git の きろくが ない", "No git record") }); }
+    return;
+  }
   if (url.searchParams.has("cwd")) { json(400, { error: tr("この フォルダは よめない", "Cannot read this folder") }); return; }
   if (url.searchParams.has("quest") ? !quest : !session) { json(404, { error: tr("鑑定する 拠点が みつからない", "Review base not found") }); return; }
   try {
