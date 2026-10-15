@@ -10,6 +10,8 @@ export type QuestDecision = {
   reason?: string; pr?: string; checks?: { name: string; mark: CheckMark }[];
   // The adopted answer. Kept even when conversation bodies are not saved: the person chose to adopt it.
   answer?: string;
+  // The party tactic the person chose (stage 24).
+  tactic?: import("./tactics").Tactic;
 };
 export type FixLine = { path: string; line: number; text: string };
 

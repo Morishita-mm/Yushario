@@ -74,6 +74,7 @@ Yushario と勇者は同じ OS 利用者で動く。悪意ある同一利用者�
 | `src/core/checks.ts` | ためすこと・拠点つき証拠と指紋の型、保存拠点／書き換える役の選択、単純コマンド1つの照合と拠点での実行の確認、不明な試行、最新の証拠と今の指紋による5つの印、package.json の候補 | events, activity |
 | `src/core/decisions.ts` | 鑑定の判断（みとめる／なおしが いる）と うけとった記録の型と検査（PR は https だけ）、選んだ差分の行からの修正依頼の下書き | checks, review-base |
 | `src/core/quest-stage.ts` | 保存した状態と担当から、人の流れの段階（任せる・指示を送る・作業中・返事待ち・報告を見る・おわり）、誰の番か、何回目か、前の担当を読む | quests |
+| `src/core/tactics.ts` | パーティーの作戦（命令に従え・レビューし合え・調べてから・全部任せた）の編成の合否と作戦の中・外、レビューの判定の読み取り、作戦が送る文 | party |
 | `src/core/quests.ts` | 永続クエスト・出来事・結び付きの型、セッションごとの判断待ちを優先する状態の判定、依頼の題と保存する本文の選択、一覧の順 | events, session-actions, turns, town-ledger |
 | `src/core/party.ts`, `party-scroll.ts` | 役割・合言葉の形式・権限の純粋な判定、紹介文と台帳の事実だけの巻物 | core の型・関数のみ |
 | `src/core/names.ts`, `roster.ts` | 名前・めいぼの型と入力の判定、件数制限 | core の型・関数のみ |
@@ -91,6 +92,7 @@ Yushario と勇者は同じ OS 利用者で動く。悪意ある同一利用者�
 | `src/server/quest-db.ts`, `quest-migrations.ts`, `quest-ledger.ts`, `quest-api.ts` | SQLite の1接続と全表の番号付き移行、クエスト・出来事・端末の結び付きの保存、依頼・報告の記録、クエスト API と WS の通知。party/checks/previews の保存クラスは表を作らない | core, Node sqlite/fs/crypto, server |
 | `src/server/party.ts`, `party-db.ts`, `party-api.ts`, `party-agent-api.ts` | パーティーの保存・人の確認・巻物・会話対応の端末だけへの配送、現在の書き換える役の取得、セッション専用 API と一定時間の合言葉比較 | core, server, Node sqlite/crypto/http |
 | `scripts/yushario.mjs` の `quest` | セッションの合言葉で限定 API を呼ぶだけの管理コマンド。サーバーの起動処理を通らない | Node 標準 API |
+| `src/server/tactics.ts` | 作戦を進める。フックの知らせを見て、作戦どおりの文を仲間に送り、出来事に残し、確かでない時は止めて人に返す。作戦の選択は出来事 `tactic` に残す（進み具合はメモリだけ。再起動で止まる） | core, server |
 | `src/server/checks.ts`, `checks-db.ts`, `checks-api.ts` | クエストの保存拠点（無ければ現在の書き換える役）の指紋、上限つき未追跡本文のハッシュ、拠点つき証拠・条件の保存、候補と印の API。コマンドは実行しない | core, server, Node fs/crypto/sqlite/http |
 | `src/server/review.ts` | 既知の端末／クエストの保存拠点の git 状態・未コミット／merge-base からの差分、報告の branch・HEAD の読み取り、町・作業ツリー・フォルダ境界・サイズ・時間の検査 | core, server/git, Node fs/path/http |
 | `src/server/worktrees.ts` | git worktree の一覧・作成・撤去、親の実パス・既存 branch／フォルダ・活動中の端末・残る変更の検査 | core, Node child_process/fs/path/http |
@@ -189,6 +191,7 @@ Codex の PostToolUse は成否不明として扱い、成功数・報告のテ�
 | `/api/quests/:id/adopt` | POST `{reason?,pr?}`（理由500文字まで、PR は https の URL だけ）。サーバーが保存拠点の branch・HEAD・作業状態の指紋と各ためすことの印を読み、出来事 `adopted` に残してから state を done にする。merge・push・PR 作成はしない（段階21） |
 | `/api/quests/:id/assign` | POST `{session}` で同じ町の端末に結び付け、cwd・branch を既定の拠点にする。勇者は同時に1つだけ |
 | `/api/quests/:id/party` | GET 勇者・役割・一言・書き換える役・状態・拠点・`active`（生存）・`canTalk`（会話対応）。プレビューは終了 writer を候補にせず、生存中の会話対応の仲間を人が選ぶ。POST `{session,role,note,writer?}` で人が所属と役割を変更。1人の勇者は1クエスト、指揮役・書き換える役は各1人まで | DELETE `?session=<id>` でパーティーから外す（勇者は止めない）。handoff で担当を移すと、前の担当（implement）は research の手伝いになる。クエストの担当（session・hero）は書き換える役を優先する（段階23）。
+| `/api/quests/:id/tactic`, `/research` | GET 作戦・編成の合否・進み具合。POST `{tactic}` で作戦を選ぶ（足りない時・進行中は断る）。POST `{text}`（research）で調べてからを始める（段階24） |
 | `/api/quests/:id/scroll` | GET `{text,reply?}`。台帳の事実だけの下書きと、差し込める直近の返事（本文保存なしならメモリだけ） |
 | `/api/quests/:id/send`, `/summary`, `/handoff` | POST 人が直した紹介文／選んで内容を確認した定型文／巻物を、通常と同じ配送で送る。summary は画面で確認した `{text}` をそのまま使い、サーバーで再生成しない。handoff は `{session?,preset?,cwd?,text,writer?}`、新規出陣と書き換える役の移動は人の操作だけ。会話非対応の受け手は409、預かり・新規起動・所属変更の前に断る |
 | `/api/party-notices` と `/:id` | GET 確認と警告、POST `{yes:boolean}` で仲間・役割の依頼に人が回答、DELETE で警告を既読に。画面用認可だけ |

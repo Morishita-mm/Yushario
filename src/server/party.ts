@@ -83,7 +83,7 @@ export class QuestParty {
     this.quests.join(invite.quest, session, invite.role, invite.note);
     return { session };
   }
-  send(quest: string, session: string, text: string, kind: "request" | "command" | "handoff" = "request", from?: string): boolean {
+  send(quest: string, session: string, text: string, kind: "request" | "command" | "handoff" | "tactic" = "request", from?: string): boolean {
     if (!text.trim() || text.length > 8000) throw new Error(tr("ことばは 1〜8000文字で", "Use 1–8000 characters"));
     if (this.quests.member(session)?.quest !== quest || !this.pty.agentSession(session)?.active) throw new Error(tr("パーティーの 勇者を えらんで", "Choose a party hero"));
     const info = this.pty.getSession(session);
@@ -93,7 +93,7 @@ export class QuestParty {
     this.quests.submittedText(session, text);
     const at = Date.now(), hero = this.quests.member(session)?.hero;
     const title = from ? tr(`しき ${this.label(from)}から`, `From commander ${this.label(from)}`)
-      : kind === "handoff" ? tr("引き継ぎのメモ（巻物）", "Handoff note (scroll)") : tr("あなたから", "From you");
+      : kind === "handoff" ? tr("引き継ぎのメモ（巻物）", "Handoff note (scroll)") : kind === "tactic" ? tr(`作戦から ${this.label(session)}へ`, `From the tactic to ${this.label(session)}`) : tr("あなたから", "From you");
     this.quests.addEvent(quest, { kind, title, at, session, hero, text });
     const request = { detail: from ? this.label(from) : undefined, text };
     if (hero) this.record({ state: "idle", hook: "PartyRequest", terminal: session, agent: hero, ...request });

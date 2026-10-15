@@ -6,6 +6,8 @@ import { readJsonBody, ACTION_BODY_LIMIT } from "./http-body";
 import { requirePartyConversation, TerminalOnlyError, type QuestParty } from "./party";
 import { serverLanguage, tr } from "./language";
 import { AGENTS } from "./agents";
+import { validTactic } from "../core/tactics";
+import type { QuestTactics } from "./tactics";
 
 export function partyJson(response: ServerResponse, status: number, value: unknown): void {
   response.writeHead(status, { "Content-Type": "application/json", "Cache-Control": "no-store" }).end(JSON.stringify(value));
@@ -23,7 +25,7 @@ export function partyView(party: QuestParty, id: string) {
       waiting: party.pty.agentSession(member.session)?.waiting ?? false, active: party.pty.agentSession(member.session)?.active ?? false };
   });
 }
-export async function handlePartyRequest(request: IncomingMessage, response: ServerResponse, url: URL, party: QuestParty): Promise<void> {
+export async function handlePartyRequest(request: IncomingMessage, response: ServerResponse, url: URL, party: QuestParty, tactics?: QuestTactics): Promise<void> {
   try {
     const parts = url.pathname.split("/"), id = decodeURIComponent(parts[3] ?? ""), action = parts[4];
     if (parts[2] === "party-notices") {
@@ -36,6 +38,7 @@ export async function handlePartyRequest(request: IncomingMessage, response: Ser
     const quest = party.quests.get(id);
     if (!quest) { partyJson(response, 404, { error: tr("クエストが みつからない", "Quest not found") }); return; }
     if (action === "party" && request.method === "GET") { partyJson(response, 200, partyView(party, id)); return; }
+    if (action === "tactic" && request.method === "GET" && tactics) { partyJson(response, 200, tactics.status(id)); return; }
     if (action === "scroll" && request.method === "GET") {
       const checks = quest.checks?.map((check) => ({ title: check.name, mark: checkMark(check.evidence, quest.fingerprint) })) ?? [];
       partyJson(response, 200, { text: handoffScroll(quest, checks, serverLanguage()), reply: party.latestReply(id) ?? quest.events.find((event) => event.kind === "report")?.text }); return;
@@ -47,6 +50,14 @@ export async function handlePartyRequest(request: IncomingMessage, response: Ser
     }
     if (request.method !== "POST") { response.writeHead(405).end(); return; }
     const body = await partyBody(request, response); if (!body) return;
+    if (action === "tactic" && tactics) {
+      if (!validTactic(body.tactic)) throw new Error(tr("作戦を えらんで", "Choose a tactic"));
+      partyJson(response, 200, tactics.choose(id, body.tactic)); return;
+    }
+    if (action === "research" && tactics) {
+      if (typeof body.text !== "string" || !body.text.trim() || body.text.length > 8000) throw new Error(tr("ことばは 1〜8000文字で", "Use 1–8000 characters"));
+      partyJson(response, 200, tactics.startResearch(id, body.text)); return;
+    }
     if (action === "party") {
       const session = typeof body.session === "string" ? party.pty.getSession(body.session) : undefined;
       if (!session || !party.pty.agentSession(session.id)?.active || !partyRole(body.role) || typeof body.note !== "string" || body.note.length > 200

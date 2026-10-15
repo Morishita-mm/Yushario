@@ -18,6 +18,7 @@ import { observeChecks, refreshCheckFingerprint } from "./checks";
 import { certainCheckCommand, ranAtBase } from "../core/checks";
 import { serveStatic } from "./static";
 import { handleReview } from "./review";
+import { QuestTactics } from "./tactics";
 import { handleWorktrees } from "./worktrees";
 import { handlePreview } from "./preview";
 import { createPtyServer } from "./pty";
@@ -70,6 +71,7 @@ function record(event: AgentEvent): boolean {
   broadcast({ type: "event", event, at });
   if (session) pty.observe(event, at);
   if (session) try { party.observe(session, event, at); } catch (error) { console.error("Party save failed:", error); }
+  if (session) try { tactics.observe(session, event, at); } catch (error) { console.error("Tactic failed:", error); }
   if (session) try { observeChecks(quests, session, { ...event, command }, at, pty.listSessions()); } catch (error) { console.error("Check save failed:", error); }
   return true;
 }
@@ -101,10 +103,10 @@ async function dispatchHttp(request: IncomingMessage, response: ServerResponse):
   const reviewApi = url.pathname === "/api/review" || url.pathname === "/api/review/diff" || url.pathname === "/api/review/verdict";
   const worktreeApi = url.pathname === "/api/worktrees";
   const previewApi = url.pathname === "/api/previews";
-  const partyApi = url.pathname === "/api/party-notices" || url.pathname.startsWith("/api/party-notices/") || /^\/api\/quests\/[^/]+\/(party|scroll|send|summary|handoff)$/.test(url.pathname);
+  const partyApi = url.pathname === "/api/party-notices" || url.pathname.startsWith("/api/party-notices/") || /^\/api\/quests\/[^/]+\/(party|scroll|send|summary|handoff|tactic|research)$/.test(url.pathname);
   if (sessionApi || townApi || questApi || reviewApi || worktreeApi || previewApi || partyApi) {
     if (!authorized(url, request.headers.origin, false)) { response.writeHead(403).end(); return; }
-    if (partyApi) await handlePartyRequest(request, response, url, party);
+    if (partyApi) await handlePartyRequest(request, response, url, party, tactics);
     else if (previewApi) await handlePreview(request, response, url, port, quests, ledger.towns, pty.listSessions());
     else if (worktreeApi) await handleWorktrees(request, response, url, pty.listSessions, (path) => quests.foldedWorktree(path));
     else if (reviewApi) await handleReview(request, response, url, pty.getSession(url.searchParams.get("session") ?? ""),
@@ -139,6 +141,7 @@ const pty = createPtyServer(port, (session) => ledger.register(session.projectNa
   record, (terminal) => { quests.forgetSession(terminal); party.forgetSession(terminal); broadcast(party.snapshot()); }, (id) => namedHero(ledger.names, id), broadcast, broadcast,
   (session, text, hero) => quests.requested(session, text, Date.now(), hero));
 const party = new QuestParty(quests, pty, broadcast, record, (id) => namedHero(ledger.names, id));
+const tactics = new QuestTactics(party);
 function archive(): void {
   try { ledger.archive(pty.activeTownKeys(), Date.now()); }
   catch (error) { console.error("Town archive failed:", error); }
