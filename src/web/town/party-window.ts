@@ -26,7 +26,10 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
   const dialog = el("dialog", "party-window"); dialog.id = "party-window";
   const title = el("h3", undefined, tr(`パーティー へんせい — ${quest.title}`, `Party — ${quest.title}`)); title.id = "party-window-title";
   dialog.setAttribute("aria-labelledby", title.id);
-  const close = () => { dialog.close(); dialog.remove(); changed(); };
+  // Closing returns to the quest card, so it is redrawn. Moving on to another window must not
+  // redraw the card: a late redraw would reopen it on top of that window.
+  const exit = () => { dialog.close(); dialog.remove(); };
+  const close = () => { exit(); changed(); };
   const head = el("div", "pw-head"); head.append(title, command(tr("とじる", "Close"), close));
   const party = el("section", "pw-box"), town = el("section", "pw-box"), commands = el("section", "pw-box pw-commands"), message = el("section", "pw-box pw-message");
   const columns = el("div", "pw-columns"); columns.append(party, town);
@@ -66,7 +69,7 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
       town.append(row);
     }
     if (!free.length) town.append(el("p", "pw-empty", tr("ほかに いない", "No one else")));
-    if (controls) town.append(command(tr("＋ 新しく 出陣させる", "＋ Embark a new hero"), () => { close(); controls.embark(); }));
+    if (controls) town.append(command(tr("＋ 新しく 出陣させる", "＋ Embark a new hero"), () => { exit(); controls.embark(); }));
   }
   function showCommands(heading: string, ...buttons: HTMLButtonElement[]): void {
     commands.hidden = false;
@@ -75,8 +78,8 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
   }
   function chooseMember(member: PartyHero): void {
     const hero = member.hero ?? member.session, buttons = [
-      command(tr("はなす", "Talk"), () => { close(); controls?.talk(hero, member.session); }),
-      command(tr("変更を見る", "Look at changes"), () => { close(); controls?.review(hero, member.session); }),
+      command(tr("はなす", "Talk"), () => { exit(); controls?.talk(hero, member.session); }),
+      command(tr("変更を見る", "Look at changes"), () => { exit(); controls?.review(hero, member.session); }),
     ];
     if (!member.writer && member.active && member.canTalk) buttons.push(command(tr("担当を 交代する", "Make the owner"), () => swap(member.session)));
     if (member.active) buttons.push(command(member.role === "command" ? tr("しき役を やめる", "Stop commanding") : tr("しき役に する", "Make commander"), () => commander(member)));
