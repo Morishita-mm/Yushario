@@ -31,11 +31,17 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
   const exit = () => { dialog.close(); dialog.remove(); };
   const close = () => { exit(); changed(); };
   const head = el("div", "pw-head"); head.append(title, command(tr("とじる", "Close"), close));
-  const party = el("section", "pw-box"), town = el("section", "pw-box"), commands = el("section", "pw-box pw-commands"), message = el("section", "pw-box pw-message");
+  const party = el("section", "pw-box"), town = el("section", "pw-box"), commands = el("section", "pw-commands"), message = el("section", "pw-message");
   const away = el("section", "pw-box pw-away"), columns = el("div", "pw-rows"); columns.append(party, town, away);
   const tacticSlot = el("div"), setting = gathering ? el("section", "pw-box pw-request") : undefined, draft = el("textarea");
-  dialog.append(head, tacticSlot, columns, commands, ...(setting ? [setting] : []), message); document.body.append(dialog);
-  dialog.addEventListener("cancel", (event) => { event.preventDefault(); close(); });
+  // Commands and confirmations open as a small window in front, like a command window in an RPG;
+  // the standing hint stays one line under the title.
+  const guideLine = el("p", "pw-guide"), popup = el("div", "pw-popup"), panel = el("section", "pw-box pw-popup-panel");
+  panel.append(commands, message, command(tr("とじる", "Close"), () => guide()));
+  popup.append(panel); popup.hidden = true;
+  popup.addEventListener("click", (event) => { if (event.target === popup) guide(); });
+  dialog.append(head, guideLine, tacticSlot, columns, ...(setting ? [setting] : []), popup); document.body.append(dialog);
+  dialog.addEventListener("cancel", (event) => { event.preventDefault(); if (!popup.hidden) guide(); else close(); });
   dialog.addEventListener("keydown", (event) => event.stopPropagation());
   const prefix = `quests/${encodeURIComponent(quest.id)}`, mock = controls?.mock;
   let members: PartyHero[] = mock ?? [], sessions: Session[] = [], agents: AgentInfo[] = [];
@@ -53,16 +59,19 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
     const name = baseName(session), presets = new Set([...members.map((member) => member.session), ...sessions.map((item) => item.id)].filter((other) => baseName(other) === name).map(presetOf));
     return presets.size > 1 && presetOf(session) ? `${name}（${presetOf(session)}）` : name;
   };
-  const say = (text: string, ...extra: HTMLElement[]) => { message.replaceChildren(el("p", undefined, text), ...extra); };
+  const showMessage = (...nodes: HTMLElement[]) => { message.replaceChildren(...nodes); popup.hidden = false; };
+  const say = (text: string, ...extra: HTMLElement[]) => { commands.hidden = true; showMessage(el("p", undefined, text), ...extra); };
+  // A hint that must not cover the window (where to pick a hero, what a tactic does) goes on the hint line.
+  const hint = (text: string) => { guideLine.textContent = text; };
   const fail = (error: Error) => say(error.message);
   const guide = () => {
-    if (mode === "view") { say(tr("採用した・中止した クエストの パーティーは 見るだけ。やり直すなら 新しい クエストを 作る。", "An adopted or dropped quest's party is shown only. To try again, write a new quest.")); return; }
+    if (mode === "view") { popup.hidden = true; guideLine.replaceChildren(tr("採用した・中止した クエストの パーティーは 見るだけ。やり直すなら 新しい クエストを 作る。", "An adopted or dropped quest's party is shown only. To try again, write a new quest.")); return; }
     const text = el("p");
     text.append(tr("勇者を えらんでね。", "Choose a hero. "), iconLabel("edit", tr("担当", "The owner")), tr("は ファイルを 書きかえる ただ1人。手伝いは 書きかえずに 報告する。", " is the only one who changes files. Helpers report without changing files."),
       gathering ? tr("決め終わるまで、誰にも 何も 送らない。", " Nothing is sent to anyone until you set off.") : tr("いま 頼むと、その場で 届く。", " Asking now sends at once."));
-    message.replaceChildren(text);
+    guideLine.replaceChildren(text); popup.hidden = true;
   };
-  const tactics = tacticBox(quest.id, Boolean(mock), command, (text) => say(text), () => void reload().catch(fail));
+  const tactics = tacticBox(quest.id, Boolean(mock), command, (text) => hint(text), () => void reload().catch(fail));
   if (mode !== "view") tacticSlot.replaceWith(tactics.root);
   async function reload(): Promise<void> {
     if (mock) { render(); return; }
@@ -72,7 +81,7 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
   const card = (session: string, preset: string | undefined, badge: string, writer: boolean, state: string, pick: () => void, small = false) => heroCard({ session, name: nameOf(session), preset, badge, writer, state,
     info: controls?.heroInfo?.(session) ?? {}, notes: [...(tactics.outside().has(session) ? [tr("作戦の外", "Outside the tactic")] : []), ...(gathering && forming.asks.has(session) ? [tr("出発待ち", "Waiting to set off")] : [])] }, pick, small);
   function render(): void {
-    commands.hidden = true;
+    commands.hidden = true; if (!message.childElementCount) popup.hidden = true;
     const slots = el("div", "pw-cards"), present = members.filter((member) => member.active), gone = members.filter((member) => !member.active);
     for (const member of present) {
       const here = controls?.heroInfo?.(member.session).here ?? true;
@@ -86,7 +95,7 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
         if (!first) { town.querySelector<HTMLButtonElement>(".pw-add")?.click(); return; }
         town.scrollIntoView({ block: "nearest", behavior: "smooth" }); town.classList.remove("pw-flash"); void town.offsetWidth; town.classList.add("pw-flash");
         first.focus({ preventScroll: true });
-        say(tr("「町に いる 勇者」から 仲間に する 勇者を えらぼう。いなければ「新しく 出陣させる」。", "Pick a hero from Heroes in town, or embark a new one."));
+        hint(tr("「町に いる 勇者」から 仲間に する 勇者を えらぼう。いなければ「新しく 出陣させる」。", "Pick a hero from Heroes in town, or embark a new one."));
       });
       add.classList.add("pw-card", "pw-add"); add.append(el("span", "pw-plus", "＋"), el("span", undefined, tr("仲間を 足す", "Add a hero"))); slots.append(add);
     }
@@ -109,9 +118,9 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
     if (!free.length) town.append(el("p", "pw-empty", tr("ほかに いない", "No one else")));
   }
   function showCommands(heading: string | HTMLElement, ...buttons: HTMLButtonElement[]): void {
-    commands.hidden = false;
+    commands.hidden = false; message.replaceChildren(); popup.hidden = false;
     const title = el("h4"); title.append(heading);
-    commands.replaceChildren(title, ...buttons, command(tr("やめる", "Cancel"), () => { commands.hidden = true; guide(); }));
+    commands.replaceChildren(title, ...buttons);
     buttons[0]?.focus();
   }
   function goneRow(member: PartyHero): HTMLButtonElement {
@@ -178,7 +187,7 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
       say(result.delivered ? tr(`${nameOf(session)}に 頼んだ。`, `Asked ${nameOf(session)}.`) : tr(`${nameOf(session)}は 作業中。手が あいたら 届く。`, `${nameOf(session)} is busy; it will arrive when the hero is free.`));
     })().catch((error: Error) => { send.disabled = false; fail(error); }), true);
     commands.hidden = true;
-    message.replaceChildren(el("p", "pw-step", tr("1 何を 頼む？", "1 What should they do?")), chips, el("p", "pw-step", tr("2 伝える文（送る前に 直せる）", "2 The message (edit before sending)")), text, send);
+    showMessage(el("p", "pw-step", tr("1 何を 頼む？", "1 What should they do?")), chips, el("p", "pw-step", tr("2 伝える文（送る前に 直せる）", "2 The message (edit before sending)")), text, send);
     text.focus();
   }
   // Change the owner. While forming nothing is sent: the new owner gets the handoff note with the request at set-off.
@@ -202,7 +211,7 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
         if (farewell && previous?.hero) controls?.farewell?.(previous.hero);
         await reload(); guide();
       })().catch(fail), true);
-      commands.hidden = true; message.replaceChildren(...choice, yes); return;
+      commands.hidden = true; showMessage(...choice, yes); return;
     }
     const text = el("textarea"); text.rows = 9; text.maxLength = 8000;
     if (!mock) void partyRequest(`${prefix}/scroll`).then((scroll) => { if (!text.value) text.value = scroll.text; }).catch(fail);
@@ -225,7 +234,7 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
       await reload();
       say(result.delivered ? tr(`${nameOf(session)}が 新しい担当。メモを 届けた。`, `${nameOf(session)} is the new owner. Note delivered.`) : tr(`${nameOf(session)}が 新しい担当。手が あいたら メモが 届く。`, `${nameOf(session)} is the new owner. The note arrives when the hero is free.`));
     })().catch((error: Error) => { send.disabled = false; fail(error); }), true);
-    commands.hidden = true; message.replaceChildren(...parts, send); text.focus();
+    commands.hidden = true; showMessage(...parts, send); text.focus();
   }
   function commander(member: PartyHero): void {
     const becoming = member.role !== "command", current = members.find((item) => item.role === "command" && item !== member);

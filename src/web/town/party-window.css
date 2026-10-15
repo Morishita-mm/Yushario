@@ -75,3 +75,14 @@
 @keyframes pw-flash { from { border-color: #ffe066; box-shadow: 0 0 0 3px #ffe06688; } to { border-color: #fff; box-shadow: none; } }
 .pw-box.pw-flash { animation: pw-flash 1.2s ease-out; }
 @media (prefers-reduced-motion: reduce) { .pw-box.pw-flash { animation: none; border-color: #ffe066; } }
+/* Commands and confirmations: a small window in front of the party window. */
+.pw-guide { margin: 0; color: #b9b1cc; font-size: 13px; line-height: 1.6; }
+.pw-popup { position: fixed; inset: 0; display: grid; place-items: center; background: #0009; z-index: 10; padding: 16px; }
+.pw-popup[hidden] { display: none; }
+.pw-popup-panel { width: min(600px, 100%); max-height: min(80vh, 640px); overflow: auto; background: #000; gap: 8px; }
+.pw-popup-panel > .pw-command:last-child { justify-self: end; color: #b9b1cc; }
+.pw-commands { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 4px; }
+.pw-commands[hidden] { display: none; }
+.pw-commands h4 { grid-column: 1 / -1; margin: 0 0 4px; font-weight: normal; color: #ffe066; }
+.pw-message { display: grid; gap: 8px; }
+.pw-message:empty { display: none; }
