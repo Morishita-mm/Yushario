@@ -11,7 +11,6 @@ import { tacticBox } from "./party-tactics";
 import { iconLabel } from "../icons.js";
 import { command, el, heroCard, memberBadge, memberState } from "./party-cards";
 import { formingOf, partyMode, setOff } from "./party-forming";
-export { memberBadge, memberState } from "./party-cards";
 
 // A Dragon Quest style formation window: the party, heroes in town, members who left, a command window
 // for the chosen hero, and a message window that walks through each step. How it sends depends on the

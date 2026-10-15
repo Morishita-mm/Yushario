@@ -99,7 +99,7 @@ const status = new Status(
   namesChanged,
   (id) => scene.select(id, true),
   equipment.describe,
-  (n) => sideTabs.count("party", n), scene.townName, reviewHero, equipment.brief, (id) => talk.open(id),
+  (n) => sideTabs.count("party", n), scene.townName, reviewHero, equipment.brief, (id) => talk.open(id), quests.membership,
 );
 function namesChanged(names: Record<string, string>): void {
   scene.savedNames.clear();
@@ -196,7 +196,7 @@ function receiveMessage(message: MessageEvent): void {
     if (data.type === "replay" && Array.isArray(data.events)) {
       replay(data.events);
     } else if (data.type === "quests" && Array.isArray(data.quests) && Array.isArray(data.bindings)) {
-      quests.set(data); previews.remember(data.quests); talk.update();
+      quests.set(data); previews.remember(data.quests); talk.update(); status.refresh();
     } else if (data.type === "party-notices") {
       setPartyNotices(data);
     } else if (data.type === "names") {

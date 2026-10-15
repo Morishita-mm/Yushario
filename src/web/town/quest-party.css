@@ -2,3 +2,17 @@
 .party-confirmation pre { white-space: pre-wrap; overflow-wrap: anywhere; }
 .party-confirmation label { display: block; margin: 8px 0; }
 .party-confirmation textarea, .party-confirmation select, .party-confirmation input:not([type=checkbox]) { display: block; width: 100%; margin-top: 5px; box-sizing: border-box; }
+/* Stage 27: one row per member, to direct the party while the quest runs. */
+.party-rows { display: grid; gap: 4px; }
+.party-row { display: grid; grid-template-columns: minmax(6em, auto) 1fr auto; gap: 8px; align-items: center; padding: 4px 6px; border: 1px solid #ffffff33; border-radius: 4px; }
+.party-row.writer { border-color: #ffe066; }
+.party-role { color: #9fd6ff; white-space: nowrap; }
+.party-row.writer .party-role { color: #ffe066; }
+.party-facts { min-width: 0; overflow-wrap: anywhere; }
+.party-actions { display: flex; flex-wrap: wrap; gap: 4px; justify-content: end; }
+.party-order { display: grid; gap: 6px; padding: 6px; border: 1px dashed #ffffff66; border-radius: 4px; }
+.party-order textarea { width: 100%; box-sizing: border-box; display: block; margin-top: 4px; }
+.party-order pre { margin: 0; max-height: 16em; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.party-warn { margin: 0; color: #ffb35a; }
+.party-status:empty { display: none; }
+@media (max-width: 520px) { .party-row { grid-template-columns: 1fr; } .party-actions { justify-content: start; } }

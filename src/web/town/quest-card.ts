@@ -73,7 +73,7 @@ export function questCard(quest: QuestDetail, actions: QuestCardActions): HTMLEl
   tools.append(questChecks(quest)); if (actions.preview) tools.append(actions.preview);
   // Who is on the quest is always visible; forming the party opens its own window.
   const team = element("section", "quest-team");
-  team.append(element("h4", undefined, tr("パーティー", "Party")), questParty(quest, actions.party, () => actions.reload?.()));
+  team.append(element("h4", undefined, tr("パーティー", "Party")), questParty(quest, actions.party, () => actions.reload?.(), actions.tactic));
   const history = foldable(quest.id, "events", tr(`これまでの出来事（${quest.events.length}）`, `Everything so far (${quest.events.length})`));
   for (const event of quest.events) history.append(eventRow(event, actions.talk));
   box.append(team, editing, tools, history);

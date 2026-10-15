@@ -177,7 +177,7 @@ Codex の PostToolUse は成否不明として扱い、成功数・報告のテ�
 | 経路 | 契約 |
 |---|---|
 | `POST /event` | AgentEvent を検証して受付。端末専用の Authorization Bearer から terminal を確定。合言葉なし／不一致は表示専用。Origin つき403、CORSなし。正常時204、不正入力400 |
-| `WS /ws` | `event` / `replay`、`towns`、`names`、`quests`（一覧・端末の結び付き、`reports` は空。開いた会話の報告だけ HTTP で読む）、`pending`、`equipped`、`attention`、`permission` / `permission-resolved`、`party-notices`（仲間の確認・役割外の変更）。web からは `permission-decision`。札は未保存入力・操作フォーカスがある間、`quests` の受信でフォームを差し替えない（通信形式は不変） |
+| `WS /ws` | `event` / `replay`、`towns`、`names`、`quests`（一覧・端末の結び付き、各端末の参加クエストと役 `members`、`reports` は空。開いた会話の報告だけ HTTP で読む）、`pending`、`equipped`、`attention`、`permission` / `permission-resolved`、`party-notices`（仲間の確認・役割外の変更）。web からは `permission-decision`。札は未保存入力・操作フォーカスがある間、`quests` の受信でフォームを差し替えない（通信形式は不変） |
 | `/api/agents` | 起動時に PATH で検出した種類（shell は常に含む）と町・再開・整理・途中のそうび変更の対応範囲の公開部分。出陣の窓は `hero: false` を「ターミナルのみ（勇者は出ない）」と表示。Codex は hero/resume/compact が true、信頼確認・許可の端末回答と、成否・証拠・MP が取れないことを明記 |
 | `/api/equipment` | エージェントごとの武器（モデル）・アクセサリ（考える量）の読み込み済みマスタ |
 | `/api/sessions` | 装備つき端末の一覧・作成・削除（一覧 GET は WS 切断後の認可確認にも使い、403なら新 URL を案内。形式は不変）、`/:id/say` で依頼（`steer` で作業中にもすぐ伝える。答え待ちの間は断る）、`/:id/action` で中断・整理・終了、`/:id/equip` で装備の持ちかえ（作業中は預かる） |

@@ -7,6 +7,10 @@ export class PartyDatabase {
     return this.db.prepare("SELECT * FROM quest_party WHERE quest=? ORDER BY joinedAt,rowid").all(quest)
       .map((row) => ({ ...row, hero: row.hero ?? undefined, writer: Boolean(row.writer) })) as unknown as PartyMember[];
   }
+  all(): PartyMember[] {
+    return this.db.prepare("SELECT * FROM quest_party ORDER BY joinedAt,rowid").all()
+      .map((row) => ({ ...row, hero: row.hero ?? undefined, writer: Boolean(row.writer) })) as unknown as PartyMember[];
+  }
   member(session: string): PartyMember | undefined {
     const row = this.db.prepare("SELECT * FROM quest_party WHERE session=?").get(session);
     return row ? { ...row, hero: row.hero ?? undefined, writer: Boolean(row.writer) } as unknown as PartyMember : undefined;

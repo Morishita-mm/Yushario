@@ -1,6 +1,8 @@
-import { questTitle, type Quest, type QuestBinding, type QuestDetail, type QuestReportLink } from "../../core/quests";
+import { finishedQuest, questTitle, type Quest, type QuestBinding, type QuestDetail, type QuestReportLink } from "../../core/quests";
+import { roleLabel, type PartyRole } from "../../core/party";
 import type { RoomAgent } from "../../core/room";
-import { tr } from "../language";
+import { language, tr } from "../language";
+type QuestMembership = { session: string; quest: string; role: PartyRole; writer: boolean };
 import { questCard, type TownHero } from "../town/quest-card";
 import { partyRequest, type HeroInfo, type PartyControls } from "../town/quest-party";
 import type { TacticStatus } from "../../core/tactics";
@@ -39,7 +41,7 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
     const rect = dialog.getBoundingClientRect();
     if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) dialog.close();
   } });
-  let quests: Quest[] = [], bindings: QuestBinding[] = [], signature = "", selected: string | undefined;
+  let quests: Quest[] = [], bindings: QuestBinding[] = [], members: QuestMembership[] = [], signature = "", selected: string | undefined;
   let shown: Pick<Quest, "title" | "purpose" | "state"> | undefined; // What the open card shows, after its own saves.
   let generation = 0;
   const label = townName;
@@ -222,8 +224,8 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
         .catch((error: Error) => { alert(error.message); });
     });
   }
-  function set(data: { quests: Quest[]; bindings: QuestBinding[]; reports?: QuestReportLink[] }): void {
-    quests = data.quests; bindings = data.bindings; signature = ""; render();
+  function set(data: { quests: Quest[]; bindings: QuestBinding[]; reports?: QuestReportLink[]; members?: QuestMembership[] }): void {
+    quests = data.quests; bindings = data.bindings; members = data.members ?? []; signature = ""; render();
     if (selected && dialog.open) {
       if (!quests.some((quest) => quest.id === selected)) dialog.close();
       else if (!editing()) void open(selected, true);
@@ -235,5 +237,10 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
   }
   return { set, render, choose, open,
     reportTitle: (hero: string, at: number) => reportQuestTitle(hero, at, quests),
-    current: (session: string) => quests.find((quest) => quest.id === bindings.find((item) => item.session === session)?.quest) };
+    current: (session: string) => quests.find((quest) => quest.id === bindings.find((item) => item.session === session)?.quest),
+    // "Quest title · role" for a hero in a quest that is still open; finished quests are not shown.
+    membership: (session?: string) => {
+      const member = members.find((item) => item.session === session), quest = member && quests.find((item) => item.id === member.quest);
+      return quest && !finishedQuest(quest.state) ? `${quest.title} · ${member.writer ? tr("担当", "Owner") : roleLabel(member.role, language)}` : undefined;
+    } };
 }

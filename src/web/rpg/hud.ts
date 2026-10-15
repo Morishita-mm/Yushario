@@ -26,6 +26,9 @@ export class Status {
   private last: Parameters<Status["render"]> | undefined;
   private readonly search = heroSearch(() => { this.listSignature = ""; if (this.last) this.render(...this.last); });
   private detailed: string | undefined;
+  // The hero whose brief is open under its row; none at first. A new selection (row or map) opens it.
+  private briefOpen: string | undefined;
+  private lastSelected: string | undefined;
   private detailSignature = "";
   private readonly rename: ReturnType<typeof initNameEditor>;
 
@@ -42,6 +45,7 @@ export class Status {
     private readonly review?: (id: string) => void,
     private readonly gear?: (terminal?: string) => string,
     private readonly talk?: (id: string) => void,
+    private readonly membership?: (terminal?: string) => string | undefined,
   ) {
     this.rename = initNameEditor(() => this.detailed, namesChanged);
     const close = () => this.closeDetails();
@@ -58,6 +62,8 @@ export class Status {
     document.querySelector("#strength-close")!.addEventListener("click", close);
   }
 
+  // Redraw the list when something outside the room changed (which quest a hero is in).
+  refresh(): void { this.listSignature = ""; if (this.last) this.render(...this.last); }
   closeDetails(): void { this.detailed = undefined; this.dialog.close(); }
 
   openDetails(room: Room, now: number, id: string, names: Map<string, string>): void {
@@ -103,15 +109,16 @@ export class Status {
     const filter = this.search.filter(project), agents = filterHeroes(everyone, filter).map((hero) => hero.agent);
     this.search.render(project, project === undefined ? undefined : this.townName(project), stateCounts(everyone, filter));
     this.counted(filterHeroes(everyone, { town: filter.town, query: "", state: "all" }).length);
-    const chosen = agents.find((agent) => agent.id === selected) ?? agents[0];
+    if (selected !== this.lastSelected) { this.lastSelected = selected; this.briefOpen = selected; }
+    const chosen = agents.find((agent) => agent.id === this.briefOpen);
     const chosenPermission = [...this.permissions.values()].find((item) => (item.agent ?? "default") === chosen?.id);
     const signature = JSON.stringify([chosen && this.signature(chosen, now, names.get(chosen.id) ?? chosen.name, chosenPermission), Math.floor(now / 60_000),
       agents.map((agent) => [agent.id, names.get(agent.id) ?? agent.name, agent.project, this.townName(agent.project ?? agent.name), agent.branch,
-        agent.activity, agent.target, interruptStatus(agent, now), stats(agent, now), waiting(agent.id), this.gear?.(agent.terminal)])]);
+        agent.activity, agent.target, interruptStatus(agent, now), stats(agent, now), waiting(agent.id), this.gear?.(agent.terminal), this.membership?.(agent.terminal)]), selected]);
     if (signature !== this.listSignature) {
       this.listSignature = signature;
       renderPartyList(this.list, agents, (agent) => compactRow(agent, now, names.get(agent.id) ?? agent.name,
-        agent === chosen, waiting(agent.id), () => this.commands(agent.id), this.gear?.(agent.terminal)), this.townName,
+        agent.id === selected, waiting(agent.id), () => this.pick(agent.id), this.gear?.(agent.terminal), this.membership?.(agent.terminal)), this.townName,
         (agent) => agent === chosen ? this.brief(agent, now, names, chosenPermission, room) : undefined);
       if (!agents.length) this.list.append(element("p", "hint", everyone.length ? tr("見つからない。言葉や 町の札を 変えてみて", "No match. Try other words or remove the town chip") : tr("まだ だれも いない ようだ…", "No heroes here yet…")));
     }
@@ -130,6 +137,13 @@ export class Status {
       timer.textContent = tr(`のこり ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`, `Time left ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`);
     }
     for (const id of this.signatures.keys()) if (!room.agents.has(id)) this.signatures.delete(id);
+  }
+
+  // A closed hero: go to it on the map with the arrow and open its brief. The open hero: close the brief only.
+  private pick(id: string): void {
+    if (this.briefOpen === id) { this.briefOpen = undefined; this.listSignature = ""; if (this.last) this.render(...this.last); return; }
+    this.briefOpen = id; this.listSignature = ""; this.commands(id);
+    if (this.last) this.render(...this.last);
   }
 
   // The chosen hero, opened under its row: what it is doing, gear, a permission prompt, and actions.

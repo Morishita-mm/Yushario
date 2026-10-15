@@ -43,7 +43,11 @@ export class QuestLedger {
   }
   constructor(private readonly changed: (message: { type: "quests"; quests: Quest[]; bindings: QuestBinding[]; reports: QuestReportLink[] }) => void,
     private readonly keepText: () => boolean) {}
-  snapshot() { return { type: "quests" as const, quests: this.db.list(), bindings: this.db.bindings(), reports: [] as QuestReportLink[] }; }
+  // `members`: which quest each terminal is in and its role, for the hero list.
+  snapshot() {
+    return { type: "quests" as const, quests: this.db.list(), bindings: this.db.bindings(), reports: [] as QuestReportLink[],
+      members: this.db.party.all().map(({ session, quest, role, writer }) => ({ session, quest, role, writer })) };
+  }
   list(): Quest[] { return this.db.list(); }
   get(id: string) { return this.db.get(id); }
   summary(id: string) { return this.db.summary(id); }

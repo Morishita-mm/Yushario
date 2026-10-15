@@ -49,6 +49,7 @@
 .permission .permission-time { color: #ffe066; font-variant-numeric: tabular-nums; }
 .permission button:disabled { opacity: 0.4; cursor: not-allowed; }
 .compact-gear { grid-column: 1 / -1; font-size: 11px; color: #9fd6ff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.compact-quest { grid-column: 1 / -1; font-size: 11px; color: #ffe066; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* Hero search (stage 25): words, a removable town chip and state chips above the list. */
 .hero-search { display: grid; gap: 6px; margin-bottom: 8px; }
 .hero-search input { font: inherit; font-size: 13px; width: 100%; box-sizing: border-box; color: #fff; background: #0a0a1a; border: 1px solid #6e6a8a; border-radius: 4px; padding: 6px 8px; }
