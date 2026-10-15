@@ -3,7 +3,7 @@
 .quest-row { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 12px; text-align: left; margin: 4px 0; padding: 9px; font: inherit; color: #eee; background: #19182c; border: 1px solid #777; }
 .quest-row-pick { display: grid; gap: 3px; min-width: 0; text-align: left; }
 .quest-row-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-width: 0; }
-.quest-row-title { color: #ffe066; min-width: 0; overflow-wrap: anywhere; }
+.quest-row-title { flex: 1 1 auto; color: #ffe066; min-width: 0; overflow-wrap: anywhere; }
 .quest-row-meta { color: #b9b1cc; overflow-wrap: anywhere; }
 .quest-chip { flex: none; font-size: 12px; padding: 0 6px; border: 1px solid currentColor; white-space: nowrap; }
 .quest-chip.you, .quest-group.you { color: #ff8a5c; }

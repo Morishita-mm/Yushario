@@ -6,8 +6,10 @@ import { checkMarks } from "./check-marks";
 export const questStateLabel = (state: QuestState): string => ({ open: tr("準備中", "Getting ready"), active: tr("作業中", "Working"), waiting: tr("返事を待っている", "Waiting for you"), review: tr("報告が届いた", "Report arrived"), done: tr("受け取った", "Accepted"), dropped: tr("やめた", "Dropped") })[state];
 export const questStateMark = (state: QuestState): string => ({ open: "◇", active: "⚔", waiting: "❗", review: "📜", done: "✓", dropped: "―" })[state];
 export const questStageLabel = (stage: QuestStage): string => ({ assign: tr("任せる人を決める", "Choose a hero"), send: tr("指示を送る", "Send the request"), work: tr("作業中", "Working"), waiting: tr("返事を待っている", "Waiting for you"), review: tr("報告を見る", "Read the report"), done: tr("受け取った", "Accepted"), dropped: tr("やめた", "Dropped") })[stage];
+const STAGE_MARK: Record<QuestStage, string> = { assign: "◇", send: "✉", work: "⚔", waiting: "❗", review: "📜", done: "✓", dropped: "―" };
 export function renderQuestList(root: HTMLElement, quests: Quest[], townName: (key: string) => string,
-  heroName: (quest: Quest) => string, pick: (quest: Quest) => void, create: () => void, now: number): void {
+  heroName: (quest: Quest) => string, pick: (quest: Quest) => void, create: () => void, now: number,
+  ownerHere: (quest: Quest) => boolean = () => true): void {
   const controls = [...root.querySelectorAll<HTMLElement>("[data-focus]")];
   const focused = controls.find((item) => item === document.activeElement)?.dataset.focus;
   const position = controls.findIndex((item) => item.dataset.focus === focused);
@@ -20,7 +22,7 @@ export function renderQuestList(root: HTMLElement, quests: Quest[], townName: (k
   if (!quests.length) { const empty = document.createElement("p"); empty.textContent = tr("クエストは まだ ない", "No quests yet"); root.append(empty); }
   // Grouped by whose turn it is, so the quests waiting on the person come first.
   const sorted = sortedQuests(quests);
-  const yours = sorted.filter((quest) => yourTurn(questStage(quest))), working = sorted.filter((quest) => questStage(quest) === "work");
+  const yours = sorted.filter((quest) => yourTurn(questStage(quest, ownerHere(quest)))), working = sorted.filter((quest) => questStage(quest, ownerHere(quest)) === "work");
   const finished = sorted.filter((quest) => finishedQuest(quest.state));
   for (const [text, list, className] of [[tr("あなたの番", "Your turn"), yours, "you"], [tr("勇者が作業中", "Heroes working"), working, "work"]] as const) {
     if (!list.length) continue;
@@ -42,13 +44,13 @@ export function renderQuestList(root: HTMLElement, quests: Quest[], townName: (k
   }
   root.scrollTop = scroll;
   function row(quest: Quest): HTMLElement {
-    const stage = questStage(quest);
+    const stage = questStage(quest, ownerHere(quest));
     const row = document.createElement("div"); row.className = "quest-row"; row.dataset.quest = quest.id;
     const button = document.createElement("button"); button.type = "button"; button.className = "quest-row-pick"; button.dataset.focus = `quest:${quest.id}`;
     const top = document.createElement("span"); top.className = "quest-row-top";
     const title = document.createElement("span"); title.className = "quest-row-title"; title.textContent = quest.title;
     const chip = document.createElement("span"); chip.className = `quest-chip ${yourTurn(stage) ? "you" : stage === "work" ? "work" : "end"}`;
-    chip.textContent = `${questStateMark(quest.state)} ${questStageLabel(stage)}`; top.append(title, chip);
+    chip.textContent = `${STAGE_MARK[stage]} ${questStageLabel(stage)}`; top.append(title, chip);
     const meta = document.createElement("small"); meta.className = "quest-row-meta";
     const who = heroName(quest);
     meta.textContent = [who || tr("まだ 誰にも任せていない", "Not assigned yet"), tr(`町：${townName(quest.town)}`, `Town: ${townName(quest.town)}`), quest.worktreeBranch ? `⑂ ${quest.worktreeBranch}` : "", ago(now - quest.updatedAt)].filter(Boolean).join(" · ");

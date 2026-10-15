@@ -13,6 +13,7 @@ describe("quest stage", () => {
     expect(questStage({ state: "active" })).toBe("assign");
     expect(questStage({ state: "waiting" })).toBe("assign");
     expect(questStage({ state: "review" })).toBe("review");
+    expect(questStage({ state: "active", session: "s1" }, false)).toBe("assign");
   });
   it("says whose turn it is", () => {
     expect(["assign", "send", "work", "waiting", "review", "done"].map((stage) => yourTurn(stage as never)))

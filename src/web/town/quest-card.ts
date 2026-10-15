@@ -13,6 +13,7 @@ export type TownHero = { session: string; name: string; busy: boolean };
 // Everything the card can do; the app and the mock supply their own.
 export type QuestCardActions = {
   heroName: (hero?: string) => string;
+  ownerHere?: boolean;
   save: (patch: QuestPatch) => Promise<void>;
   remove: () => Promise<void>;
   talk: (hero: string, at?: number) => void;
@@ -39,7 +40,7 @@ const button = (text: string, run: () => void, primary = false): HTMLButtonEleme
 };
 
 export function questCard(quest: QuestDetail, actions: QuestCardActions): HTMLElement {
-  const box = element("div", "quest-card"), stage = questStage(quest), who = actions.heroName(quest.hero) || tr("勇者", "your hero");
+  const box = element("div", "quest-card"), stage = questStage(quest, actions.ownerHere), who = actions.heroName(quest.hero) || tr("勇者", "your hero");
   const status = element("p"); status.setAttribute("role", "status");
   const edit = editForm(quest, actions, status);
 

@@ -38,7 +38,11 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
   let shown: Pick<Quest, "title" | "purpose" | "state"> | undefined; // What the open card shows, after its own saves.
   let generation = 0;
   const label = townName;
-  const heroLabel = (quest: Quest) => quest.hero ? name(quest.hero) ?? hero(quest.hero)?.name ?? quest.hero : "";
+  // A hero no longer in town has no name to show; never show its raw session id.
+  const heroText = (id?: string) => id ? name(id) ?? hero(id)?.name ?? tr("町を去った勇者", "A hero who left") : "";
+  const heroLabel = (quest: Quest) => heroText(quest.hero);
+  // A saved owner may have left (for example across a server restart).
+  const ownerHere = (quest: Quest) => quest.hero ? Boolean(hero(quest.hero)) : Boolean(quest.session);
   function show(title: string): void { heading.textContent = title; coverMap(dialog); if (!dialog.open) dialog.showModal(); }
   const editing = () => Boolean(content.querySelector('[data-dirty="true"]')) || content.contains(document.activeElement);
   // Heroes now in a town, for choosing who takes a quest.
@@ -59,7 +63,7 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
     shown = { title: quest.title, purpose: quest.purpose, state: quest.state };
     const session = quest.session;
     content.replaceChildren(questCard(quest, {
-      heroName: (id) => id ? name(id) ?? hero(id)?.name ?? id : "",
+      heroName: heroText, ownerHere: ownerHere(quest),
       save: async (patch) => {
         if (patch.state) {
           const latest: QuestDetail = await questRequest(`/${encodeURIComponent(id)}`);
@@ -170,9 +174,9 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
   }
   function render(): void {
     const list = quests.filter((quest) => town() === undefined || quest.town === town()); counted(list.length);
-    const next = JSON.stringify([list, list.map((quest) => label(quest.town)), list.map(heroLabel), Math.floor(Date.now() / 60_000)]);
+    const next = JSON.stringify([list, list.map((quest) => label(quest.town)), list.map(heroLabel), list.map(ownerHere), Math.floor(Date.now() / 60_000)]);
     if (signature === next) return; signature = next;
-    renderQuestList(root, list, label, heroLabel, (quest) => { void open(quest.id); }, () => create(), Date.now());
+    renderQuestList(root, list, label, heroLabel, (quest) => { void open(quest.id); }, () => create(), Date.now(), ownerHere);
   }
   function set(data: { quests: Quest[]; bindings: QuestBinding[]; reports?: QuestReportLink[] }): void {
     quests = data.quests; bindings = data.bindings; signature = ""; render();

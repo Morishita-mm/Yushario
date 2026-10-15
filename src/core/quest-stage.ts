@@ -6,8 +6,9 @@ import type { QuestEvent, QuestState } from "./quests";
 export type QuestStage = "assign" | "send" | "work" | "waiting" | "review" | "done" | "dropped";
 export const QUEST_STEPS = ["write", "assign", "send", "work", "review", "accept"] as const;
 
-export function questStage(quest: { state: QuestState; session?: string; hero?: string }): QuestStage {
-  const owned = Boolean(quest.session || quest.hero);
+// ownerHere: whether the owner is still in town. A restart can leave a saved owner who already left.
+export function questStage(quest: { state: QuestState; session?: string; hero?: string }, ownerHere = true): QuestStage {
+  const owned = Boolean(quest.session || quest.hero) && ownerHere;
   if (quest.state === "done" || quest.state === "dropped" || quest.state === "review") return quest.state;
   // Work or a question without a hero means the hero left; someone must take it over.
   if (!owned) return "assign";
