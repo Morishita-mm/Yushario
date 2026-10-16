@@ -21,7 +21,7 @@ export function eventRow(event: QuestEvent, talk: (hero: string, at?: number) =>
   const headline = event.kind === "state" ? questStateLabel(event.title as QuestState)
     : event.kind === "assigned" ? tr("勇者に 任せた", "Hero assigned")
     : event.kind === "reviewed" ? tr("変更を 見た（かんてい）", "Opened the changes (review)")
-    : event.kind === "verdict" ? event.decision?.verdict === "approved" ? tr("鑑定：みとめた", "Review: approved") : tr("鑑定：なおしが いる", "Review: changes needed")
+    : event.kind === "verdict" ? event.decision?.verdict === "approved" ? tr("鑑定：OKと 記録", "Review: recorded as OK") : tr("鑑定：要修正と 記録", "Review: recorded as needing changes")
     : event.kind === "adopted" ? tr("採用した", "Adopted")
     : event.kind === "report" ? reportTitle(event.report, language) : partyEventTitle(event.kind, event.title, language);
   const text = `${clock(event.at, true)} · ${headline}`;

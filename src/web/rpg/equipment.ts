@@ -110,8 +110,8 @@ export function initEquipment(hero: (id: string) => RoomAgent | undefined, name:
     function choices(key: "weapon" | "accessory"): void {
       if (!items || !session) return;
       const box = element("div", "command-window wide equipment-window");
-      box.setAttribute("role", "dialog"); box.setAttribute("aria-label", key === "weapon" ? tr("ぶき", "Weapon") : tr("アクセサリ", "Accessory"));
-      box.append(element("h4", undefined, key === "weapon" ? tr("ぶき", "Weapon") : tr("アクセサリ", "Accessory")));
+      box.setAttribute("role", "dialog"); box.setAttribute("aria-label", key === "weapon" ? tr("ぶき（モデル）", "Weapon (model)") : tr("アクセサリ（考える量）", "Accessory (effort)"));
+      box.append(element("h4", undefined, key === "weapon" ? tr("ぶき（モデル）", "Weapon (model)") : tr("アクセサリ（考える量）", "Accessory (effort)")));
       const list = element("div", "commands");
       const none = button(tr("そうびなし（きほん）", "None (default)"), () => { next = { ...next, [key]: undefined }; render(); });
       none.disabled = Boolean(session[key]);

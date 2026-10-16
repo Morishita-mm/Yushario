@@ -36,3 +36,4 @@
 .report-review { display: flex; gap: 10px; align-items: center; margin-top: 8px; }
 .reviewed-mark { color: #b0d9be; font-size: 12px; }
 @media (max-width: 760px) { .review-columns { grid-template-columns: minmax(140px, 35%) minmax(0, 1fr); } }
+@media (max-width: 600px) { .review-heading h3 { flex: 1 0 100%; } }

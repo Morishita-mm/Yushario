@@ -188,7 +188,7 @@ function replay(events: { event?: unknown; at?: unknown }[]): void {
   }
   scene.sync(room, Date.now());
   for (const [event, at] of told.slice(-3)) messages.event(event, at, true);
-  if (!told.length) messages.say(tr("クエストを書く → 勇者に任せる → 指示を送る → 報告と変更を見る → 採用する。町＝プロジェクト、勇者＝CLI。つづきは ヘルプへ。", "Write a quest → assign a hero → send the request → read the report and changes → adopt. Town = project; hero = CLI. See Help."), undefined, true);
+  if (!told.length) messages.say(tr("はじめに：「しゅつじん」で 作業フォルダ（町）を えらび、勇者（CLI）を 出す。\nつぎに：クエストを書く → 勇者に任せる → 報告と変更を見る → 採用する。\nくわしくは 右上の「ヘルプ」へ。", "First: Embark — choose a work folder (town) and a hero (CLI).\nThen: write a quest → assign a hero → read the report and changes → adopt.\nMore under Help (top right)."), undefined, true);
 }
 
 function receiveMessage(message: MessageEvent): void {

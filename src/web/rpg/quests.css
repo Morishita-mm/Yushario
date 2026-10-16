@@ -70,3 +70,4 @@
 .quest-window.report-window .quest-create-actions button[aria-current="true"], .quest-window.report-window .quest-create-actions button[aria-current="true"]:hover:not(:disabled), .quest-window.report-window .quest-create-actions button[aria-current="true"]:focus-visible { color: #1a1d2b; background: #ffe066; border-color: #ffe066; }
 .quest-create-actions button[aria-current="true"]::before { visibility: visible; }
 .quest-tactic-stopped { color: #ffb3a0; }
+.quest-accept[hidden] { display: none; }

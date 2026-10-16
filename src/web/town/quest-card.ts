@@ -158,9 +158,9 @@ function nextMove(quest: QuestDetail, stage: QuestStage, who: string, actions: Q
     if (quest.hero) row.append(button(tr("報告を受ける", "Read the report"), () => actions.talk(quest.hero!, latest?.at)));
     row.append(button(tr("採用する", "Adopt"), () => toggle(accept, retry, edit.reason)));
     edit.adoption.hidden = false;
-    accept.append(edit.adoption, element("p", "hint", tr("採用すると、この回の 報告の 本文も 保存される（設定の「かいわも のこす」が 切れていても）。あとから この札で 読みかえせる。",
-      "Adopting also saves this round's report text, even when conversations are not kept, so you can read it again on this card.")),
-      button(tr("▶ この版を 採用する", "▶ Adopt this state"), () => void edit.accept()));
+    accept.append(edit.adoption, element("p", "hint", tr("採用すると、担当の 最後の 返事を 採用の 記録に 残す（設定の「かいわも のこす」が 切れていても）。あとから この札で 読みかえせる。ただし 返事の後に Yushario を 再起動していると、本文は 残らない。main への 取りこみは しない。",
+      "Adopting keeps the owner's last reply with the adoption record, even when conversations are not kept, so you can read it on this card. If Yushario restarted after that reply, the text is not kept. Nothing is merged into main.")),
+      button(tr("▶ この版を 採用して 完了にする", "▶ Adopt this state and finish"), () => void edit.accept()));
     if (actions.send) {
       const text = element("textarea"); text.rows = 3; text.maxLength = 8000;
       text.placeholder = tr("例：エラー文が まだ かたい。もっと やさしく して。", "e.g. The error text is still stiff. Make it friendlier.");

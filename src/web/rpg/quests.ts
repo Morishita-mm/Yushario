@@ -137,6 +137,14 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
   // One window for steps 1–3: write the request, choose who takes it, and send it.
   function create(session?: string, townKey = town()): void {
     selected = undefined; ++generation;
+    // A quest belongs to a town (a project folder); with none yet, the first step is embarking a hero there.
+    if (!projects().length) {
+      const first = document.createElement("div"), go = document.createElement("button"); first.className = "quest-first";
+      go.type = "button"; go.textContent = tr("▶ 勇者を 出陣させる（作業フォルダを えらぶ）", "▶ Embark a hero (choose a work folder)");
+      go.onclick = () => { dialog.close(); document.querySelector<HTMLButtonElement>("#expedition")?.click(); };
+      first.append(Object.assign(document.createElement("p"), { textContent: tr("まだ 町が ない。町は 作業フォルダ（プロジェクト）。まず 作業フォルダを えらんで 勇者を 出陣させると、その町で クエストを 書ける。", "No town yet. A town is a work folder (project). Embark a hero in a work folder first; then you can write quests in that town.") }), go);
+      content.replaceChildren(first); show(tr("新しいクエスト", "New quest")); go.focus(); return;
+    }
     const form = document.createElement("form"), request = document.createElement("textarea"), towns = document.createElement("select"), status = document.createElement("p");
     for (const project of projects()) towns.append(new Option(project.label ?? project.repo, project.repo));
     if (townKey) towns.value = townKey;

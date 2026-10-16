@@ -57,7 +57,7 @@ export async function handleQuestRequest(request: IncomingMessage, response: Ser
     if (!id && method === "POST") {
       const { town: key, ...patch } = input;
       if (typeof key !== "string" || !towns.some((item) => townKey(item) === key) || !validQuestPatch(patch) || !patch.title) {
-        json(response, 400, { error: tr("町と クエストの 題を えらんで", "Choose a town and quest title") }); return;
+        json(response, 400, { error: tr("町を えらび、依頼を 書いて", "Choose a town and write the request") }); return;
       }
       json(response, 201, quests.create(key, patch.title, patch.purpose)); return;
     }

@@ -72,7 +72,7 @@ Yushario と勇者は同じ OS 利用者で動く。悪意ある同一利用者�
 | `src/core/town.ts` | Room をプロジェクト別の町・安定した表示名・勇者の居場所へ変換 | room, story |
 | `src/core/town-ledger.ts` | 町の鍵・表示名・設定の型、町の登録・活動更新・自動でしまう判定 | なし |
 | `src/core/checks.ts` | ためすこと・拠点つき証拠と指紋の型、保存拠点／書き換える役の選択、単純コマンド1つの照合と拠点での実行の確認、不明な試行、最新の証拠と今の指紋による5つの印、package.json の候補 | events, activity |
-| `src/core/decisions.ts` | 鑑定の判断（みとめる／なおしが いる）と うけとった記録の型と検査（PR は https だけ）、選んだ差分の行からの修正依頼の下書き | checks, review-base |
+| `src/core/decisions.ts` | 鑑定の判断（OK／要修正。記録だけ）と うけとった記録の型と検査（PR は https だけ）、選んだ差分の行からの修正依頼の下書き | checks, review-base |
 | `src/core/quest-stage.ts` | 保存した状態と担当から、人の流れの段階（任せる・指示を送る・作業中・返事待ち・報告を見る・おわり）、誰の番か、何回目か、前の担当を読む | quests |
 | `src/core/tactics.ts` | パーティーの作戦（命令に従え・レビューし合え・調べてから・全部任せた）の編成の合否と作戦の中・外、レビューの判定の読み取り、作戦が送る文 | party |
 | `src/core/hero-search.ts` | ゆうしゃタブの絞り込み（町の札・言葉・状態）と状態ごとの数。町の中とワールドマップで共通 | activity |

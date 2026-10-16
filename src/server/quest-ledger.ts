@@ -140,7 +140,7 @@ export class QuestLedger {
   verdict(session: string, questId: string | undefined, result: ReviewResult, decision: QuestDecision, at = Date.now()): boolean {
     const quest = questId ? this.get(questId) : this.current(session);
     if (!quest) return false;
-    const title = decision.verdict === "approved" ? tr("鑑定：みとめた", "Review: approved") : tr("鑑定：なおしが いる", "Review: changes needed");
+    const title = decision.verdict === "approved" ? tr("鑑定：OKと 記録", "Review: recorded as OK") : tr("鑑定：要修正と 記録", "Review: recorded as needing changes");
     this.addEvent(quest.id, { kind: "verdict", at, title, session: session || undefined, hero: quest.hero, result, decision });
     return true;
   }
