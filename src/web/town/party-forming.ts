@@ -16,12 +16,13 @@ export function partyMode(stage: QuestStage): PartyMode {
 
 // Kept per quest while forming, so closing the window loses nothing: the request text, what each helper
 // will be asked, and whether the owner changed (then the new owner also gets the handoff note).
-// `sent`: who already got their part in this set-off ("lead" for the request), so trying again sends only the rest.
-type Forming = { request?: string; asks: Map<string, { role: PartyRole; text: string }>; ownerChanged: boolean; sent: Set<string> };
+// `sent`: who already got their part in this set-off ("lead:<who>" for the request, so a new owner still gets it),
+// so trying again sends only the rest. `noted`: asks only left with a tactic (not delivered yet), and for which tactic.
+type Forming = { request?: string; asks: Map<string, { role: PartyRole; text: string }>; ownerChanged: boolean; sent: Set<string>; noted: Map<string, Tactic> };
 const forming = new Map<string, Forming>();
 export function formingOf(quest: string): Forming {
   let state = forming.get(quest);
-  if (!state) { state = { asks: new Map(), ownerChanged: false, sent: new Set() }; forming.set(quest, state); }
+  if (!state) { state = { asks: new Map(), ownerChanged: false, sent: new Set(), noted: new Map() }; forming.set(quest, state); }
   return state;
 }
 
@@ -34,21 +35,20 @@ export async function setOff(quest: string, request: string, tactic: Tactic | un
   const notes: Record<string, string> = {}, now: { session: string; text: string }[] = [];
   for (const [session, ask] of state.asks) {
     if (!helper(session, ask.role) || state.sent.has(session)) continue;
-    if (tactic === "review" && ask.role === "review" || tactic === "research" && ask.role === "research") notes[session] = ask.text;
+    if (tactic === "review" && ask.role === "review" || tactic === "research" && ask.role === "research") { if (state.noted.get(session) !== tactic) notes[session] = ask.text; }
     else now.push({ session, text: ask.text });
   }
-  const done = () => [...state.sent].map((key) => key === "lead" ? tr("依頼", "the request") : name(key));
+  const done = () => [...state.sent].map((key) => key.startsWith("lead:") ? tr("依頼", "the request") : name(key));
   try {
-    if (Object.keys(notes).length) { await partyRequest(`${prefix}/notes`, "POST", { notes }); for (const session of Object.keys(notes)) state.sent.add(session); }
-    if (!state.sent.has("lead")) {
+    if (Object.keys(notes).length) { await partyRequest(`${prefix}/notes`, "POST", { notes }); for (const session of Object.keys(notes)) state.noted.set(session, tactic!); }
+    const lead = tactic === "research" ? undefined : tactic === "delegate" ? members.find((member) => member.role === "command" && member.active) : members.find((member) => member.writer && member.active);
+    const leadKey = `lead:${tactic === "research" ? "research" : lead?.session ?? ""}`;
+    if (!state.sent.has(leadKey)) {
+      if (tactic !== "research" && !lead) throw new Error(tactic === "delegate" ? tr("しき役が いない。先に しき役を 決める", "No commander yet") : tr("担当が いない。先に 担当を 決める", "No owner yet"));
       const first = state.ownerChanged ? `${(await partyRequest(`${prefix}/scroll`)).text}\n\n---\n\n${request}` : request;
       if (tactic === "research") await partyRequest(`${prefix}/research`, "POST", { text: first });
-      else {
-        const lead = tactic === "delegate" ? members.find((member) => member.role === "command" && member.active) : members.find((member) => member.writer && member.active);
-        if (!lead) throw new Error(tactic === "delegate" ? tr("しき役が いない。先に しき役を 決める", "No commander yet") : tr("担当が いない。先に 担当を 決める", "No owner yet"));
-        await partyRequest(`${prefix}/send`, "POST", { session: lead.session, text: first });
-      }
-      state.sent.add("lead");
+      else await partyRequest(`${prefix}/send`, "POST", { session: lead!.session, text: first });
+      state.sent.add(leadKey);
     }
     for (const item of now) { await partyRequest(`${prefix}/send`, "POST", item); state.sent.add(item.session); }
   } catch (error) {
