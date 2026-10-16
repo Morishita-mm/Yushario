@@ -47,12 +47,14 @@ function levelLabel(level: number): HTMLElement {
 }
 function hpColor(hp: number): string { return hp > 0.5 ? "#7ee08a" : hp > 0.25 ? "#ffd35a" : "#ff6b5b"; }
 
+// What the hero is doing, in words ("Editing a.ts"), with a stop or interruption first.
+export const heroDoing = (agent: RoomAgent, now: number): string => interruptStatus(agent, now) ?? DOING[agent.activity](agent.target ?? "");
 export function compactRow(agent: RoomAgent, now: number, name: string, selected: boolean, waiting: boolean, pick: () => void, gear?: string, quest?: string): HTMLElement {
   const { level, hp, mp } = stats(agent, now);
   const row = element("button", "compact-hero"); row.type = "button"; row.dataset.hero = agent.id;
   row.classList.toggle("selected", selected); row.classList.toggle("waiting", waiting || agent.activity === "ask");
   row.setAttribute("aria-pressed", String(selected));
-  const doing = interruptStatus(agent, now) ?? DOING[agent.activity](agent.target ?? "");
+  const doing = heroDoing(agent, now);
   row.title = `${name}${agent.branch ? ` [${agent.branch}]` : ""} · Lv ${level} · HP ${Math.round(hp * 100)} · MP ${mp === undefined ? "？" : Math.round(mp * 100)} · ${doing}`;
   row.setAttribute("aria-label", row.title);
   const badge = element("span", "compact-name", `${waiting ? "！ " : ""}${name}`);

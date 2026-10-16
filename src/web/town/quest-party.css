@@ -2,17 +2,30 @@
 .party-confirmation pre { white-space: pre-wrap; overflow-wrap: anywhere; }
 .party-confirmation label { display: block; margin: 8px 0; }
 .party-confirmation textarea, .party-confirmation select, .party-confirmation input:not([type=checkbox]) { display: block; width: 100%; margin-top: 5px; box-sizing: border-box; }
-/* Stage 27: one row per member, to direct the party while the quest runs. */
-.party-rows { display: grid; gap: 4px; }
-.party-row { display: grid; grid-template-columns: minmax(6em, auto) 1fr auto; gap: 8px; align-items: center; padding: 4px 6px; border: 1px solid #ffffff33; border-radius: 4px; }
-.party-row.writer { border-color: #ffe066; }
-.party-role { color: #9fd6ff; white-space: nowrap; }
-.party-row.writer .party-role { color: #ffe066; }
-.party-facts { min-width: 0; overflow-wrap: anywhere; }
-.party-actions { display: flex; flex-wrap: wrap; gap: 4px; justify-content: end; }
-.party-order { display: grid; gap: 6px; padding: 6px; border: 1px dashed #ffffff66; border-radius: 4px; }
+/* Stage 27: one card per member — role and model first, then whether the hero needs you, then the next step. */
+.quest-party { display: grid; gap: 8px; }
+.party-plan { margin: 0; color: #b9b1cc; }
+.party-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px; }
+.party-card { display: grid; align-content: start; gap: 3px; padding: 10px 12px; border: 1px solid #ffffff40; border-radius: 4px; background: #ffffff08; min-width: 0; }
+.party-card.writer { border-color: #ffe066; }
+.party-card p { margin: 0; overflow-wrap: anywhere; }
+.party-card-role { font-size: 1.15em; color: #9fd6ff; }
+.party-card.writer .party-card-role { color: #ffe066; }
+.party-card-model { font-size: 1.05em; }
+.party-card-name { font-size: 12px; color: #b9b1cc; }
+.party-state { margin-top: 4px !important; padding: 2px 6px; border-radius: 3px; justify-self: start; font-size: 13px; }
+.party-state.report { color: #1a1a1a; background: #ffe066; }
+.party-state.work { color: #9fd6ff; border: 1px solid #9fd6ff88; }
+.party-state.idle { color: #b9b1cc; border: 1px solid #ffffff33; }
+.party-card-line { font-size: 12px; color: #d8d2e6; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.party-buttons { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 6px; }
+.party-buttons button.primary { color: #ffe066; }
+.party-buttons button.primary::before { content: "▶ "; }
+.party-order { display: grid; gap: 6px; padding: 8px 10px; border: 1px dashed #ffffff66; border-radius: 4px; }
 .party-order textarea { width: 100%; box-sizing: border-box; display: block; margin-top: 4px; }
-.party-order pre { margin: 0; max-height: 16em; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.party-box-title { margin: 0; font-weight: normal; color: #ffe066; }
+.party-report { margin: 0; max-height: 18em; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
 .party-warn { margin: 0; color: #ffb35a; }
-.party-status:empty { display: none; }
-@media (max-width: 520px) { .party-row { grid-template-columns: 1fr; } .party-actions { justify-content: start; } }
+.party-status:empty, .party-away:empty { display: none; }
+.party-status, .party-away { margin: 0; font-size: 13px; color: #b9b1cc; }
+.party-card.open { outline: 2px solid #ffe066; outline-offset: 1px; }

@@ -6,6 +6,7 @@ import { staleSessionEnd } from "../../core/session-actions";
 import { Room } from "../../core/room";
 import { narrate, stats } from "../../core/story";
 import { heroPortrait } from "../town/hero-portrait";
+import { heroDoing } from "./status-card";
 import { Messages, Status } from "./hud";
 import { Scene } from "./scene";
 import { loadTowns, type TownRecord } from "./ledger";
@@ -85,7 +86,7 @@ const quests = initQuests(() => scene.currentTown, () => scene.projects, (id) =>
   (session, text) => talk.draft(session, text), (town) => [...room.agents.values()].filter((agent) => agent.project === town), (hero) => void actions.farewell(hero),
   (session) => {
     const agent = [...room.agents.values()].find((item) => item.terminal === session), now = agent && stats(agent, Date.now());
-    return { portrait: heroPortrait(scene.art, agent?.id), gear: equipment.brief(session), mp: now?.mp, level: now?.level, here: Boolean(agent) };
+    return { portrait: heroPortrait(scene.art, agent?.id), gear: equipment.brief(session), mp: now?.mp, level: now?.level, here: Boolean(agent), doing: agent && heroDoing(agent, Date.now()), talk: agent?.talk };
   }, equipment.briefGear);
 talk.setQuestControls(quests.current, quests.choose, quests.reportTitle);
 scene.openQuests = () => sideTabs.show("quests");
