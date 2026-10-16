@@ -28,7 +28,9 @@ export function formingOf(quest: QuestDetail): Forming {
   const round = Math.max(0, ...quest.events.filter((event) => event.kind === "report").map((event) => event.id));
   let state = forming.get(quest.id);
   if (!state || state.round !== round) {
-    const waiting = [...(state?.asks ?? [])].filter(([session]) => !state!.sent.has(session) && !state!.noted.has(session));
+    // An ask left with a tactic went out only if the tactic started (the request was sent); otherwise it still waits.
+    const started = [...(state?.sent ?? [])].some((key) => key.startsWith("lead:"));
+    const waiting = [...(state?.asks ?? [])].filter(([session]) => !state!.sent.has(session) && !(started && state!.noted.has(session)));
     state = { round, asks: new Map(waiting), ownerChanged: false, sent: new Set(), noted: new Map() }; forming.set(quest.id, state);
   }
   return state;
