@@ -89,6 +89,13 @@ describe("the adopted answer is the owner's", () => {
     expect(ownerAnswer(quest([report(1, "owner", 1, "OLD"), report(2, "owner", 2, "NEW"), report(3, "helper", 3, "HELPER")]))).toBe("NEW");
     expect(ownerAnswer(quest([report(1, "helper", 1, "HELPER")]))).toBeUndefined();
   });
+  it("never falls back to an older text when the latest report kept none", () => {
+    expect(ownerAnswer(quest([report(1, "owner", 1, "OLD_SAVED_REPLY"), report(2, "owner", 2)]))).toBeUndefined();
+    expect(ownerAnswer(quest([report(1, "owner", 1, "OLD"), report(2, "owner", 2, "LATEST")]))).toBe("LATEST");
+    expect(ownerAnswer(quest([report(1, "owner", 5, "FIRST"), report(2, "owner", 5)]))).toBeUndefined();
+    expect(ownerAnswer(quest([report(2, "owner", 5, "SECOND"), report(1, "owner", 5)]))).toBe("SECOND");
+    expect(ownerAnswer(quest([report(1, "owner", 1, "OWNER"), report(2, "helper", 2, "HELPER"), report(3, "commander", 3, "COMMANDER")]))).toBe("OWNER");
+  });
   it("follows an owner change", () => {
     expect(ownerAnswer(quest([report(1, "owner", 1, "OLD_OWNER")], "newcomer"), { session: "owner", text: "OLD_OWNER_REPLY" })).toBeUndefined();
   });

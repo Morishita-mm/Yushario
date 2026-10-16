@@ -89,3 +89,4 @@
 .pw-message:empty { display: none; }
 .pw-tip { margin: 0; color: #ffe066; font-size: 13px; line-height: 1.6; }
 .pw-tip[hidden] { display: none; }
+.pw-head > .pw-command { flex: none; white-space: nowrap; }

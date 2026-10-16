@@ -114,6 +114,7 @@ function nextMove(quest: QuestDetail, stage: QuestStage, who: string, actions: Q
   } else if (stage === "send") {
     what.textContent = tr(`${who}に 指示を送ろう。まだ 何も伝わっていない。`, `Send ${who} the request. Nothing has been sent yet.`);
     const text = element("textarea"); text.rows = 4; text.maxLength = 8000; text.value = quest.purpose || quest.title;
+    text.setAttribute("aria-label", tr(`${who}に 送る 指示`, `Request for ${who}`));
     text.oninput = () => { box.dataset.dirty = "true"; };
     const picks = element("div", "quest-pick"), chosen = new Map<string, CheckCandidate>();
     box.append(text, picks);
@@ -162,7 +163,7 @@ function nextMove(quest: QuestDetail, stage: QuestStage, who: string, actions: Q
       "Adopting keeps the current owner's last reply with the adoption record, even when conversations are not kept, so you can read it on this card. When the reply cannot be found (conversations not kept and Yushario restarted after it, for example), it is recorded without text. Nothing is merged into main.")),
       button(tr("▶ この版を 採用して 完了にする", "▶ Adopt this state and finish"), () => void edit.accept()));
     if (actions.send) {
-      const text = element("textarea"); text.rows = 3; text.maxLength = 8000;
+      const text = element("textarea"); text.rows = 3; text.maxLength = 8000; text.setAttribute("aria-label", tr(`${who}への 新しい指示`, `New request for ${who}`));
       text.placeholder = tr("例：エラー文が まだ かたい。もっと やさしく して。", "e.g. The error text is still stiff. Make it friendlier.");
       text.oninput = () => { box.dataset.dirty = "true"; };
       row.append(button(tr("やり直してもらう", "Ask for another try"), () => toggle(retry, accept, text)));

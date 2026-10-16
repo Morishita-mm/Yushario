@@ -40,7 +40,8 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
   // A modal dialog of its own: Tab stays inside it, the party window behind cannot be pressed, and closing it
   // returns focus to where it was opened from.
   popup.append(panel);
-  const openPopup = () => { if (!popup.open) popup.showModal(); }, shutPopup = () => { if (popup.open) popup.close(); };
+  // Named after what it shows: the chosen hero for commands, else the first line of the message.
+  const openPopup = (name: string) => { popup.setAttribute("aria-label", name.slice(0, 80)); if (!popup.open) popup.showModal(); }, shutPopup = () => { if (popup.open) popup.close(); };
   popup.addEventListener("click", (event) => { if (event.target === popup) guide(); });
   popup.addEventListener("cancel", (event) => { event.preventDefault(); guide(); });
   dialog.append(head, guideLine, tacticSlot, columns, ...(setting ? [setting] : []), popup); document.body.append(dialog);
@@ -62,7 +63,7 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
     const name = baseName(session), presets = new Set([...members.map((member) => member.session), ...sessions.map((item) => item.id)].filter((other) => baseName(other) === name).map(presetOf));
     return presets.size > 1 && presetOf(session) ? `${name}（${presetOf(session)}）` : name;
   };
-  const showMessage = (...nodes: HTMLElement[]) => { message.replaceChildren(...nodes); openPopup(); };
+  const showMessage = (...nodes: HTMLElement[]) => { message.replaceChildren(...nodes); openPopup(commands.hidden ? nodes[0]?.textContent ?? "" : popup.getAttribute("aria-label") ?? ""); };
   const say = (text: string, ...extra: HTMLElement[]) => { commands.hidden = true; showMessage(el("p", undefined, text), ...extra); };
   // A note under the commands just shown; unlike say, it keeps the commands.
   const explain = (text: string) => showMessage(el("p", undefined, text));
@@ -123,8 +124,8 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
     if (!free.length) town.append(el("p", "pw-empty", tr("ほかに いない", "No one else")));
   }
   function showCommands(heading: string | HTMLElement, ...buttons: HTMLButtonElement[]): void {
-    commands.hidden = false; message.replaceChildren(); openPopup();
     const title = el("h4"); title.append(heading);
+    commands.hidden = false; message.replaceChildren(); openPopup(title.textContent ?? "");
     commands.replaceChildren(title, ...buttons);
     buttons[0]?.focus();
   }
