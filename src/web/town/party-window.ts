@@ -219,8 +219,12 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
         await partyRequest(`${prefix}/party`, "POST", { session, role: "implement", note: "", writer: true });
         if (stays) await partyRequest(`${prefix}/party`, "POST", { session: previous!.session, role: "research", note: previous!.note, writer: false });
         if (previous) forming.ownerChanged = true;
+        // The helper's ask was written for the old role; the new owner gets the owner's request instead.
+        const dropped = forming.asks.delete(session);
         if (farewell && previous?.hero) controls?.farewell?.(previous.hero);
-        await reload(); guide();
+        await reload();
+        if (dropped) say(tr(`${nameOf(session)}への 手伝いの 頼む文は 取り消した。担当として、出発の 時に 依頼と 引き継ぎメモが 届く。`, `The helper ask for ${nameOf(session)} was cancelled. As owner, it gets the request and handoff note when you set off.`));
+        else guide();
       })().catch(fail), true);
       commands.hidden = true; showMessage(...choice, yes); return;
     }
@@ -273,8 +277,10 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
     const go = command(mode === "redo" ? tr("▶ 編成を終えて やり直す", "▶ Done forming — try again") : tr("▶ 編成を終えて 出発する", "▶ Done forming — set off"), () => void (async () => {
       if (!draft.value.trim()) { draft.focus(); return; }
       if (mock) { say(tr("（見本）出発した", "(Sample) Set off")); return; }
-      await setOff(quest.id, draft.value.trim(), tactics.current()?.tactic, members); close();
-    })().catch(fail), true);
+      // One set-off at a time: pressing again while it sends does nothing.
+      go.disabled = true;
+      await setOff(quest.id, draft.value.trim(), tactics.current()?.tactic, members, nameOf); close();
+    })().catch((error: Error) => { go.disabled = false; fail(error); }), true);
     go.classList.add("pw-send");
     const requestTitle = el("h4", undefined, mode === "redo" ? tr("やり直しの 指示（編成が 終わったら 送る）", "What to do this time (sent when the party is ready)") : tr("依頼（編成が 終わったら 送る）", "Request (sent when the party is ready)")); requestTitle.id = "pw-request-title"; draft.setAttribute("aria-labelledby", requestTitle.id);
     setting.append(requestTitle, draft, go);

@@ -54,9 +54,10 @@ export function questParty(quest: QuestDetail, controls?: PartyControls, changed
     : tr("さくせん：命令に従え — 仲間には あなたが それぞれ 指示する", "Tactic: Follow orders — you direct each hero");
   const nameOf = (member: PartyHero) => { const name = controls?.sessionName?.(member.session) ?? member.name; return name === member.session ? tr("去った勇者", "A hero who left") : name; };
   const latest = (member: PartyHero, kinds: (kind: string) => boolean) => quest.events.filter((event) => event.session === member.session && kinds(event.kind)).sort((a, b) => b.at - a.at || b.id - a.id)[0];
-  // The words of a request or report: the quest log's copy, else the conversation this page saw near that time.
+  // The words of a request or report: the quest log's copy, else the conversation this page saw. A report takes only
+  // the reply of that same turn end (same time); a turn that ended without text has none, never an older reply.
   const words = (member: PartyHero, event: QuestEvent, from: TalkEntry["from"]) => event.text
-    ?? controls?.heroInfo?.(member.session).talk?.filter((entry) => entry.from === from && Math.abs(entry.at - event.at) < 120_000)
+    ?? controls?.heroInfo?.(member.session).talk?.filter((entry) => entry.from === from && (from === "hero" ? entry.at === event.at : Math.abs(entry.at - event.at) < 120_000))
       .sort((a, b) => Math.abs(a.at - event.at) - Math.abs(b.at - event.at))[0]?.text;
   // One box under the cards at a time: an order for one hero, or a report.
   let opened: HTMLElement | undefined;
