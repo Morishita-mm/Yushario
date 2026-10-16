@@ -46,7 +46,7 @@ export function acceptedView(event: QuestEvent, report?: QuestEvent): HTMLElemen
   if (event.decision?.answer) {
     const answer = element("div", "quest-answer talk-body"); renderMarkdown(answer, parseMarkdown(event.decision.answer));
     box.append(element("h5", undefined, tr("採用した 回答", "Adopted answer")), answer);
-  } else box.append(element("p", "hint", tr("この採用には 回答の本文が 残っていない（この機能より前の採用）。", "No answer text was kept for this adoption (adopted before this was saved).")));
+  } else box.append(element("p", "hint", tr("この採用には 回答の本文が 残っていない。", "No answer text was kept for this adoption.")));
   box.append(element("p", undefined, `${tr("採用した 版", "Adopted state")}: ${event.result?.branch ?? "—"} · HEAD ${event.result?.head ?? "—"}${event.decision?.changes ? "" : tr(" · じょうたい ふめい", " · State unknown")}`));
   const marks = event.decision?.checks ?? [];
   if (marks.length) box.append(element("p", "hint", marks.map((check) => `${check.name}: ${checkMarkLabel(check.mark)}`).join(" · ")));

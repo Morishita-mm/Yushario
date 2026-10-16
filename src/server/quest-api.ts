@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { realpath } from "node:fs/promises";
-import { validQuestPatch, type QuestDetail } from "../core/quests";
+import { ownerAnswer, validQuestPatch, type QuestDetail } from "../core/quests";
 import { truncateEventString, MAX_EVENT_TEXT_LENGTH } from "../core/events";
 import { validAdoption, type QuestDecision } from "../core/decisions";
 import { checkMark } from "../core/checks";
@@ -17,8 +17,8 @@ function json(response: ServerResponse, status: number, value: unknown): void {
   response.writeHead(status, { "Content-Type": "application/json", "Cache-Control": "no-store" }).end(JSON.stringify(value));
 }
 // The accepted base as it is now: branch, HEAD, working-state fingerprint and each check's mark.
-async function acceptedState(quest: QuestDetail, reply?: string): Promise<[ReviewResult | undefined, QuestDecision]> {
-  const text = reply ?? quest.events.find((event) => event.kind === "report")?.text;
+async function acceptedState(quest: QuestDetail, reply?: { session: string; text: string }): Promise<[ReviewResult | undefined, QuestDecision]> {
+  const text = ownerAnswer(quest, reply);
   const answer = text ? { answer: truncateEventString(text, MAX_EVENT_TEXT_LENGTH) } : {};
   const checks = (quest.checks ?? []).map((check) => ({ name: check.name, mark: checkMark(check.evidence, quest.fingerprint) }));
   const path = reviewBasePath(quest);
@@ -30,7 +30,7 @@ async function acceptedState(quest: QuestDetail, reply?: string): Promise<[Revie
 }
 export async function handleQuestRequest(request: IncomingMessage, response: ServerResponse, url: URL,
   quests: QuestLedger, towns: TownRecord[], session: (id: string) => TerminalSession | undefined,
-  latestReply: (quest: string) => string | undefined = () => undefined): Promise<void> {
+  latestReply: (quest: string) => { session: string; text: string } | undefined = () => undefined): Promise<void> {
   try {
     const parts = url.pathname.split("/");
     const id = parts[3] ? decodeURIComponent(parts[3]) : undefined;

@@ -28,7 +28,7 @@ export function heroCard(facts: CardFacts, pick: () => void, small = false): HTM
   const role = el("span", facts.writer && !small ? "pw-badge writer" : "pw-badge");
   role.append(facts.writer ? iconLabel("edit", facts.badge) : facts.badge);
   node.append(picture, el("span", "pw-name", facts.name), role,
-    el("span", "pw-kind", `${facts.preset ?? "?"}${info.level !== undefined ? ` · Lv ${info.level}` : ""}`), el("span", "pw-gear", info.gear ?? tr("モデル・effort 不明", "Model and effort unknown")));
+    el("span", "pw-kind", `${facts.preset ?? "?"}${info.level !== undefined ? ` · Lv ${info.level}` : ""}`), el("span", "pw-gear", info.gear ?? tr("モデル・考える量 不明", "Model and effort unknown")));
   if (!small) node.append(mp);
   node.append(el("span", "pw-state", facts.state));
   for (const note of facts.notes) node.append(el("span", "pw-outside", note));

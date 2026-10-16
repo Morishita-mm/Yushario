@@ -158,8 +158,8 @@ function nextMove(quest: QuestDetail, stage: QuestStage, who: string, actions: Q
     if (quest.hero) row.append(button(tr("報告を受ける", "Read the report"), () => actions.talk(quest.hero!, latest?.at)));
     row.append(button(tr("採用する", "Adopt"), () => toggle(accept, retry, edit.reason)));
     edit.adoption.hidden = false;
-    accept.append(edit.adoption, element("p", "hint", tr("採用すると、担当の 最後の 返事を 採用の 記録に 残す（設定の「かいわも のこす」が 切れていても）。あとから この札で 読みかえせる。ただし 返事の後に Yushario を 再起動していると、本文は 残らない。main への 取りこみは しない。",
-      "Adopting keeps the owner's last reply with the adoption record, even when conversations are not kept, so you can read it on this card. If Yushario restarted after that reply, the text is not kept. Nothing is merged into main.")),
+    accept.append(edit.adoption, element("p", "hint", tr("採用すると、いまの 担当の 最後の 返事を 採用の 記録に 残す（設定の「かいわも のこす」が 切れていても）。あとから この札で 読みかえせる。返事を 取れない時（会話を 残さず、返事の後に 再起動した時など）は 本文なしで 記録する。main への 取りこみは しない。",
+      "Adopting keeps the current owner's last reply with the adoption record, even when conversations are not kept, so you can read it on this card. When the reply cannot be found (conversations not kept and Yushario restarted after it, for example), it is recorded without text. Nothing is merged into main.")),
       button(tr("▶ この版を 採用して 完了にする", "▶ Adopt this state and finish"), () => void edit.accept()));
     if (actions.send) {
       const text = element("textarea"); text.rows = 3; text.maxLength = 8000;
@@ -190,7 +190,7 @@ function facts(quest: QuestDetail, stage: QuestStage, actions: QuestCardActions)
   const add = (term: string, value: string | HTMLElement) => { list.append(element("dt", undefined, term)); const dd = element("dd"); dd.append(value); list.append(dd); };
   const before = previousHero(quest.events, quest.hero);
   if (actions.tactic && actions.tactic.tactic !== "obey") add(tr("さくせん", "Tactic"), tacticProgress(actions.tactic));
-  const owner = element("button", undefined, before ? `${actions.heroName(before)} → ${actions.heroName(quest.hero)}` : actions.heroName(quest.hero) || tr("まだ 誰にも任せていない", "Not assigned yet"));
+  const owner = element("button", undefined, before ? `${actions.heroName(before)} → ${actions.heroName(quest.hero)}` : actions.heroName(quest.hero) || (finishedQuest(quest.state) ? tr("いまは いない（終わった クエスト）", "None now (finished quest)") : tr("まだ 誰にも任せていない", "Not assigned yet")));
   owner.type = "button"; owner.disabled = !quest.hero; owner.onclick = actions.focusHero;
   add(tr("担当", "Hero"), owner);
   if (quest.worktreePath) add(tr("作業する場所", "Working folder"), iconLabel("branch", `${quest.worktreeBranch ?? "HEAD"} — ${quest.worktreePath}`));

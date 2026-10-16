@@ -57,3 +57,13 @@ export function validQuestPatch(input: unknown): input is { title?: string; purp
     && (value.purpose === undefined || typeof value.purpose === "string" && value.purpose.length <= 2000)
     && (value.state === undefined || QUEST_STATES.includes(value.state as QuestState));
 }
+
+// The answer an adoption keeps: the current owner's reply, never a commander's or helper's.
+// `reply`: the last reply held in memory with the terminal that wrote it; else the owner's latest saved report.
+export function ownerAnswer(quest: QuestDetail, reply?: { session: string; text: string }): string | undefined {
+  const owner = quest.writerSession ?? quest.session;
+  if (!owner) return undefined;
+  if (reply?.session === owner) return reply.text;
+  return quest.events.filter((event) => event.kind === "report" && event.session === owner && event.text !== undefined)
+    .sort((a, b) => b.at - a.at || b.id - a.id)[0]?.text;
+}

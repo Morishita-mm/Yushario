@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { questForRecall, questStateAfterEvent, questStateForParty, questTitle, savedQuestEvent, sortedQuests, validQuestPatch, type Quest } from "./quests";
+import { ownerAnswer, questForRecall, questStateAfterEvent, questStateForParty, questTitle, savedQuestEvent, sortedQuests, validQuestPatch, type Quest, type QuestDetail } from "./quests";
 import { askingAfterEvent } from "./session-actions";
 import type { AgentEvent } from "./events";
 import { registerTown, townKey, townLabel } from "./town-ledger";
@@ -75,5 +75,21 @@ describe("town identity", () => {
   it("repairs an unresolved legacy name on its next arrival", () => {
     const towns = registerTown([], "app", "/missing/app", 1);
     expect(registerTown(towns, "app", "/client/app", 2, "/client/app/.git", "client")[0].key).toBe("/client/app/.git");
+  });
+});
+
+describe("the adopted answer is the owner's", () => {
+  const report = (id: number, session: string, at: number, text?: string) => ({ id, quest: "q", kind: "report" as const, at, title: "r", session, ...(text ? { text } : {}) });
+  const quest = (events: ReturnType<typeof report>[], writerSession = "owner"): QuestDetail => ({ id: "q", town: "t", title: "T", purpose: "", state: "review", createdAt: 0, updatedAt: 0, session: "owner", writerSession, events });
+  it("takes the owner's reply in memory, not a commander's", () => {
+    expect(ownerAnswer(quest([]), { session: "owner", text: "OWNER" })).toBe("OWNER");
+    expect(ownerAnswer(quest([report(1, "owner", 1, "SAVED_OWNER")]), { session: "commander", text: "COMMANDER" })).toBe("SAVED_OWNER");
+  });
+  it("falls back to the owner's latest saved report, never a helper's", () => {
+    expect(ownerAnswer(quest([report(1, "owner", 1, "OLD"), report(2, "owner", 2, "NEW"), report(3, "helper", 3, "HELPER")]))).toBe("NEW");
+    expect(ownerAnswer(quest([report(1, "helper", 1, "HELPER")]))).toBeUndefined();
+  });
+  it("follows an owner change", () => {
+    expect(ownerAnswer(quest([report(1, "owner", 1, "OLD_OWNER")], "newcomer"), { session: "owner", text: "OLD_OWNER_REPLY" })).toBeUndefined();
   });
 });

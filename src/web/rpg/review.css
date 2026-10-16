@@ -36,4 +36,12 @@
 .report-review { display: flex; gap: 10px; align-items: center; margin-top: 8px; }
 .reviewed-mark { color: #b0d9be; font-size: 12px; }
 @media (max-width: 760px) { .review-columns { grid-template-columns: minmax(140px, 35%) minmax(0, 1fr); } }
-@media (max-width: 600px) { .review-heading h3 { flex: 1 0 100%; } }
+/* Narrow screens: the review takes the whole screen, the file list becomes a short strip above, and the diff gets the full width. */
+@media (max-width: 600px) {
+  .report-window.review-window { left: 0 !important; top: 0 !important; width: 100vw !important; height: 100dvh !important; padding: 8px; gap: 6px; }
+  .review-heading h3 { flex: 1 0 100%; }
+  .review-columns { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  .review-files { max-height: 5.5em; }
+  .review-decide { margin-bottom: 0; gap: 4px 8px; }
+  .review-decide .hint, .review-info { font-size: 12px; }
+}

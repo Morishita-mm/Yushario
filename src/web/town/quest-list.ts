@@ -27,7 +27,7 @@ export function renderQuestList(root: HTMLElement, quests: Quest[], townName: (k
   const finished = sorted.filter((quest) => finishedQuest(quest.state));
   for (const [text, list, className] of [[tr("あなたの番", "Your turn"), yours, "you"], [tr("勇者が作業中", "Heroes working"), working, "work"]] as const) {
     if (!list.length) continue;
-    const heading = document.createElement("h3"); heading.className = `quest-group ${className}`; heading.textContent = `${text}（${list.length}）`;
+    const heading = document.createElement("h3"); heading.className = `quest-group ${className}`; heading.textContent = tr(`${text}（${list.length}）`, `${text} (${list.length})`);
     root.append(heading, ...list.map(row));
   }
   if (finished.length) {
@@ -54,7 +54,7 @@ export function renderQuestList(root: HTMLElement, quests: Quest[], townName: (k
     chip.append(iconLabel(STAGE_MARK[stage], questStageLabel(stage))); top.append(title, chip);
     const meta = document.createElement("small"); meta.className = "quest-row-meta";
     const who = heroName(quest);
-    meta.append([who || tr("まだ 誰にも任せていない", "Not assigned yet"), tr(`町：${townName(quest.town)}`, `Town: ${townName(quest.town)}`)].join(" · "));
+    meta.append([who || (finishedQuest(quest.state) ? tr("担当は いまは いない", "No owner now") : tr("まだ 誰にも任せていない", "Not assigned yet")), tr(`町：${townName(quest.town)}`, `Town: ${townName(quest.town)}`)].join(" · "));
     if (quest.worktreeBranch) meta.append(" · ", iconLabel("branch", quest.worktreeBranch));
     meta.append(` · ${ago(now - quest.updatedAt)}`);
     const marks = checkMarks(quest.checks, quest.fingerprint);

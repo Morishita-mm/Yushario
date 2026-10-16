@@ -47,7 +47,7 @@ export function initEquipment(hero: (id: string) => RoomAgent | undefined, name:
   // The same line from saved gear, for a hero whose terminal is gone (kept in the roster).
   function briefGear(preset: string | undefined, gear: Equipment): string {
     const { model, effort } = preset ? gearSummary(gear, master[preset]) : {};
-    if (!model && !effort) return tr("モデル・effort 不明", "Model and effort unknown");
+    if (!model && !effort) return tr("モデル・考える量 不明", "Model and effort unknown");
     return `${model ?? tr("モデル 不明", "model unknown")} · ${effort ?? tr("effort 不明", "effort unknown")}`;
   }
   function tiers(terminal?: string): EquipmentTiers {

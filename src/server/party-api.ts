@@ -41,7 +41,7 @@ export async function handlePartyRequest(request: IncomingMessage, response: Ser
     if (action === "tactic" && request.method === "GET" && tactics) { partyJson(response, 200, tactics.status(id)); return; }
     if (action === "scroll" && request.method === "GET") {
       const checks = quest.checks?.map((check) => ({ title: check.name, mark: checkMark(check.evidence, quest.fingerprint) })) ?? [];
-      partyJson(response, 200, { text: handoffScroll(quest, checks, serverLanguage()), reply: party.latestReply(id) ?? quest.events.find((event) => event.kind === "report")?.text }); return;
+      partyJson(response, 200, { text: handoffScroll(quest, checks, serverLanguage()), reply: party.latestReply(id)?.text ?? quest.events.find((event) => event.kind === "report")?.text }); return;
     }
     if (action === "party" && request.method === "DELETE") {
       const session = url.searchParams.get("session") ?? "";

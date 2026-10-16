@@ -122,7 +122,7 @@ export function openReview(name: string, session: string | { quest: string }, ta
       if (!dialog.open || version !== generation) return;
       if (!stamped) { stamped = true; reviewed?.(); }
       const selectedBase = base.value || current.comparison?.base || current.comparison?.defaultBase;
-      base.replaceChildren(new Option(tr("branch を えらぶ", "Choose a branch"), ""), ...(current.comparison?.branches ?? []).map((branch) => new Option(branch, branch)));
+      base.replaceChildren(new Option(tr("比べる元の ブランチを えらぶ", "Choose a base branch"), ""), ...(current.comparison?.branches ?? []).map((branch) => new Option(branch, branch)));
       if (selectedBase) base.value = selectedBase;
       base.disabled = mode.value !== "branch" || !base.options.length;
       info.textContent = `${current.branch || "—"} · HEAD ${current.head || "—"} · ↑${current.ahead} ↓${current.behind}${current.comparison?.mergeBase ? ` · merge-base ${current.comparison.mergeBase.slice(0, 7)}` : ""}`;
