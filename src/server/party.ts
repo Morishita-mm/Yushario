@@ -25,8 +25,9 @@ export class QuestParty {
   private readonly turnStarts = new Map<string, number>();
   private readonly observedEdits = new Set<string>();
   private readonly requests = new Map<string, { text: string; detail?: string }[]>();
-  private readonly replies = new Map<string, { at: number; text: string; session: string }>();
-  latestReply(quest: string): { session: string; text: string } | undefined { return this.quests.summary(quest) ? this.replies.get(quest) : undefined; }
+  // The owner's last turn end per quest, text or not: a later failure without text must hide an earlier answer.
+  private readonly replies = new Map<string, { at: number; text?: string; session: string }>();
+  latestReply(quest: string): { at: number; text?: string; session: string } | undefined { return this.quests.summary(quest) ? this.replies.get(quest) : undefined; }
   constructor(readonly quests: QuestLedger, readonly pty: ReturnType<typeof createPtyServer>,
     private readonly broadcast: (value: object) => void, private readonly record: (event: AgentEvent) => void,
     private readonly name: (id: string) => string | undefined) {}
@@ -115,7 +116,7 @@ export class QuestParty {
       this.warn(member.writer, { quest: member.quest, at, hero: member.hero, report: { files, startedAt: start } }, session);
     }
     // The quest's answer comes from its owner only, never from the commander or a helper (ownerAnswer checks it is still the owner).
-    if (member?.writer && !event.subagent && ["Stop", "StopFailure"].includes(event.hook ?? "") && event.text !== undefined && at >= (this.replies.get(member.quest)?.at ?? -Infinity)) this.replies.set(member.quest, { at, text: event.text, session: session.id });
+    if (member?.writer && !event.subagent && ["Stop", "StopFailure"].includes(event.hook ?? "") && at >= (this.replies.get(member.quest)?.at ?? -Infinity)) this.replies.set(member.quest, { at, text: event.text, session: session.id });
     if (!member || event.subagent || !["Stop", "StopFailure", "PostToolUse", "PostToolUseFailure"].includes(event.hook ?? "")) return;
     if (member.writer) return;
     for (const report of this.quests.reportsAfter(session.id, at)) {

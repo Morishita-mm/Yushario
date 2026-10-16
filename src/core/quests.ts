@@ -59,12 +59,12 @@ export function validQuestPatch(input: unknown): input is { title?: string; purp
 }
 
 // The answer an adoption keeps: the current owner's reply, never a commander's or helper's.
-// `reply`: the last reply held in memory with the terminal that wrote it; else the owner's latest saved report.
-// Only the latest report counts: when its text was not kept, there is no answer, never an older one.
-export function ownerAnswer(quest: QuestDetail, reply?: { session: string; text: string }): string | undefined {
+// `reply`: the owner's last turn end held in memory (text or not); else the owner's latest saved report.
+// Only the latest turn counts: when it has no text (not kept, or a failure), there is no answer, never an older one.
+export function ownerAnswer(quest: QuestDetail, reply?: { at: number; session: string; text?: string }): string | undefined {
   const owner = quest.writerSession ?? quest.session;
   if (!owner) return undefined;
-  if (reply?.session === owner) return reply.text;
-  return quest.events.filter((event) => event.kind === "report" && event.session === owner)
-    .sort((a, b) => b.at - a.at || b.id - a.id)[0]?.text;
+  const latest = quest.events.filter((event) => event.kind === "report" && event.session === owner).sort((a, b) => b.at - a.at || b.id - a.id)[0];
+  if (reply?.session === owner && reply.at >= (latest?.at ?? -Infinity)) return reply.text;
+  return latest?.text;
 }

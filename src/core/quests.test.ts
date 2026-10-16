@@ -82,8 +82,8 @@ describe("the adopted answer is the owner's", () => {
   const report = (id: number, session: string, at: number, text?: string) => ({ id, quest: "q", kind: "report" as const, at, title: "r", session, ...(text ? { text } : {}) });
   const quest = (events: ReturnType<typeof report>[], writerSession = "owner"): QuestDetail => ({ id: "q", town: "t", title: "T", purpose: "", state: "review", createdAt: 0, updatedAt: 0, session: "owner", writerSession, events });
   it("takes the owner's reply in memory, not a commander's", () => {
-    expect(ownerAnswer(quest([]), { session: "owner", text: "OWNER" })).toBe("OWNER");
-    expect(ownerAnswer(quest([report(1, "owner", 1, "SAVED_OWNER")]), { session: "commander", text: "COMMANDER" })).toBe("SAVED_OWNER");
+    expect(ownerAnswer(quest([]), { at: 1, session: "owner", text: "OWNER" })).toBe("OWNER");
+    expect(ownerAnswer(quest([report(1, "owner", 1, "SAVED_OWNER")]), { at: 9, session: "commander", text: "COMMANDER" })).toBe("SAVED_OWNER");
   });
   it("falls back to the owner's latest saved report, never a helper's", () => {
     expect(ownerAnswer(quest([report(1, "owner", 1, "OLD"), report(2, "owner", 2, "NEW"), report(3, "helper", 3, "HELPER")]))).toBe("NEW");
@@ -96,7 +96,17 @@ describe("the adopted answer is the owner's", () => {
     expect(ownerAnswer(quest([report(2, "owner", 5, "SECOND"), report(1, "owner", 5)]))).toBe("SECOND");
     expect(ownerAnswer(quest([report(1, "owner", 1, "OWNER"), report(2, "helper", 2, "HELPER"), report(3, "commander", 3, "COMMANDER")]))).toBe("OWNER");
   });
+  it("never keeps an earlier reply after a later turn ended without text", () => {
+    // 1. answer, next request, failure without text: the failure's report is newer than the cached answer.
+    expect(ownerAnswer(quest([report(1, "owner", 200), report(2, "owner", 400)]), { at: 200, session: "owner", text: "PREVIOUS_SUCCESS_ANSWER" })).toBeUndefined();
+    // 2. the cache itself now holds the newer textless end.
+    expect(ownerAnswer(quest([report(1, "owner", 200)]), { at: 400, session: "owner" })).toBeUndefined();
+    // 3. a newer answer with text is the answer.
+    expect(ownerAnswer(quest([report(1, "owner", 200)]), { at: 400, session: "owner", text: "NEW" })).toBe("NEW");
+    // the saved latest report wins over an older cache when its text was kept.
+    expect(ownerAnswer(quest([report(1, "owner", 400, "SAVED_NEW")]), { at: 200, session: "owner", text: "OLD" })).toBe("SAVED_NEW");
+  });
   it("follows an owner change", () => {
-    expect(ownerAnswer(quest([report(1, "owner", 1, "OLD_OWNER")], "newcomer"), { session: "owner", text: "OLD_OWNER_REPLY" })).toBeUndefined();
+    expect(ownerAnswer(quest([report(1, "owner", 1, "OLD_OWNER")], "newcomer"), { at: 9, session: "owner", text: "OLD_OWNER_REPLY" })).toBeUndefined();
   });
 });
