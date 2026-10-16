@@ -10,7 +10,7 @@ import "./party-window.css";
 import { tacticBox } from "./party-tactics";
 import { iconLabel } from "../icons.js";
 import { command, el, heroCard, memberBadge, memberState } from "./party-cards";
-import { formingOf, partyMode, setOff } from "./party-forming";
+import { formingOf, partyMode, setAsk, setOff } from "./party-forming";
 
 // A Dragon Quest style formation window: the party, heroes in town, members who left, a command window
 // for the chosen hero, and a message window that walks through each step. How it sends depends on the
@@ -20,7 +20,7 @@ const HELP_ROLES: PartyRole[] = ["research", "review"];
 // `request`: the request text from the new quest window. `focus`: a hero just launched from this window.
 export function openPartyWindow(quest: QuestDetail, controls: PartyControls | undefined, changed: () => void, request?: string, focus?: string): void {
   document.querySelector("#party-window")?.remove();
-  const mode = partyMode(questStage(quest)), forming = formingOf(quest.id), gathering = mode === "form" || mode === "redo";
+  const mode = partyMode(questStage(quest)), forming = formingOf(quest), gathering = mode === "form" || mode === "redo";
   if (request !== undefined && forming.request === undefined) forming.request = request;
   const dialog = el("dialog", "party-window"); dialog.id = "party-window";
   const title = el("h3", undefined, tr(`パーティー へんせい — ${quest.title}`, `Party — ${quest.title}`)); title.id = "party-window-title";
@@ -191,7 +191,7 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
       send.disabled = true;
       if (mock) { say(tr("（見本）頼んだ", "(Sample) Asked")); return; }
       await partyRequest(`${prefix}/party`, "POST", { session, role, note: "", writer: false });
-      if (gathering) { forming.asks.set(session, { role, text: text.value }); await reload(); say(tr(`${nameOf(session)}は 出発待ち。出発の 時に 頼みごとが 届く。`, `${nameOf(session)} waits to set off; the ask goes out then.`)); return; }
+      if (gathering) { setAsk(forming, session, { role, text: text.value }); await reload(); say(tr(`${nameOf(session)}は 出発待ち。出発の 時に 頼みごとが 届く。`, `${nameOf(session)} waits to set off; the ask goes out then.`)); return; }
       const result = await partyRequest(`${prefix}/send`, "POST", { session, text: text.value });
       await reload();
       say(result.delivered ? tr(`${nameOf(session)}に 頼んだ。`, `Asked ${nameOf(session)}.`) : tr(`${nameOf(session)}は 作業中。手が あいたら 届く。`, `${nameOf(session)} is busy; it will arrive when the hero is free.`));
@@ -220,7 +220,7 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
         if (stays) await partyRequest(`${prefix}/party`, "POST", { session: previous!.session, role: "research", note: previous!.note, writer: false });
         if (previous) forming.ownerChanged = true;
         // The helper's ask was written for the old role; the new owner gets the owner's request instead.
-        const dropped = forming.asks.delete(session);
+        const dropped = setAsk(forming, session);
         if (farewell && previous?.hero) controls?.farewell?.(previous.hero);
         await reload();
         if (dropped) say(tr(`${nameOf(session)}への 手伝いの 頼む文は 取り消した。担当として、出発の 時に 依頼と 引き継ぎメモが 届く。`, `The helper ask for ${nameOf(session)} was cancelled. As owner, it gets the request and handoff note when you set off.`));
@@ -262,7 +262,7 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
   }
   function leave(member: PartyHero): void {
     const yes = command(tr(`▶ ${nameOf(member.session)}を 外す`, `▶ Remove ${nameOf(member.session)}`), () => {
-      forming.asks.delete(member.session);
+      setAsk(forming, member.session);
       if (!mock) void partyRequest(`${prefix}/party?session=${encodeURIComponent(member.session)}`, "DELETE").then(reload).then(guide).catch(fail);
     }, true);
     commands.hidden = true;
@@ -279,7 +279,7 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
       if (mock) { say(tr("（見本）出発した", "(Sample) Set off")); return; }
       // One set-off at a time: pressing again while it sends does nothing.
       go.disabled = true;
-      await setOff(quest.id, draft.value.trim(), tactics.current()?.tactic, members, nameOf); close();
+      await setOff(quest, draft.value.trim(), tactics.current()?.tactic, members, nameOf); close();
     })().catch((error: Error) => { go.disabled = false; fail(error); }), true);
     go.classList.add("pw-send");
     const requestTitle = el("h4", undefined, mode === "redo" ? tr("やり直しの 指示（編成が 終わったら 送る）", "What to do this time (sent when the party is ready)") : tr("依頼（編成が 終わったら 送る）", "Request (sent when the party is ready)")); requestTitle.id = "pw-request-title"; draft.setAttribute("aria-labelledby", requestTitle.id);
