@@ -64,11 +64,15 @@ In Claude Code's auto mode, permission windows rarely appear because Claude hand
 
 ## Quick start
 
-Requires Node.js 22.13+, macOS or Linux, and at least one agent CLI installed and logged in.
+1. Install Node.js 22.13+ on macOS or Linux.
+2. Install and log in to Claude Code, Codex, or pi. Each CLI has its own runtime requirements; Yushario uses its existing login.
+3. Open a terminal in your project folder and run:
 
 ```sh
-npx yushario
+npx yushario@latest
 ```
+
+No repository clone or global installation is needed after the npm release. Until that release is available, use the source instructions below. Stop Yushario with **Ctrl+C** in the terminal; this also ends its running agent sessions.
 
 Your browser opens the town. Choose **Embark**, pick your project folder as the destination, and start an agent. Then click your hero. You can run it from any folder; the folder you start from is offered first.
 
