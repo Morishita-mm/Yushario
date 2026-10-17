@@ -1,6 +1,8 @@
 node_modules/
 dist/
-site-dist/
+# The website is maintained separately; do not include local copies.
+/site/
+/site-dist/
 lib/
 *.tgz
 .art-work/

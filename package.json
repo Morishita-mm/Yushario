@@ -1,15 +1,39 @@
 {
   "name": "yushario",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A local RPG town for your AI coding agents, with live activity, conversations, and embedded terminals.",
-  "repository": { "type": "git", "url": "git+https://github.com/Morishita-mm/Yushario.git" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Morishita-mm/Yushario.git"
+  },
   "homepage": "https://github.com/Morishita-mm/Yushario#readme",
-  "bugs": { "url": "https://github.com/Morishita-mm/Yushario/issues" },
-  "keywords": ["ai", "coding-agent", "claude-code", "pi", "codex", "rpg", "pixel-art", "terminal"],
+  "bugs": {
+    "url": "https://github.com/Morishita-mm/Yushario/issues"
+  },
+  "keywords": [
+    "ai",
+    "coding-agent",
+    "claude-code",
+    "pi",
+    "codex",
+    "rpg",
+    "pixel-art",
+    "terminal"
+  ],
   "author": "Morishita-mm",
   "license": "MIT",
-  "bin": { "yushario": "scripts/yushario.mjs" },
-  "files": ["dist/", "lib/", "adapters/claude-code/hook.mjs", "scripts/yushario.mjs", "skills/", "LICENSE", "NOTICE"],
+  "bin": {
+    "yushario": "scripts/yushario.mjs"
+  },
+  "files": [
+    "dist/",
+    "lib/",
+    "adapters/claude-code/hook.mjs",
+    "scripts/yushario.mjs",
+    "skills/",
+    "LICENSE",
+    "NOTICE"
+  ],
   "type": "module",
   "engines": {
     "node": ">=22.13.0"
@@ -18,7 +42,6 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "build": "vite build && node scripts/build-server.mjs",
-    "build:site": "node scripts/build-site.mjs",
     "prepack": "npm run build",
     "start": "node scripts/yushario.mjs",
     "dev:relay": "NODE_ENV=development tsx src/server/relay.ts",
