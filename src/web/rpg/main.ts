@@ -1,3 +1,4 @@
+import "./app-layout";
 import { language, tr } from "../language";
 import "@fontsource/dotgothic16/400.css";
 import type { AgentEvent } from "../../core/events";
@@ -35,19 +36,7 @@ const token = new URLSearchParams(location.search).get("token") ?? "";
 const canvas = document.querySelector<HTMLCanvasElement>("#world")!;
 const connectionLabel = document.querySelector<HTMLElement>("#connection")!;
 const launchButton = document.querySelector<HTMLButtonElement>("#expedition")!;
-const stage = document.querySelector<HTMLElement>(".stage")!;
-const mapNav = document.querySelector<HTMLElement>(".map-nav")!;
-const messageLog = document.querySelector<HTMLElement>("#messages")!;
-// The map column is as wide as a map that fills the height left by the controls and the log, so the
-// log matches it and the sidebar takes the rest. Never measure the map itself: it follows this width.
-function fitMap(): void {
-  const gap = parseFloat(getComputedStyle(stage).rowGap) || 0;
-  const height = stage.clientHeight - mapNav.offsetHeight - messageLog.offsetHeight - gap * 2;
-  document.body.style.setProperty("--map-w", `${Math.max(0, Math.floor(height * 16 / 9))}px`);
-}
-const fitter = new ResizeObserver(fitMap);
-for (const element of [stage, mapNav, messageLog]) fitter.observe(element);
-const scene = new Scene(canvas, document.querySelector<HTMLElement>("#town-layer")!,
+export const scene = new Scene(canvas, document.querySelector<HTMLElement>("#town-layer")!,
   (id, at) => talk.open(id, at), (terminal) => void expedition.openTerminal(terminal),
   (id) => status.openDetails(room, Date.now(), id, scene.names),
   (text, at) => messages.say(text, at), (id) => actions.options(id), (terminal) => equipment.tiers(terminal));
@@ -287,7 +276,7 @@ async function start(): Promise<void> {
   connect();
   requestAnimationFrame(frame);
 }
-void start().catch((error: unknown) => {
+export const started = start().catch((error: unknown) => {
   connectionLabel.textContent = tr("町の絵を よみこめませんでした", "Could not load town art");
   console.error(error);
 });

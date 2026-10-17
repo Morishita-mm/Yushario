@@ -13,14 +13,13 @@ export async function checksRequest(path: string, method = "GET", body?: unknown
   return response.status === 204 ? { checks: [] } : response.json();
 }
 export async function confirmChecksDone(quest: Quest): Promise<boolean> {
-  const data = quest.id.startsWith("mock-") ? quest : await checksRequest(`${encodeURIComponent(quest.id)}/checks`);
+  const data = await checksRequest(`${encodeURIComponent(quest.id)}/checks`);
   const missing = (data.checks ?? []).filter((check) => checkMark(check.evidence, data.fingerprint) !== "passed");
   return !missing.length || confirm(tr("まだ ごうかくしていない 合格条件が ある。採用する？", "Some acceptance checks have not passed. Adopt anyway?"));
 }
 export function questChecks(quest: Quest): HTMLElement {
   const box = document.createElement("section"); box.className = "quest-checks";
   let data: ChecksData = { checks: quest.checks ?? [], fingerprint: quest.fingerprint };
-  const mock = quest.id.startsWith("mock-");
   function render(): void {
     box.replaceChildren();
     const heading = document.createElement("h4"); heading.textContent = tr("合格条件", "Acceptance checks"); box.append(heading);
@@ -58,17 +57,12 @@ export function questChecks(quest: Quest): HTMLElement {
     box.append(status);
   }
   async function change(method: "POST" | "DELETE", id?: string, candidate?: CheckCandidate): Promise<void> {
-    if (mock) {
-      data.checks = method === "DELETE" ? data.checks.filter((check) => check.id !== id) : [...data.checks, { id: crypto.randomUUID(), ...candidate! }];
-      quest.checks = data.checks;
-    } else {
-      await checksRequest(`${encodeURIComponent(quest.id)}/checks${id ? `/${encodeURIComponent(id)}` : ""}`, method, candidate);
-      data = await checksRequest(`${encodeURIComponent(quest.id)}/checks`);
-    }
+    await checksRequest(`${encodeURIComponent(quest.id)}/checks${id ? `/${encodeURIComponent(id)}` : ""}`, method, candidate);
+    data = await checksRequest(`${encodeURIComponent(quest.id)}/checks`);
     render();
   }
   render();
-  if (!mock) void checksRequest(`${encodeURIComponent(quest.id)}/checks`).then((result) => {
+  void checksRequest(`${encodeURIComponent(quest.id)}/checks`).then((result) => {
     data = result;
     if (!box.querySelector('[data-dirty="true"]') && !box.contains(document.activeElement)) render();
   })

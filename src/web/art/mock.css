@@ -1,0 +1,17 @@
+/* The fixture controls are outside the app. Never restyle .quest, .sidebar or its panels here. */
+#mock-controls { flex: none; background: #17243b; border-bottom: 3px solid #c6ad72; padding: 8px 16px; }
+#mock-controls > summary { color: #ffe066; cursor: pointer; font-size: 14px; }
+.mock-tools { max-height: 185px; overflow-y: auto; }
+.mock-tools p { margin: 8px 0; font-size: 12px; color: #cbd8eb; }
+.mock-tools nav { display: flex; flex-wrap: wrap; gap: 5px; margin: 8px 0; }
+.mock-tools button, .mock-tools input, .mock-tools select { font: inherit; font-size: 12px; padding: 3px 8px; color: #fff; background: #111a2b; border: 1px solid #7d91b1; }
+.mock-tools button { cursor: pointer; }
+.mock-tools button:hover, .mock-tools button.on { color: #ffe066; border-color: #ffe066; }
+#mock-add-hero, .mock-state { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 8px 0; font-size: 12px; }
+#mock-feedback { color: #b6e9c9; }
+#mock-intro { color: #ffe066; cursor: pointer; font-size: inherit; }
+@media (max-width: 640px) {
+  #mock-controls { padding: 8px; }
+  .mock-tools { max-height: 220px; }
+  .mock-tools input { max-width: 180px; }
+}

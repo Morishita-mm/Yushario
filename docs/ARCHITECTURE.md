@@ -119,7 +119,8 @@ Yushario と勇者は同じ OS 利用者で動く。悪意ある同一利用者�
 | `public/preview-link.js` | opener があるページだけ、URL・題・先頭20件（各500文字）のエラーを配信元 origin へ postMessage | ブラウザ標準 API のみ |
 | `src/web/town/*` | データを引数で受け取る共有描画。ワールド・5種の町・宿屋・フィールド・戦闘、絵の読み込みと歩行。地図のラベルは描画時だけ160px以内で省略し、コマンドは親と窓自身のサイズ変更時に範囲内へ置き直す | core の型, DOM/Canvas, public/art |
 | `src/web/town/battle.ts` | 本体・モック共通の戦闘フォーカス。上の小窓の名前を内幅（武器の分を除く）で末尾省略 | core の型, DOM/Canvas, art data |
-| `src/web/art/*` | `/art.html` のギャラリー、`/mock.html` の入口・偽データ。mock の起動・描画・当たり判定は名前付き関数、タブの構築と件数の更新は `mock-scenes.ts`。全 scene の見出し・地図説明は日英、`equipment-battle` は長い名前の小窓も示す | web/town, DOM/Canvas |
+| `src/web/rpg/app.html`, `app-layout.ts` | 本番・開発モック・公開体験版で共通のアプリHTMLとマップ／サイドバーの高さ計算。ViteがHTMLへ差し込み、共通mainが起動する | DOM, Vite の HTML 変換 |
+| `src/web/art/*` | `/art.html` のギャラリーと `/mock.html` の架空データ。`mock.ts` は既存HTTP／WS契約のブラウザ内応答を先に用意して、本番の `rpg/main.ts` をそのまま起動。`mock-state.ts`・`mock-quest-api.ts`・`mock-server.ts` に一時状態・既存API応答を分け、未知の操作は409。別の地図描画・サイドバー・クエスト操作実装を持たない。場面移動・勇者追加などの操作パネルは `mock-controls.html` と `mock.css` でアプリの外へ置く。実サーバー・PTY・外部AIは呼ばない | 既存 core の型、web の本番画面、ブラウザ標準API |
 | `src/web/terminal.ts`, `terminal-page.ts`, `style.css` | xterm の接続部品、`/terminal.html` の起動・接続・終了。町の端末窓も同じ接続部品を使う | xterm, DOM, HTTP/WS |
 | `adapters/codex/hook.ts` | core の変換を呼び、端末 Bearer 付きで `/event` へ送る。ビルド先は `lib/adapters/codex/hook.js`、出力は `{}` のみ | core/codex, Node |
 | `adapters/claude-code/*`, `adapters/pi/*` | ハーネスのフック・拡張をイベントに変換し、ローカルへ短時間で送る。pi は使用するイベント・context の最小の型を `types.ts` に置き、`npm run typecheck` に含める | ハーネス API, Node |
@@ -210,10 +211,12 @@ Codex の PostToolUse は成否不明として扱い、成功数・報告のテ�
 
 ### web 内: 描画データと端末の接続
 
-町とモックは `src/web/town/*` の同じ描画関数にデータを渡す。モック用の偽データは `src/web/art/*` に閉じる。
+本番・モック・公開体験版は `src/web/rpg/app.html` と `rpg/main.ts`（Scene・Status・会話・クエスト・本番CSS）を共用する。モック用の偽データとHTTP／WS応答は `src/web/art/*` に閉じ、モック専用のサイドバーや詳細の開閉処理は作らない。モックが置き換えるのは既存HTTP／WS境界だけで、本番のコードはモックの通信処理を読み込まない。公開体験版も同じ入口を使う。
 町の端末窓と `/terminal.html` は `src/web/terminal.ts` の接続部品を共有する。
 戦闘の `Focus.status[].name` は完全な名前を渡し、`drawFocus` の描画時だけ省略する。HTTP／WS の API 形式は変えない。
 画面専用の選択・開閉・下書きは各画面の中に置き、汎用ストアやイベントバスは作らない。
+
+`rpg/main.ts` の `scene`・起動完了 `started` と、既存の移動処理 `Scene.go` をモックの外側パネルから使用する。場面ボタンをアプリ本体へ入れたり、テスト用イベントバス・描画層・汎用DIを挟んだりしない。HTMLの変更はViteの共通差し込みで3入口へ反映し、開発時は共通HTMLの変更でページを再読み込みする。
 
 | web 内の既存 API | 契約 |
 |---|---|

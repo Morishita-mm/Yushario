@@ -185,7 +185,7 @@ export class Scene {
       ? () => this.commands(hero.id, this.size()[0] / 2, this.size()[1] / 2, hero.monster ? () => this.go(hero.place, false, hero.id) : undefined) : undefined);
   }
   private localHeroes(): TownHero[] { return this.heroes.filter((hero) => hero.project === this.project); }
-  private go(place: Place, automatic = false, focused?: string): void {
+  go(place: Place, automatic = false, focused?: string): void {
     this.noticeMark.clear();
     if (!automatic) this.following.stop();
     this.closeCommands?.();

@@ -1,6 +1,5 @@
-import { openReview } from "../rpg/review-window";
 import type { Review, ReviewDiff } from "../../core/review";
-const review: Review = {
+export const review: Review = {
   cwd: "/tmp/tiny-quest", branch: "quest/fix", head: "abc1234", ahead: 1, behind: 2,
   comparison: { mode: "uncommitted", branches: ["main", "origin/main", "quest/fix"], defaultBase: "origin/main", base: "origin/main" },
   files: [
@@ -12,7 +11,7 @@ const review: Review = {
     { path: "large.txt", status: "modified" },
   ],
 };
-const diffs: Record<string, ReviewDiff> = {
+export const diffs: Record<string, ReviewDiff> = {
   "src/a.ts": { text: "--- a/src/a.ts\n+++ b/src/a.ts\n@@ -1,2 +1,2 @@\n-export const answer = 41;\n+export const answer = 42;\n // The answer\n" },
   "new.ts": { text: "@@ -0,0 +1 @@\n+export const ready = true;\n" },
   "gone.ts": { text: "@@ -1 +0,0 @@\n-export const old = true;\n" },
@@ -20,9 +19,3 @@ const diffs: Record<string, ReviewDiff> = {
   ".env": { text: "@@ -0,0 +1 @@\n+DEMO_ONLY=yes\n" },
   "image.png": { binary: true }, "large.txt": { tooLarge: true },
 };
-export function mockReview(name: string): void {
-  const branchReview: Review = { ...review, comparison: { ...review.comparison!, mode: "branch", mergeBase: "0123456789abcdef" },
-    files: [{ path: "committed.ts", status: "added", added: 1, removed: 0 }, ...review.files] };
-  openReview(name, "mock", () => undefined, () => undefined, undefined, { review, diffs, branchReview,
-    branchDiffs: { ...diffs, "committed.ts": { text: "@@ -0,0 +1 @@\n+export const committed = true;\n" } } });
-}

@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 // Loads the packed pixel-art components (public/art) and draws single frames.
 import type { ArtEntry as Entry } from "./art-data";
 type Source = HTMLImageElement | HTMLCanvasElement;
@@ -12,7 +13,8 @@ export class Sheets {
   private readonly opaqueTops = new Map<string, number>();
 
   async load(): Promise<void> {
-    const entries: Entry[] = await (await fetch("/art/manifest.json", { cache: "no-store" })).json();
+    const base = `${import.meta.env.BASE_URL}art/`;
+    const entries: Entry[] = await (await fetch(`${base}manifest.json`, { cache: "no-store" })).json();
     await Promise.all(entries.map(async (entry) => {
       const image = new Image();
       // Wait for load, not decode(): decode() can stay pending in a background tab, which kept the room from connecting.
@@ -20,7 +22,7 @@ export class Sheets {
         image.onload = () => resolve();
         image.onerror = () => reject(new Error(`Could not load /art/${entry.id}.png`));
       });
-      image.src = `/art/${entry.id}.png`;
+      image.src = `${base}${entry.id}.png`;
       await loaded;
       this.entries.set(entry.id, entry);
       this.images.set(entry.id, image);

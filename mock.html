@@ -3,39 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Art Mock</title>
+    <title>Yushario · モック</title>
   </head>
   <body>
-    <header>
-      <h1 data-en="Scene mockups">組み合わせモック</h1>
-      <nav id="tabs"></nav>
-      <a href="/art.html" data-en="Component gallery">コンポーネント一覧</a>
-    </header>
-    <main>
-      <p id="caption"></p>
-      <nav aria-label="地図の一覧" data-en-aria-label="Map lists">
-        <button id="sleeping-towns" data-en="Sleeping towns" type="button">ねむっている町</button>
-        <button id="archived-towns" data-en="Archived towns" type="button">しまった町</button>
-      </nav>
-      <div class="layout">
-        <div class="stage">
-          <canvas id="mock"></canvas>
-          <p id="messages" role="status" aria-label="メッセージ" data-en-aria-label="Message"></p>
-          <div id="report" class="report-layer" hidden></div>
-          <div id="toast" class="toast" role="status" hidden></div>
-        </div>
-        <div class="side">
-          <div class="side-tabs" role="tablist" aria-label="右の列" data-en-aria-label="Sidebar">
-            <button id="tab-herald" data-en="Herald" type="button" role="tab" aria-controls="herald" aria-selected="true">でんれい</button>
-            <button id="tab-party" data-en="Heroes" type="button" role="tab" aria-controls="party" aria-selected="false">ゆうしゃ</button>
-            <button id="tab-quests" data-en="Quests" type="button" role="tab" aria-controls="quests" aria-selected="false">クエスト</button>
-          </div>
-          <aside id="herald" role="tabpanel" aria-labelledby="tab-herald"></aside>
-          <aside id="party" role="tabpanel" aria-labelledby="tab-party" hidden></aside>
-          <aside id="quests" role="tabpanel" aria-labelledby="tab-quests" hidden></aside>
-        </div>
-      </div>
-    </main>
+    <!-- yushario-mock-controls -->
+    <!-- yushario-app -->
     <script type="module" src="/src/web/art/mock.ts"></script>
   </body>
 </html>
