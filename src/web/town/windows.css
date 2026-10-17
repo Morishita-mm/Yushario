@@ -30,8 +30,6 @@ dialog.report-window::backdrop { background: rgba(0, 0, 0, 0.65); }
 .report-window dl { display: grid; grid-template-columns: 9em 1fr; gap: 2px 12px; margin: 0; }
 .report-window dt { color: #9fd3ff; }
 .report-window dd { margin: 0; overflow-wrap: anywhere; }
-.report-window .reply { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; color: #e8e4f4; }
-.report-window .thread .mine { margin: 6px 0 0; color: #ffe7a3; white-space: pre-wrap; }
 .report-window .answer { display: flex; gap: 8px; margin-top: 12px; align-items: flex-end; }
 .report-window textarea { flex: 1; font: inherit; font-size: 14px; background: #1d1726; color: #fff; border: 2px solid #6e6a8a; border-radius: 4px; padding: 6px 8px; resize: vertical; }
 .report-window .actions { display: flex; gap: 18px; justify-content: center; margin-top: 14px; }

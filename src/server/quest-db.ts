@@ -98,7 +98,6 @@ export class QuestDatabase {
   bind(binding: QuestBinding): void {
     this.db.prepare("INSERT OR REPLACE INTO quest_sessions VALUES (?,?,?)").run(binding.session, binding.quest, binding.hero ?? null);
   }
-  unbind(session: string): void { this.db.prepare("DELETE FROM quest_sessions WHERE session=?").run(session); }
   delete(id: string): void { this.db.prepare("DELETE FROM quests WHERE id=?").run(id); }
   clear(town?: string): void {
     if (town) this.db.prepare("DELETE FROM quests WHERE town=?").run(town);

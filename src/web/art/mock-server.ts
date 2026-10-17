@@ -2,7 +2,6 @@ import equipmentJson from "../../server/equipment.json?raw";
 import { addHero, demo, event, heroId, questPacket, reply } from "./mock-state";
 import { questApi } from "./mock-quest-api";
 import { diffs, review } from "./mock-review";
-import { mockFingerprint } from "./mock-checks";
 
 // Page-local implementation of the existing HTTP / WS contracts. No real server or terminal.
 const clients = new Set<DemoSocket>();

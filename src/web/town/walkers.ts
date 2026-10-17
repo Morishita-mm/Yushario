@@ -22,7 +22,6 @@ export type Walker = {
   leaving?: boolean; wavedAt?: number; paused?: boolean; weaponTier?: number; branch?: string;
 };
 export type TownSign = { name: string; x: number; y: number; icon: string };
-export type Departed = { name: string; repo: string; left: string; last: string };
 
 function route(art: Sheets, from: string, to: string, theme?: TownTheme): string[] {
   return roadRoute(townLayout(art.entry("bld-inn").town!, theme), from, to);

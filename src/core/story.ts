@@ -10,9 +10,6 @@ export function jobName(job: Job, language: Language = "ja"): string {
   return language === "ja" ? { hero: "ゆうしゃ", warrior: "せんし", mage: "まほうつかい", thief: "とうぞく", priest: "そうりょ" }[job]
     : { hero: "Hero", warrior: "Warrior", mage: "Mage", thief: "Thief", priest: "Priest" }[job];
 }
-export const JOB_NAMES: Record<Job, string> = {
-  hero: jobName("hero"), warrior: jobName("warrior"), mage: jobName("mage"), thief: jobName("thief"), priest: jobName("priest"),
-};
 const BATTLES: Partial<Record<Activity, MonsterKind>> = { edit: "slime", run: "ghost", test: "golem", delegate: "dragon" };
 export function battleMonster(activity: Activity): MonsterKind | undefined { return BATTLES[activity]; }
 export function jobOf(subagentType: string | undefined): Job {

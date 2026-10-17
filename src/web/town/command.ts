@@ -1,5 +1,4 @@
 import { tr } from "../language";
-import type { Departed } from "./walkers";
 
 // The command window that opens next to a hero you click (docs/PLATFORM.md); the mock uses the same window.
 interface HeroState { name: string; fighting: boolean; at: [number, number] } // at: CSS px in the stage
@@ -167,28 +166,4 @@ function showRestConfirmation(layer: HTMLElement, at: [number, number], name: st
   showConfirmation(layer, at, tr(`${name}の 会話をまとめて やすませる？`, `Summarize ${name}'s conversation and let them rest?`),
     tr("ターミナルの 書きかけのことばは消える。", "Unsent terminal text will be cleared."),
     () => { close(layer); yes(); }, () => { close(layer); no(); });
-}
-
-// The roster of heroes who have set off; call one back to resume the same session.
-export function showRoster(layer: HTMLElement, roster: Departed[], onRecall: (name: string) => void): void {
-  placements.get(layer)?.disconnect(); placements.delete(layer);
-  layer.classList.remove("menu-layer");
-  const box = element("div", "report-window");
-  box.setAttribute("role", "dialog");
-  const title = element("h3", undefined, tr(`ぼうけんしゃの めいぼ（${roster.length}）`, `Adventurers' roster (${roster.length})`));
-  title.id = `roster-title-${crypto.randomUUID()}`; box.setAttribute("aria-labelledby", title.id); box.append(title);
-  if (!roster.length) box.append(element("p", "who", tr("まだ だれも 旅立っていない。", "No one has set off yet.")));
-  for (const d of roster) {
-    const row = element("div", "roster-row");
-    const text = element("div");
-    text.append(element("p", "name", tr(`${d.name}（${d.repo}）　${d.left} に たびだった`, `${d.name} (${d.repo}) · Left ${d.left}`)), element("p", "last", d.last));
-    const recall = option(tr("▶ よびもどす", "▶ Recall"), () => { layer.hidden = true; onRecall(d.name); });
-    row.append(text, recall);
-    box.append(row);
-  }
-  const actions = element("div", "actions");
-  actions.append(option(tr("▶ とじる", "▶ Close"), () => { layer.hidden = true; }));
-  box.append(actions);
-  layer.replaceChildren(box);
-  layer.hidden = false;
 }

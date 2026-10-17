@@ -4,7 +4,7 @@ import { finishedQuest, type QuestDetail, type QuestEvent } from "../../core/que
 import type { Session } from "../terminal";
 import { language, tr } from "../language";
 import { openPartyWindow } from "./party-window";
-import { memberBadge, memberState } from "./party-cards";
+import { memberBadge } from "./party-cards";
 import { tacticLabel, type TacticStatus } from "../../core/tactics";
 import { tacticProgress } from "./party-tactics";
 import "./quest-party.css";

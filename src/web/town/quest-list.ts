@@ -2,10 +2,9 @@ import { finishedQuest, sortedQuests, type Quest, type QuestState } from "../../
 import { questStage, yourTurn, type QuestStage } from "../../core/quest-stage";
 import { ago, tr } from "../language";
 import { checkMarks } from "./check-marks";
-import { icon, iconLabel, type IconName } from "../icons.js";
+import { iconLabel, type IconName } from "../icons.js";
 // Saved states, as statuses. The list and card lead with the stage (what to do next) instead.
 export const questStateLabel = (state: QuestState): string => ({ open: tr("準備中", "Getting ready"), active: tr("作業中", "Working"), waiting: tr("返事を待っている", "Waiting for you"), review: tr("報告が届いた", "Report arrived"), done: tr("採用した", "Adopted"), dropped: tr("やめた", "Dropped") })[state];
-export const questStateMark = (state: QuestState): SVGSVGElement => icon(({ open: "assign", active: "swords", waiting: "alert", review: "scroll", done: "check", dropped: "minus" } satisfies Record<QuestState, IconName>)[state]);
 export const questStageLabel = (stage: QuestStage): string => ({ assign: tr("任せる人を決める", "Choose a hero"), send: tr("指示を送る", "Send the request"), work: tr("作業中", "Working"), waiting: tr("返事を待っている", "Waiting for you"), review: tr("報告を見る", "Read the report"), done: tr("採用した", "Adopted"), dropped: tr("やめた", "Dropped") })[stage];
 const STAGE_MARK: Record<QuestStage, IconName> = { assign: "assign", send: "mail", work: "swords", waiting: "alert", review: "scroll", done: "check", dropped: "minus" };
 export function renderQuestList(root: HTMLElement, quests: Quest[], townName: (key: string) => string,

@@ -6,6 +6,9 @@ lib/
 .art-work/
 # Review reports and evidence belong in the private yushario-devlog repository.
 /docs/release-audit/
+/local-copy-review/
+.DS_Store
+.claude/scheduled_tasks.lock
 .pi/settings.json
 __pycache__/
 *.pyc

@@ -105,7 +105,7 @@ Yushario と勇者は同じ OS 利用者で動く。悪意ある同一利用者�
 | `src/web/rpg/report-links.ts` | 開いた会話の返事だけ報告の所属を遅延取得、最近200件のページ内保持。題は現在のクエスト一覧から読む | core の型, DOM, HTTP |
 | `src/web/rpg/interrupt-status.ts` | RoomAgent.stopRequestedAt と現在時刻から、停止の確認待ち／30秒後の未確認案内を札と会話へ共通表示 | core の型, language |
 | `src/web/town/side-tabs.ts` | 本体・モック共通のサイドバー。選択タブだけ Tab 順序に入れ、左右矢印・Home・End で選択とフォーカスを移す | DOM, language |
-| `src/web/town/command.ts` | 本体・モック共通の勇者コマンド・確認と、見出しで名前を付けたモックのめいぼ | DOM, language |
+| `src/web/town/command.ts` | 本体・モック共通の勇者コマンド・確認 | DOM, language |
 | `src/web/town/battle-commands.ts` | 本体・モック共通の戦闘コマンド。選択中の作戦の送信全文を常に表示し、focus・mouseenter・矢印カーソルから更新 | DOM, command, language |
 | `src/web/town/herald.ts`, `src/web/rpg/scene.ts`, `scene-drawing.ts`, `map-hotspots.ts`, `navigation.ts` | Scene の入力・移動と、町／室内／フィールドの描画・地図の当たり判定を分担。既存の町一覧・設定の窓は native dialog でフォーカス移動・復帰。眠る町・しまった町は通常のボタンからも開く（町一覧はモックも共通） | core, DOM, web/town |
 | `src/web/rpg/review-window.ts`, `review.css`, `file-open.ts` | 鑑定の窓、長い題の折り返しと比較元ラベルの幅の維持、報告の鑑定済み印、ブラウザのエディタ選択とファイルを開くリンク（モックも同じ窓） | core, DOM, HTTP |
@@ -222,7 +222,7 @@ Codex の PostToolUse は成否不明として扱い、成功数・報告のテ�
 |---|---|
 | `initSideTabs().show(tab)` | パネル・`aria-selected`・`tabIndex` をそろえる。クリックと左右矢印・Home・End が同じ選択処理を使い、キー操作時だけフォーカスも移す |
 | `initQuests(...)`, `pickPartyNotice(...)` | 開いている窓のresizeで既存の `coverMap` を再実行する。内容のDOMを作り直さず、入力・フォーカス・スクロールを保つ。仲間の確認窓はcloseでresize監視を外す |
-| `checkMarks(...)`, `previewControls(...)`, `showRoster(...)` とクエスト・仲間・町プレビューの窓 | 名前の無かったdialogは見出しに一意のIDを付け、`aria-labelledby` で参照する。HTTP・WS の形式は変えない |
+| `checkMarks(...)`, `previewControls(...)` とクエスト・仲間・町プレビューの窓 | 名前の無かったdialogは見出しに一意のIDを付け、`aria-labelledby` で参照する。HTTP・WS の形式は変えない |
 
 ## 寿命・保存・セキュリティ
 

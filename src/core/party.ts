@@ -5,7 +5,6 @@ import type { Language } from "./town-ledger";
 export const PARTY_ROLES = ["implement", "review", "research", "test", "command"] as const;
 export type PartyRole = typeof PARTY_ROLES[number];
 export type PartyMember = { quest: string; session: string; hero?: string; role: PartyRole; note: string; writer: boolean; joinedAt: number };
-export type PartyAction = "read" | "note" | "send" | "invite" | "review";
 export function partyRole(value: unknown): value is PartyRole { return PARTY_ROLES.includes(value as PartyRole); }
 // Exactly 32 random bytes encoded as hex. Never accept a prefix, coercion, or an empty secret.
 export function agentTokenBytes(value: unknown): number[] | undefined {
