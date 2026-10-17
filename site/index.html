@@ -55,12 +55,8 @@
 </section>
 <section id="start" class="section start-section">
   <div class="section-heading"><div><p class="eyebrow">START / 旅立ちのしたく</p><h2>最初のクエストへ。</h2></div><p>必要なのは、いつものプロジェクトと<br>ログイン済みのエージェントCLI。</p></div>
-  <div class="start-layout"><aside class="requirements"><h3>出発前に用意するもの</h3><ul><li>macOS または Linux</li><li>Node.js 22.13.0 以上（Yushario本体）</li><li>Claude Code / pi / Codex のいずれか</li><li>CLI側の動作要件を満たす環境とログイン</li><li>仕事を任せるプロジェクトフォルダ</li></ul><p>開発中のPoCです。npm公開前のため、ここではソースからの起動を案内します。</p><p>pi 1.0.2の動作確認環境はNode.js 26.4.0です。監査環境ではNode.js 22.13.0との組合せで起動直後の終了を確認しています。<a href="#agents">バージョンと動作条件を見る</a></p></aside>
-  <ol class="steps"><li><div><span class="step-label">STEP 01</span><h3>手元に世界を用意する</h3><p>ターミナルでソースを取得して、ビルド・起動します。</p><div class="code-block"><div><span>TERMINAL</span><button type="button" id="copy-command">コピー</button></div><pre><code id="install-command">git clone https://github.com/Morishita-mm/Yushario.git
-cd Yushario
-npm install
-npm run build
-npm start</code></pre></div><p class="muted">ローカルブラウザで町が開きます。起動URLのトークンは共有しないでください。</p></div></li>
+  <div class="start-layout"><aside class="requirements"><h3>出発前に用意するもの</h3><ul><li>macOS または Linux</li><li>Node.js 22.13.0 以上（Yushario本体）</li><li>Claude Code / pi / Codex のいずれか</li><li>CLI側の動作要件を満たす環境とログイン</li><li>仕事を任せるプロジェクトフォルダ</li></ul><p>開発中のPoCです。npmから起動できます。リポジトリのcloneやグローバルインストールは不要です。</p><p>pi 1.0.2の動作確認環境はNode.js 26.4.0です。監査環境ではNode.js 22.13.0との組合せで起動直後の終了を確認しています。<a href="#agents">バージョンと動作条件を見る</a></p></aside>
+  <ol class="steps"><li><div><span class="step-label">STEP 01</span><h3>手元に世界を用意する</h3><p>プロジェクトのフォルダでターミナルを開き、次のコマンドを実行します。</p><div class="code-block"><div><span>TERMINAL</span><button type="button" id="copy-command">コピー</button></div><pre><code id="install-command">npx yushario@latest</code></pre></div><p class="muted">ローカルブラウザで町が開きます。起動URLのトークンは共有しないでください。</p></div></li>
   </ol></div>
   <div id="visual-guide" class="visual-guide">
     <p class="eyebrow">SCREEN BY SCREEN / 画面でたどる、最初の依頼</p>

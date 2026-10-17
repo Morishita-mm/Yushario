@@ -54,4 +54,4 @@ HTMLの共通元は `src/web/rpg/app.html`。Viteが本番、開発モック、�
 
 `assets/fonts/` のDotGothic16は既存依存の `@fontsource/dotgothic16` から複製し、外部通信なしで配信します。同梱の `OFL.txt` がライセンスです。
 
-クイックスタートはREADMEのnpm未公開の記述に従い、ソースからの起動を案内しています。公開状況が変わったら更新してください。
+クイックスタートはREADMEと同じ `npx yushario@latest` による起動を案内しています。
