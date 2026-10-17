@@ -15,8 +15,6 @@ installMockServer();
 const app = await import("../rpg/main");
 await app.started;
 document.querySelector<HTMLButtonElement>("#title-start")?.click();
-const intro = document.querySelector<HTMLAnchorElement>("#mock-intro")!;
-intro.href = location.pathname.endsWith("/mock.html") ? "./site/" : "./index.html";
 const feedback = document.querySelector<HTMLElement>("#mock-feedback")!;
 const controls = document.querySelector<HTMLElement>("#mock-controls")!;
 // Settings reload the app; demo fixtures are intentionally reset on reload too.
