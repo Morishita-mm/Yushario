@@ -4,6 +4,8 @@ site-dist/
 lib/
 *.tgz
 .art-work/
+# Review reports and evidence belong in the private yushario-devlog repository.
+/docs/release-audit/
 .pi/settings.json
 __pycache__/
 *.pyc

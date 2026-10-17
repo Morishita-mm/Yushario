@@ -56,8 +56,8 @@
 <section id="start" class="section start-section">
   <div class="section-heading"><div><p class="eyebrow">START / 旅立ちのしたく</p><h2>最初のクエストへ。</h2></div><p>必要なのは、いつものプロジェクトと<br>ログイン済みのエージェントCLI。</p></div>
   <div class="start-layout"><aside class="requirements"><h3>出発前に用意するもの</h3><ul><li>macOS または Linux</li><li>Node.js 22.13.0 以上（Yushario本体）</li><li>Claude Code / pi / Codex のいずれか</li><li>CLI側の動作要件を満たす環境とログイン</li><li>仕事を任せるプロジェクトフォルダ</li></ul><p>開発中のPoCです。npm公開前のため、ここではソースからの起動を案内します。</p><p>pi 1.0.2の動作確認環境はNode.js 26.4.0です。監査環境ではNode.js 22.13.0との組合せで起動直後の終了を確認しています。<a href="#agents">バージョンと動作条件を見る</a></p></aside>
-  <ol class="steps"><li><div><span class="step-label">STEP 01</span><h3>手元に世界を用意する</h3><p>ターミナルでソースを取得して、ビルド・起動します。</p><div class="code-block"><div><span>TERMINAL</span><button type="button" id="copy-command">コピー</button></div><pre><code id="install-command">git clone https://github.com/Morishita-mm/agent-character.git
-cd agent-character
+  <ol class="steps"><li><div><span class="step-label">STEP 01</span><h3>手元に世界を用意する</h3><p>ターミナルでソースを取得して、ビルド・起動します。</p><div class="code-block"><div><span>TERMINAL</span><button type="button" id="copy-command">コピー</button></div><pre><code id="install-command">git clone https://github.com/Morishita-mm/Yushario.git
+cd Yushario
 npm install
 npm run build
 npm start</code></pre></div><p class="muted">ローカルブラウザで町が開きます。起動URLのトークンは共有しないでください。</p></div></li>
@@ -121,10 +121,10 @@ npm start</code></pre></div><p class="muted">ローカルブラウザで町が�
   <details><summary>止めたはずなのに、作業中のままです。</summary><p>停止要求と停止確認は別です。確認が届くまで停止したとは表示しません。ターミナルを開いてCLIの状態を確認し、必要な復旧操作を行ってください。</p></details>
   <details><summary>テストしたのに「ためすこと」が合格になりません。</summary><p>条件と実行コマンド、実行拠点を確認してください。複雑なコマンドや取得できない結果は不明になります。検証後の変更で証拠が古くなることもあります。Codexのフックでは自動証拠を作りません。</p></details>
   <details><summary>画面を日本語・英語に切り替えたい。</summary><p>アプリの「せってい → 言語」から変更できます。初回はブラウザの言語に合わせて選ばれます。</p></details>
-  <details><summary>解決しないときは？</summary><p><a href="https://github.com/Morishita-mm/agent-character/issues">GitHub Issues</a>へ。OS、Node・CLIのバージョン、再現手順を添えてください。トークン、会話、絶対パス、APIキーは取り除いてから送信してください。</p></details>
+  <details><summary>解決しないときは？</summary><p><a href="https://github.com/Morishita-mm/Yushario/issues">GitHub Issues</a>へ。OS、Node・CLIのバージョン、再現手順を添えてください。トークン、会話、絶対パス、APIキーは取り除いてから送信してください。</p></details>
 </section>
 <section class="closing"><p class="eyebrow">THE ADVENTURE IS YOURS.</p><img class="closing-logo" src="assets/logo.png" width="668" height="280" alt="Yushario" loading="lazy"><h2>退屈な仕事を、<em>冒険に。</em></h2><a class="button" href="#start">あなたの冒険をはじめる</a></section>
 </main>
-<footer><a class="brand" href="#"><img src="assets/logo.png" width="180" height="60" alt="Yushario"></a><p>小さな世界で、本物の仕事を。</p><nav aria-label="関連リンク"><a href="https://github.com/Morishita-mm/agent-character">GitHub ↗</a><a href="LICENSE">MIT License</a><a href="NOTICE">クレジット</a></nav><small>独立したPoCプロジェクトです。Claude Code・Codex・pi、その他の製品との提携・推薦を示すものではありません。絵とロゴはOpenAIの画像生成を使用。第三者素材の通知はクレジットをご確認ください。</small></footer>
+<footer><a class="brand" href="#"><img src="assets/logo.png" width="180" height="60" alt="Yushario"></a><p>小さな世界で、本物の仕事を。</p><nav aria-label="関連リンク"><a href="https://github.com/Morishita-mm/Yushario">GitHub ↗</a><a href="LICENSE">MIT License</a><a href="NOTICE">クレジット</a></nav><small>独立したPoCプロジェクトです。Claude Code・Codex・pi、その他の製品との提携・推薦を示すものではありません。絵とロゴはOpenAIの画像生成を使用。第三者素材の通知はクレジットをご確認ください。</small></footer>
 <p id="copy-status" class="sr-only" role="status"></p>
 </body></html>

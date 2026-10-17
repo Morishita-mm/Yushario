@@ -79,8 +79,8 @@ npx yushario
 npm に公開するまでは、ソースから起動します。
 
 ```sh
-git clone https://github.com/Morishita-mm/agent-character.git
-cd agent-character
+git clone https://github.com/Morishita-mm/Yushario.git
+cd Yushario
 npm install && npm run build && npm start
 ```
 

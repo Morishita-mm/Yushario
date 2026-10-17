@@ -77,8 +77,8 @@ Your browser opens the town. Choose **Embark**, pick your project folder as the 
 Until the first npm release, run from a checkout:
 
 ```sh
-git clone https://github.com/Morishita-mm/agent-character.git
-cd agent-character
+git clone https://github.com/Morishita-mm/Yushario.git
+cd Yushario
 npm install && npm run build && npm start
 ```
 
