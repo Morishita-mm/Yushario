@@ -24,7 +24,7 @@ export function initRoster(recalled: (session: Session, towns: TownRecord[]) => 
   async function fetchRoster(suffix = "", method = "GET"): Promise<RosterEntry[] | Session> {
     const response = await fetch(`/api/roster${suffix}?${new URLSearchParams({ token })}`, { method, cache: "no-store" });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error ?? tr(`めいぼを よみこめませんでした（${response.status}）`, `Could not load roster (${response.status})`));
+    if (!response.ok) throw new Error(data.error ?? tr(`めいぼを 読み込めなかった（${response.status}）`, `Could not load roster (${response.status})`));
     return data;
   }
   async function recall(entry: RosterEntry): Promise<void> {
@@ -52,7 +52,7 @@ export function initRoster(recalled: (session: Session, towns: TownRecord[]) => 
     void fetchRoster().then((data) => {
       if (request !== current || !dialog.open) return;
       const entries = data as RosterEntry[];
-      status.textContent = entries.length ? "" : tr("まだ だれも たびだって いません。", "No one has set off yet.");
+      status.textContent = entries.length ? "" : tr("まだ だれも 旅立っていない。", "No one has set off yet.");
       for (const entry of [...entries].sort((a, b) => b.leftAt - a.leftAt)) {
         const row = document.createElement("div"); row.className = "roster-row";
         const text = document.createElement("div");

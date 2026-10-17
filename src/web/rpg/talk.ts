@@ -158,7 +158,7 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
     questHeading.update(agent?.terminal, agent?.project);
     if (!agent) {
       form.hidden = true; foreign.hidden = true; terminal.disabled = true;
-      renderPending(undefined); status.textContent = tr("この勇者は たびだちました。会話は ここまでです。", "This hero has set off. Our talk ends here."); return;
+      renderPending(undefined); status.textContent = tr("この勇者は 旅立った。会話はここまで。", "This hero has set off. Our talk ends here."); return;
     }
     const heroName = name(agent.id) ?? agent.name;
     title.textContent = tr(`${heroName} · 会話と報告`, `${heroName} · Talk and reports`);
@@ -186,7 +186,7 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
       const message = document.createElement("p");
       message.className = needsSetup ? "arrival-guidance" : "";
       message.textContent = needsSetup ? CLAUDE_SETUP_GUIDANCE : agent.terminal
-        ? tr("まだ 会話は ありません。勇者に はなしかけてみよう。", "No talk yet. Say hello to your hero!") : tr("まだ 会話は ありません。", "No talk yet.");
+        ? tr("まだ 会話はない。勇者に はなしかけてみよう。", "No talk yet. Say hello to your hero!") : tr("まだ 会話はない。", "No talk yet.");
       history.append(message);
     }
     for (const entry of talk) {
@@ -242,7 +242,7 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
     }).then(async (response) => {
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
-        throw new Error(data.error ?? tr(`つたえられませんでした（${response.status}）`, `Could not send (${response.status})`));
+        throw new Error(data.error ?? tr(`つたえられなかった（${response.status}）`, `Could not send (${response.status})`));
       }
       const result = await response.json() as { delivered: boolean };
       if (key && drafts.get(key) === text) drafts.delete(key);

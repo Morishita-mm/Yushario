@@ -15,7 +15,7 @@ export async function checksRequest(path: string, method = "GET", body?: unknown
 export async function confirmChecksDone(quest: Quest): Promise<boolean> {
   const data = await checksRequest(`${encodeURIComponent(quest.id)}/checks`);
   const missing = (data.checks ?? []).filter((check) => checkMark(check.evidence, data.fingerprint) !== "passed");
-  return !missing.length || confirm(tr("まだ ごうかくしていない 合格条件が ある。採用する？", "Some acceptance checks have not passed. Adopt anyway?"));
+  return !missing.length || confirm(tr("未合格の条件がある。それでも採用する？", "Some acceptance checks have not passed. Adopt anyway?"));
 }
 export function questChecks(quest: Quest): HTMLElement {
   const box = document.createElement("section"); box.className = "quest-checks";
@@ -37,7 +37,7 @@ export function questChecks(quest: Quest): HTMLElement {
     form.oninput = () => { form.dataset.dirty = "true"; };
     const name = document.createElement("input"), command = document.createElement("input");
     name.maxLength = 80; command.maxLength = 200; name.required = command.required = true;
-    for (const [text, input] of [[tr("名前", "Name"), name], [tr("コマンドの形", "Command shape"), command]] as const) {
+    for (const [text, input] of [[tr("名前", "Name"), name], [tr("コマンドの形式", "Command format"), command]] as const) {
       const label = document.createElement("label"); label.append(document.createTextNode(text), input); form.append(label);
     }
     const add = document.createElement("button"); add.type = "submit"; add.textContent = tr("＋ 合格条件を 足す", "＋ Add acceptance check"); form.append(add);

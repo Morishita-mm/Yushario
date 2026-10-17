@@ -8,7 +8,7 @@ export function requestEquipment(session: Session, input: unknown, master: Agent
   changed: (message: PendingMessage) => void, equipped: (message: EquippedMessage) => void): boolean {
   const agent = AGENTS[session.info.preset];
   if (!agent.hero || (!agent.modelCommand && !agent.thinkingCommand)) {
-    throw new Error(tr("途中では かえられません。しゅつじん・よびもどす時だけ かえられます", "Change equipment when embarking or recalling"));
+    throw new Error(tr("そうびを変えられるのは、しゅつじん・よびもどす時だけ。", "Change equipment when embarking or recalling"));
   }
   const next = equipmentInput(input, master, serverLanguage());
   equipmentCommands(session.equipping ?? session.info, next, master, agent, serverLanguage()); // Also validate against any in-flight change.

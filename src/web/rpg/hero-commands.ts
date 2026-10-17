@@ -62,14 +62,14 @@ export function initHeroActions(hero: (id: string) => RoomAgent | undefined, tal
     const depart = action === "farewell" ? prepareDeparture(id) : undefined;
     if (action === "interrupt") talk.interrupting(terminal, true);
     // Said before the request, so the log reads "saw off" before the hero's own SessionEnd "set off".
-    if (action === "farewell") say(tr(`${heroName}を みおくりました。`, `You saw ${heroName} off.`));
+    if (action === "farewell") say(tr(`${heroName}を みおくった。`, `You saw ${heroName} off.`));
     try {
       const response = await fetch(`/api/sessions/${encodeURIComponent(terminal)}/action?${new URLSearchParams({ token })}`, {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }),
       });
       if (!response.ok) {
         const result = await response.json().catch(() => ({}));
-        throw new Error(result.error ?? tr(`つかえませんでした（${response.status}）`, `Action failed (${response.status})`));
+        throw new Error(result.error ?? tr(`使えなかった（${response.status}）`, `Action failed (${response.status})`));
       }
       if (action === "farewell") {
         talk.close(); closeStrength(); depart?.();
@@ -80,7 +80,7 @@ export function initHeroActions(hero: (id: string) => RoomAgent | undefined, tal
         talk.open(id);
         talk.notice(action === "interrupt" ? held
           ? tr(`とめるよう たのんだ。あずかった ことば ${held}件を すてた。`, `Asked to stop. ${held} held messages discarded.`) : tr("とめるよう たのんだ。", "Asked to stop.")
-          : tr("おはなしを まとめている…", "Resting…"));
+          : tr("おはなしを まとめている…", "Summarizing the conversation…"));
       }
     } catch (error) {
       if (action === "farewell") say(tr(`${heroName}を みおくれなかった。`, `Could not see ${heroName} off.`));
@@ -93,12 +93,12 @@ export function initHeroActions(hero: (id: string) => RoomAgent | undefined, tal
   // Tell a working hero now (stage 9); a waiting hero takes it as a new request.
   async function steer(id: string, text: string): Promise<string> {
     const agent = hero(id), terminal = agent?.terminal;
-    if (!terminal) throw new Error(tr("この勇者には つたえられません", "Cannot reach this hero"));
+    if (!terminal) throw new Error(tr("この勇者には つたえられない。", "Cannot reach this hero"));
     const response = await fetch(`/api/sessions/${encodeURIComponent(terminal)}/say?${new URLSearchParams({ token })}`, {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, steer: true }),
     });
     const result = await response.json().catch(() => ({})) as { delivered?: boolean; error?: string };
-    if (!response.ok) throw new Error(result.error ?? tr(`つたえられませんでした（${response.status}）`, `Could not send (${response.status})`));
+    if (!response.ok) throw new Error(result.error ?? tr(`つたえられなかった（${response.status}）`, `Could not send (${response.status})`));
     return result.delivered ? tr(`${name(id) ?? agent.name}に つたえた！`, `Sent to ${name(id) ?? agent.name}!`) : tr("あずかった！ たたかいの あとで つたえる", "Held! Will send after battle");
   }
   function options(id: string): Actions {

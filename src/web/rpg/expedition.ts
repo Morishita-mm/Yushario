@@ -104,7 +104,7 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
         if (attached !== session) return;
         const latest = (result as Session[]).find((item) => item.id === session.id);
         if (latest?.exited) terminalStatus.textContent = tr(`おわった (${latest.exited.code})`, `Ended (${latest.exited.code})`);
-        else if (!latest) terminalStatus.textContent = tr("この ターミナルは なくなりました。", "This terminal is gone.");
+        else if (!latest) terminalStatus.textContent = tr("このターミナルは もうない。", "This terminal is gone.");
       }).catch((error: Error) => { if (attached === session) terminalStatus.textContent = error.message; });
     }).dispose;
   }
@@ -123,7 +123,7 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
       const sessions = await sessionRequest() as Session[];
       if (opening !== request || !dialog.open) return;
       const session = sessions.find((item) => item.id === id);
-      if (!session) throw new Error(tr("この ターミナルは なくなりました。一覧を おたしかめください。", "This terminal is gone. Check the list."));
+      if (!session) throw new Error(tr("このターミナルは もうない。一覧をたしかめよう。", "This terminal is gone. Check the list."));
       attach(session);
     } catch (error) {
       if (opening === request && dialog.open) terminalStatus.textContent = error instanceof Error ? error.message : String(error);
@@ -157,12 +157,12 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
       const errors: string[] = [];
       let noAgent = false;
       equipment = gear.status === "fulfilled" ? gear.value : {};
-      if (gear.status === "rejected") errors.push(tr("そうびを よみこめませんでした。そうびなしで 起動できます。", "Could not load equipment. Embark with none."));
+      if (gear.status === "rejected") errors.push(tr("そうびを 読み込めなかった。そうびなしでも起動できる。", "Could not load equipment. Embark with none."));
       const startupCwd = settings.status === "fulfilled" ? settings.value.startupCwd : undefined;
       if (startupCwd) {
         destination.add(new Option(tr(`いまの フォルダ — ${startupCwd}`, `Current folder — ${startupCwd}`), startupCwd), 0);
         destination.value = startupCwd;
-      } else errors.push(tr("起動した フォルダを よみこめませんでした。行き先を 指定してください。", "Could not load the startup folder. Choose a destination."));
+      } else errors.push(tr("起動したフォルダを 読み込めなかった。行き先を指定しよう。", "Could not load the startup folder. Choose a destination."));
       if (towns.status === "fulfilled") {
         for (const town of towns.value.filter((item) => item.archivedAt === undefined)) {
           if (town.path === startupCwd) continue;
@@ -171,7 +171,7 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
           if ((town.key ?? town.name) === selectedTown) destination.value = town.path;
         }
         if (!startupCwd && !selectedTown && destination.options.length > 1) destination.selectedIndex = 0;
-      } else errors.push(tr("町の台帳を よみこめませんでした。ほかの フォルダを 指定できます。", "Could not load towns. Choose another folder."));
+      } else errors.push(tr("町の台帳を 読み込めなかった。ほかのフォルダも指定できる。", "Could not load towns. Choose another folder."));
       const focusedPath = document.activeElement === path;
       chooseDestination();
       void loadBases();
@@ -183,10 +183,10 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
         preset.disabled = false; start.disabled = !agents.length; describe();
         noAgent = agents.every((agent) => agent.id === "shell");
         if (noAgent) errors.push(
-          tr("勇者の CLI が 見つかりません。① 下から1つ入れて PATH に追加 → ② yushario を止める（Ctrl+C）→ ③ 起動し直す。shell は 使えます。\npi: npm install -g @earendil-works/pi-coding-agent\nCodex: npm install -g @openai/codex\nClaude Code: ", "No hero CLI found. Install one below and add it to PATH, stop yushario (Ctrl+C), then restart. Shell is ready.\npi: npm install -g @earendil-works/pi-coding-agent\nCodex: npm install -g @openai/codex\nClaude Code: "),
+          tr("勇者の CLI が見つからない。下から一つ入れて PATH に追加し、yushario を Ctrl+C で止めて起動し直そう。shell は使える。\npi: npm install -g @earendil-works/pi-coding-agent\nCodex: npm install -g @openai/codex\nClaude Code: ", "No hero CLI found. Install one below and add it to PATH, stop yushario (Ctrl+C), then restart. Shell is ready.\npi: npm install -g @earendil-works/pi-coding-agent\nCodex: npm install -g @openai/codex\nClaude Code: "),
         );
       } else {
-        errors.push(kinds.reason instanceof Error ? kinds.reason.message : tr("勇者の 種類を よみこめませんでした。", "Could not load hero kinds."));
+        errors.push(kinds.reason instanceof Error ? kinds.reason.message : tr("勇者の種類を 読み込めなかった。", "Could not load hero kinds."));
       }
       if (focusedPath && path.hidden) (preset.disabled ? destination : preset).focus();
       status.textContent = errors.join("\n");

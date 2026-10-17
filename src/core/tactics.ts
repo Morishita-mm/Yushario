@@ -18,7 +18,7 @@ export const validTactic = (value: unknown): value is Tactic => TACTICS.includes
 export function tacticLabel(tactic: Tactic, language: Language): string {
   const ja = language === "ja";
   return { obey: ja ? "命令に従え" : "Follow orders", review: ja ? "レビューし合え" : "Review each other",
-    research: ja ? "調べてから" : "Research first", delegate: ja ? "全部任せた" : "Leave it all" }[tactic];
+    research: ja ? "調べてから" : "Research first", delegate: ja ? "全部任せた" : "All yours" }[tactic];
 }
 
 // Who takes part, and what is missing. Helpers beyond the limit, or with another role, stay outside the tactic.
@@ -69,20 +69,20 @@ export function withoutVerdict(text: string): string {
 export function reviewRequest(quest: { title: string; purpose: string; folder?: string }, report: string | undefined, round: number, language: Language, note?: string): string {
   const ja = language === "ja";
   return [
-    ja ? `【作戦：レビューし合え · ${round}回目】担当の 変更を レビューしてください。ファイルは 書きかえないでください。` : `[Tactic: review each other · round ${round}] Please review the owner's changes. Do not change any files.`,
+    ja ? `【作戦：レビューし合え · ${round}回目】担当の変更をレビューしてください。ファイルは変更しないでください。` : `[Tactic: review each other · round ${round}] Review the owner's changes. Do not change files.`,
     `${ja ? "クエスト" : "Quest"}: ${quest.title}`,
     ...(quest.purpose ? [`${ja ? "目的" : "Purpose"}: ${quest.purpose}`] : []),
-    ja ? `変更の 見かた: ${quest.folder ?? "担当の 作業フォルダ"} の git diff と、新しい ファイルを 読む。` : `How to see the changes: read git diff and new files in ${quest.folder ?? "the owner's folder"}.`,
+    ja ? `変更の確認: ${quest.folder ?? "担当の 作業フォルダ"} の git diff と新しいファイルを読んでください。` : `How to see the changes: read git diff and new files in ${quest.folder ?? "the owner's folder"}.`,
     ...(report ? [`${ja ? "担当の 報告" : "Owner's report"}:\n${report}`] : []),
     ...(note ? [`${ja ? "あなたへの 頼みごと" : "What I asked of you"}:\n${note}`] : []),
-    ja ? "直してほしい 点が あれば、場所（ファイル:行）と 理由を 書いてください。\n最後の 行に「判定：OK」か「判定：要修正」の どちらか だけを 書いてください。"
+    ja ? "修正点があれば、場所（ファイル:行）と理由を書いてください。\n最終行は「判定：OK」か「判定：要修正」のどちらかだけにしてください。"
       : "If anything should change, give the place (file:line) and why.\nOn the last line write only \"Verdict: OK\" or \"Verdict: Changes\".",
   ].join("\n\n");
 }
 export function fixRequest(findings: readonly { name: string; text: string }[], round: number, language: Language): string {
   const ja = language === "ja";
   return [
-    ja ? `【作戦：レビューし合え · ${round}回目】レビュー役から 直してほしい 点が 届きました。直して、終わったら 報告してください。` : `[Tactic: review each other · round ${round}] The reviewers asked for changes. Please fix them and report when done.`,
+    ja ? `【作戦：レビューし合え · ${round}回目】レビューの指摘を修正し、完了したら報告してください。` : `[Tactic: review each other · round ${round}] The reviewers asked for changes. Please fix them and report when done.`,
     ...findings.map((finding) => `■ ${finding.name}\n${withoutVerdict(finding.text) || (ja ? "（理由の 書かれていない 要修正）" : "(Changes requested without details)")}`),
   ].join("\n\n");
 }
@@ -90,16 +90,16 @@ export function fixRequest(findings: readonly { name: string; text: string }[], 
 export function researchRequest(request: string, note: string, language: Language): string {
   const ja = language === "ja";
   return [
-    ja ? "【作戦：調べてから】担当が 作業を 始める 前に、次の 依頼に ついて 調べて、分かった ことを 報告してください。ファイルは 書きかえないでください。報告は Yushario が まとめて 担当に 届けます。自分で 送る 必要は ありません。"
-      : "[Tactic: research first] Before the owner starts, research the request below and report what you find. Do not change any files. Yushario passes your report to the owner; you do not need to send it yourself.",
+    ja ? "【作戦：調べてから】担当の作業開始前に、次の依頼を調べて報告してください。ファイルは変更しないでください。報告は Yushario がまとめて担当へ届けます。自分で送る必要はありません。"
+      : "[Tactic: research first] Research the request below before the owner starts, then report your findings. Do not change files. Yushario sends your report to the owner; you do not need to send it yourself.",
     ...(note ? [`${ja ? "見てほしい 観点" : "Focus"}: ${note}`] : []),
     `${ja ? "依頼" : "Request"}:\n${request}`,
   ].join("\n\n");
 }
 export function researchedRequest(request: string, reports: readonly { name: string; text: string }[], language: Language): string {
   const ja = language === "ja";
-  return [request, ja ? "--- 調べる役の 報告（これを もとに 進めてください） ---" : "--- Research reports (build on these) ---", ...reports.map((report) => `■ ${report.name}\n${report.text.trim()}`)].join("\n\n");
+  return [request, ja ? "--- 調査報告（これをもとに進めてください） ---" : "--- Research reports (build on these) ---", ...reports.map((report) => `■ ${report.name}\n${report.text.trim()}`)].join("\n\n");
 }
 export function relayToCommander(name: string, report: string, language: Language): string {
-  return language === "ja" ? `【作戦：全部任せた】${name}から 報告が 届きました。\n\n${report.trim()}` : `[Tactic: leave it all] ${name} reported:\n\n${report.trim()}`;
+  return language === "ja" ? `【作戦：全部任せた】${name}から 報告が 届きました。\n\n${report.trim()}` : `[Tactic: all yours] ${name} reported:\n\n${report.trim()}`;
 }

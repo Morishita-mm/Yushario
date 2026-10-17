@@ -84,14 +84,14 @@ export class TownLedger {
     let name: string | undefined;
     if (rename) {
       try { name = decodeURIComponent(url.pathname.slice("/api/names/".length)); }
-      catch { json(response, 400, { error: tr("勇者の ID が正しくありません", "Invalid hero ID") }); return; }
-      if (!isClaudeSessionId(name)) { json(response, 400, { error: tr("勇者の ID が正しくありません", "Invalid hero ID") }); return; }
+      catch { json(response, 400, { error: tr("勇者の ID が正しくない。", "Invalid hero ID") }); return; }
+      if (!isClaudeSessionId(name)) { json(response, 400, { error: tr("勇者の ID が正しくない。", "Invalid hero ID") }); return; }
     }
     if (patch) {
       try { name = decodeURIComponent(url.pathname.slice("/api/towns/".length)); }
-      catch { json(response, 400, { error: tr("町の名前が正しくありません", "Invalid town name") }); return; }
+      catch { json(response, 400, { error: tr("町の名前が 正しくない。", "Invalid town name") }); return; }
       if (!this.towns.some((town) => townKey(town) === name)) {
-        json(response, 404, { error: tr("その町が見つかりません", "Town not found") });
+        json(response, 404, { error: tr("その町が 見つからない。", "Town not found") });
         return;
       }
     }
@@ -104,7 +104,7 @@ export class TownLedger {
           ? (input as Record<string, unknown>).name : undefined;
         const chosen = normalizeHeroName(value);
         if (chosen === undefined) {
-          json(response, 400, { error: tr("名前は 1〜24 文字で入力してください。空にすると元の名前に戻ります", "Use 1–24 characters, or leave blank for the default name") });
+          json(response, 400, { error: tr("名前は 1〜24文字。空欄で 自動の名前に戻る。", "Use 1–24 characters, or leave blank for the default name") });
           return;
         }
         const id = name!;
@@ -119,7 +119,7 @@ export class TownLedger {
         json(response, 200, this.names);
       } else if (settings) {
         if (!validSettings(input)) {
-          json(response, 400, { error: tr("町をしまうまでの日数は 0〜365 の整数、おとは all・follow・off で指定してください", "Use 0–365 whole days, sound all/follow/off, and language auto/ja/en") });
+          json(response, 400, { error: tr("町をしまう日数は 0〜365 の整数。おとは all・follow・off、言語は auto・ja・en で。", "Use 0–365 whole days, sound all/follow/off, and language auto/ja/en") });
           return;
         }
         const next = { ...input, saveConversation: input.saveConversation ?? this.settings.saveConversation };
@@ -132,7 +132,7 @@ export class TownLedger {
         json(response, 200, this.settings);
       } else {
         if (!validPatch(input)) {
-          json(response, 400, { error: tr("町のすがた・ピンどめ・しまった町を戻す設定が正しくありません", "Invalid town look, pin, or restore setting") });
+          json(response, 400, { error: tr("町のすがた・ピンどめ・しまった町を戻す設定が 正しくない。", "Invalid town look, pin, or restore setting") });
           return;
         }
         const town = this.towns.find((town) => townKey(town) === name)!;
@@ -149,7 +149,7 @@ export class TownLedger {
       }
     } catch (error) {
       console.error("Town save failed:", error instanceof Error ? error.message : String(error));
-      json(response, 500, { error: tr("町の記録を保存できませんでした。データフォルダの権限を確認してください", "Could not save towns. Check data-folder permissions") });
+      json(response, 500, { error: tr("町の記録を 保存できない。データフォルダの権限を たしかめよう。", "Could not save towns. Check data-folder permissions") });
     }
   }
 }

@@ -16,17 +16,17 @@ export function isEquipmentId(input: unknown): input is string {
 }
 
 export function parseEquipmentMaster(input: unknown, language: Language = "ja"): EquipmentMaster {
-  if (!object(input)) throw new Error(language === "ja" ? "そうびの マスタが 正しくありません" : "Invalid equipment master");
+  if (!object(input)) throw new Error(language === "ja" ? "そうびデータが 正しくない。" : "Invalid equipment data");
   const result: EquipmentMaster = {};
   for (const [agent, items] of Object.entries(input)) {
     if (!isEquipmentId(agent) || !object(items) || !Array.isArray(items.weapons) || !Array.isArray(items.accessories)) {
-      throw new Error(language === "ja" ? "そうびの マスタが 正しくありません" : "Invalid equipment master");
+      throw new Error(language === "ja" ? "そうびデータが 正しくない。" : "Invalid equipment data");
     }
     const parse = (entries: unknown[], key: "model" | "value") => {
       const ids = new Set<string>();
       return entries.map((entry) => {
         if (!object(entry) || !isEquipmentId(entry.id) || ids.has(entry.id)
-          || !singleLine(entry.name) || !singleLine(entry[key]) || (entry.nameEn !== undefined && !singleLine(entry.nameEn))) throw new Error(language === "ja" ? "そうびの マスタが 正しくありません" : "Invalid equipment master");
+          || !singleLine(entry.name) || !singleLine(entry[key]) || (entry.nameEn !== undefined && !singleLine(entry.nameEn))) throw new Error(language === "ja" ? "そうびデータが 正しくない。" : "Invalid equipment data");
         ids.add(entry.id);
         return { id: entry.id, name: language === "en" && singleLine(entry.nameEn) ? entry.nameEn : entry.name, [key]: entry[key] };
       });
@@ -40,18 +40,18 @@ export function parseEquipmentMaster(input: unknown, language: Language = "ja"):
 export function resolveEquipmentMaster(defaults: EquipmentMaster, override?: unknown, language: Language = "ja"): EquipmentMaster {
   if (override === undefined) return { ...defaults };
   const additions = parseEquipmentMaster(override, language);
-  if (Object.keys(additions).some((agent) => !Object.hasOwn(defaults, agent))) throw new Error(language === "ja" ? "知らない 勇者の そうびです" : "Unknown hero equipment");
+  if (Object.keys(additions).some((agent) => !Object.hasOwn(defaults, agent))) throw new Error(language === "ja" ? "知らない勇者の そうびだ。" : "Unknown hero equipment");
   return { ...defaults, ...additions };
 }
 
 export function equipmentInput(input: unknown, master: AgentEquipment, language: Language = "ja"): Equipment {
-  if (!object(input)) throw new Error(language === "ja" ? "そうびを 指定してください" : "Choose equipment");
+  if (!object(input)) throw new Error(language === "ja" ? "そうびを えらぼう。" : "Choose equipment");
   const result: Equipment = {};
   for (const key of ["weapon", "accessory"] as const) {
     const id = input[key];
     if (id === undefined) continue;
     const entries = key === "weapon" ? master.weapons : master.accessories;
-    if (!isEquipmentId(id) || !entries.some((item) => item.id === id)) throw new Error(language === "ja" ? "そうびの ID が 正しくありません" : "Invalid equipment ID");
+    if (!isEquipmentId(id) || !entries.some((item) => item.id === id)) throw new Error(language === "ja" ? "そうびの ID が正しくない。" : "Invalid equipment ID");
     result[key] = id;
   }
   return result;
@@ -61,7 +61,7 @@ export function equipmentArgs(equipment: Equipment, master: AgentEquipment, cont
   const selected = equipmentInput(equipment, master, language);
   const weapon = master.weapons.find((item) => item.id === selected.weapon);
   const accessory = master.accessories.find((item) => item.id === selected.accessory);
-  if ((weapon && !controls.modelArg) || (accessory && !controls.thinkingArg)) throw new Error(language === "ja" ? "この勇者は そのそうびに 対応していません" : "This hero cannot use that equipment");
+  if ((weapon && !controls.modelArg) || (accessory && !controls.thinkingArg)) throw new Error(language === "ja" ? "この勇者は そのそうびに 対応していない。" : "This hero cannot use that equipment");
   return [...(weapon ? [controls.modelArg, weapon.model] : []), ...(accessory ? [controls.thinkingArg, accessory.value] : [])];
 }
 
@@ -71,9 +71,9 @@ export function equipmentCommands(current: Equipment, next: Equipment, master: A
   for (const key of ["weapon", "accessory"] as const) {
     // Pi's model command also restores that model's thinking level: reapply the accessory.
     if (current[key] === next[key] && !(key === "accessory" && current.weapon !== next.weapon && next.accessory)) continue;
-    if (!next[key]) throw new Error(language === "ja" ? "そうびなしは しゅつじん・よびもどす時だけ えらべます" : "Choose no equipment when embarking or recalling");
+    if (!next[key]) throw new Error(language === "ja" ? "そうびなしを選べるのは、しゅつじん・よびもどす時だけ。" : "Choose no equipment when embarking or recalling");
     const command = key === "weapon" ? controls.modelCommand : controls.thinkingCommand;
-    if (!command) throw new Error(language === "ja" ? "途中では かえられません。しゅつじん・よびもどす時だけ かえられます" : "Change equipment when embarking or recalling");
+    if (!command) throw new Error(language === "ja" ? "そうびを変えられるのは、しゅつじん・よびもどす時だけ。" : "Change equipment when embarking or recalling");
     const value = key === "weapon" ? master.weapons.find((item) => item.id === next.weapon)!.model
       : master.accessories.find((item) => item.id === next.accessory)!.value;
     commands.push(`${command} ${value}`);

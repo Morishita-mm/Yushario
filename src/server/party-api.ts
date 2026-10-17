@@ -56,7 +56,7 @@ export async function handlePartyRequest(request: IncomingMessage, response: Ser
     }
     if (action === "notes" && tactics) {
       const notes = body.notes;
-      if (!notes || typeof notes !== "object" || Array.isArray(notes) || Object.values(notes).some((text) => typeof text !== "string" || text.length > 8000)) throw new Error(tr("頼みごとが ちがう", "Invalid notes"));
+      if (!notes || typeof notes !== "object" || Array.isArray(notes) || Object.values(notes).some((text) => typeof text !== "string" || text.length > 8000)) throw new Error(tr("頼みごとの形式が 正しくない。", "Invalid notes"));
       tactics.setNotes(id, notes as Record<string, string>); partyJson(response, 200, { ok: true }); return;
     }
     if (action === "research" && tactics) {
@@ -73,7 +73,7 @@ export async function handlePartyRequest(request: IncomingMessage, response: Ser
     if (action === "summary") {
       const session = party.quests.party(id).find((member) => member.writer)?.session ?? quest.session;
       if (!session) throw new Error(tr("担当を えらんで", "Choose an owner"));
-      if (typeof body.text !== "string") throw new Error(tr("たしかめた 文を えらんで", "Choose the confirmed text"));
+      if (typeof body.text !== "string") throw new Error(tr("確認した文を えらぼう。", "Choose the confirmed text"));
       partyJson(response, 200, { delivered: party.send(id, session, body.text) }); return;
     }
     if (action === "send" || action === "handoff") {

@@ -42,28 +42,28 @@ export async function handleWorktrees(request: IncomingMessage, response: Server
     else if (request.method === "POST" || request.method === "DELETE") {
       const body = await readJsonBody(request, response, SETTINGS_BODY_LIMIT);
       if (!body.ok) return;
-      if (!body.value || typeof body.value !== "object" || Array.isArray(body.value)) throw new Error(tr("拠点を えらんでください", "Choose a base"));
+      if (!body.value || typeof body.value !== "object" || Array.isArray(body.value)) throw new Error(tr("拠点を えらぼう。", "Choose a base"));
       value = body.value as Record<string, unknown>;
     } else { response.writeHead(405, { Allow: "GET, POST, DELETE" }).end(); return; }
-    if (!validWorktreePath(value.cwd)) throw new Error(tr("町の 絶対パスを 指定してください", "Choose the town's absolute path"));
+    if (!validWorktreePath(value.cwd)) throw new Error(tr("町は 絶対パスで指定しよう。", "Choose the town's absolute path"));
     const cwd = realpathSync(value.cwd);
     const info = await listing(cwd);
     if (request.method === "GET") { json(response, 200, info); return; }
-    if (!validWorktreePath(value.path)) throw new Error(tr("置き場所は 絶対パスで 指定してください", "Use an absolute path for the base"));
+    if (!validWorktreePath(value.path)) throw new Error(tr("置き場所は 絶対パスで。", "Use an absolute path for the base"));
     const path = canonical(resolve(value.path));
     if (request.method === "POST") {
       if (!validWorktreeBranch(value.branch)) throw new Error(tr("branch 名が 正しくない", "Invalid branch name"));
       try { await git(cwd, ["check-ref-format", "--branch", value.branch]); }
       catch { throw new Error(tr("branch 名が 正しくない", "Invalid branch name")); }
       if (info.branches.includes(value.branch)) throw new Error(tr("その branch は すでに ある", "That branch already exists"));
-      if (typeof value.base !== "string" || !info.branches.includes(value.base)) throw new Error(tr("もとにする branch を えらんでください", "Choose a local branch to start from"));
+      if (typeof value.base !== "string" || !info.branches.includes(value.base)) throw new Error(tr("もとにするローカル branch を えらぼう。", "Choose a local branch to start from"));
       if (exists(resolve(value.path)) || insideWorktree(path, info.worktrees)) throw new Error(tr("その 置き場所は すでに つかわれている", "That path is already in use"));
       // Also reject a parent in another repository, not only this town's known worktrees.
       let parent = dirname(path);
       while (!exists(parent)) parent = dirname(parent);
       let nested = false;
       try { nested = (await git(parent, ["rev-parse", "--is-inside-work-tree", "--is-inside-git-dir"])).trim().split(/\s+/).includes("true"); } catch { /* Not a checkout. */ }
-      if (nested) throw new Error(tr("ほかの 拠点の そとを えらんでください", "Choose a path outside existing checkouts"));
+      if (nested) throw new Error(tr("ほかの拠点の外を えらぼう。", "Choose a path outside existing checkouts"));
       // No shell, setup scripts, environment copying, or force flags.
       await git(cwd, ["worktree", "add", "-b", value.branch, path, value.base]);
       json(response, 201, { path, branch: value.branch });
@@ -83,7 +83,7 @@ export async function handleWorktrees(request: IncomingMessage, response: Server
   } catch (error) {
     const failure = error as NodeJS.ErrnoException & { killed?: boolean; stderr?: string };
     const message = failure.code || failure.stderr || failure.killed
-      ? tr("拠点を かえられなかった。path と git の じょうたいを たしかめてね", "Could not change the base. Check its path and Git state")
+      ? tr("拠点を 変えられなかった。パスと git の状態を たしかめよう。", "Could not change the base. Check its path and Git state")
       : error instanceof Error ? error.message : tr("拠点を かえられなかった", "Could not change the base");
     json(response, 400, { error: message });
   }

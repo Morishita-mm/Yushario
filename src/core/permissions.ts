@@ -20,7 +20,7 @@ export function permissionSummary(input: unknown, language: "ja" | "en" = "ja"):
   const agent = shortText(hook.session_id);
   const name = typeof hook.cwd === "string" ? shortText(hook.cwd.split(/[\\/]/).filter(Boolean).pop()) : undefined;
   // Only command/path; long display lives in the outstanding request, not events.
-  const content = typeof detail === "string" ? detail : language === "en" ? "Permission needed" : "実行の許可が必要です";
+  const content = typeof detail === "string" ? detail : language === "en" ? "Permission needed" : "実行には 許可がいる。";
   return { tool: hook.tool_name, summary: `${hook.tool_name}: ${content.replace(/[\u0000-\u001f\u007f]/g, " ").slice(0, 120)}`,
     content: content.slice(0, 2000), omitted: Math.max(0, content.length - 2000),
     ...(agent ? { agent } : {}), ...(name ? { name } : {}),
@@ -30,7 +30,7 @@ export function permissionSummary(input: unknown, language: "ja" | "en" = "ja"):
 export function permissionOutput(decision: PermissionDecision, language: "ja" | "en" = "ja"): object {
   if (decision === "terminal") return {};
   return { hookSpecificOutput: { hookEventName: "PermissionRequest", decision: decision === "allow"
-    ? { behavior: "allow" } : { behavior: "deny", message: language === "en" ? "Denied on the hero screen" : "キャラクター画面で拒否されました" } } };
+    ? { behavior: "allow" } : { behavior: "deny", message: language === "en" ? "Denied on the hero screen" : "Yushario の画面で拒否されました。" } } };
 }
 
 export function permissionCanDecide(permission: Permission, decision: unknown, at: number): decision is PermissionDecision {

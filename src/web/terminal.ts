@@ -69,7 +69,7 @@ export function connectSessionTerminal(container: HTMLElement, session: Session,
   };
   socket.onmessage = (event) => { if (!disposed) terminal.write(event.data); };
   socket.onerror = () => {
-    if (!disposed) terminal.writeln(tr("\r\n接続できません。server のトークン付き URL とセッション一覧を確認してください。", "\r\nCannot connect. Check the server URL token and session list."));
+    if (!disposed) terminal.writeln(tr("\r\n接続できません。サーバーのトークン付き URL とセッション一覧を確認してください。", "\r\nCannot connect. Check the server URL token and session list."));
   };
   socket.onclose = () => {
     if (disposed) return;
@@ -92,7 +92,7 @@ export function initTerminal(): void {
   const status = document.querySelector<HTMLElement>("#terminal-status")!;
   const storageKey = "agent-character-terminal-session";
   const welcome = openXterm(container);
-  welcome.terminal.writeln(tr("プリセットと作業ディレクトリを選んで「起動」、またはセッションに「接続」してください。", "Choose a preset and folder to start, or connect to a session."));
+  welcome.terminal.writeln(tr("プリセットと作業フォルダを選んで「起動」。既存のセッションには「接続」してください。", "Choose a preset and folder to start, or connect to a session."));
   let attachment: ReturnType<typeof connectSessionTerminal> | undefined;
   let attachedId: string | undefined;
   let sessions: Session[] = [], towns: TownRecord[] = [];

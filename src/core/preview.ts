@@ -65,7 +65,7 @@ export function previewNotice(input: unknown, origin: string, linkedUrl: string,
 }
 
 export function previewDraft(page: PreviewPage, language: "ja" | "en"): string {
-  const text = [language === "en" ? "Please check these preview errors." : "プレビューの エラーを たしかめて。", page.url,
+  const text = [language === "en" ? "Please check these preview errors." : "プレビューのエラーを確認してください。", page.url,
     ...page.errors.map((error, i) => `${i + 1}. ${error}`)].join("\n");
   return text.length <= 8000 ? text : text.slice(0, 7950) + (language === "en" ? "\n… More errors in the preview." : "\n… つづきは プレビューで。");
 }

@@ -31,6 +31,6 @@ describe("review decisions", () => {
       "What to change:",
     ].join("\n"));
     expect(fixRequest(lines.slice(0, 1), { mode: "uncommitted" }, "ja").split("\n")[0])
-      .toBe("ここを なおして（まだ コミットしていない へんこうを 鑑定。HEAD ふめい）：");
+      .toBe("次の箇所を修正してください（未コミットの変更を鑑定。HEAD 不明）：");
   });
 });

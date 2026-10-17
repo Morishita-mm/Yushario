@@ -17,7 +17,7 @@ You were launched by Yushario, so your terminal can reach it with `yushario ques
 
 How reports travel:
 - Your final reply is your report. Yushario delivers it to whoever asked.
-- When a tactic is set, Yushario also forwards it. Under "research first" it goes to the owner, under "review each other" it goes back and forth between the owner and reviewers, and under "leave it all" it goes to the commander.
+- When a tactic is set, Yushario also forwards it. Under "research first" it goes to the owner, under "review each other" it goes back and forth between the owner and reviewers, and under "All yours" it goes to the commander.
 - Helpers cannot message other heroes and do not need to. Write the report and stop.
 - Only the person adopts a result. No hero can mark a quest done.
 

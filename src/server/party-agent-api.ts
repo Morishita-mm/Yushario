@@ -48,7 +48,7 @@ export async function handleAgentQuest(request: IncomingMessage, response: Serve
       if (!agentAuthorized(matches, Boolean(party.pty.agentSession(session)?.active), party.quests.member(session), id, "invite")) { partyJson(response, 403, { error: "This tool is not allowed" }); return; }
       const invite = party.invite({ quest: id, from: session, role: body.role, note: typeof body.note === "string" ? body.note : "",
         ...(typeof body.session === "string" ? { session: body.session } : { preset: String(body.preset), cwd: String(body.cwd) }) });
-      partyJson(response, 202, { id: invite.id, pending: true, message: tr("でんれいで 人の はいを まつ", "Awaiting a human yes at the herald") }); return;
+      partyJson(response, 202, { id: invite.id, pending: true, message: tr("でんれいで 人の承認待ち。", "Awaiting human approval in the herald") }); return;
     }
     partyJson(response, 403, { error: "This tool is not allowed" });
   } catch (error) { partyJson(response, error instanceof TerminalOnlyError ? 409 : 400, { error: error instanceof Error ? error.message : "Quest tool failed" }); }

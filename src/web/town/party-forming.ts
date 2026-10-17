@@ -60,7 +60,7 @@ export async function setOff(quest: QuestDetail, request: string, tactic: Tactic
     const lead = tactic === "research" ? undefined : tactic === "delegate" ? members.find((member) => member.role === "command" && member.active) : members.find((member) => member.writer && member.active);
     const leadKey = `lead:${tactic === "research" ? "research" : lead?.session ?? ""}`;
     if (!state.sent.has(leadKey)) {
-      if (tactic !== "research" && !lead) throw new Error(tactic === "delegate" ? tr("しき役が いない。先に しき役を 決める", "No commander yet") : tr("担当が いない。先に 担当を 決める", "No owner yet"));
+      if (tactic !== "research" && !lead) throw new Error(tactic === "delegate" ? tr("しき役が いない。先に決めよう。", "Choose a commander first") : tr("担当が いない。先に決めよう。", "Choose an owner first"));
       const first = state.ownerChanged ? `${(await partyRequest(`${prefix}/scroll`)).text}\n\n---\n\n${request}` : request;
       if (tactic === "research") await partyRequest(`${prefix}/research`, "POST", { text: first });
       else await partyRequest(`${prefix}/send`, "POST", { session: lead!.session, text: first });
@@ -69,7 +69,7 @@ export async function setOff(quest: QuestDetail, request: string, tactic: Tactic
     for (const item of now) { await partyRequest(`${prefix}/send`, "POST", item); state.sent.add(item.session); }
   } catch (error) {
     const sent = done(), message = error instanceof Error ? error.message : String(error);
-    throw new Error(sent.length ? tr(`${sent.join("・")}には 送った。残りで 失敗：${message}。もう一度 押すと 残りだけ 送る。`, `Sent to ${sent.join(", ")}. The rest failed: ${message}. Press again to send only the rest.`) : message);
+    throw new Error(sent.length ? tr(`${sent.join("・")}には送った。残りは失敗（${message}）。もう一度押すと 残りだけ送る。`, `Sent to ${sent.join(", ")}. The rest failed (${message}). Press again to send only the rest.`) : message);
   }
   forming.delete(quest.id);
 }

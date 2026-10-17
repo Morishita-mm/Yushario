@@ -4,7 +4,7 @@ import type { Departed } from "./walkers";
 // The command window that opens next to a hero you click (docs/PLATFORM.md); the mock uses the same window.
 interface HeroState { name: string; fighting: boolean; at: [number, number] } // at: CSS px in the stage
 
-const PLANS = [tr("テストを とおして", "Run the tests"), tr("コミットして", "Commit the changes"), tr("ほうしんを みなおして", "Rethink the plan")];
+const PLANS = [tr("テストを とおして", "Make the tests pass"), tr("コミットして", "Commit the changes"), tr("ほうしんを みなおして", "Rethink the plan")];
 
 export function element<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
@@ -144,7 +144,7 @@ function showPlans(layer: HTMLElement, hero: Pick<HeroState, "at">, done: (text:
 function showFarewell(layer: HTMLElement, hero: Pick<HeroState, "name" | "fighting" | "at">,
   farewell: () => void, dismiss = () => close(layer)): void {
   const working = hero.fighting;
-  showConfirmation(layer, hero.at, working ? tr("中断して たびだたせますか？", "Interrupt and see this hero off?") : tr(`${hero.name} を みおくりますか？`, `See ${hero.name} off?`),
+  showConfirmation(layer, hero.at, working ? tr("中断して 旅立たせる？", "Interrupt and see this hero off?") : tr(`${hero.name}を みおくる？`, `See ${hero.name} off?`),
     "", () => {
       if (!working && hero.fighting) showFarewell(layer, hero, farewell, dismiss);
       else farewell();
@@ -164,8 +164,8 @@ function showConfirmation(layer: HTMLElement, at: [number, number], title: strin
 }
 
 function showRestConfirmation(layer: HTMLElement, at: [number, number], name: string, yes: () => void, no: () => void): void {
-  showConfirmation(layer, at, tr(`${name}の おはなしを まとめて やすませますか？`, `Let ${name} rest and lighten the conversation?`),
-    tr("ターミナルの 書きかけの ことばは 消えます。", "Unsent terminal text will be cleared."),
+  showConfirmation(layer, at, tr(`${name}の 会話をまとめて やすませる？`, `Summarize ${name}'s conversation and let them rest?`),
+    tr("ターミナルの 書きかけのことばは消える。", "Unsent terminal text will be cleared."),
     () => { close(layer); yes(); }, () => { close(layer); no(); });
 }
 
@@ -177,7 +177,7 @@ export function showRoster(layer: HTMLElement, roster: Departed[], onRecall: (na
   box.setAttribute("role", "dialog");
   const title = element("h3", undefined, tr(`ぼうけんしゃの めいぼ（${roster.length}）`, `Adventurers' roster (${roster.length})`));
   title.id = `roster-title-${crypto.randomUUID()}`; box.setAttribute("aria-labelledby", title.id); box.append(title);
-  if (!roster.length) box.append(element("p", "who", tr("まだ だれも たびだって いません。", "No one has set off yet.")));
+  if (!roster.length) box.append(element("p", "who", tr("まだ だれも 旅立っていない。", "No one has set off yet.")));
   for (const d of roster) {
     const row = element("div", "roster-row");
     const text = element("div");

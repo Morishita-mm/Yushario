@@ -14,7 +14,7 @@ export const memberState = (member: PartyHero): string => !member.canTalk ? tr("
   : !member.active ? tr("去った", "Left") : member.waiting ? tr("待っている", "Ready") : tr("作業中", "Working");
 // An "implement" member who does not write is left from an owner change or a departed owner: a reserve who can be made owner.
 export const memberBadge = (member: PartyHero): string => member.writer ? tr("担当", "Owner")
-  : member.role === "command" ? tr("しき", "Command") : member.role === "implement" ? tr("控え（担当に できる）", "Reserve (can be made owner)")
+  : member.role === "command" ? tr("しき", "Commander") : member.role === "implement" ? tr("控え（担当に できる）", "Reserve (can be made owner)")
   : tr(`手伝い · ${roleLabel(member.role, language)}`, `Helper · ${roleLabel(member.role, language)}`);
 
 // A card per hero, like a party screen: picture, name, role, CLI and level, model and effort, MP and state.

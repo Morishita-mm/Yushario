@@ -75,7 +75,7 @@ describe("story", () => {
     [e({ hook: "PostToolUseFailure", tool: "Bash", state: "idle" }), "t12-vitalsの こうどうは さえぎられた。"],
     [e({ hook: "TaskCompleted", task: { id: "1", subject: "テストを書く", status: "completed" } }), "クエスト「テストを書く」を たっせいした！"],
     [e({ hook: "SubagentStart", subagent: { id: "h1", type: "Explore" } }), "とうぞく（Explore）が なかまに くわわった！"],
-    [e({ hook: "Stop", state: "success" }), "t12-vitalsは 町で ひとやすみ することにした。"],
+    [e({ hook: "Stop", state: "success" }), "t12-vitalsは 町で ひとやすみ。"],
     [e({ hook: "Notification", state: "idle" }), "t12-vitalsは つぎの いらいを まっている。"],
     [e({ hook: "Notification", state: "waiting_input" }), "t12-vitalsは あなたを よんでいる！"],
     [e({ hook: "Notification", state: "thinking" }), undefined],

@@ -85,7 +85,7 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
       save: async (patch) => {
         if (patch.state) {
           const latest: QuestDetail = await questRequest(`/${encodeURIComponent(id)}`);
-          if (latest.state !== quest.state && !confirm(tr(`この クエストは いま「${questStateLabel(latest.state)}」に なっている。「${questStateLabel(patch.state)}」に かえる？`,
+          if (latest.state !== quest.state && !confirm(tr(`このクエストは いま「${questStateLabel(latest.state)}」。「${questStateLabel(patch.state)}」に変える？`,
             `This quest is now "${questStateLabel(latest.state)}". Change it to "${questStateLabel(patch.state)}"?`))) throw new Error(tr("ほぞんを やめた", "Save cancelled"));
         }
         const { adoption, ...fields } = patch;
@@ -129,7 +129,7 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
     if (content.querySelector(".quest-stale")) return;
     const id = selected, notice = document.createElement("p"), reload = document.createElement("button");
     notice.className = "hint quest-stale"; notice.setAttribute("role", "status");
-    notice.textContent = tr("あたらしい 知らせが ある。ほぞんすると かきかえた所だけ のこる。", "This quest has changed. Saving keeps only the fields you edited.");
+    notice.textContent = tr("クエストが更新された。保存すると、あなたが編集した項目だけを上書きする。", "This quest was updated. Saving overwrites only the fields you edited.");
     reload.type = "button"; reload.textContent = tr("▶ さいしんに する（かきかけは きえる）", "▶ Reload (discards your draft)");
     reload.onclick = () => { if (id) void open(id); };
     notice.append(" ", reload); content.querySelector(".quest-card")?.prepend(notice);
@@ -142,14 +142,14 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
       const first = document.createElement("div"), go = document.createElement("button"); first.className = "quest-first";
       go.type = "button"; go.textContent = tr("▶ 勇者を 出陣させる（作業フォルダを えらぶ）", "▶ Embark a hero (choose a work folder)");
       go.onclick = () => { dialog.close(); document.querySelector<HTMLButtonElement>("#expedition")?.click(); };
-      first.append(Object.assign(document.createElement("p"), { textContent: tr("まだ 町が ない。町は 作業フォルダ（プロジェクト）。まず 作業フォルダを えらんで 勇者を 出陣させると、その町で クエストを 書ける。", "No town yet. A town is a work folder (project). Embark a hero in a work folder first; then you can write quests in that town.") }), go);
+      first.append(Object.assign(document.createElement("p"), { textContent: tr("まだ 町がない。「しゅつじん」で 作業フォルダを選び、勇者を出そう。町ができると クエストを書ける。", "No town yet. Embark a hero in a work folder first. Once the town exists, you can write quests there.") }), go);
       content.replaceChildren(first); show(tr("新しいクエスト", "New quest")); go.focus(); return;
     }
     const form = document.createElement("form"), request = document.createElement("textarea"), towns = document.createElement("select"), status = document.createElement("p");
     for (const project of projects()) towns.append(new Option(project.label ?? project.repo, project.repo));
     if (townKey) towns.value = townKey;
     request.required = true; request.maxLength = 2000; request.rows = 4;
-    request.placeholder = tr("例：ログイン画面の エラー文を やさしくして。テストも 足して。", "e.g. Make the login error messages friendlier and add a test.");
+    request.placeholder = tr("例：ログイン画面のエラー文を やさしくして", "e.g. Make the login error messages friendlier");
     const who = document.createElement("fieldset"), primary = document.createElement("button"), only = document.createElement("button"), team = document.createElement("button");
     let choice = session ?? "";
     const label = (text: string, field: HTMLElement) => { const node = document.createElement("label"); node.append(document.createTextNode(text), field); return node; };
@@ -167,7 +167,7 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
     }
     function update(): void {
       primary.textContent = choice === "embark" ? tr("作って出陣させる", "Create and embark") : choice ? tr("作って依頼する", "Create and send") : tr("作る", "Create");
-      team.textContent = choice === "embark" ? tr("作ってパーティーを編成する", "Create and form the party") : tr("作ってパーティーに依頼する", "Create and ask the party");
+      team.textContent = choice === "embark" ? tr("作ってパーティーを組む", "Create and form a party") : tr("作ってパーティーに頼む", "Create and ask the party");
       only.hidden = !choice;
       if (only.hidden && pick === only) select(primary);
     }
@@ -189,7 +189,7 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
       event.preventDefault(); select(next); next.focus();
     });
     select(primary);
-    form.append(label(tr("町", "Town"), towns), label(tr("依頼（1行目が クエストの名前になる）", "Request (the first line names the quest)"), request), who, choices, status);
+    form.append(label(tr("町", "Town"), towns), label(tr("依頼（1行目がクエスト名）", "Request (the first line names the quest)"), request), who, choices, status);
     async function make(send: boolean, formParty = false): Promise<void> {
       const text = request.value.trim();
       if (!text) { request.reportValidity(); return; }

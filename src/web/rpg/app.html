@@ -62,7 +62,7 @@
         <div id="messages" class="window messages" aria-live="polite"></div>
       </section>
       <div class="sidebar">
-        <div class="side-tabs" role="tablist" aria-label="右の列" data-en-aria-label="Sidebar">
+        <div class="side-tabs" role="tablist" aria-label="サイドバー" data-en-aria-label="Sidebar">
           <button id="tab-herald" data-en="Herald" type="button" role="tab" aria-controls="herald" aria-selected="true">でんれい</button>
           <button id="tab-party" data-en="Heroes" type="button" role="tab" aria-controls="party" aria-selected="false">ゆうしゃ</button>
           <button id="tab-quests" data-en="Quests" type="button" role="tab" aria-controls="quests" aria-selected="false">クエスト</button>
@@ -94,7 +94,7 @@
       <div class="actions"><button id="expedition-close" data-en="▶ Close" type="button">▶ とじる</button></div>
     </dialog>
     <dialog id="terminals-dialog" class="report-window" aria-labelledby="terminals-title">
-      <h3 id="terminals-title" data-en="Terminals">ターミナルの 一覧</h3>
+      <h3 id="terminals-title" data-en="Terminals">ターミナル一覧</h3>
       <p id="terminals-status" class="settings-status" role="status"></p>
       <div id="terminals-list" class="town-list"></div>
       <div class="actions"><button id="terminals-refresh" data-en="▶ Refresh" type="button">▶ 一覧を 更新</button><button id="terminals-close" data-en="▶ Close" type="button">▶ とじる</button></div>
@@ -102,11 +102,11 @@
     <dialog id="help-dialog" class="report-window" aria-labelledby="help-title">
       <h3 id="help-title" data-en="Help">ヘルプ</h3>
       <h4 data-en="From request to finished work">仕事の ながれ</h4>
-      <p data-en="Write a quest → assign a hero (one in town, or embark a new one) → send the request → the hero works → read the report and look at the changes → adopt, or ask for fixes and the hero works again. The quest card always shows the next thing to do.">クエストを書く → 勇者に任せる（町にいる勇者か、新しく出陣）→ 指示を送る → 勇者が作業 → 報告と変更を見る → 採用する。採用しない時は なおしてもらい、勇者が もう一度 作業する。クエストの札には いつも「次にやること」が出る。</p>
+      <p data-en="Write a quest → assign a hero → send the request → review the report and changes → adopt. Need changes? Ask the hero to try again. The quest card shows the next step.">クエストを書く → 勇者に任せる → 指示を送る → 報告と変更を見る → 採用する。 直したいときは やり直してもらおう。次の操作は クエストの札に出る。</p>
       <dl>
         <dt data-en="Town / Hero">町 / 勇者</dt><dd data-en="Project / CLI session">プロジェクト / CLI の セッション</dd>
-        <dt>HP / MP / Lv</dt><dd data-en="Recent failures (fewer is healthier) / context left (? if unknown) / completed work. Not a quality score.">最近の 失敗の 少なさ / 会話の 残り（不明は？）/ 終えた 仕事。品質の 点数ではない。</dd>
-        <dt data-en="Quest / Review / Acceptance checks">クエスト / 鑑定（かんてい）/ 合格条件</dt><dd data-en="Work that stays after the hero leaves / look at the git changes / commands like npm test and the evidence that they passed. You decide when to accept.">勇者が去っても 残る 仕事 / git の 変更を 見る / npm test などの 条件と、ごうかくした 証拠。採用するかは あなたが きめる。</dd>
+        <dt>HP / MP / Lv</dt><dd data-en="HP: fewer recent failures. MP: context left (? if unknown). Lv: completed work. Not quality scores.">HP：最近の失敗の少なさ。MP：会話の残り（不明は？）。Lv：終えた仕事。品質の点数ではない。</dd>
+        <dt data-en="Quest / Review / Acceptance checks">クエスト / 鑑定（かんてい）/ 合格条件</dt><dd data-en="Quest: work that stays after a hero leaves. Review: inspect Git changes. Acceptance checks: commands such as npm test and evidence of passing. You decide whether to adopt.">クエスト：勇者が去っても残る仕事。 鑑定：git の変更を見る。 合格条件：npm test などの条件と、合格の証拠。採用を決めるのは あなた。</dd>
       </dl>
       <h4 data-en="Controls">そうさ</h4>
       <ul>
@@ -146,7 +146,7 @@
         <textarea id="talk-input" rows="2" maxlength="8000" required placeholder="いらいを かく（Ctrl+Enter でも つたえる）" data-en-placeholder="Write a request (Ctrl+Enter to send)"></textarea>
         <button id="talk-send" data-en="▶ Send" type="submit">▶ つたえる</button>
       </form>
-      <p id="talk-foreign" data-en="Speak in the hero's own terminal." class="hint" hidden>ここからは つたえられない。勇者を 起動した ターミナルで はなしかけてください。</p>
+      <p id="talk-foreign" data-en="You cannot send from here. Talk in the terminal where you started the hero." class="hint" hidden>ここからは つたえられない。勇者を起動した ターミナルで はなそう。</p>
       <p id="talk-status" role="status"></p>
     </dialog>
     <dialog id="strength-dialog" class="report-window strength-window" aria-labelledby="strength-title">
@@ -157,7 +157,7 @@
       <div class="name-controls">
         <button id="strength-rename" data-en="▶ Rename" type="button">▶ なまえを かえる</button>
         <form id="name-form" hidden>
-          <label for="hero-name" data-en="Name (1–24 characters; blank for default)">なまえ（1〜24文字・空で じどうの なまえ）</label>
+          <label for="hero-name" data-en="Name (1–24 characters; blank for default)">なまえ（1〜24文字・空欄で自動の名前）</label>
           <input id="hero-name" type="text" maxlength="24" autocomplete="off" />
           <button id="name-save" data-en="▶ Save" type="submit">▶ ほぞん</button>
           <button id="name-cancel" data-en="Cancel" type="button">やめる</button>

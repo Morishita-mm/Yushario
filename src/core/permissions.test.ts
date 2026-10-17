@@ -53,7 +53,7 @@ describe("permission progress", () => {
 
 it("returns Claude's hook envelope in either language, or no judgment", () => {
   expect(permissionOutput("allow")).toEqual({ hookSpecificOutput: { hookEventName: "PermissionRequest", decision: { behavior: "allow" } } });
-  expect(permissionOutput("deny")).toEqual({ hookSpecificOutput: { hookEventName: "PermissionRequest", decision: { behavior: "deny", message: "キャラクター画面で拒否されました" } } });
+  expect(permissionOutput("deny")).toEqual({ hookSpecificOutput: { hookEventName: "PermissionRequest", decision: { behavior: "deny", message: "Yushario の画面で拒否されました。" } } });
   expect(permissionOutput("deny", "en")).toEqual({ hookSpecificOutput: { hookEventName: "PermissionRequest", decision: { behavior: "deny", message: "Denied on the hero screen" } } });
   expect(permissionOutput("terminal")).toEqual({});
 });

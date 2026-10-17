@@ -14,18 +14,18 @@ async function questTool(args) {
   try {
     const action = args[0] ?? "read", input = {};
     if (action === "--help" || action === "-h") {
-      console.log("yushario quest read|note|send|invite|review [--quest <id>] [--session <id>] [--text <text>] [--role implement|review|research|test|command] [--note <text>] [--preset <kind> --cwd <path>] [--json]\nInvitations await human approval / 仲間と役割は 人の はいを まつ"); return;
+      console.log("yushario quest read|note|send|invite|review [--quest <id>] [--session <id>] [--text <text>] [--role implement|review|research|test|command] [--note <text>] [--preset <kind> --cwd <path>] [--json]\nInvitations await human approval / 仲間の招待と役割の変更には、人の承認が必要"); return;
     }
-    if (!["read", "note", "send", "invite", "review"].includes(action)) throw new Error("That action is not allowed / その コマンドは つかえない");
+    if (!["read", "note", "send", "invite", "review"].includes(action)) throw new Error("That action is not allowed / そのコマンドは使えません");
     for (let i = 1; i < args.length; i++) {
       if (args[i] === "--json") continue;
-      if (!["--quest", "--session", "--text", "--role", "--note", "--preset", "--cwd"].includes(args[i]) || args[i + 1] === undefined) throw new Error("Unknown or missing option / オプションを たしかめて");
+      if (!["--quest", "--session", "--text", "--role", "--note", "--preset", "--cwd"].includes(args[i]) || args[i + 1] === undefined) throw new Error("Unknown or missing option / 不明なオプション、または指定不足");
       input[args[i].slice(2)] = args[++i];
     }
     const token = process.env.AGENT_CHARACTER_AGENT_TOKEN, session = process.env.AGENT_CHARACTER_SESSION;
-    if (!token || !session) throw new Error("Run inside your hero's terminal / 勇者の 端末で つかって");
+    if (!token || !session) throw new Error("Run inside your hero's terminal / 勇者のターミナルで実行してください");
     const base = new URL(process.env.AGENT_CHARACTER_URL ?? "");
-    if (base.protocol !== "http:" || !["127.0.0.1", "localhost"].includes(base.hostname)) throw new Error("Invalid local server / 町の つなぎ先が ちがう");
+    if (base.protocol !== "http:" || !["127.0.0.1", "localhost"].includes(base.hostname)) throw new Error("Invalid local server / ローカルサーバーの指定が正しくありません");
     const { quest = "", ...body } = input;
     const path = `/api/agent/quests${quest ? `/${encodeURIComponent(quest)}` : "/current"}/${action}`;
     const response = await fetch(new URL(path, base.origin), { method: action === "read" ? "GET" : "POST",
@@ -75,7 +75,7 @@ try {
     console.error(error.message);
   } else if (phase === "data") {
     console.error(`Cannot create or write data folder: ${directory}. Start with AGENT_CHARACTER_HOME=<writable-folder>.`);
-    console.error(`データフォルダを作れないか書けません: ${directory}。AGENT_CHARACTER_HOME=<書けるフォルダ> で起動してください。`);
+    console.error(`データフォルダを作成・書き込みできません: ${directory}。AGENT_CHARACTER_HOME=<書けるフォルダ> で起動してください。`);
   } else if (phase === "pty") {
     console.error("Cannot load node-pty. Use macOS/Linux and Node.js 22.13+; run npm cache clean --force, then reinstall yushario.");
     console.error("ターミナル部品を読み込めません。macOS・Linux / Node.js 22.13 以上で、npm cache clean --force の後に yushario を入れ直してください。");

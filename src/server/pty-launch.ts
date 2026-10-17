@@ -45,10 +45,10 @@ export function codexHookArgs(): string[] {
 export function launchPty(preset: Preset, cwd: string, id: string, port: number, settings: string,
   equipment: Equipment, master: AgentEquipment, project: string, resume?: string, agentToken?: string) {
   const agent = AGENTS[preset];
-  if (resume !== undefined && (!agent.resume || !isClaudeSessionId(resume))) throw new Error(tr("再開する勇者の ID が正しくありません", "Invalid hero ID for recall"));
+  if (resume !== undefined && (!agent.resume || !isClaudeSessionId(resume))) throw new Error(tr("よびもどす勇者の ID が正しくない。", "Invalid hero ID for recall"));
   const program = agent.command;
   const path = agentExecutables[preset];
-  if (!path) throw new Error(tr(`${program} が PATH に見つかりません。① CLI を入れて PATH に追加 → ② yushario を止める（Ctrl+C）→ ③ 起動し直してください。`, `${program} not found in PATH. Install it, then stop and restart yushario.`));
+  if (!path) throw new Error(tr(`${program} が PATH に見つからない。CLI を入れて PATH に追加し、yushario を Ctrl+C で止めて起動し直そう。`, `${program} not found in PATH. Install it, add it to PATH, then stop yushario with Ctrl+C and restart it.`));
   const args = [...agent.args.flatMap((arg) => arg === "$settings" ? [settings] : arg === "$codex-hooks" ? codexHookArgs() : [arg]),
     ...(resume ? [...agent.resumeArgs, resume] : []), ...equipmentArgs(equipment, master, agent, serverLanguage())];
   const env = Object.fromEntries(Object.entries(process.env).filter((entry): entry is [string, string] => entry[1] !== undefined));
@@ -61,5 +61,5 @@ export function launchPty(preset: Preset, cwd: string, id: string, port: number,
   env.AGENT_CHARACTER_QUEST_SKILL = join(root, "skills/yushario-party/SKILL.md");
   env.PATH = `${dirname(settings)}:${env.PATH ?? ""}`;
   try { return spawn(path, args, { name: "xterm-256color", cols: 80, rows: 24, cwd, env }); }
-  catch { throw new Error(tr(`${agent.label} を起動できませんでした。インストールとフォルダの権限を確認してください`, `Could not launch ${agent.label}. Check installation and folder permissions`)); }
+  catch { throw new Error(tr(`${agent.label} を起動できない。インストールとフォルダの権限を たしかめよう。`, `Could not launch ${agent.label}. Check installation and folder permissions`)); }
 }

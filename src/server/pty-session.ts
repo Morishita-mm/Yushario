@@ -34,11 +34,11 @@ export type EquippedMessage = { type: "equipped"; session: TerminalSession };
 export function sessionInput(input: unknown): { preset: Preset; cwd?: string } {
   const value = sessionInputFields(input, PRESETS);
   if (!value.ok) {
-    if (value.reason === "settings") throw new Error(tr("起動の設定を指定してください", "Choose launch settings"));
-    if (value.reason === "preset") throw new Error(tr("勇者の種類が正しくありません", "Invalid hero kind"));
-    throw new Error(tr("行き先はフォルダの絶対パスで指定してください", "Use an absolute folder path"));
+    if (value.reason === "settings") throw new Error(tr("起動の設定を 指定しよう。", "Choose launch settings"));
+    if (value.reason === "preset") throw new Error(tr("勇者の種類が 正しくない。", "Invalid hero kind"));
+    throw new Error(tr("行き先は フォルダの絶対パスで。", "Use an absolute folder path"));
   }
-  if (value.cwd !== undefined && !isAbsolute(value.cwd)) throw new Error(tr("行き先はフォルダの絶対パスで指定してください", "Use an absolute folder path"));
+  if (value.cwd !== undefined && !isAbsolute(value.cwd)) throw new Error(tr("行き先は フォルダの絶対パスで。", "Use an absolute folder path"));
   return { preset: value.preset as Preset, ...(value.cwd !== undefined ? { cwd: value.cwd } : {}) };
 }
 

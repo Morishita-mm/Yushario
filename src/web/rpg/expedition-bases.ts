@@ -54,7 +54,7 @@ export function initExpeditionBases(root: HTMLElement, heroName: (terminal: stri
     if (target !== cwd()) return false;
     const names = sessions.filter((session) => !session.exited && session.cwd.replace(/\/$/, "") === target.replace(/\/$/, "")
       && (heroKind(session.preset) || heroName(session.id))).map((session) => heroName(session.id) ?? session.preset);
-    warning.textContent = names.length ? tr(`${names.join("・")}が この ばしょで さぎょうしている。おなじ ファイルを かきかえる かもしれない。あたらしい 拠点を つくる？`, `${names.join(", ")} is working here. You may change the same files. Make a new base?`) : "";
+    warning.textContent = names.length ? tr(`${names.join("・")}が ここで作業中。同じファイルを変えるかもしれない。新しい拠点をつくる？`, `Working here: ${names.join(", ")}. You may change the same files. Make a new base?`) : "";
     return names.length > 0;
   }
   async function load(folder: string): Promise<void> {

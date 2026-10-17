@@ -26,7 +26,7 @@ describe("tactic fit", () => {
     expect(tacticFit("research", [owner]).gaps).toEqual(["researcher"]);
     expect(tacticFit("research", [owner, member("s2", "research", { cwd: "/elsewhere" })]).inside).toEqual(["s2"]);
   });
-  it("needs a commander who is not the owner to leave it all", () => {
+  it("needs a commander who is not the owner for All yours", () => {
     expect(tacticFit("delegate", [owner]).gaps).toEqual(["commander"]);
     expect(tacticFit("delegate", [member("s1", "command", { writer: true })]).gaps).toEqual(["separate-commander"]);
     expect(tacticFit("delegate", [owner, member("s2", "command"), member("s3", "review")])).toMatchObject({ ok: true, inside: ["s2", "s3"] });
@@ -47,11 +47,11 @@ describe("review verdicts", () => {
 describe("tactic messages", () => {
   it("asks reviewers not to change files and to end with a verdict", () => {
     const text = reviewRequest({ title: "保存を直す", purpose: "", folder: "/work/app" }, "直しました", 1, "ja");
-    expect(text).toContain("ファイルは 書きかえないでください");
+    expect(text).toContain("ファイルは変更しないでください");
     expect(text).toContain("/work/app の git diff");
-    expect(text.endsWith("「判定：OK」か「判定：要修正」の どちらか だけを 書いてください。")).toBe(true);
+    expect(text.endsWith("「判定：OK」か「判定：要修正」のどちらかだけにしてください。")).toBe(true);
     const noted = reviewRequest({ title: "保存を直す", purpose: "" }, undefined, 1, "ja", "保存処理を とくに 見て");
-    expect(noted.indexOf("あなたへの 頼みごと:\n保存処理を とくに 見て")).toBeLessThan(noted.indexOf("最後の 行に"));
+    expect(noted.indexOf("あなたへの 頼みごと:\n保存処理を とくに 見て")).toBeLessThan(noted.indexOf("最終行は"));
   });
   it("hands every reviewer's findings to the owner without the verdict lines", () => {
     const text = fixRequest([{ name: "ソラ", text: "a.ts:3 が 重複\n判定：要修正" }, { name: "リク", text: "判定：要修正" }], 2, "ja");

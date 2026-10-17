@@ -177,7 +177,7 @@ function replay(events: { event?: unknown; at?: unknown }[]): void {
   }
   scene.sync(room, Date.now());
   for (const [event, at] of told.slice(-3)) messages.event(event, at, true);
-  if (!told.length) messages.say(tr("はじめに：「しゅつじん」で 作業フォルダ（町）を えらび、勇者（CLI）を 出す。\nつぎに：クエストを書く → 勇者に任せる → 報告と変更を見る → 採用する。\nくわしくは 右上の「ヘルプ」へ。", "First: Embark — choose a work folder (town) and a hero (CLI).\nThen: write a quest → assign a hero → read the report and changes → adopt.\nMore under Help (top right)."), undefined, true);
+  if (!told.length) messages.say(tr("「しゅつじん」で 作業フォルダ（町）を選び、勇者（CLI）を出そう。\nクエストを書く → 勇者に任せる → 指示を送る → 報告と変更を見る → 採用する。\nくわしくは 右上の「ヘルプ」へ。", "Embark: choose a work folder (town) and a hero (CLI).\nWrite a quest → assign a hero → send the request → review the report and changes → adopt.\nSee Help at the top right."), undefined, true);
 }
 
 function receiveMessage(message: MessageEvent): void {
@@ -267,16 +267,16 @@ async function start(): Promise<void> {
   await scene.load();
   try { scene.setTowns(await loadTowns()); }
   catch (error) {
-    messages.say(tr("町の台帳を よみこめませんでした。せつぞくを おたしかめください。", "Could not load towns. Check the connection."), undefined, true);
+    messages.say(tr("町の台帳を 読み込めなかった。接続をたしかめよう。", "Could not load towns. Check the connection."), undefined, true);
     console.warn(error);
   }
   try { namesChanged(await loadNames()); }
-  catch (error) { messages.say(tr("勇者の なまえを よみこめませんでした。", "Could not load hero names."), undefined, true); console.warn(error); }
+  catch (error) { messages.say(tr("勇者の名前を 読み込めなかった。", "Could not load hero names."), undefined, true); console.warn(error); }
   await soundLoaded;
   connect();
   requestAnimationFrame(frame);
 }
 export const started = start().catch((error: unknown) => {
-  connectionLabel.textContent = tr("町の絵を よみこめませんでした", "Could not load town art");
+  connectionLabel.textContent = tr("町の絵を 読み込めなかった。", "Could not load town art");
   console.error(error);
 });

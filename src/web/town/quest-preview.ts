@@ -20,7 +20,7 @@ export function questPreview(view: QuestPreviewView): HTMLElement {
   }
   const form = document.createElement("form"), name = document.createElement("input"), url = document.createElement("input");
   name.maxLength = 200; url.maxLength = 4096; url.required = true; url.type = "url"; url.placeholder = "http://localhost:5173/";
-  for (const [text, field] of [[tr("名前（なくても よい）", "Name (optional)"), name], ["URL", url]] as const) {
+  for (const [text, field] of [[tr("名前（任意）", "Name (optional)"), name], ["URL", url]] as const) {
     const label = document.createElement("label"); label.append(document.createTextNode(text), field); form.append(label);
   }
   const add = document.createElement("button"); add.type = "submit"; add.textContent = tr("＋ つなぐ", "＋ Link"); form.append(add);

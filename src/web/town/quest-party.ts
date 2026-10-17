@@ -46,12 +46,12 @@ function node<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, 
 export function questParty(quest: QuestDetail, controls?: PartyControls, changed: () => void = () => undefined, tactic?: TacticStatus): HTMLElement {
   const root = node("section", "quest-party"), plan = node("p", "party-plan"), grid = node("div", "party-cards");
   const status = node("p", "party-status"); status.setAttribute("role", "status");
-  const away = node("p", "party-away"), open = partyButton(tr("▶ パーティーを へんせいする（仲間・役・作戦）", "▶ Form the party (heroes, roles, tactic)"), () => openPartyWindow(quest, controls, changed));
+  const away = node("p", "party-away"), open = partyButton(tr("▶ パーティー編成（仲間・役・作戦）", "▶ Form the party (heroes, roles, tactic)"), () => openPartyWindow(quest, controls, changed));
   root.append(plan, grid, status, away, open);
   const live = !finishedQuest(quest.state), prefix = `quests/${encodeURIComponent(quest.id)}`;
   plan.textContent = tactic?.running || tactic?.stopped || tactic?.done ? tacticProgress(tactic)
     : tactic?.tactic && tactic.tactic !== "obey" ? tr(`さくせん：${tacticLabel(tactic.tactic, language)}`, `Tactic: ${tacticLabel(tactic.tactic, language)}`)
-    : tr("さくせん：命令に従え — 仲間には あなたが それぞれ 指示する", "Tactic: Follow orders — you direct each hero");
+    : tr("さくせん：命令に従え — 仲間への指示は あなたから", "Tactic: Follow orders — you direct each hero");
   const nameOf = (member: PartyHero) => { const name = controls?.sessionName?.(member.session) ?? member.name; return name === member.session ? tr("去った勇者", "A hero who left") : name; };
   const latest = (member: PartyHero, kinds: (kind: string) => boolean) => quest.events.filter((event) => event.session === member.session && kinds(event.kind)).sort((a, b) => b.at - a.at || b.id - a.id)[0];
   // The words of a request or report: the quest log's copy, else the conversation this page saw. A report takes only
@@ -74,7 +74,7 @@ export function questParty(quest: QuestDetail, controls?: PartyControls, changed
       }).catch((error: Error) => { send.disabled = false; status.textContent = error.message; });
     });
     box.append(partyField(heading, text));
-    if (tactic?.running) box.append(node("p", "party-warn", tr("作戦が 動いている。これは 作戦の 外の 指示に なる。", "A tactic is running; this order is outside it.")));
+    if (tactic?.running) box.append(node("p", "party-warn", tr("作戦の実行中。この指示は 作戦の外で送る。", "A tactic is running; this order is outside it.")));
     send.classList.add("primary");
     const row = node("div", "party-buttons"); row.append(send, partyButton(tr("やめる", "Cancel"), shut)); box.append(row); place(box, to.session);
   }
@@ -83,8 +83,8 @@ export function questParty(quest: QuestDetail, controls?: PartyControls, changed
     const box = document.createElement("div"), body = node("pre", "party-report", text), row = node("div", "party-buttons");
     box.append(node("h5", "party-box-title", tr(`${nameOf(member)}（${memberBadge(member)}）の 報告 · ${ago(event.at)}`, `Report from ${nameOf(member)} (${memberBadge(member)}) · ${ago(event.at)}`)), body);
     if (owner && owner !== member && owner.canTalk && live) row.append(Object.assign(partyButton(tr(`担当（${nameOf(owner)}）に 渡す`, `Pass to the owner (${nameOf(owner)})`), () =>
-      order(owner, tr(`${nameOf(member)}（${memberBadge(member)}）から 報告が 届きました。これを もとに 進めてください。\n\n${text}`,
-        `${nameOf(member)} (${memberBadge(member)}) reported. Build on this.\n\n${text}`), tr(`担当（${nameOf(owner)}）に 渡す 文 — 直してから 送れる`, `Message for the owner (${nameOf(owner)}) — edit before sending`))), { className: "primary" }));
+      order(owner, tr(`${nameOf(member)}（${memberBadge(member)}）の報告です。これをもとに進めてください。\n\n${text}`,
+        `${nameOf(member)} (${memberBadge(member)}) reported. Build on this.\n\n${text}`), tr(`担当（${nameOf(owner)}）への文 — 直してから送れる`, `Message for the owner (${nameOf(owner)}) — edit before sending`))), { className: "primary" }));
     row.append(partyButton(tr("とじる", "Close"), shut)); box.append(row); place(box, member.session);
   }
   function card(member: PartyHero, owner: PartyHero | undefined): HTMLElement {
@@ -116,8 +116,8 @@ export function questParty(quest: QuestDetail, controls?: PartyControls, changed
     const here = members.filter((member) => member.active).sort((a, b) => Number(b.writer) - Number(a.writer) || ROLE_ORDER[a.role] - ROLE_ORDER[b.role]);
     const owner = here.find((member) => member.writer), gone = members.length - here.length;
     grid.replaceChildren(...here.map((member) => card(member, owner)));
-    if (!here.length) grid.append(node("p", "hint", tr("まだ だれも いない。下の ボタンで 仲間と 役を 決めよう。", "Nobody yet. Use the button below to choose heroes and roles.")));
-    away.textContent = gone ? tr(`町を 去った 仲間：${gone}人（へんせいの 窓で 見られる）`, `Members who left: ${gone} (see the party window)`) : "";
+    if (!here.length) grid.append(node("p", "hint", tr("パーティーに 仲間はいない。", "No party members.")));
+    away.textContent = gone ? tr(`町を去った仲間：${gone}人（編成の窓で確認）`, `Members who left: ${gone} (see the party window)`) : "";
   };
   if (controls?.mock) show(controls.mock);
   else void partyRequest(`${prefix}/party`).then(show).catch(() => show([]));

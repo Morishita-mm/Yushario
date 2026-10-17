@@ -74,7 +74,7 @@ export async function initSound(say: (message: string) => void): Promise<void> {
     } catch {
       mode = previous;
       render();
-      say(tr("おとを ほぞんできませんでした。もういちど おためしください。", "Could not save sound. Try again."));
+      say(tr("おとの設定を 保存できなかった。もう一度ためそう。", "Could not save sound. Try again."));
     } finally { button.disabled = false; }
   });
   try {
@@ -83,6 +83,6 @@ export async function initSound(say: (message: string) => void): Promise<void> {
     button.disabled = false;
   } catch {
     render();
-    say(tr("おとの せっていを よみこめませんでした。さいよみこみしてください。", "Could not load sound settings. Reload."));
+    say(tr("おとの設定を 読み込めなかった。ページを読み込み直そう。", "Could not load sound settings. Reload."));
   }
 }

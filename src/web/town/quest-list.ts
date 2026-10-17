@@ -54,7 +54,7 @@ export function renderQuestList(root: HTMLElement, quests: Quest[], townName: (k
     chip.append(iconLabel(STAGE_MARK[stage], questStageLabel(stage))); top.append(title, chip);
     const meta = document.createElement("small"); meta.className = "quest-row-meta";
     const who = heroName(quest);
-    meta.append([who || (finishedQuest(quest.state) ? tr("担当は いまは いない", "No owner now") : tr("まだ 誰にも任せていない", "Not assigned yet")), tr(`町：${townName(quest.town)}`, `Town: ${townName(quest.town)}`)].join(" · "));
+    meta.append([who || (finishedQuest(quest.state) ? tr("いまは 担当なし", "No owner now") : tr("まだ 誰にも任せていない", "Not assigned yet")), tr(`町：${townName(quest.town)}`, `Town: ${townName(quest.town)}`)].join(" · "));
     if (quest.worktreeBranch) meta.append(" · ", iconLabel("branch", quest.worktreeBranch));
     meta.append(` · ${ago(now - quest.updatedAt)}`);
     const marks = checkMarks(quest.checks, quest.fingerprint);

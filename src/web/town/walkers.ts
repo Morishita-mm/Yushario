@@ -94,8 +94,8 @@ export function drawWalker(ctx: CanvasRenderingContext2D, art: Sheets, walker: W
     const age = t - (walker.wavedAt ?? t);
     ctx.globalAlpha = Math.max(0, 1 - Math.max(0, age - 1000) / 600);
     art.draw(ctx, art.variant(Math.floor(age / 250) % 2 ? "hero-town" : "hero-model", walker.variant), Math.floor(age / 250) % 2 ? "call" : "front", walker.x, walker.y);
-    label(ctx, tr("またね！", "Farewell!"), walker.x, walker.y - 62, "#ffe066", 11);
-    weaponBesideLabel(ctx, art, walker.weaponTier, t, tr("またね！", "Farewell!"), walker.x, walker.y - 62);
+    label(ctx, tr("またね！", "See you!"), walker.x, walker.y - 62, "#ffe066", 11);
+    weaponBesideLabel(ctx, art, walker.weaponTier, t, tr("またね！", "See you!"), walker.x, walker.y - 62);
     ctx.globalAlpha = 1;
     return;
   }

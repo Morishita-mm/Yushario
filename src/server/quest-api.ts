@@ -80,6 +80,6 @@ export async function handleQuestRequest(request: IncomingMessage, response: Ser
     if (id && !parts[4] && method === "PATCH" && validQuestPatch(input)) {
       json(response, 200, quests.patch(id, input)); return;
     }
-    json(response, 400, { error: tr("クエストの ことばが ちがう", "Invalid quest details") });
+    json(response, 400, { error: tr("クエストの内容が 正しくない。", "Invalid quest details") });
   } catch (error) { json(response, 400, { error: error instanceof Error ? error.message : tr("クエストを のこせない", "Could not save quest") }); }
 }

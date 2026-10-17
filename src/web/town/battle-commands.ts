@@ -4,9 +4,9 @@ import { element, option, place } from "./command";
 // The command window of the focused battle (docs/PLATFORM.md, stage 9). Shared by the real app and the mock.
 // さくせん and めいれい reach a working hero now: the CLI reads them after the current tool.
 export const TACTICS: [string, string][] = [
-  [tr("ガンガンいこうぜ", "Go all out"), tr("細かい 質問は せずに、自分で 判断して どんどん すすめて", "Make your own decisions and keep moving without asking small questions.")],
-  [tr("いのちだいじに", "Play it safe"), tr("慎重に すすめて。消す 操作や 大きな 変更の 前には 方針を 聞いて", "Proceed carefully. Ask before deleting anything or making major changes.")],
-  [tr("じゅもんせつやく", "Save MP"), tr("調べものや 出力は 必要な 分だけに して、会話を 軽く たもって", "Keep research and output to what is needed, and keep the conversation light.")],
+  [tr("ガンガンいこうぜ", "Go all out"), tr("細かな質問はせず、自分で判断して進めてください。", "Make your own decisions and keep moving without asking small questions.")],
+  [tr("いのちだいじに", "Play it safe"), tr("慎重に進めてください。削除や大きな変更の前に、方針を確認してください。", "Proceed carefully. Ask before deleting anything or making major changes.")],
+  [tr("じゅもんせつやく", "Save MP"), tr("調査と出力は必要な分に絞り、会話を短く保ってください。", "Keep research and output to what is needed, and keep the conversation light.")],
 ];
 
 type BattleHandlers = {

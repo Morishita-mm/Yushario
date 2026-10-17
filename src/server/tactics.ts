@@ -38,7 +38,7 @@ export class QuestTactics {
     return { tactic, fit, fits, running, round: run?.round ?? 0, waiting: run?.waiting.size ?? 0, total: (run?.waiting.size ?? 0) + (run?.replies.size ?? 0), stopped: run?.stopped, done: run?.done };
   }
   choose(quest: string, tactic: Tactic, at = Date.now()): TacticStatus {
-    if (this.status(quest).running && tactic !== "obey") throw new Error(tr("作戦で 進んでいる 間は 変えられない。先に「命令に従え」で 止める", "Stop the running tactic (Follow orders) before changing it"));
+    if (this.status(quest).running && tactic !== "obey") throw new Error(tr("作戦の実行中は 変えられない。「命令に従え」で先に止めよう。", "Stop the running tactic (Follow orders) before changing it"));
     if (!tacticFit(tactic, this.members(quest)).ok) throw new Error(tr("この 編成では 選べない", "This party cannot use that tactic"));
     this.chosen.set(quest, tactic); this.runs.delete(quest);
     this.party.quests.addEvent(quest, { kind: "tactic", at, title: tr(`作戦：${tacticLabel(tactic, "ja")}`, `Tactic: ${tacticLabel(tactic, "en")}`), decision: { tactic } });
@@ -47,7 +47,7 @@ export class QuestTactics {
   // "Research first": the person's request goes to the researchers; the owner gets it with their reports.
   startResearch(quest: string, request: string, at = Date.now()): TacticStatus {
     if (this.tactic(quest) !== "research") throw new Error(tr("作戦が「調べてから」では ない", "The tactic is not Research first"));
-    if (this.status(quest).running) throw new Error(tr("いま 調べている 最中", "Research is already running"));
+    if (this.status(quest).running) throw new Error(tr("いま 調査中。", "Research is already running"));
     const fit = tacticFit("research", this.members(quest));
     if (!fit.ok) throw new Error(tr("この 編成では 調べられない", "This party cannot research"));
     const run: Run = { kind: "research", round: 1, waiting: new Set(), replies: new Map(), request };
@@ -140,7 +140,7 @@ export class QuestTactics {
     try { this.ownPrompts.add(owner); this.party.send(quest, owner, text, "tactic"); }
     catch { this.ownPrompts.delete(owner); this.stop(quest, tr("担当に 送れなかった", "could not send to the owner"), at); }
   }
-  // "Leave it all": every other member's report goes to the commander, who decides what happens next.
+  // "All yours": every other member's report goes to the commander, who decides what happens next.
   private relay(quest: string, session: string, commanding: boolean, event: AgentEvent): void {
     if (commanding || event.hook !== "Stop" || !event.text) return;
     const commander = this.party.quests.party(quest).find((member) => member.role === "command");

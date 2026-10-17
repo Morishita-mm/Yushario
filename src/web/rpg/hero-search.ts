@@ -22,7 +22,7 @@ export function heroSearch(changed: () => void) {
     const parts: HTMLElement[] = [];
     if (town !== undefined) {
       const chip = element("button", "hero-search-town", tr(`町：${townName ?? town} ×`, `Town: ${townName ?? town} ×`)); chip.type = "button";
-      chip.title = tr("この町だけで さがすのを やめる", "Search every town"); chip.onclick = () => { cleared = project; changed(); };
+      chip.title = tr("すべての町を さがす", "Search every town"); chip.onclick = () => { cleared = project; changed(); };
       parts.push(chip);
     } else if (project !== undefined) {
       const chip = element("button", "hero-search-town off", tr(`この町だけに する（${townName ?? project}）`, `Only this town (${townName ?? project})`)); chip.type = "button";

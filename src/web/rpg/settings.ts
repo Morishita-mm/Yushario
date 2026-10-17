@@ -32,8 +32,8 @@ export function showSettings(layer: HTMLElement, town?: string): void {
       field.disabled = true;
       status.textContent = tr("ほぞん中…", "Saving…");
       saveSettings({ archiveAfterDays: days })
-        .then(() => { status.textContent = tr(`${dayLabel(days)}に しました。`, `Set to ${dayLabel(days)}.`); })
-        .catch(() => { input.checked = false; status.textContent = tr("ほぞんできませんでした。もういちど おためしください。", "Could not save. Try again."); })
+        .then(() => { status.textContent = tr(`${dayLabel(days)}に した。`, `Set to ${dayLabel(days)}.`); })
+        .catch(() => { input.checked = false; status.textContent = tr("保存できなかった。もう一度ためそう。", "Could not save. Try again."); })
         .finally(() => { field.disabled = false; });
     });
     label.append(input, document.createTextNode(dayLabel(days)));
@@ -50,7 +50,7 @@ export function showSettings(layer: HTMLElement, town?: string): void {
     select.disabled = true;
     void saveSettings({ language: select.value as "ja" | "en" }).then(() => location.reload()).catch(() => {
       select.disabled = false; select.value = language;
-      status.textContent = tr("ほぞんできませんでした。もういちど おためしください。", "Could not save. Try again.");
+      status.textContent = tr("保存できなかった。もう一度ためそう。", "Could not save. Try again.");
     });
   });
   langLabel.append(select);
@@ -66,5 +66,5 @@ export function showSettings(layer: HTMLElement, town?: string): void {
     if (touched) return;
     for (const radio of radios) radio.checked = Number(radio.value) === settings.archiveAfterDays;
     status.textContent = "";
-  }).catch(() => { if (!touched) status.textContent = tr("せっていを よみこめませんでした。", "Could not load settings."); });
+  }).catch(() => { if (!touched) status.textContent = tr("せっていを 読み込めなかった。", "Could not load settings."); });
 }

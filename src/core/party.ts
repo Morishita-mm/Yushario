@@ -28,12 +28,12 @@ export function roleIntroduction(member: Pick<PartyMember, "role" | "note" | "wr
     : `You are this quest's ${role.toLowerCase()} hero. ${member.writer ? "You hold the writing role." : "Do not change files; report your findings."}`;
   // Helpers cannot message other heroes: say where the report goes so they do not look for a way to pass it on.
   const route = member.writer || member.role === "command" ? "" : ja
-    ? "\nあなたの 報告は Yushario が 受け取り、頼んだ人に 届けます（作戦に よっては 担当にも 届けます）。ほかの 勇者に 自分で 送る 必要は ありません。"
-    : "\nYushario passes your report to whoever asked (and to the owner when the tactic says so). You do not need to send it to other heroes yourself.";
+    ? "\n報告は Yushario が依頼者へ届けます（作戦によっては担当にも届けます）。ほかの勇者へ自分で送る必要はありません。"
+    : "\nYushario delivers your report to the requester (and the owner, depending on the tactic). You do not need to send it to other heroes.";
   // The tools are explained once, in the skill shipped with the app (skills/yushario-party/SKILL.md).
   const tool = member.role !== "command" ? "" : ja
-    ? "\n管理の道具: yushario quest read --json / send --session <id> --text '…' / invite / review。使い方は $AGENT_CHARACTER_QUEST_SKILL を 読んでください。仲間と役割は 人の はいを まちます。採用は できません。"
-    : "\nTools: yushario quest read --json / send --session <id> --text '…' / invite / review. Read $AGENT_CHARACTER_QUEST_SKILL for how to use them. Invitations await human approval. You cannot adopt."
+    ? "\n管理ツール: yushario quest read --json / send --session <id> --text '…' / invite / review。使い方は $AGENT_CHARACTER_QUEST_SKILL を参照してください。仲間の招待と役割の変更には人の承認が必要です。採用はできません。"
+    : "\nTools: yushario quest read --json / send --session <id> --text '…' / invite / review. See $AGENT_CHARACTER_QUEST_SKILL for usage. Invitations and role changes need human approval. You cannot adopt."
   return text + route + (member.note ? `\n${member.note}` : "") + tool;
 }
 export function partyEditFiles(event: AgentEvent): string[] {

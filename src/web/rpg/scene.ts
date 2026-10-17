@@ -141,7 +141,7 @@ export class Scene {
       feedback.hidden = true;
       return true;
     } catch {
-      feedback.textContent = tr("町の台帳に ほぞんできませんでした。もういちど おためしください。", "Could not save the town. Try again.");
+      feedback.textContent = tr("町の台帳に 保存できなかった。もう一度ためそう。", "Could not save the town. Try again.");
       feedback.hidden = false;
       return false;
     }

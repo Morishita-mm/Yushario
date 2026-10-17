@@ -92,7 +92,7 @@ export class Status {
     this.detailSignature = signature;
     const scroll = this.details.scrollTop;
     this.details.replaceChildren(agent ? this.card(agent, now, name, undefined, true)
-      : element("p", "hint", tr("この勇者は たびだちました。", "This hero has set off.")));
+      : element("p", "hint", tr("この勇者は 旅立った。", "This hero has set off.")));
     this.details.scrollTop = scroll;
   }
 
@@ -120,7 +120,7 @@ export class Status {
       renderPartyList(this.list, agents, (agent) => compactRow(agent, now, names.get(agent.id) ?? agent.name,
         agent.id === selected, waiting(agent.id), () => this.pick(agent.id), this.gear?.(agent.terminal), this.membership?.(agent.terminal)), this.townName,
         (agent) => agent === chosen ? this.brief(agent, now, names, chosenPermission, room) : undefined);
-      if (!agents.length) this.list.append(element("p", "hint", everyone.length ? tr("見つからない。言葉や 町の札を 変えてみて", "No match. Try other words or remove the town chip") : tr("まだ だれも いない ようだ…", "No heroes here yet…")));
+      if (!agents.length) this.list.append(element("p", "hint", everyone.length ? tr("見つからない。言葉や 町の札を 変えてみよう。", "No match. Try other words or remove the town chip") : tr("まだ だれも いない ようだ…", "No heroes here yet…")));
     }
     cards.push(this.search.root, this.list);
     for (const permission of this.permissions.values()) {
@@ -167,7 +167,7 @@ export class Status {
     const block = element("div", "permission"); block.dataset.permission = permission.id;
     if (heading) block.append(element("h3", "section", heading));
     if (permission.helper) block.append(element("p", "hint", tr(`なかま：${permission.helper}`, `Ally: ${permission.helper}`)));
-    block.append(element("p", undefined, tr(`${permission.tool}を おこなっても よいですか？`, `Allow ${permission.tool}?`)),
+    block.append(element("p", undefined, tr(`${permission.tool}を 許可する？`, `Allow ${permission.tool}?`)),
       element("pre", "permission-content", permission.content));
     if (permission.omitted) block.append(element("p", "hint", tr(`…（のこり ${permission.omitted}文字は ターミナルで）`, `… (${permission.omitted} more characters in the terminal)`)));
     const timer = element("p", "permission-time"); timer.dataset.expires = String(permission.expiresAt); block.append(timer);

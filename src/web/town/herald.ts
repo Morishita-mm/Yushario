@@ -15,7 +15,7 @@ export function noticesInTown(list: Notice[], town?: string): Notice[] {
 
 const ICONS: Record<Notice["kind"], IconName> = { permission: "key", "party-invite": "party", "outside-role": "warning", call: "alert", down: "warning", new: "build", struggle: "sweat", report: "scroll" };
 const NOTICE_LABELS: Record<Notice["kind"], string> = {
-  permission: tr("許可待ち", "Permission"), "party-invite": tr("仲間の確認", "Party invitation"), "outside-role": tr("役割外の変更", "Outside-role change"),
+  permission: tr("許可待ち", "Awaiting permission"), "party-invite": tr("仲間の確認", "Party invitation"), "outside-role": tr("役割外の変更", "Outside-role change"),
   call: tr("呼び出し", "Calling"), down: tr("接続切れ", "Disconnected"), new: tr("新しい町", "New town"), struggle: tr("苦戦中", "Struggling"), report: tr("報告", "Report"),
 };
 function counter(name: IconName, count: number, label: string): HTMLSpanElement {
@@ -144,7 +144,7 @@ export function showTownList(layer: HTMLElement, title: string, projects: Projec
     if (list.children[index] !== row) list.insertBefore(row, list.children[index] ?? null);
   }
   for (const row of [...list.children]) if (!projects.some((p) => p.repo === (row as HTMLElement).dataset.repo)) row.remove();
-  if (!projects.length) list.append(element("p", "who", tr("町は ありません。", "No towns yet.")));
+  if (!projects.length) list.append(element("p", "who", tr("まだ 町はない。", "No towns yet.")));
   if (!list.parentElement) box.append(list);
   if (focused && document.activeElement !== focused) {
     const target = focused.isConnected ? focused : list.children[Math.min(Math.max(0, focusedIndex), list.children.length - 1)]?.querySelector<HTMLButtonElement>("button:not(:disabled)") ?? box.querySelector<HTMLButtonElement>(".actions button");
@@ -178,7 +178,7 @@ export function showArchivedTowns(layer: HTMLElement, projects: Project[], onRes
     if (list.children[index] !== row) list.insertBefore(row, list.children[index] ?? null);
   }
   for (const row of [...list.children]) if (!projects.some((p) => p.repo === (row as HTMLElement).dataset.repo)) row.remove();
-  if (!projects.length) list.append(element("p", "who", tr("しまった町は ありません。", "No archived towns.")));
+  if (!projects.length) list.append(element("p", "who", tr("しまった町は ない。", "No archived towns.")));
   if (!list.parentElement) box.append(list);
   if (focused && document.activeElement !== focused) {
     const target = focused.isConnected ? focused : list.children[Math.min(Math.max(0, focusedIndex), list.children.length - 1)]?.querySelector<HTMLButtonElement>("button:not(:disabled)") ?? box.querySelector<HTMLButtonElement>(".actions button");

@@ -5,7 +5,7 @@ export function questSettings(box: HTMLElement, status: HTMLElement, town?: stri
   const label = document.createElement("label"), keep = document.createElement("input"); keep.type = "checkbox"; keep.id = "settings-conversation";
   label.append(keep, document.createTextNode(tr("かいわも のこす", "Keep conversations too")));
   const hint = document.createElement("p"); hint.className = "hint";
-  hint.textContent = tr("題（依頼の1行目）と 採用した 回答は いつも のこります", "Titles (the first request line) and adopted answers are always kept");
+  hint.textContent = tr("題（依頼の1行目）と 採用した回答は、いつも残る。", "Titles (the first request line) and adopted answers are always kept");
   let touched = false;
   keep.onchange = () => { touched = true; keep.disabled = true;
     void saveSettings({ saveConversation: keep.checked }).then(() => { status.textContent = tr("のこした！", "Saved!"); })

@@ -66,7 +66,7 @@ async function comparison(cwd: string, url: URL): Promise<{ info: NonNullable<Re
   const defaultBase = defaultReviewBase(branches, origin), base = chosen ?? defaultBase;
   const info: NonNullable<Review["comparison"]> = { mode, branches, defaultBase, base };
   if (mode === "uncommitted") return { info, base: await baseline(cwd) };
-  if (!base || !branches.includes(base)) throw new ReviewError(400, tr("比べる元の branch を えらんで", "Choose a branch to compare"));
+  if (!base || !branches.includes(base)) throw new ReviewError(400, tr("比べる元の ブランチを えらぼう。", "Choose a branch to compare"));
   try { await git(cwd, ["check-ref-format", "--branch", base]); }
   catch { throw new ReviewError(400, tr("branch 名が 正しくない", "Invalid branch name")); }
   const ref = refs.find((ref) => ref === `refs/heads/${base}`) ?? `refs/remotes/${base}`;

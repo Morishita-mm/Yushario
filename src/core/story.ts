@@ -56,13 +56,13 @@ export function narrate(event: AgentEvent, previousContext?: number, language: L
     case "PreCompact": return tr(`${name}は きょうかいで いのりを ささげている`, `${name} is praying at the church.`);
     case "PostCompact": {
       if (event.detail === "Compaction failed" || event.detail === "Compaction cancelled") {
-        return tr(`${name}は 会話を せいりできなかった。町で ひとやすみ。`, `${name} couldn't rest. Back to town.`);
+        return tr(`${name}は 会話を せいりできなかった。町で ひとやすみ。`, `${name} couldn't summarize the conversation. Back to town.`);
       }
       const recovered = previousContext !== undefined && event.context !== undefined
         && Math.round((1 - event.context) * 100) > Math.round((1 - previousContext) * 100);
-      return tr(`${name}は 会話を まとめた！${recovered ? " MPが かいふくした！" : ""}`, `${name} rested!${recovered ? " MP restored!" : ""}`);
+      return tr(`${name}は 会話を まとめた！${recovered ? " MPが かいふくした！" : ""}`, `${name} summarized the conversation!${recovered ? " MP restored!" : ""}`);
     }
-    case "Stop": return tr(`${name}は 町で ひとやすみ することにした。`, `${name} takes a break in town.`);
+    case "Stop": return tr(`${name}は 町で ひとやすみ。`, `${name} takes a break in town.`);
     case "StopFailure": return tr(`${name}は ちからつきた…`, `${name} ran out of strength…`);
     case "TaskCreated": return tr(`クエスト${quoted(event.task?.subject, "", "ja")}を うけた！`, `Quest accepted${event.task?.subject ? `: ${quoted(event.task.subject, "", "en")}` : ""}!`);
     case "TaskCompleted": return tr(`クエスト${quoted(event.task?.subject, "", "ja")}を たっせいした！`, `Quest complete${event.task?.subject ? `: ${quoted(event.task.subject, "", "en")}` : ""}!`);

@@ -54,6 +54,6 @@ export function acceptedView(event: QuestEvent, report?: QuestEvent): HTMLElemen
   if (event.decision?.pr) {
     const link = element("a", undefined, `PR: ${event.decision.pr}`); link.href = event.decision.pr; link.target = "_blank"; link.rel = "noopener noreferrer"; box.append(link);
   }
-  box.append(element("p", "hint", tr("採用した ＝ main への 取りこみ では ない。取りこみは PR で。", "Adopted is not merged into main. Merge through your PR.")));
+  box.append(element("p", "hint", tr("採用しても main には取り込まれない。取り込みは PR で。", "Adopted is not merged into main. Merge through your PR.")));
   return box;
 }

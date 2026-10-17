@@ -4,10 +4,10 @@ import { partyRequest } from "./quest-party";
 
 // The "さくせん" box of the party window (docs/PLATFORM.md stage 24): choose how the party hands work on.
 const ABOUT: Record<Tactic, () => string> = {
-  obey: () => tr("自動では 送らない。あなたが 全員に 頼む。", "Nothing is sent automatically. You ask everyone."),
-  review: () => tr("担当が 報告したら レビュー役が 見て、要修正なら 担当に 戻す（3回まで）。", "After the owner reports, reviewers check it and send changes back (up to 3 rounds)."),
-  research: () => tr("調べる役が 先に 調べ、その報告を 添えて 担当に 送る。", "Researchers look first; the owner gets the request with their reports."),
-  delegate: () => tr("しき役が 仲間に 仕事を 配る。仲間の 報告は しき役に 届く。", "The commander hands out work; members' reports go to the commander."),
+  obey: () => tr("自動送信はしない。あなたが全員に頼む。", "Nothing is sent automatically. You ask everyone."),
+  review: () => tr("担当の報告を レビュー役が見て、要修正なら担当へ差し戻す（3回まで）。", "After the owner reports, reviewers check it and send changes back (up to 3 rounds)."),
+  research: () => tr("先に調べる役が調査し、報告を添えて担当へ送る。", "Researchers look first; the owner gets the request with their reports."),
+  delegate: () => tr("しき役が仕事を配り、仲間の報告を受け取る。", "The commander hands out work; members' reports go to the commander."),
 };
 export const gapLabel = (gap: TacticGap): string => ({
   owner: tr("担当が いない", "No owner"), reviewer: tr("レビュー役が いない", "No reviewer"),
@@ -40,7 +40,7 @@ export function tacticBox(quest: string, mock: boolean, command: (text: string, 
     if (!status) {
       const wait = document.createElement("p");
       wait.textContent = mock ? tr("（見本では 作戦を 選べない）", "(Tactics are not available in the sample)")
-        : unreadable ? tr("作戦を よめない。サーバーが 古いまま なら、起動しなおすと 直る。", "Cannot read the tactic. If the server is older than this page, restart it.") : tr("よんでいる…", "Loading…");
+        : unreadable ? tr("作戦を読み込めない。サーバーが古い場合は 起動し直そう。", "Cannot read the tactic. If the server is older than this page, restart it.") : tr("よんでいる…", "Loading…");
       root.append(wait); return;
     }
     const line = document.createElement("p"); line.className = "pw-progress"; line.textContent = tacticProgress(status); root.append(line);

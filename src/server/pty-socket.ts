@@ -24,10 +24,10 @@ export function connectTerminal(client: WebSocket, request: IncomingMessage, por
   client.on("error", (error) => console.error("PTY WebSocket error:", error.message));
   const url = new URL(request.url ?? "/", `http://127.0.0.1:${port}`);
   const session = sessions.get(url.searchParams.get("session") ?? "");
-  if (!session) { client.close(1008, tr("そのターミナルが見つかりません", "Terminal not found")); return; }
+  if (!session) { client.close(1008, tr("そのターミナルが 見つからない。", "Terminal not found")); return; }
   // Replay is queued before any live output (all callbacks run on the same event loop).
   if (session.output.length) client.send(modePrefix(session.modes) + session.output.toString("utf8"));
-  if (session.info.exited) { client.close(1000, tr("終了しました", "Ended")); return; }
+  if (session.info.exited) { client.close(1000, tr("終了した。", "Ended")); return; }
   session.clients.add(client);
   const size = dimensions(Number(url.searchParams.get("cols")), Number(url.searchParams.get("rows")));
   if (size) {

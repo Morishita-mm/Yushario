@@ -41,14 +41,14 @@ export function openReview(name: string, session: string | { quest: string }, ta
   heading.append(option(tr("▶ とじる", "▶ Close"), close));
   const toolbar = element("div", "review-toolbar"); toolbar.append(info, reload);
   const comparison = element("div", "review-comparison"), mode = element("select"), base = element("select");
-  mode.append(new Option(tr("まだ コミットしていない へんこう", "Uncommitted changes"), "uncommitted"), new Option(tr("ブランチ ぜんたい", "Whole branch"), "branch"));
+  mode.append(new Option(tr("未コミットの変更", "Uncommitted changes"), "uncommitted"), new Option(tr("ブランチ ぜんたい", "Whole branch"), "branch"));
   const modeLabel = element("label", undefined, tr("比べるもの", "Changes")), baseLabel = element("label", undefined, tr("比べる元", "Base branch"));
   modeLabel.append(mode); baseLabel.append(base); comparison.append(modeLabel, baseLabel);
   mode.onchange = base.onchange = () => { void load(); };
   const columns = element("div", "review-columns"); columns.append(files, diff);
   // Chosen lines become a fix request draft; a verdict is recorded against the state the server reads.
   const picked = new Map<string, FixLine>(), decide = element("div", "review-decide");
-  const fix = option(tr("▶ えらんだ所の 修正依頼を 書く", "▶ Write a fix request for chosen lines"), () => {
+  const fix = option(tr("▶ 選んだ行の 修正依頼を書く", "▶ Draft a fix request for selected lines"), () => {
     close(); talk?.(fixRequest([...picked.values()], { mode: mode.value as "uncommitted" | "branch", base: mode.value === "branch" ? base.value || undefined : undefined, head: current?.head }, language));
   }, true);
   const judge = (verdict: Verdict) => void (async () => {
@@ -58,12 +58,12 @@ export function openReview(name: string, session: string | { quest: string }, ta
       body: JSON.stringify({ verdict, mode: mode.value, ...(mode.value === "branch" && base.value ? { base: base.value } : {}) }) });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error ?? tr("のこせなかった", "Could not save"));
-    status.textContent = `${verdict === "approved" ? tr("OKと 記録した", "Recorded as OK") : tr("要修正と 記録した（まだ 誰にも 送っていない）", "Recorded as needing changes (nothing sent yet)")} · HEAD ${data.head || "—"}${data.known ? "" : tr(" · じょうたい ふめい", " · State unknown")}`;
+    status.textContent = `${verdict === "approved" ? tr("OKを 記録した", "Recorded as OK") : tr("要修正を 記録した。まだ誰にも 送っていない。", "Recorded as needing changes (nothing sent yet)")} · HEAD ${data.head || "—"}${data.known ? "" : tr(" · じょうたい ふめい", " · State unknown")}`;
   })().catch((error: Error) => { status.textContent = error.message; });
   if (talk) decide.append(fix);
-  decide.append(option(tr("▶ OKと 記録する", "▶ Record as OK"), () => judge("approved")), option(tr("▶ 要修正と 記録する", "▶ Record as needing changes"), () => judge("changes")),
-    element("p", "hint", tr("判定は 記録だけ。直してほしい時は 行を えらんで 修正依頼を 書く（話す窓に 下書きが 入る）。", "A verdict is only recorded. To get fixes, choose lines and write a fix request (a draft opens in the talk window).")));
-  const pickedChanged = () => { fix.disabled = !picked.size; fix.textContent = tr(`▶ えらんだ所の 修正依頼を 書く（${picked.size}）`, `▶ Write a fix request for chosen lines (${picked.size})`); };
+  decide.append(option(tr("▶ OKを 記録する", "▶ Record as OK"), () => judge("approved")), option(tr("▶ 要修正を 記録する", "▶ Record as needing changes"), () => judge("changes")),
+    element("p", "hint", tr("判定は 記録だけ。直してほしい行を選ぶと、話す窓に修正依頼の下書きを作れる。", "A verdict only records your decision. Select lines to draft a fix request in the talk window.")));
+  const pickedChanged = () => { fix.disabled = !picked.size; fix.textContent = tr(`▶ 選んだ行の 修正依頼を書く（${picked.size}）`, `▶ Draft a fix request for selected lines (${picked.size})`); };
   content.append(toolbar, comparison, status, decide, columns); dialog.append(heading, content); document.body.append(dialog);
   dialog.addEventListener("cancel", (event) => { event.preventDefault(); close(); });
   dialog.addEventListener("keydown", (event) => { event.stopPropagation(); if (event.key === "Escape" && !event.isComposing) { event.preventDefault(); close(); } });

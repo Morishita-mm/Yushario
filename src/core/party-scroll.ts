@@ -22,6 +22,6 @@ export function handoffScroll(quest: QuestDetail, checks: ScrollCheck[], languag
   ].join("\n\n");
 }
 export function summaryRequest(language: Language): string {
-  return language === "ja" ? "ひきつぎの まとめを かいてください：目的・きめたこと・のこり・注意"
-    : "Please write a handoff summary: purpose, decisions, remaining work, and cautions.";
+  return language === "ja" ? "引き継ぎをまとめてください：目的・決定事項・残りの作業・注意点"
+    : "Summarize the handoff: purpose, decisions, remaining work, and cautions.";
 }

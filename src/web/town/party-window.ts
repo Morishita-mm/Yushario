@@ -71,10 +71,10 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
   const hint = (text: string) => { guideLine.textContent = text; };
   const fail = (error: Error) => say(error.message);
   const guide = () => {
-    if (mode === "view") { shutPopup(); guideLine.replaceChildren(tr("採用した・中止した クエストの パーティーは 見るだけ。やり直すなら 新しい クエストを 作る。", "An adopted or dropped quest's party is shown only. To try again, write a new quest.")); return; }
+    if (mode === "view") { shutPopup(); guideLine.replaceChildren(tr("採用・中止したクエストのパーティーは 閲覧のみ。やり直すときは 新しいクエストを作ろう。", "An adopted or dropped quest's party is shown only. To try again, write a new quest.")); return; }
     const text = el("p");
-    text.append(tr("勇者を えらんでね。", "Choose a hero. "), iconLabel("edit", tr("担当", "The owner")), tr("は ファイルを 書きかえる ただ1人。手伝いは 書きかえずに 報告する。", " is the only one who changes files. Helpers report without changing files."),
-      gathering ? tr("決め終わるまで、誰にも 何も 送らない。", " Nothing is sent to anyone until you set off.") : tr("いま 頼むと、その場で 届く。", " Asking now sends at once."));
+    text.append(tr("勇者を えらぼう。", "Choose a hero. "), iconLabel("edit", tr("担当", "The owner")), tr("だけが ファイルを変える。手伝いは変更せずに報告する。", " alone changes files. Helpers report without changing files."),
+      gathering ? tr("「編成を終えて…」を押すまで、誰にも送らない。", " Nothing is sent to anyone until you press Done forming.") : tr("いま頼むと、すぐ届く。", " Asking now sends at once."));
     guideLine.replaceChildren(text); shutPopup();
   };
   const tactics = tacticBox(quest.id, Boolean(mock), command, (text) => hint(text), () => void reload().catch(fail));
@@ -92,7 +92,7 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
     for (const member of present) {
       const here = controls?.heroInfo?.(member.session).here ?? true;
       slots.append(card(member.session, member.sessionInfo?.preset, memberBadge(member), member.writer,
-        here ? memberState(member) : tr("まだ 町に 来ていない（ターミナルで 最初の 依頼を 待っている）", "Not in town yet (waiting for its first request in the terminal)"), () => chooseMember(member)));
+        here ? memberState(member) : tr("まだ 町に来ていない。最初の依頼はターミナルで。", "Not in town yet (waiting for its first request in the terminal)"), () => chooseMember(member)));
     }
     if (mode !== "view") {
       // With nobody free in town this launches a new hero; otherwise it shows where to pick one.
@@ -101,7 +101,7 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
         if (!first) { town.querySelector<HTMLButtonElement>(".pw-add")?.click(); return; }
         town.scrollIntoView({ block: "nearest", behavior: "smooth" }); town.classList.remove("pw-flash"); void town.offsetWidth; town.classList.add("pw-flash");
         first.focus({ preventScroll: true });
-        hint(tr("「町に いる 勇者」から 仲間に する 勇者を えらぼう。いなければ「新しく 出陣させる」。", "Pick a hero from Heroes in town, or embark a new one."));
+        hint(tr("「町に いる 勇者」から選ぼう。いなければ「新しく 出陣させる」。", "Pick a hero from Heroes in town, or embark a new one."));
       });
       add.classList.add("pw-card", "pw-add"); add.append(el("span", "pw-plus", "＋"), el("span", undefined, tr("仲間を 足す", "Add a hero"))); slots.append(add);
     }
@@ -139,11 +139,11 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
     const name = entry?.name ?? nameOf(member.session), buttons = [command(tr("パーティーから 外す", "Remove from the party"), () => leave(member))];
     if (entry) buttons.unshift(command(tr("よびもどす", "Recall"), () => {
       if (!mock) void partyRequest(`roster/${encodeURIComponent(entry.sessionId)}/recall`, "POST").then(reload)
-        .then(() => say(tr(`${name}を よびもどした。町に 着くと 元の 役（${memberBadge(member)}）で パーティーに 戻る。`, `Recalled ${name}. It rejoins as ${memberBadge(member)} when it reaches town.`))).catch(fail);
+        .then(() => say(tr(`${name}を よびもどした。町に着いたら 元の役（${memberBadge(member)}）に戻る。`, `Recalled ${name}. It rejoins as ${memberBadge(member)} when it reaches town.`))).catch(fail);
     }, true));
     showCommands(name, ...buttons);
-    explain(entry ? tr("よびもどすと、前の 会話の 続きから 再開して、元の 役で パーティーに 戻る。", "Recalling resumes its last conversation and it rejoins in its old role.")
-      : tr("この 勇者は よびもどせない（めいぼに ない。話しかける 前に 去ったか、続きから 再開できない CLI）。", "This hero cannot be recalled (not in the roster: it left before any request, or its CLI cannot resume)."));
+    explain(entry ? tr("よびもどすと、前の会話の続きから 元の役で再開する。", "Recalling resumes its last conversation and it rejoins in its old role.")
+      : tr("この勇者は めいぼにいないため よびもどせない。依頼前に去ったか、CLI が再開に未対応。", "This hero cannot be recalled (not in the roster: it left before any request, or its CLI cannot resume)."));
   }
   function chooseMember(member: PartyHero): void {
     const hero = member.hero ?? member.session, buttons = [
@@ -160,12 +160,12 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
   }
   function chooseTownHero(session: Session): void {
     if (mode === "view") return;
-    if (!canTalk(session)) { say(tr("この勇者は ターミナルだけで、会話で 頼めない。", "This hero is terminal-only and cannot take requests by talk.")); return; }
+    if (!canTalk(session)) { say(tr("この勇者は ターミナルのみ。会話では頼めない。", "This hero is terminal-only and cannot take requests by talk.")); return; }
     if (!owner()?.active) {
       showCommands(nameOf(session.id), command(tr("担当にする", "Make the owner"), () => {
         if (!mock) void partyRequest(`${prefix}/assign`, "POST", { session: session.id }).then(reload).then(guide).catch(fail);
       }, true), command(tr("手伝ってもらう", "Ask for help"), () => help(session.id)));
-      explain(tr("まだ 担当が いない。担当にする：この勇者が 依頼を 受ける（まだ 何も 送らない）。", "No owner yet. Make the owner: this hero takes the request (nothing is sent yet)."));
+      explain(tr("まだ担当がいない。「担当にする」で選ぼう。まだ依頼は送らない。", "No owner yet. Choose Make the owner. The request is not sent yet."));
       return;
     }
     showCommands(nameOf(session.id), command(tr("手伝ってもらう", "Ask for help"), () => help(session.id), true), command(tr("担当を 交代する", "Make the owner"), () => swap(session.id)));
@@ -173,10 +173,10 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
   // Ask for help: what to ask and the message. While forming it waits for the set-off; while work runs it goes now.
   function help(session: string): void {
     let role: PartyRole = forming.asks.get(session)?.role ?? "research", edited = forming.asks.has(session);
-    const chips = el("div", "pw-chips"), text = el("textarea"), tip = el("p", "pw-tip"); text.setAttribute("aria-label", tr(`${nameOf(session)}への 頼む文`, `Message for ${nameOf(session)}`)); text.rows = 6; text.maxLength = 8000;
+    const chips = el("div", "pw-chips"), text = el("textarea"), tip = el("p", "pw-tip"); text.setAttribute("aria-label", tr(`${nameOf(session)}への 頼みごと`, `Message for ${nameOf(session)}`)); text.rows = 6; text.maxLength = 8000;
     // Helpers cannot pass their report to the owner themselves; the research-first tactic does it.
     const showTip = () => { tip.hidden = role !== "research" || tactics.current()?.tactic === "research";
-      tip.textContent = tr("調べた 結果を 担当に 渡したい 時は、作戦を「調べてから」に する。報告が そろうと Yushario が 担当に 届ける。", "To hand the findings to the owner, choose the Research first tactic: Yushario passes the reports on."); };
+      tip.textContent = tr("作戦を「調べてから」にすると、報告がそろってから Yushario が担当へ届ける。", "With Research first, Yushario delivers the reports to the owner once they are all in."); };
     const draftText = () => `${roleIntroduction({ role, note: "", writer: false }, language)}\n\n${tr("頼みたいこと：", "What I need:")}`;
     text.value = forming.asks.get(session)?.text ?? draftText(); text.oninput = () => { edited = true; };
     for (const value of HELP_ROLES) {
@@ -191,7 +191,7 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
       send.disabled = true;
       if (mock) { say(tr("（見本）頼んだ", "(Sample) Asked")); return; }
       await partyRequest(`${prefix}/party`, "POST", { session, role, note: "", writer: false });
-      if (gathering) { setAsk(forming, session, { role, text: text.value }); await reload(); say(tr(`${nameOf(session)}は 出発待ち。出発の 時に 頼みごとが 届く。`, `${nameOf(session)} waits to set off; the ask goes out then.`)); return; }
+      if (gathering) { setAsk(forming, session, { role, text: text.value }); await reload(); say(tr(`${nameOf(session)}は 出発待ち。頼みごとは 出発時に届く。`, `${nameOf(session)} waits to set off; the ask goes out then.`)); return; }
       const result = await partyRequest(`${prefix}/send`, "POST", { session, text: text.value });
       await reload();
       say(result.delivered ? tr(`${nameOf(session)}に 頼んだ。`, `Asked ${nameOf(session)}.`) : tr(`${nameOf(session)}は 作業中。手が あいたら 届く。`, `${nameOf(session)} is busy; it will arrive when the hero is free.`));
@@ -210,11 +210,11 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
       const keep = el("label"), go = el("label"), a = el("input"), b = el("input");
       a.type = b.type = "radio"; a.name = b.name = "pw-previous"; a.checked = true; a.onchange = () => { farewell = false; }; b.onchange = () => { farewell = true; };
       keep.append(a, document.createTextNode(tr(" そのまま 残す（手伝いに なる）", " Keep (becomes a helper)"))); go.append(b, document.createTextNode(tr(" みおくる（町を 去る）", " See off (leaves town)")));
-      choice.push(el("p", "pw-step", tr(`前の担当（${nameOf(previous!.session)}）は？`, `What about ${nameOf(previous!.session)}?`)), keep, go);
+      choice.push(el("p", "pw-step", tr(`前の担当（${nameOf(previous!.session)}）は？`, `What should happen to the previous owner, ${nameOf(previous!.session)}?`)), keep, go);
       if (!previous!.waiting) choice.push(el("p", "pw-warn", tr(`${nameOf(previous!.session)}は いま 作業中。交代しても 自動では 止まらない。`, `${nameOf(previous!.session)} is working now and will not stop by itself.`)));
     }
     if (gathering) {
-      const yes = command(tr(`▶ ${nameOf(session)}を 担当にする（出発の 時に 引き継ぎメモを 付けて 送る）`, `▶ Make ${nameOf(session)} the owner (the handoff note goes with the request)`), () => void (async () => {
+      const yes = command(tr(`▶ ${nameOf(session)}を 担当にする（出発時に引き継ぎメモ付きで送る）`, `▶ Make ${nameOf(session)} the owner (send with a handoff note at departure)`), () => void (async () => {
         if (mock) return;
         await partyRequest(`${prefix}/party`, "POST", { session, role: "implement", note: "", writer: true });
         if (stays) await partyRequest(`${prefix}/party`, "POST", { session: previous!.session, role: "research", note: previous!.note, writer: false });
@@ -223,7 +223,7 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
         const dropped = setAsk(forming, session);
         if (farewell && previous?.hero) controls?.farewell?.(previous.hero);
         await reload();
-        if (dropped) say(tr(`${nameOf(session)}への 手伝いの 頼む文は 取り消した。担当として、出発の 時に 依頼と 引き継ぎメモが 届く。`, `The helper ask for ${nameOf(session)} was cancelled. As owner, it gets the request and handoff note when you set off.`));
+        if (dropped) say(tr(`${nameOf(session)}への手伝いの依頼は取り消した。出発時に、担当への依頼と引き継ぎメモを送る。`, `The helper ask for ${nameOf(session)} was cancelled. As owner, it gets the request and handoff note when you set off.`));
         else guide();
       })().catch(fail), true);
       commands.hidden = true; showMessage(...choice, yes); return;
@@ -233,7 +233,7 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
     const parts: HTMLElement[] = [el("p", "pw-step", tr(`引き継ぎメモ（巻物）— ${nameOf(session)}に 送る`, `Handoff note (scroll) for ${nameOf(session)}`)), text];
     if (stays) {
       const ask = command(tr(`${nameOf(previous!.session)}に まとめを 書いてもらう`, `Ask ${nameOf(previous!.session)} for a summary`), () => {
-        if (!mock) void partyRequest(`${prefix}/summary`, "POST", { text: summaryRequest(language) }).then(() => { ask.textContent = tr("頼んだ。届いたら となりの ボタンで 入れる", "Asked. Insert it when it arrives"); }).catch(fail);
+        if (!mock) void partyRequest(`${prefix}/summary`, "POST", { text: summaryRequest(language) }).then(() => { ask.textContent = tr("頼んだ。届いたら「届いた まとめを 入れる」で取り込もう。", "Requested. When it arrives, choose Insert the summary."); }).catch(fail);
       });
       const insert = command(tr("届いた まとめを 入れる", "Insert the summary"), () => {
         if (!mock) void partyRequest(`${prefix}/scroll`).then((scroll) => { if (scroll.reply) text.value += `\n\n${scroll.reply}`; else insert.textContent = tr("まだ 届いていない", "Not arrived yet"); }).catch(fail);
@@ -257,7 +257,7 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
       if (!mock) void partyRequest(`${prefix}/party`, "POST", { session: member.session, role: becoming ? "command" : member.writer ? "implement" : "research", note: member.note, writer: member.writer }).then(reload).then(guide).catch(fail);
     }, true);
     commands.hidden = true;
-    say(tr(`しき役は 1人だけ。勇者の 端末で yushario quest を使い、仲間に 依頼を 送れる。新しい 仲間や 役の 変更は 伝令で あなたが「はい」を 押すまで 待つ。採用は できない。${current ? `いまの しき役（${nameOf(current.session)}）は 調べる役に もどる。` : ""}`,
+    say(tr(`しき役は1人。勇者の端末で yushario quest を使い、仲間へ依頼できる。仲間の追加と役の変更は、でんれいであなたが「はい」を押すまで待つ。採用はできない。${current ? `いまの しき役（${nameOf(current.session)}）は 調べる役に もどる。` : ""}`,
       `There is one commander. It sends requests to the party with yushario quest. New heroes and role changes wait for your yes at the herald. It cannot adopt.${current ? ` The current commander (${nameOf(current.session)}) becomes a researcher.` : ""}`), yes);
   }
   function leave(member: PartyHero): void {
@@ -266,8 +266,8 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
       if (!mock) void partyRequest(`${prefix}/party?session=${encodeURIComponent(member.session)}`, "DELETE").then(reload).then(guide).catch(fail);
     }, true);
     commands.hidden = true;
-    say(member.writer ? tr(`${nameOf(member.session)}は 担当。外すと 担当なしに なる。勇者そのものは 町に 残る。`, `${nameOf(member.session)} is the owner. The quest will have no owner. The hero stays in town.`)
-      : tr(`${nameOf(member.session)}を パーティーから 外す。勇者そのものは 町に 残る。`, `Remove ${nameOf(member.session)} from the party. The hero stays in town.`), yes);
+    say(member.writer ? tr(`${nameOf(member.session)}を外すと 担当なしになる。勇者は町に残る。`, `${nameOf(member.session)} is the owner. The quest will have no owner. The hero stays in town.`)
+      : tr(`${nameOf(member.session)}をパーティーから外す。勇者は町に残る。`, `Remove ${nameOf(member.session)} from the party. The hero stays in town.`), yes);
   }
   // Forming first, setting off last: everyone gets their part at once.
   if (setting) {
@@ -282,7 +282,7 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
       await setOff(quest, draft.value.trim(), tactics.current()?.tactic, members, nameOf); close();
     })().catch((error: Error) => { go.disabled = false; fail(error); }), true);
     go.classList.add("pw-send");
-    const requestTitle = el("h4", undefined, mode === "redo" ? tr("やり直しの 指示（編成が 終わったら 送る）", "What to do this time (sent when the party is ready)") : tr("依頼（編成が 終わったら 送る）", "Request (sent when the party is ready)")); requestTitle.id = "pw-request-title"; draft.setAttribute("aria-labelledby", requestTitle.id);
+    const requestTitle = el("h4", undefined, mode === "redo" ? tr("やり直しの指示（「やり直す」を押すと送る）", "Retry request (sent when you press Try again)") : tr("依頼（出発時に送る）", "Request (sent at departure)")); requestTitle.id = "pw-request-title"; draft.setAttribute("aria-labelledby", requestTitle.id);
     setting.append(requestTitle, draft, go);
   }
   dialog.showModal(); guide();

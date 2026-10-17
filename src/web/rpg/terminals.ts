@@ -15,7 +15,7 @@ export function initTerminals(name: (id: string) => string | undefined, open: (i
       const heading = document.createElement("h4"); heading.textContent = ended ? tr("終わった ターミナル", "Ended terminals") : tr("動いている ターミナル", "Active terminals");
       list.append(heading);
       const items = sessions.filter((session) => Boolean(session.exited) === ended);
-      if (!items.length) { const empty = document.createElement("p"); empty.textContent = tr("ありません。", "None."); list.append(empty); }
+      if (!items.length) { const empty = document.createElement("p"); empty.textContent = tr("なし", "None."); list.append(empty); }
       for (const session of items) {
         const row = document.createElement("div"); row.className = "session-row town-row";
         const text = document.createElement("div"); text.textContent = label(session);
@@ -44,7 +44,7 @@ export function initTerminals(name: (id: string) => string | undefined, open: (i
       status.textContent = tr("終わらせて 消している…", "Ending and removing…");
       void sessionRequest("DELETE", `/${encodeURIComponent(session.id)}`).then(async () => {
         if (!dialog.open) return;
-        await refresh(); status.textContent = tr("ターミナルを 消しました。", "Terminal removed.");
+        await refresh(); status.textContent = tr("ターミナルを 消した。", "Terminal removed.");
       }).catch((error: Error) => { if (dialog.open) { status.textContent = error.message; no.disabled = yes.disabled = false; } })
         .finally(() => { deleting = false; });
     });

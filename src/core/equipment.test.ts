@@ -15,7 +15,7 @@ describe("equipment master and selection", () => {
     expect(english.claude.weapons[0].name).toBe("Dagger");
     expect(input.claude.weapons[0].name).toBe("たんけん");
     expect(resolveEquipmentMaster(english, { claude: items }).claude.weapons[0].name).toBe("たんけん");
-    expect(() => parseEquipmentMaster(null, "en")).toThrow("Invalid equipment master");
+    expect(() => parseEquipmentMaster(null, "en")).toThrow("Invalid equipment data");
     expect(() => equipmentInput({ weapon: "missing" }, items, "en")).toThrow("Invalid equipment ID");
     expect(() => equipmentCommands({ weapon: "steel" }, {}, items, controls, "en")).toThrow("Choose no equipment when embarking or recalling");
     expect(() => equipmentCommands({}, { weapon: "steel" }, items, { ...controls, modelCommand: "" }, "en")).toThrow("Change equipment when embarking or recalling");
@@ -58,8 +58,8 @@ describe("equipment CLI delivery", () => {
   });
   it("refuses mid-session removal and unsupported commands", () => {
     expect(() => equipmentCommands({ weapon: "steel" }, {}, items, controls)).toThrow("そうびなし");
-    expect(() => equipmentCommands({}, { weapon: "steel" }, items, { ...controls, modelCommand: "" })).toThrow("途中");
-    expect(() => equipmentCommands({}, { accessory: "low" }, items, { ...controls, thinkingCommand: "" })).toThrow("途中");
+    expect(() => equipmentCommands({}, { weapon: "steel" }, items, { ...controls, modelCommand: "" })).toThrow("そうびを変えられるのは、しゅつじん・よびもどす時だけ。");
+    expect(() => equipmentCommands({}, { accessory: "low" }, items, { ...controls, thinkingCommand: "" })).toThrow("そうびを変えられるのは、しゅつじん・よびもどす時だけ。");
   });
   it("names the equipped model and effort, and nothing it cannot know", () => {
     const items = { weapons: [{ id: "legend", name: "でんせつの つるぎ", model: "opus" }], accessories: [{ id: "high", name: "はちまき", value: "high" }] };

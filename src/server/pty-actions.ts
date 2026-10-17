@@ -8,7 +8,7 @@ import { AGENTS } from "./agents";
 export function parseSessionAction(input: unknown): SessionAction {
   const action = input && typeof input === "object" && !Array.isArray(input)
     ? (input as Record<string, unknown>).action : undefined;
-  if (action !== "interrupt" && action !== "compact" && action !== "farewell") throw new Error(tr("勇者のコマンドが正しくありません", "Invalid hero command"));
+  if (action !== "interrupt" && action !== "compact" && action !== "farewell") throw new Error(tr("勇者のコマンドが 正しくない。", "Invalid hero command"));
   return action;
 }
 

@@ -43,12 +43,12 @@ export function fixRequest(lines: FixLine[], context: { mode: ReviewMode; base?:
   const en = language === "en";
   const compared = context.mode === "branch"
     ? en ? `whole branch against ${context.base ?? "its base"}` : `${context.base ?? "比べる元"} との ブランチ全体`
-    : en ? "uncommitted changes" : "まだ コミットしていない へんこう";
+    : en ? "uncommitted changes" : "未コミットの変更";
   const places = [...lines].sort((a, b) => a.path.localeCompare(b.path) || a.line - b.line)
     .map((line) => `- ${line.path}:${line.line}  ${line.text.trim()}`);
   return [
-    en ? `Please fix these places (reviewed ${compared}, HEAD ${context.head || "unknown"}):` : `ここを なおして（${compared}を 鑑定。HEAD ${context.head || "ふめい"}）：`,
+    en ? `Please fix these places (reviewed ${compared}, HEAD ${context.head || "unknown"}):` : `次の箇所を修正してください（${compared}を鑑定。HEAD ${context.head || "不明"}）：`,
     ...places,
-    en ? "What to change:" : "なおしてほしい こと：",
+    en ? "What to change:" : "修正する内容：",
   ].join("\n");
 }

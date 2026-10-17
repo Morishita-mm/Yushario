@@ -14,9 +14,9 @@ describe("English narration", () => {
     [e({ hook: "Notification", state: "idle" }), "Hero 1 awaits the next quest."],
     [e({ hook: "PermissionRequest", tool: "Bash" }), "Hero 1 asks permission for Bash!"],
     [e({ hook: "PreCompact" }), "Hero 1 is praying at the church."],
-    [e({ hook: "PostCompact" }), "Hero 1 rested!"],
-    [e({ hook: "PostCompact", detail: "Compaction failed" }), "Hero 1 couldn't rest. Back to town."],
-    [e({ hook: "PostCompact", detail: "Compaction cancelled" }), "Hero 1 couldn't rest. Back to town."],
+    [e({ hook: "PostCompact" }), "Hero 1 summarized the conversation!"],
+    [e({ hook: "PostCompact", detail: "Compaction failed" }), "Hero 1 couldn't summarize the conversation. Back to town."],
+    [e({ hook: "PostCompact", detail: "Compaction cancelled" }), "Hero 1 couldn't summarize the conversation. Back to town."],
     [e({ hook: "Stop" }), "Hero 1 takes a break in town."],
     [e({ hook: "StopFailure" }), "Hero 1 ran out of strength…"],
     [e({ hook: "TaskCreated", task: { id: "1", subject: "Write tests", status: "pending" } }), 'Quest accepted: "Write tests"!'],
@@ -45,8 +45,8 @@ describe("English narration", () => {
   it("keeps names and user data intact, and only announces actual MP recovery", () => {
     expect(narrate(e({ hook: "SessionStart", name: "アルス" }), undefined, "en")).toBe("アルス arrived in town!");
     expect(narrate({ state: "idle", hook: "SessionStart" }, undefined, "en")).toBe("Hero arrived in town!");
-    expect(narrate(e({ hook: "PostCompact", context: 0.3 }), 0.8, "en")).toBe("Hero 1 rested! MP restored!");
-    expect(narrate(e({ hook: "PostCompact", context: 0.8 }), 0.3, "en")).toBe("Hero 1 rested!");
+    expect(narrate(e({ hook: "PostCompact", context: 0.3 }), 0.8, "en")).toBe("Hero 1 summarized the conversation! MP restored!");
+    expect(narrate(e({ hook: "PostCompact", context: 0.8 }), 0.3, "en")).toBe("Hero 1 summarized the conversation!");
     expect(narrate(e({ hook: "Notification" }), undefined, "en")).toBeUndefined();
     expect(jobName("mage", "en")).toBe("Mage");
     expect(jobName("hero", "ja")).toBe("ゆうしゃ");

@@ -26,7 +26,7 @@ export async function handleChecksRequest(request: IncomingMessage, response: Se
     if (request.method === "POST" && !parts[5]) {
       const body = await readJsonBody(request, response, ACTION_BODY_LIMIT);
       if (!body.ok) return true;
-      if (!validQuestCheck(body.value)) { json(400, { error: tr("名前と コマンドの形を かいて", "Write a name and command shape") }); return true; }
+      if (!validQuestCheck(body.value)) { json(400, { error: tr("名前と コマンドの形式を書こう。", "Enter a name and command format") }); return true; }
       quests.checks.add(quest.id, body.value); quests.checksChanged(); json(201, { checks: quests.checks.list(quest.id) }); return true;
     }
     if (request.method === "DELETE" && parts[5]) {

@@ -63,18 +63,18 @@ export function questCard(quest: QuestDetail, actions: QuestCardActions): HTMLEl
   }));
   box.append(head, track, nextMove(quest, stage, who, actions, status, edit), status, facts(quest, stage, actions));
 
-  const editing = foldable(quest.id, "edit", tr("依頼と目的を書きかえる", "Edit the request, purpose or state"));
+  const editing = foldable(quest.id, "edit", tr("依頼・目的・状態を変える", "Edit the request, purpose or state"));
   editing.append(edit.form);
-  if (actions.fold && quest.worktreePath) editing.append(button(tr("▶ 作業する場所を たたむ（worktree）", "▶ Fold the worktree"), () => {
-    if (!confirm(tr("作業する場所（worktree）を たたむ？ branch は のこる。", "Fold this worktree? Its branch stays."))) return;
+  if (actions.fold && quest.worktreePath) editing.append(button(tr("▶ 作業場所を たたむ（worktree）", "▶ Fold the worktree"), () => {
+    if (!confirm(tr("作業場所（worktree）を たたむ？ branch は残る。", "Fold this worktree? Its branch stays."))) return;
     void actions.fold!().catch((error: Error) => { status.textContent = error.message; });
   }));
-  const tools = foldable(quest.id, "tools", tr("合格条件を足す・プレビューをつなぐ", "Add acceptance checks · connect a preview"));
+  const tools = foldable(quest.id, "tools", tr("合格条件・プレビューの設定", "Acceptance checks and preview settings"));
   tools.append(questChecks(quest)); if (actions.preview) tools.append(actions.preview);
   // Who is on the quest is always visible; forming the party opens its own window.
   const team = element("section", "quest-team");
   team.append(element("h4", undefined, tr("パーティー", "Party")), questParty(quest, actions.party, () => actions.reload?.(), actions.tactic));
-  const history = foldable(quest.id, "events", tr(`これまでの出来事（${quest.events.length}）`, `Everything so far (${quest.events.length})`));
+  const history = foldable(quest.id, "events", tr(`これまでの出来事（${quest.events.length}）`, `Quest history (${quest.events.length})`));
   for (const event of quest.events) history.append(eventRow(event, actions.talk));
   box.append(team, editing, tools, history);
   return box;
@@ -159,12 +159,12 @@ function nextMove(quest: QuestDetail, stage: QuestStage, who: string, actions: Q
     if (quest.hero) row.append(button(tr("報告を受ける", "Read the report"), () => actions.talk(quest.hero!, latest?.at)));
     row.append(button(tr("採用する", "Adopt"), () => toggle(accept, retry, edit.reason)));
     edit.adoption.hidden = false;
-    accept.append(edit.adoption, element("p", "hint", tr("採用すると、いまの 担当の 最後の 返事を 採用の 記録に 残す（設定の「かいわも のこす」が 切れていても）。あとから この札で 読みかえせる。返事を 取れない時（会話を 残さず、返事の後に 再起動した時など）は 本文なしで 記録する。main への 取りこみは しない。",
-      "Adopting keeps the current owner's last reply with the adoption record, even when conversations are not kept, so you can read it on this card. When the reply cannot be found (conversations not kept and Yushario restarted after it, for example), it is recorded without text. Nothing is merged into main.")),
+    accept.append(edit.adoption, element("p", "hint", tr("採用すると、いまの担当の最後の返事を この札に残す。「かいわも のこす」がオフでも残る。返事を取得できない場合は 本文なしで記録する（会話保存オフで、返事の後に再起動した場合など）。main には取り込まない。",
+      "Adopting saves the current owner's last reply on this card, even with conversation saving off. If the reply is unavailable—for example, after restarting with conversation saving off—the record has no answer text. Nothing is merged into main.")),
       button(tr("▶ この版を 採用して 完了にする", "▶ Adopt this state and finish"), () => void edit.accept()));
     if (actions.send) {
       const text = element("textarea"); text.rows = 3; text.maxLength = 8000; text.setAttribute("aria-label", tr(`${who}への 新しい指示`, `New request for ${who}`));
-      text.placeholder = tr("例：エラー文が まだ かたい。もっと やさしく して。", "e.g. The error text is still stiff. Make it friendlier.");
+      text.placeholder = tr("例：エラー文を もっとやさしくして", "e.g. Make the error text friendlier");
       text.oninput = () => { box.dataset.dirty = "true"; };
       row.append(button(tr("やり直してもらう", "Ask for another try"), () => toggle(retry, accept, text)));
       retry.append(element("p", "hint", tr(`${who}への 新しい指示。送ると もう一度 作業する。`, `A new request for ${who}. Sending it starts another round.`)), text,
@@ -193,7 +193,7 @@ function facts(quest: QuestDetail, stage: QuestStage, actions: QuestCardActions)
   if (actions.tactic && actions.tactic.tactic !== "obey") add(tr("さくせん", "Tactic"), tacticProgress(actions.tactic));
   const owner = element("button", undefined, before ? `${actions.heroName(before)} → ${actions.heroName(quest.hero)}` : actions.heroName(quest.hero) || (finishedQuest(quest.state) ? tr("いまは いない（終わった クエスト）", "None now (finished quest)") : tr("まだ 誰にも任せていない", "Not assigned yet")));
   owner.type = "button"; owner.disabled = !quest.hero; owner.onclick = actions.focusHero;
-  add(tr("担当", "Hero"), owner);
+  add(tr("担当", "Owner"), owner);
   if (quest.worktreePath) add(tr("作業する場所", "Working folder"), iconLabel("branch", `${quest.worktreeBranch ?? "HEAD"} — ${quest.worktreePath}`));
   if (quest.purpose && stage !== "send") add(tr("目的", "Purpose"), quest.purpose);
   if (quest.checks?.length && stage !== "review") add(tr("合格条件", "Acceptance checks"), checkMarks(quest.checks, quest.fingerprint, true));
@@ -218,7 +218,7 @@ function editForm(quest: QuestDetail, actions: QuestCardActions, status: HTMLEle
   reason.maxLength = 500; reason.rows = 2; pr.type = "url"; pr.maxLength = 500; pr.placeholder = "https://";
   adoption.oninput = () => { adoption.dataset.dirty = "true"; };
   adoption.append(element("legend", undefined, tr("採用の 記録（main への 取りこみ では ない）", "Adoption record (not a merge into main)")));
-  for (const [text, input] of [[tr("理由（なくても よい）", "Reason (optional)"), reason], [tr("PR の URL（なくても よい）", "PR URL (optional)"), pr]] as const) {
+  for (const [text, input] of [[tr("理由（任意）", "Reason (optional)"), reason], [tr("PR の URL（任意）", "PR URL (optional)"), pr]] as const) {
     const label = element("label"); label.append(document.createTextNode(text), input); adoption.append(label);
   }
   const showAdoption = () => { if (form.contains(adoption)) adoption.hidden = state.value !== "done" || quest.state === "done"; };

@@ -10,7 +10,7 @@ import { projectIdentity } from "./project";
 import { AGENTS, type Preset } from "./agents";
 
 export class TerminalOnlyError extends Error {
-  constructor() { super(tr("ターミナルのみ。町での会話に 対応しないため ことばを 届けられない", "Terminal only. This CLI cannot receive town conversations")); }
+  constructor() { super(tr("ターミナルのみ。町での会話に 対応していないため、ことばは 届かない。", "Terminal only. This CLI cannot receive town conversations")); }
 }
 export function requirePartyConversation(preset: string): void {
   if (!AGENTS[preset as Preset]?.hero) throw new TerminalOnlyError();

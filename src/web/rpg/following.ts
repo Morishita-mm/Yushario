@@ -30,7 +30,7 @@ export class Following {
     if (!this.id) return;
     const hero = heroes.find((item) => item.id === this.id);
     if (!hero) {
-      this.say(tr(`${this.name}は たびだちました。ついていくのを やめました。`, `${this.name} set off. Following ended.`), now);
+      this.say(tr(`${this.name}は 旅立った。ついていくのをやめた。`, `${this.name} set off. Following ended.`), now);
       this.stop();
       return;
     }

@@ -11,7 +11,7 @@ async function request(path: string, method = "GET", body?: TownChange | Setting
     method, cache: "no-store",
     ...(body ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {}),
   });
-  if (!response.ok) throw new Error(tr(`町の台帳に つながりませんでした（${response.status}）`, `Could not reach the town ledger (${response.status})`));
+  if (!response.ok) throw new Error(tr(`町の台帳に つながらなかった（${response.status}）`, `Could not reach the town ledger (${response.status})`));
   return response;
 }
 

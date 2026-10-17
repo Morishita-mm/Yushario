@@ -62,7 +62,7 @@ describe("preview notices", () => {
     const page = previewNotice({ ...message, errors: Array(30).fill("x".repeat(1000)), count: 30, title: "t".repeat(300) }, "http://localhost:5173", "http://localhost:5173/", 18995)!;
     expect(page.errors).toHaveLength(20); expect(page.errors[0]).toHaveLength(500); expect(page.title).toHaveLength(200); expect(page.count).toBe(30);
     expect(previewDraft(page, "en")).toContain("Please check these preview errors.");
-    expect(previewDraft(page, "ja")).toContain("プレビューの エラーを たしかめて。");
+    expect(previewDraft(page, "ja")).toContain("プレビューのエラーを確認してください。");
     expect(previewDraft(page, "en")).toContain(page.url);
     expect(previewDraft(page, "en").length).toBeLessThanOrEqual(8000);
   });

@@ -88,7 +88,7 @@ export function statusCard(agent: RoomAgent, agentMoods: Mood[], permission: HTM
   }
   if (detailed) {
     const seconds = Math.max(0, Math.floor((now - agent.since) / 1000));
-    card.append(element("p", "hint", tr(`この行動を ${Math.floor(seconds / 60)}分 ${seconds % 60}秒 つづけている`, `${Math.floor(seconds / 60)}m ${seconds % 60}s in this action`)));
+    card.append(element("p", "hint", tr(`この行動を ${Math.floor(seconds / 60)}分 ${seconds % 60}秒 続けている`, `${Math.floor(seconds / 60)}m ${seconds % 60}s in this action`)));
   }
   if (!detailed && agent.terminal) {
     const actions = element("div", "actions");
@@ -130,7 +130,7 @@ export function statusCard(agent: RoomAgent, agentMoods: Mood[], permission: HTM
       if (task.status === "completed") row.setAttribute("aria-label", tr(`完了：${task.subject ?? task.id}`, `Completed: ${task.subject ?? task.id}`));
       list.append(row);
     }
-    if (!agent.tasks.length) list.append(element("li", undefined, tr("まだ クエストは ありません", "No quests yet")));
+    if (!agent.tasks.length) list.append(element("li", undefined, tr("まだ クエストはない。", "No quests yet")));
     card.append(element("p", "section", tr(`クエスト ${done}/${agent.tasks.length}${detailed ? " たっせい" : ""}`, `Quests ${done}/${agent.tasks.length}${detailed ? " complete" : ""}`)), list);
   }
   if (permission) card.append(permission);
@@ -140,7 +140,7 @@ export function statusCard(agent: RoomAgent, agentMoods: Mood[], permission: HTM
     const outcome = entry.outcome === "ok" ? " ○" : entry.outcome === "failed" ? " ×" : "";
     log.append(element("li", entry.outcome, `${time} ${DOING[entry.activity](entry.target ?? "")}${outcome}`));
   }
-  if (detailed && !agent.log.length) log.append(element("li", undefined, tr("まだ きろくは ありません", "No records yet")));
+  if (detailed && !agent.log.length) log.append(element("li", undefined, tr("まだ きろくはない。", "No records yet")));
   if (log.childElementCount) card.append(element("p", "section", detailed ? tr("さいきんの きろく", "Recent records") : tr("ぼうけんの きろく", "Adventure log")), log);
   return card;
 }

@@ -11,7 +11,7 @@ import { element } from "./status-card";
 export async function loadEquipment(): Promise<EquipmentMaster> {
   const token = new URLSearchParams(location.search).get("token") ?? "";
   const response = await fetch(`/api/equipment?${new URLSearchParams({ token })}`, { cache: "no-store" });
-  if (!response.ok) throw new Error(tr("そうびを よみこめませんでした", "Could not load equipment"));
+  if (!response.ok) throw new Error(tr("そうびを 読み込めなかった。", "Could not load equipment"));
   return response.json();
 }
 
@@ -57,7 +57,7 @@ export function initEquipment(hero: (id: string) => RoomAgent | undefined, name:
   function changed(session: Session): void {
     remember(session); pending.delete(session.id);
     const agent = terminalHero(session.id);
-    if (active?.terminal === session.id) active.hint.textContent = tr("もちかえました！", "Equipped!");
+    if (active?.terminal === session.id) active.hint.textContent = tr("もちかえた！", "Equipped!");
     const labels = describe(session.id).map((text) => text.slice(text.indexOf(tr("：", ":")) + 1).trim());
     say(tr(`${agent ? name(agent.id) ?? agent.name : townName(session.project)}は ${labels.join("と ")}を そうびした！`, `${agent ? name(agent.id) ?? agent.name : townName(session.project)} equipped ${labels.join(" and ")}!`));
   }
@@ -99,12 +99,12 @@ export function initEquipment(hero: (id: string) => RoomAgent | undefined, name:
               method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(next),
             }).then(async (response) => {
               const result = await response.json();
-              if (!response.ok) throw new Error(result.error ?? tr("もちかえられませんでした", "Could not equip"));
+              if (!response.ok) throw new Error(result.error ?? tr("もちかえられなかった。", "Could not equip"));
               close(); if (!result.delivered && pending.has(terminal!)) say(tr("さぎょうが おわったら もちかえる", "Will equip after battle"));
             }).catch((error: Error) => { if (!layer.hidden && layer.contains(box)) render(error.message); });
           }));
         }
-      } else hint.textContent = tr("そうびを よみこめませんでした。とじて もういちど おためしください。", "Could not load equipment. Close and try again.");
+      } else hint.textContent = tr("そうびを 読み込めなかった。一度とじて、もう一度ためそう。", "Could not load equipment. Close and try again.");
       list.append(button(tr("とじる", "Close"), close)); box.append(hint, list); place(layer, box, at, close);
     }
     function choices(key: "weapon" | "accessory"): void {

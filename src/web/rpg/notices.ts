@@ -15,7 +15,7 @@ export function initNotices(root: HTMLElement, pick: (notice: Notice) => void, c
     for (const permission of permissions.values()) {
       const hero = permission.agent ?? "default", agent = room.agents.get(hero);
       list.push({ kind: "permission", id: permission.id, at: permission.expiresAt, hero, repo: agent?.project ?? agent?.name ?? "",
-        text: tr(`${names.get(hero) ?? agent?.name ?? hero} が「${permission.summary}」の きょかを まっている`, `${names.get(hero) ?? agent?.name ?? hero} asks permission: ${permission.summary}`), ago: tr("きょかまち", "Permission") });
+        text: tr(`${names.get(hero) ?? agent?.name ?? hero} が「${permission.summary}」の きょかを まっている`, `${names.get(hero) ?? agent?.name ?? hero} asks permission: ${permission.summary}`), ago: tr("きょかまち", "Awaiting permission") });
     }
     for (const town of towns) if (!town.theme && town.heroes) {
       list.push({ kind: "new", repo: town.repo, text: tr("あたらしい町！ すがたを えらぼう", "New town! Choose its look"), ago: "" });
