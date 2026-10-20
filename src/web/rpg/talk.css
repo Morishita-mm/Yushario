@@ -65,7 +65,7 @@ dialog.talk-window::backdrop { background: rgba(0, 0, 0, 0.12); }
 .pending-text { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; }
 #talk-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 6px 12px; flex: none; }
 #talk-form label { grid-column: 1 / -1; color: #9fd3ff; font-size: 13px; }
-#talk-input { min-width: 0; width: 100%; max-height: 16svh; }
+#talk-input { min-width: 0; width: 100%; box-sizing: border-box; max-height: 32svh; resize: none; overflow-y: auto; }
 #talk-status { margin: 4px 0 0; min-height: 1.5em; color: #ffe7a3; overflow-wrap: anywhere; flex: none; }
 #talk-foreign { margin: 8px 0; flex: none; }
 .talk-window [hidden] { display: none !important; }

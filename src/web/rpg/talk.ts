@@ -65,6 +65,9 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
   function draftKey(): string | undefined { return selected && ("hero" in selected ? `hero:${selected.hero}` : `terminal:${selected.terminal}`); }
   function saveDraft(): void { const key = draftKey(); if (key) drafts.set(key, input.value); }
   input.addEventListener("input", saveDraft);
+  // The box grows with its text up to the CSS max-height, then scrolls.
+  function fit(): void { input.style.height = "auto"; input.style.height = `${input.scrollHeight + input.offsetHeight - input.clientHeight}px`; }
+  input.addEventListener("input", fit);
   function close(): void { saveDraft(); arrival.watch(); selected = undefined; dialog.close(); }
   dialog.addEventListener("cancel", (event) => { event.preventDefault(); close(); });
   dialog.addEventListener("keydown", (event) => {
@@ -147,7 +150,7 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
         const key = draftKey()!, draft = drafts.get(key); drafts.delete(key);
         selected = { hero: agent.id };
         input.value = draft ?? drafts.get(draftKey()!) ?? input.value;
-        drafts.set(draftKey()!, input.value); arrival.watch();
+        drafts.set(draftKey()!, input.value); arrival.watch(); fit();
       }
       else {
         foreign.hidden = true; send.disabled = sending.has(selected.terminal);
@@ -247,7 +250,7 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
       const result = await response.json() as { delivered: boolean };
       if (key && drafts.get(key) === text) drafts.delete(key);
       if (terminalId() !== id || !dialog.open) return;
-      if (input.value === text) { input.value = ""; saveDraft(); }
+      if (input.value === text) { input.value = ""; saveDraft(); fit(); }
       status.textContent = result.delivered ? tr("つたえた！ へんじを まっている…", "Sent! Awaiting a reply…") : tr("あずかった！", "Held!"); input.focus();
     }).catch((error: unknown) => {
       if (terminalId() === id && dialog.open) status.textContent = error instanceof Error ? error.message : String(error);
@@ -265,13 +268,14 @@ export function initTalk(hero: (id: string) => RoomAgent | undefined, name: (id:
     if (waitingKey) { drafts.delete(waitingKey); drafts.set(key, input.value); }
     status.textContent = ""; history.replaceChildren(); latest = undefined; next.hidden = true;
     position(); if (!dialog.open) dialog.showModal();
+    fit();
     update(); renderPending(terminalId());
     if (claude || selected && "terminal" in selected) terminal.focus();
     else if (terminalId() && at === undefined) input.focus(); else history.focus({ preventScroll: true });
   }
   return { draft: (session: string, text: string) => {
       const agent = arrivingHero(session); openConversation(agent ? { hero: agent.id } : { terminal: session });
-      input.value = [input.value, text].filter(Boolean).join("\n\n").slice(0, 8000); saveDraft(); input.focus();
+      input.value = [input.value, text].filter(Boolean).join("\n\n").slice(0, 8000); saveDraft(); fit(); input.focus();
     }, open: (id: string, at?: number) => openConversation({ hero: id }, at),
     openSession: (id: string, recall = false, preset?: string) => openConversation({ terminal: id }, undefined, !recall && preset === "claude"),
     attention: (id: string) => { arrival.attention(id, true); update(); },
