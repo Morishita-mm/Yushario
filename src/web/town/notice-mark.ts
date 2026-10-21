@@ -34,10 +34,10 @@ export class NoticeMark {
 
 // Only the sprite's drawing y changes; party, labels, paths and hitboxes stay put.
 export function drawNoticeHero(ctx: CanvasRenderingContext2D, art: Sheets, sheet: string, pose: string,
-  x: number, y: number, mark?: NoticeMarkFrame, flip = false): void {
+  x: number, y: number, mark?: NoticeMarkFrame, flip = false, scale = 1): void {
   const drawnY = y - (mark?.jump ?? 0);
-  art.draw(ctx, sheet, pose, x, drawnY, flip);
-  if (mark) mark.head = { x, y: art.spriteTop(sheet, pose, drawnY) };
+  art.draw(ctx, sheet, pose, x, drawnY, flip, scale);
+  if (mark) mark.head = { x, y: art.spriteTop(sheet, pose, drawnY, scale) };
 }
 
 // Draw last, so reports/weather cannot hide the notice arrow. No sprite, no arrow.

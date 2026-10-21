@@ -18,6 +18,11 @@ export function placeTitle(ctx: CanvasRenderingContext2D, place: string, x: numb
   plate(ctx, town ? [[town, "#ffe066", 20], [place, "#fff7d6", 12]] : [[place, "#fff7d6", 16]], x, y);
 }
 
+// "N more heroes are not shown": one plate, same corner in every town room and field.
+export function overflowPlate(ctx: CanvasRenderingContext2D, count: number, width: number): void {
+  if (count > 0) plate(ctx, [[tr(`ほか ${count}人`, `${count} more`), "#ffe066", 20]], width - 72, 8);
+}
+
 export function label(ctx: CanvasRenderingContext2D, value: string, x: number, y: number, color = "#ffffff", size = 10, mark?: IconName): void {
   ctx.font = `${size}px "DotGothic16", monospace`;
   ctx.textAlign = "center";
@@ -150,5 +155,5 @@ export function drawField(ctx: CanvasRenderingContext2D, art: Sheets, theme: The
   }
   const place = theme === "meadow" ? tr("そうげん", "MEADOW") : theme === "cave" ? tr("どうくつ", "CAVE") : tr("よるのもり", "NIGHT FOREST");
   placeTitle(ctx, place, FIELD_W / 2, 8, town);
-  if (overflow) label(ctx, tr(`ほか ${overflow}人`, `${overflow} more`), FIELD_W / 2, FIELD_H - 18, "#ffe066", 14);
+  overflowPlate(ctx, overflow, FIELD_W);
 }

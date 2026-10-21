@@ -22,6 +22,10 @@ export function questForRecall(quests: Quest[], bindings: QuestBinding[], hero: 
   return linked ? quests.find((quest) => quest.id === linked.quest)
     : [...quests].filter((quest) => quest.hero === hero && quest.town === town).sort((a, b) => b.updatedAt - a.updatedAt)[0];
 }
+// Pinned papers mean not started, not every unfinished quest. Compare town keys, never labels.
+export function hasUnstartedQuest(quests: readonly Pick<Quest, "town" | "state">[], town: string | undefined): boolean {
+  return town !== undefined && quests.some((quest) => quest.town === town && quest.state === "open");
+}
 export const finishedQuest = (state: QuestState): boolean => state === "done" || state === "dropped";
 // A teammate's activity/report cannot answer another session's question.
 export function questStateForParty(state: QuestState, waiting: Iterable<boolean>): QuestState {

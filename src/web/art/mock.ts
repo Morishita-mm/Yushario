@@ -52,6 +52,13 @@ document.querySelector("#mock-add-quest")!.addEventListener("click", () => {
   document.querySelector<HTMLButtonElement>("#quests .quest-new")?.click();
 });
 const activities: Record<string, Partial<AgentEvent>> = {
+  think: { state: "thinking", hook: "UserPromptSubmit" },
+  git: { state: "working", hook: "PreToolUse", tool: "Bash", target: "git status" },
+  web: { state: "working", hook: "PreToolUse", tool: "WebSearch" },
+  read: { state: "working", hook: "PreToolUse", tool: "Read", target: "README.md" },
+  search: { state: "working", hook: "PreToolUse", tool: "Grep", target: "TODO" },
+  tool: { state: "working", hook: "PreToolUse", tool: "mcp__demo__inspect" },
+  plan: { state: "working", hook: "PreToolUse", tool: "TaskUpdate" },
   idle: { state: "idle", hook: "Stop" }, edit: { state: "working", hook: "PreToolUse", tool: "Edit", target: "settings.ts" },
   test: { state: "working", hook: "PreToolUse", tool: "Bash", target: "npm test" },
   run: { state: "working", hook: "PreToolUse", tool: "Bash", target: "npm run build" },

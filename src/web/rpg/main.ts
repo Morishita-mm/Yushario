@@ -79,6 +79,7 @@ const quests = initQuests(() => scene.currentTown, () => scene.projects, (id) =>
   }, equipment.briefGear);
 talk.setQuestControls(quests.current, quests.choose, quests.reportTitle);
 scene.openQuests = () => sideTabs.show("quests");
+scene.hasUnstartedQuest = quests.hasUnstarted;
 const status = new Status(
   document.querySelector<HTMLElement>("#party")!,
   (id, decision) => {

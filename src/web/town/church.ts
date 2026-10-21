@@ -1,5 +1,5 @@
 import { tr } from "../language";
-import { label, placeTitle } from "./field";
+import { label, overflowPlate, placeTitle } from "./field";
 import type { Sheets } from "./sheets";
 import { weaponBesideLabel } from "./weapon";
 import { TOWN_H, TOWN_W } from "./town";
@@ -31,5 +31,5 @@ export function drawChurch(ctx: CanvasRenderingContext2D, art: Sheets, t: number
     weaponBesideLabel(ctx, art, prayer.weaponTier, t, prayer.name, x + lx, y + ly);
   });
   placeTitle(ctx, tr("きょうかい（なか）", "CHURCH"), TOWN_W / 2, 8, town);
-  if (prayers.length > room.slots.length) label(ctx, tr(`ほか ${prayers.length - room.slots.length}人`, `${prayers.length - room.slots.length} more`), 680, 490, "#ffe066", 14);
+  overflowPlate(ctx, prayers.length - room.slots.length, TOWN_W);
 }

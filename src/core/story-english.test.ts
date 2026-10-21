@@ -30,7 +30,7 @@ describe("English narration", () => {
     [e({ hook: "PreToolUse", tool: "Bash", target: "git status" }), 'Hero 1 records the journey. "git status"'],
     [e({ hook: "PreToolUse", tool: "Agent" }), "Hero 1 gathers the party!"],
     [e({ hook: "PreToolUse", tool: "AskUserQuestion" }), "Hero 1 has a question for you."],
-    [e({ hook: "PreToolUse", tool: "Custom" }), "Hero 1 uses a tool. (Custom)"],
+    [e({ hook: "PreToolUse", tool: "Custom" }), "Hero 1 uses a tool in the item shop. (Custom)"],
     [e({ hook: "PostToolUse", tool: "Edit", target: "room.ts", ts: 0 }), '3 damage to "room.ts"!'],
     [e({ hook: "PostToolUse", tool: "Bash", target: "npm test" }), "Trial complete! Golem defeated!"],
     [e({ hook: "PostToolUse", tool: "Bash", target: "pwd" }), "The spell struck true!"],

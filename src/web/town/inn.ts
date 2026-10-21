@@ -1,5 +1,5 @@
 import { tr } from "../language";
-import { label, placeTitle } from "./field";
+import { label, overflowPlate, placeTitle } from "./field";
 import type { Sheets } from "./sheets";
 import { heroVariant } from "./appearance";
 import { weaponBesideLabel } from "./weapon";
@@ -23,5 +23,5 @@ export function drawInn(ctx: CanvasRenderingContext2D, art: Sheets, t: number, s
     weaponBesideLabel(ctx, art, sleeper.weaponTier, t, sleeper.name, x + lx, y + ly);
   });
   placeTitle(ctx, tr("やどや（なか）", "INN"), TOWN_W / 2, 8, town);
-  if (sleepers.length > room.slots.length) label(ctx, tr(`ほか ${sleepers.length - room.slots.length}人`, `${sleepers.length - room.slots.length} more`), TOWN_W / 2, 430, "#ffe066", 14);
+  overflowPlate(ctx, sleepers.length - room.slots.length, TOWN_W);
 }

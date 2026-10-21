@@ -69,14 +69,14 @@ Yushario と勇者は同じ OS 利用者で動く。悪意ある同一利用者�
 | `src/core/markdown.ts`, `markdown-inline.ts`, `markdown-preview.ts` | 勇者の返事の限定マークダウン解釈、安全なリンクの判定、見える文字数とブロック単位のプレビュー | core の型・関数のみ |
 | `src/core/story.ts` | 語り、Lv・HP・MP、仲間の職業、活動ごとのモンスター | events, activity, room |
 | `src/core/battle-presentation.ts`, `equipment.ts`, `walking.ts`, `notification-sound.ts`, `notice-mark.ts` | 戦闘の数値・装備の型と検査・歩行・通知音の対象・でんれいの目印の純粋計算 | core の型・関数のみ |
-| `src/core/town.ts` | Room をプロジェクト別の町・安定した表示名・勇者の居場所へ変換 | room, story |
+| `src/core/town.ts`, `town-station.ts` | Room を町・安定した表示名・居場所へ変換。think/git/web の屋外停止点と read/search→library・tool→shop、共通の8秒猶予・図書館の姿勢、屋外3〜4枠と中立の散歩先 | room, story, activity, walking の型 |
 | `src/core/town-ledger.ts` | 町の鍵・表示名・設定の型、町の登録・活動更新・自動でしまう判定 | なし |
 | `src/core/checks.ts` | ためすこと・拠点つき証拠と指紋の型、保存拠点／書き換える役の選択、単純コマンド1つの照合と拠点での実行の確認、不明な試行、最新の証拠と今の指紋による5つの印、package.json の候補 | events, activity |
 | `src/core/decisions.ts` | 鑑定の判断（OK／要修正。記録だけ）と うけとった記録の型と検査（PR は https だけ）、選んだ差分の行からの修正依頼の下書き | checks, review-base |
 | `src/core/quest-stage.ts` | 保存した状態と担当から、人の流れの段階（任せる・指示を送る・作業中・返事待ち・報告を見る・おわり）、誰の番か、何回目か、前の担当を読む | quests |
 | `src/core/tactics.ts` | パーティーの作戦（命令に従え・レビューし合え・調べてから・全部任せた）の編成の合否と作戦の中・外、レビューの判定の読み取り、作戦が送る文 | party |
 | `src/core/hero-search.ts` | ゆうしゃタブの絞り込み（町の札・言葉・状態）と状態ごとの数。町の中とワールドマップで共通 | activity |
-| `src/core/quests.ts` | 永続クエスト・出来事・結び付きの型、セッションごとの判断待ちを優先する状態の判定、依頼の題と保存する本文の選択、一覧の順 | events, session-actions, turns, town-ledger |
+| `src/core/quests.ts` | 永続クエスト・出来事・結び付きの型、セッションごとの判断待ちを優先する状態の判定、依頼の題と保存する本文の選択、一覧の順、町の未着手クエストの有無（掲示板の貼り紙） | events, session-actions, turns, town-ledger |
 | `src/core/party.ts`, `party-scroll.ts` | 役割・合言葉の形式・権限の純粋な判定、紹介文と台帳の事実だけの巻物 | core の型・関数のみ |
 | `src/core/names.ts`, `roster.ts` | 名前・めいぼの型と入力の判定、件数制限 | core の型・関数のみ |
 | `src/core/session-actions.ts` | イベントによる待機・停止要求の確認判定、古い SessionEnd の拒否、フォルダ信頼確認の検出 | events |
@@ -117,7 +117,7 @@ Yushario と勇者は同じ OS 利用者で動く。悪意ある同一利用者�
 | `src/web/town/quest-list.ts`, `quest-card.ts`, `quest-board.ts` | 本体・モック共通のクエスト一覧・札・掲示板の入口。一覧は「あなたの番／勇者が作業中／おわった」に分け、札は6段階の帯と「次にやること」を上に出す。編集・追加・パーティー・全出来事は開いた状態を保つ折り畳みにする（段階22）。一覧更新は操作中の新規／クエストID／条件ID／町の折り畳みへフォーカスを戻し、削除時だけ隣接項目へ移す | core の型・関数, DOM, art data |
 | `src/web/rpg/preview.ts`, `src/web/town/quest-preview.ts`, `preview-controls.ts`, `preview-tabs.ts`, `preview.css` | 本体・モック共通のプレビュー区画、名前付きの別タブ、エラーの一覧と会話への下書き。町のプレビューとエラーの窓は見出しで名前を付ける | core, DOM, HTTP |
 | `public/preview-link.js` | opener があるページだけ、URL・題・先頭20件（各500文字）のエラーを配信元 origin へ postMessage | ブラウザ標準 API のみ |
-| `src/web/town/*` | データを引数で受け取る共有描画。ワールド・5種の町・宿屋・フィールド・戦闘、絵の読み込みと歩行。地図のラベルは描画時だけ160px以内で省略し、コマンドは親と窓自身のサイズ変更時に範囲内へ置き直す | core の型, DOM/Canvas, public/art |
+| `src/web/town/*` | データを引数で受け取る共有描画。ワールド・5種の町・宿屋・教会・図書館・道具屋・フィールド・戦闘、絵の読み込みと歩行。地図のラベルは描画時だけ160px以内で省略し、コマンドは親と窓自身のサイズ変更時に範囲内へ置き直す | core の型, DOM/Canvas, public/art |
 | `src/web/town/battle.ts` | 本体・モック共通の戦闘フォーカス。上の小窓の名前を内幅（武器の分を除く）で末尾省略 | core の型, DOM/Canvas, art data |
 | `src/web/rpg/app.html`, `app-layout.ts` | 本番・開発モックで共通のアプリHTMLとマップ／サイドバーの高さ計算。ViteがHTMLへ差し込み、共通mainが起動する | DOM, Vite の HTML 変換 |
 | `src/web/art/*` | `/art.html` のギャラリーと `/mock.html` の架空データ。`mock.ts` は既存HTTP／WS契約のブラウザ内応答を先に用意して、本番の `rpg/main.ts` をそのまま起動。`mock-state.ts`・`mock-quest-api.ts`・`mock-server.ts` に一時状態・既存API応答を分け、未知の操作は409。別の地図描画・サイドバー・クエスト操作実装を持たない。場面移動・勇者追加などの操作パネルは `mock-controls.html` と `mock.css` でアプリの外へ置く。実サーバー・PTY・外部AIは呼ばない | 既存 core の型、web の本番画面、ブラウザ標準API |
@@ -162,7 +162,7 @@ Codex の PostToolUse は成否不明として扱い、成功数・報告のテ�
 - `Room.apply(event, at)` がイベントから `RoomAgent` を更新し、`moods(agent, now)` が様子を求める。
 - `recordTurn(turns, event, at)` 等が会話と報告を集計する。
 - `stats(agent, now)`、`narrate(event)`、`battleMonster(activity)` が RPG の見せ方を求める。
-- `townView(room, now, previousNames)` が町・勇者と安定した表示名を返す。
+- `townView(room, now, previousNames)` が町・勇者と安定した表示名を返す。`townStation` / `stationActivity` は活動中の行き先と最後の対応活動から8秒の保持を共通に求める。library/shop の勇者を町のwalkerから外し、`HeroTravel` は直前の居場所だけを覚えて対応入口から復帰させる。
 - `registerTown` / `activateTown` / `archiveTowns` は入力の町一覧と時刻から新しい一覧を返す。`townKey` は内部の鍵、`townLabel` / `townNameForKey` は表示名を返し、未解決の鍵も実パスを見出しにしない。
 - `checkBasePath` は保存拠点を優先し、無い時だけ同じ町の生存中の書き換える役を選ぶ。`commandMatchesCheck` / `certainCheckCommand` は単純コマンド1つに限って成否を使い、`&&` の列も不明にする。`ranAtBase` はフックのフォルダ名が拠点と違う実行を不明にする。引用の中の別コマンド・コメント・別名のscriptを拾わない。`evidenceChecks` が複雑な構文内に見つけた試行は成否不明（`CheckEvidence.passed` なし）とし、走ったとは推測しない。`latestCheckEvidence` / `checkMark` は最新の証拠と今の指紋から `unrun`・`passed`・`failed`・`stale`・`unknown` を決め、指紋不明・拠点不明・別拠点を合格にしない。
 - `staleSessionEnd(event, at, latestAt)` は終了より新しい知らせの有無を判断し、Room・画面入口・台帳の破棄前に共有する。`rememberPermissionSound` は許可音の既知IDを最近256件に保つ。
@@ -215,6 +215,7 @@ Codex の PostToolUse は成否不明として扱い、成功数・報告のテ�
 町の端末窓と `/terminal.html` は `src/web/terminal.ts` の接続部品を共有する。
 戦闘の `Focus.status[].name` は完全な名前を渡し、`drawFocus` の描画時だけ省略する。HTTP／WS の API 形式は変えない。
 画面専用の選択・開閉・下書きは各画面の中に置き、汎用ストアやイベントバスは作らない。
+図書館・道具屋は `town/library.ts` / `shop.ts` の小さな共有描画。`bg-library.library` / `bg-shop.shop` の枠・当たり判定・報告位置・NPC・出口を描画とクリックで共用し、図書館だけ読む／探すの枠を分ける。背景内の家具は描き直さず、NPC→勇者→名札・装備・報告の順に重ねる。`Sheets.variant` は既存の `hero-model.recolor` を継承する。室内の人物は部屋ごとの定数（図書館1.5・道具屋1.7）で拡大して描き、当たり判定・報告位置・通知の矢印も同じ倍率に合わせる。店主・司書のクリック会話は神父と同じ `localHotspots` の1つの経路（`talk`）で処理する。超過人数の札は `town/field.ts` の `overflowPlate` を全室・全フィールドで共有する。新しいAPI・汎用室内エンジンは設けない。
 
 `rpg/main.ts` の `scene`・起動完了 `started` と、既存の移動処理 `Scene.go` をモックの外側パネルから使用する。場面ボタンをアプリ本体へ入れたり、テスト用イベントバス・描画層・汎用DIを挟んだりしない。HTMLの変更はViteの共通差し込みで3入口へ反映し、開発時は共通HTMLの変更でページを再読み込みする。
 

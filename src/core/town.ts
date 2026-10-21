@@ -1,12 +1,15 @@
 import { moods, type Room, type RoomAgent } from "./room";
+import { stationActivity, townStation, type PropStation } from "./town-station";
 import { battleMonster, jobOf, type Job, type MonsterKind } from "./story";
 
-export type HeroPlace = "town" | "inn" | "church" | "meadow" | "cave" | "forest";
+export type HeroPlace = "town" | "inn" | "church" | "library" | "shop" | "meadow" | "cave" | "forest";
 export type TownHero = {
   id: string;
   name: string;
   project: string; // Town key, not a display name.
   place: HeroPlace;
+  station?: PropStation;
+  librarySearch?: boolean;
   monster?: MonsterKind;
   party: Job[];
   agent: RoomAgent;
@@ -36,12 +39,15 @@ export function townView(room: Room, now: number, previous: TownNames = []): {
       town = { name: project, heroes: [] };
       projects.set(project, town);
     }
-    const monster = battleMonster(agent.activity);
+    const monster = battleMonster(agent.activity), station = townStation(agent, now);
     const place: HeroPlace = monster
       ? monster === "golem" ? "cave" : monster === "ghost" ? "forest" : "meadow"
-      : agent.activity === "rest" ? "church" : moods(agent, now).includes("dozing") ? "inn" : "town";
+      : agent.activity === "rest" ? "church" : moods(agent, now).includes("dozing") ? "inn"
+        : station === "library" || station === "shop" ? station : "town";
     town.heroes.push({
       id: agent.id, name: assigned.name, project, place,
+      station: place === "town" && station !== "library" && station !== "shop" ? station : undefined,
+      librarySearch: place === "library" && stationActivity(agent, now) === "search",
       ...(monster ? { monster } : {}),
       party: agent.helpers.map((helper) => jobOf(helper.type)), agent,
     });

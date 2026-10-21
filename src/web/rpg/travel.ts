@@ -1,15 +1,16 @@
 import type { TownTheme } from "../town/themes";
 import type { Sheets } from "../town/sheets";
-import type { TownHero } from "../../core/town";
+import type { HeroPlace, TownHero } from "../../core/town";
 import type { EquipmentTiers } from "../../core/battle-presentation";
 import { heroVariant } from "../town/appearance";
-import { changeWalkerTheme, leave, makeWalker, returnWalker, stepWalkers, type Walker } from "../town/walkers";
+import { changeWalkerTheme, leave, makeWalker, returnWalker, setWalkerStation, stepWalkers, type Walker } from "../town/walkers";
 
 // Only drawing state survives SessionEnd, until the shared gate/wave animation ends.
 export class HeroTravel {
   walkers: Walker[] = [];
   private departing: { project: string; terminal?: string; walker: Walker }[] = [];
   private arriving = new Set<string>();
+  private previousPlaces = new Map<string, HeroPlace>();
 
   constructor(private readonly art: Sheets, private readonly theme: (project: string) => TownTheme | undefined) {}
 
@@ -32,12 +33,17 @@ export class HeroTravel {
       if (!walker) {
         walker = makeWalker(this.art, hero.id, hero.name, heroVariant(hero.id), this.walkers.length, theme);
         this.walkers.push(walker);
+        const from = this.previousPlaces.get(hero.id);
+        if (from === "library" || from === "shop") returnWalker(this.art, walker, from);
       }
       if (hero.agent.terminal && this.arriving.delete(hero.agent.terminal)) returnWalker(this.art, walker);
+      setWalkerStation(this.art, walker, hero.station,
+        this.walkers.filter((item) => strolling.some((h) => h.id === item.id && h.project === hero.project)));
       walker.name = hero.name; walker.branch = hero.agent.branch;
       walker.party = hero.party.map((job) => `party-${job}`);
       if (gear) walker.weaponTier = gear(hero.agent.terminal).weaponTier;
     }
+    this.previousPlaces = new Map(heroes.map((hero) => [hero.id, hero.place]));
   }
 
   prepare(hero: TownHero): () => void {
@@ -45,6 +51,7 @@ export class HeroTravel {
     const current = this.walkers.find((item) => item.id === hero.id);
     const walker = current ? { ...current, path: [...current.path], party: [...current.party] }
       : makeWalker(this.art, hero.id, hero.name, heroVariant(hero.id), 0, this.theme(hero.project));
+    if (!current && (hero.place === "library" || hero.place === "shop")) returnWalker(this.art, walker, hero.place);
     return () => {
       if (this.departing.some((item) => item.walker.id === hero.id)) return;
       walker.paused = false;

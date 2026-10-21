@@ -74,6 +74,9 @@ const activities = [
   ["ノア", "working", "PreToolUse", "Bash", "npm run build"],
   ["リナ", "working", "PreCompact", undefined, undefined],
   ["フィン", "idle", "SessionStart", undefined, undefined],
+  ["ソラ", "working", "PreToolUse", "Read", "README.md"],
+  ["アイリ", "working", "PreToolUse", "Grep", "TODO"],
+  ["トマ", "working", "PreToolUse", "mcp__demo__inspect", undefined],
 ] as const;
 for (const [name, state, hook, tool, target] of activities) {
   const session = addHero(name);

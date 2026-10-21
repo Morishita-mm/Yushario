@@ -527,9 +527,13 @@
       "frames": [
         "building"
       ],
-      "prompt": "A wooden watchtower seen from the front: four wooden legs with cross braces, a ladder in the middle, a small hut platform on top with a railing, a green pointed roof and a little red flag.",
+      "prompt": "A compact wooden lookout watchtower, front view: four sturdy wooden legs with cross braces on a small stone footing, a straight ladder up the middle, a small hut platform with railing, a green pointed shingled roof and a little red flag.",
       "sub": "建物",
-      "use": "Web 検索・取得の時に登る（フィールド側に置く案もあり）"
+      "use": "Web 検索・取得の時に登る（フィールド側に置く案もあり）",
+      "fit": {
+        "frame": 0,
+        "h": 96
+      }
     },
     {
       "id": "bld-questboard",
@@ -540,11 +544,16 @@
         40
       ],
       "frames": [
-        "board"
+        "board",
+        "board pending"
       ],
-      "prompt": "A wooden quest notice board on two posts with a small red shingled roof on top, empty (no papers pinned), seen from the front.",
+      "prompt": "A wooden quest notice board: two sturdy posts, a plank board, a small red shingled roof. Two frames with identical board, posts and roof: frame 1 empty (bare planks, a couple of nail heads); frame 2 with four cream parchment request notices pinned with small red wax seals, one overlapping, one tilted, one hanging off the corner, dotted lines instead of text.",
       "sub": "建物",
-      "use": "計画：タスクを依頼書として貼る"
+      "use": "計画：タスクを依頼書として貼る。board＝未着手のクエストなし、board pending＝あり",
+      "fit": {
+        "frame": 0,
+        "h": 66
+      }
     },
     {
       "id": "bld-shop",
@@ -772,6 +781,106 @@
       }
     },
     {
+      "id": "bg-library",
+      "group": "まち",
+      "sub": "図書館の中",
+      "name": "図書館の中（1枚絵）",
+      "use": "本棚・窓・司書の机・中央のじゅうたんを含む背景",
+      "kind": "backdrop",
+      "palette": "source",
+      "size": [960, 540],
+      "frames": ["backdrop"],
+      "prompt": "利用者提供の1672×941原本。奥と左右の本棚、右奥の司書の机、手前の入口を保ち、32色・960×540へ整理。再生成しない。",
+      "library": {
+        "slots": {"read": [[260, 300], [620, 300], [260, 415]], "search": [[170, 205], [250, 205], [615, 205]]},
+        "hit": [-24, -56, 48, 82],
+        "report": [34, -8],
+        "label": [0, 14],
+        "npc": {"x": 824, "y": 164, "w": 36, "h": 54},
+        "exit": {"x": 430, "y": 500, "w": 100, "h": 34}
+      }
+    },
+    {
+      "id": "bg-shop",
+      "group": "まち",
+      "sub": "道具屋の中",
+      "name": "道具屋の中（1枚絵）",
+      "use": "道具の棚・カウンター・樽・入口の青い敷物を含む背景",
+      "kind": "backdrop",
+      "palette": "source",
+      "size": [960, 540],
+      "frames": ["backdrop"],
+      "prompt": "利用者提供の1672×941原本。左奥のカウンター、道具の棚、手前の入口を保ち、32色・960×540へ整理。再生成しない。",
+      "shop": {
+        "slots": [[670, 218], [770, 218], [260, 290], [420, 290]],
+        "hit": [-24, -56, 48, 82],
+        "report": [34, -8],
+        "label": [0, 14],
+        "npc": {"x": 547, "y": 181, "w": 36, "h": 54},
+        "exit": {"x": 430, "y": 500, "w": 100, "h": 34}
+      }
+    },
+    {
+      "id": "hero-library-read",
+      "group": "キャラクター",
+      "sub": "勇者（マップ用）",
+      "name": "勇者 図書館で読む（3コマ）",
+      "use": "read：書見台の本を読む正面姿。台も絵の一部。服・マントは設定画の色替えを継承",
+      "size": [40, 54],
+      "frames": ["read 1", "turn page", "read 2"],
+      "sequences": {"read": ["read 1", "read 1", "turn page", "read 2", "read 2"]},
+      "fit": {"frame": 0, "like": "hero-model", "refFrame": 0, "dim": "h"},
+      "prompt": "利用者提供の緑背景3コマ。正面で書見台の本を読む、ページをめくる、うなずく。足元は台と靴の下中央。再生成しない。"
+    },
+    {
+      "id": "hero-library-search",
+      "group": "キャラクター",
+      "sub": "勇者（マップ用）",
+      "name": "勇者 図書館で探す（4コマ）",
+      "use": "search：本棚を探す背面姿。服・マントは設定画の色替えを継承",
+      "size": [40, 54],
+      "frames": ["scan left", "scan right", "reach up", "found book"],
+      "sequences": {"search": ["scan left", "scan right", "reach up", "found book", "found book"]},
+      "fit": {"frame": 2, "h": 54},
+      "prompt": "利用者提供の緑背景4コマ。背面で左・右を見て、手を伸ばし、本を取り出す。全コマの靴をそろえる。再生成しない。"
+    },
+    {
+      "id": "hero-shop-browse",
+      "group": "キャラクター",
+      "sub": "勇者（マップ用）",
+      "name": "勇者 道具屋で品定め（3コマ）",
+      "use": "tool：道具を使う背面姿。服・マントは設定画の色替えを継承",
+      "size": [40, 54],
+      "frames": ["look", "hold potion", "potion sparkle"],
+      "sequences": {"browse": ["look", "look", "hold potion", "potion sparkle", "hold potion"]},
+      "fit": {"frame": 0, "like": "hero-model", "refFrame": 1, "dim": "h"},
+      "prompt": "利用者提供の緑背景3コマ。背面で道具を眺め、赤い薬を持ち上げ、輝きを確かめる。再生成しない。"
+    },
+    {
+      "id": "npc-librarian",
+      "group": "まち",
+      "sub": "図書館の中",
+      "name": "司書（待機2コマ）",
+      "use": "図書館の右奥の机のそばで本を持つ司書",
+      "size": [32, 50],
+      "frames": ["idle", "blink"],
+      "sequences": {"idle": ["idle", "blink"]},
+      "fit": {"frame": 0, "h": 50},
+      "prompt": "利用者提供の緑背景2コマ。おだんご髪・丸眼鏡・青緑のローブの司書。待機とまばたき。再生成しない。"
+    },
+    {
+      "id": "npc-shopkeeper",
+      "group": "まち",
+      "sub": "道具屋の中",
+      "name": "道具屋の店主（待機2コマ）",
+      "use": "カウンターの横の床に立つ店主",
+      "size": [32, 50],
+      "frames": ["idle", "blink"],
+      "sequences": {"idle": ["idle", "blink"]},
+      "fit": {"frame": 0, "h": 50},
+      "prompt": "利用者提供の緑背景2コマ。口ひげ・鉢巻・青いエプロンの店主。待機とまばたき。再生成しない。"
+    },
+    {
       "id": "church-wall",
       "group": "まち",
       "name": "きょうかいの奥の壁（ステンドグラス）",
@@ -912,7 +1021,7 @@
         ]
       },
       "group": "まち",
-      "name": "ぼうけんのしょ（セーブクリスタル、光る4コマ）",
+      "name": "ぼうけんのしょ（台座の本、光る4コマ）",
       "size": [
         24,
         40
@@ -923,9 +1032,13 @@
         "glow 3",
         "glow 4"
       ],
-      "prompt": "A floating cyan save crystal (a tall diamond-shaped gem) hovering above a small stone pedestal, glowing. Four animation frames: the crystal bobs up and down by one pixel and its inner glint and the surrounding light sparkles rotate.",
+      "prompt": "A magic record book (adventure log) on a short round-topped grey stone pedestal: a large open book with cream pages and a deep blue cover; the pages glow soft cyan with a few cyan and white light motes floating up. Four animation frames: pedestal and book identical, only the glow pulses and the motes drift upward.",
       "sub": "広場・小物",
-      "use": "git（冒険の書に記録）の時に祈る"
+      "use": "git（冒険の書に記録）の時に祈る（id は旧クリスタルのまま）",
+      "fit": {
+        "frame": 0,
+        "h": 38
+      }
     },
     {
       "id": "obj-campfire",
@@ -949,9 +1062,13 @@
         "fire 3",
         "fire 4"
       ],
-      "prompt": "A small campfire on crossed logs surrounded by a ring of stones. Four animation frames of the flames flickering (orange, yellow, white core), with a few sparks.",
+      "prompt": "A small campfire for a fantasy town plaza: a ring of chunky grey-brown stones, two thick crossed logs, a flame (orange outer, yellow middle, white-yellow core) with a few tiny ember sparks. Four animation frames: the flame flickers (leaning left, tall upright, leaning right, short upright), sparks at different positions; stones and logs identical in all frames.",
       "sub": "広場・小物",
-      "use": "依頼を受けて考えている間に集まる"
+      "use": "依頼を受けて考えている間に集まる",
+      "fit": {
+        "frame": 0,
+        "h": 34
+      }
     },
     {
       "id": "obj-nature",
@@ -1945,6 +2062,10 @@
             850,
             218
           ],
+          "tower": [
+            935,
+            160
+          ],
           "houses": []
         },
         "innSleep": {
@@ -2620,6 +2741,8 @@
           92
         ],
         "spots": {
+          "library": {"x": 539, "y": 66, "w": 132, "h": 108},
+          "shop": {"x": 539, "y": 268, "w": 132, "h": 110},
           "inn": {
             "x": 293,
             "y": 266,
@@ -2685,6 +2808,10 @@
           "eastExit": [
             925,
             258
+          ],
+          "tower": [
+            925,
+            240
           ],
           "crystalTurn": [
             925,
@@ -2811,6 +2938,10 @@
           [
             "eastExit",
             "crystalTurn"
+          ],
+          [
+            "eastExit",
+            "tower"
           ],
           [
             "crystalTurn",
@@ -2980,6 +3111,10 @@
                   850,
                   218
                 ],
+                "tower": [
+                  935,
+                  160
+                ],
                 "houses": []
               },
               "entrances": {
@@ -3001,6 +3136,8 @@
                 ]
               },
               "spots": {
+                "library": {"x": 539, "y": 66, "w": 132, "h": 108},
+                "shop": {"x": 539, "y": 268, "w": 132, "h": 110},
                 "inn": {
                   "x": 293,
                   "y": 266,
@@ -3076,6 +3213,10 @@
                 "eastExit": [
                   925,
                   258
+                ],
+                "tower": [
+                  925,
+                  240
                 ],
                 "crystalTurn": [
                   925,
@@ -3186,6 +3327,10 @@
                 [
                   "eastExit",
                   "crystalTurn"
+                ],
+                [
+                  "eastExit",
+                  "tower"
                 ],
                 [
                   "crystalTurn",

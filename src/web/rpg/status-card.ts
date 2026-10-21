@@ -12,9 +12,9 @@ export const DOING: Record<Activity, (target: string) => string> = {
   read: (t) => tr(`としょかんで ${t || "まどうしょ"}を よんでいる`, `Reading ${t || "a spellbook"}`), search: () => tr("しょこを さがしまわっている", "Searching the archives"),
   edit: (t) => tr(`${t || "まもの"}と たたかっている`, `Battling ${t || "a monster"}`), test: (t) => tr(`しれんの ゴーレムと たたかっている ${t}`, `Battling the Golem ${t}`),
   run: (t) => tr(`じゅもん「${t || "？"}」を となえている`, `Casting "${t || "?"}"`), git: (t) => tr(`ぼうけんのしょに きろくしている ${t}`, `Recording the journey ${t}`),
-  web: (t) => tr(`ものみのとうで ${t || "とおく"}を みている`, `Surveying ${t || "the horizon"}`), plan: () => tr("クエストを ねっている", "Planning a quest"),
+  web: (t) => tr(`ものみのとうで ${t || "とおく"}を みている`, `Surveying ${t || "the horizon"}`), plan: () => tr("けいかくを ねっている", "Planning"),
   delegate: () => tr("なかまと ドラゴンに いどんでいる", "Battling the Dragon together"), ask: () => tr("あなたを よんでいる！", "Calling you!"),
-  tool: (t) => tr(`どうぐを つかっている ${t}`, `Using a tool ${t}`), rest: () => tr("きょうかいで いのりを ささげている", "Praying at the church"),
+  tool: (t) => tr(`どうぐやで どうぐを つかっている ${t}`, `Using a tool in the item shop ${t}`), rest: () => tr("きょうかいで いのりを ささげている", "Praying at the church"),
 };
 const MOODS: Record<Mood, [IconName, string]> = {
   waiting_long: ["hourglass", tr("まちくたびれている", "Waiting a while")], struggling: ["sweat", tr("くるしい たたかい", "Tough battle")], recovered: ["sparkle", tr("たちなおった", "Recovered")],

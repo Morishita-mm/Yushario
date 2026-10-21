@@ -5,6 +5,8 @@ import { heroVariant } from "../town/appearance";
 import { drawChurch } from "../town/church";
 import { drawField } from "../town/field";
 import { drawInn } from "../town/inn";
+import { drawLibrary } from "../town/library";
+import { drawShop } from "../town/shop";
 import type { NoticeMarkFrame } from "../town/notice-mark";
 import type { Sheets } from "../town/sheets";
 import { drawTown } from "../town/town";
@@ -21,7 +23,7 @@ export function drawWorldScene(ctx: CanvasRenderingContext2D, art: Sheets, time:
 
 type LocalScene = {
   place: HeroPlace; time: number; now: number; heroes: TownHero[]; theme: TownTheme;
-  name: string; walkers: Walker[]; notice?: NoticeMarkFrame;
+  name: string; walkers: Walker[]; notice?: NoticeMarkFrame; unstartedQuest?: boolean;
 };
 
 // Drawing data only; navigation, focus and agent state stay in Scene/Room.
@@ -30,10 +32,13 @@ export function drawLocalScene(ctx: CanvasRenderingContext2D, art: Sheets, scene
   const { place, time, now, heroes, theme, name, walkers, notice } = scene;
   if (place === "town") drawTown(ctx, art, time, {
     sleepers: heroes.filter((h) => h.place === "inn").length, prayers: heroes.filter((h) => h.place === "church").length,
-    theme, name, walkers, notice,
+    readers: heroes.filter((h) => h.place === "library").length, shoppers: heroes.filter((h) => h.place === "shop").length,
+    theme, name, walkers, notice, unstartedQuest: scene.unstartedQuest,
   });
   else if (place === "inn") drawInn(ctx, art, time, heroes.filter((h) => h.place === "inn").map((h) => ({ id: h.id, name: h.name, branch: h.agent.branch, ...gear(h.agent.terminal) })), notice, name);
   else if (place === "church") drawChurch(ctx, art, time, heroes.filter((h) => h.place === "church").map((h) => ({ id: h.id, name: h.name, branch: h.agent.branch, variant: heroVariant(h.id), ...gear(h.agent.terminal) })), notice, name);
+  else if (place === "library") drawLibrary(ctx, art, time, heroes.filter((h) => h.place === "library").map((h) => ({ id: h.id, name: h.name, branch: h.agent.branch, search: h.librarySearch, variant: heroVariant(h.id), ...gear(h.agent.terminal) })), notice, name);
+  else if (place === "shop") drawShop(ctx, art, time, heroes.filter((h) => h.place === "shop").map((h) => ({ id: h.id, name: h.name, branch: h.agent.branch, variant: heroVariant(h.id), ...gear(h.agent.terminal) })), notice, name);
   else drawField(ctx, art, place, time, fights(art, heroes.filter((h) => h.place === place), now, gear), undefined,
     Math.max(0, heroes.filter((h) => h.place === place).length - battleSlots(art, place).length), notice, name);
 }

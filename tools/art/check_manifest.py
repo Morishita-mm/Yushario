@@ -8,12 +8,13 @@ import re
 import struct
 import sys
 from pathlib import Path
+from check_interiors import check_interiors
 
 ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / "public" / "art"
 THEMES = {"village", "port", "snow", "desert", "volcano"}
 META = ("frameNames", "sequences", "recolor", "windows", "reach", "water", "bridge",
-        "town", "inn", "church", "regions", "field", "fieldLight")
+        "town", "inn", "church", "library", "shop", "regions", "field", "fieldLight")
 errors = []
 
 
@@ -148,7 +149,7 @@ def main():
                 check(entries[look["backdrop"][0]]["frame"] == [960, 540], f"{theme}: backdrop must be 960x540")
                 layout = look.get("layout", town)
                 nodes = layout["nodes"]
-                required = {"plazaW", "plazaE", "board", "shop", "well", "bridge", "fire", "crystal", "library", "homeE", "gate", "inn", "church"}
+                required = {"plazaW", "plazaE", "board", "shop", "well", "bridge", "fire", "crystal", "tower", "library", "homeE", "gate", "inn", "church"}
                 check(required <= nodes.keys(), f"{theme}: missing walking stop")
                 for key, point in nodes.items():
                     check(vector(point) and 16 <= point[0] <= 944 and 60 <= point[1] <= 480, f"{theme}.{key}: unsafe walking position")
@@ -167,7 +168,7 @@ def main():
                 check(layout["buildings"]["houses"] == [], f"{theme}: houses already in backdrop")
                 for key in ("inn", "church"):
                     box(layout["spots"][key], f"{theme}.spots.{key}")
-                for point in [layout["buildings"]["board"], layout["crystal"], layout["fire"], *layout["innSleep"].values()]:
+                for point in [layout["buildings"]["board"], layout["buildings"]["tower"], layout["crystal"], layout["fire"], *layout["innSleep"].values()]:
                     check(vector(point), f"{theme}: invalid placement")
             for key, p in town["buildings"].items():
                 if key != "houses" or p:
@@ -188,7 +189,7 @@ def main():
                 points([p], f"town.nodes.{key}")
             check(all(a[0] == b[0] or a[1] == b[1] for a, b in zip(river["points"], river["points"][1:])), "town: river must be orthogonal")
             check(all(town["plaza"][k] % 16 == 0 for k in ("x", "y", "w", "h")), "town: plaza must follow grid")
-            for key in ("plazaW", "plazaE", "board", "shop", "well", "bridge", "fire", "crystal", "library", "homeE", "gate"):
+            for key in ("plazaW", "plazaE", "board", "shop", "well", "bridge", "fire", "crystal", "tower", "library", "homeE", "gate"):
                 check(key in town["nodes"], f"town: required node {key} missing")
             check(all(a in town["nodes"] and b in town["nodes"] for a, b in town["edges"]), "town: edge references missing node")
             check(all([a, b] in town["edges"] or [b, a] in town["edges"] for a, b in town["paved"]), "town: paved street is not an edge")
@@ -281,6 +282,7 @@ def main():
             check(name in entries.get(cid, {}).get("sequences", {}), f"{cid}: required sequence {name} missing")
     check(entries.get("ui-weapons", {}).get("sequences", {}).get("tiers")
           == ["iron dagger", "blue steel sword", "gold legend sword"], "ui-weapons: expected three ordered weapon tiers")
+    check_interiors(entries, components, check)
     if errors:
         print("\n".join(errors), file=sys.stderr)
         sys.exit(1)
