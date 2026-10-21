@@ -1,5 +1,7 @@
 import { tr } from "../language";
 import { questBoardHotspot } from "../town/quest-board";
+import { LIBRARY_SCALE, libraryPositions, librarianBox } from "../town/library";
+import { SHOP_SCALE, shopSlots, shopkeeperBox } from "../town/shop";
 import type { TownTheme } from "../town/themes";
 import type { HeroPlace, TownHero } from "../../core/town";
 import { FIELD_EXITS } from "../town/field";
@@ -23,7 +25,7 @@ export function worldHotspots(art: Sheets, w: number, h: number, towns: Project[
 
 export function localHotspots(art: Sheets, place: HeroPlace, heroes: TownHero[], walkers: Walker[], gateMenu: boolean,
   go: (place: HeroPlace, focused?: string) => void,
-  commands: (id: string, x: number, y: number, watch?: () => void) => void, openGate: () => void, priest: () => void, theme?: TownTheme, board: () => void = () => undefined) {
+  commands: (id: string, x: number, y: number, watch?: () => void) => void, openGate: () => void, talk: (who: "priest" | "shopkeeper" | "librarian") => void, theme?: TownTheme, board: () => void = () => undefined) {
   if (place === "inn") {
     const room = art.entry("bg-inn").inn!, slots = innSlots(art), [dx, dy, w, h] = room.hit;
     const sleepers = heroes.filter((hero) => hero.place === "inn").slice(0, slots.length);
@@ -33,15 +35,28 @@ export function localHotspots(art: Sheets, place: HeroPlace, heroes: TownHero[],
   if (place === "church") {
     const room = art.entry("bg-church").church!, slots = churchSlots(art), [dx, dy, w, h] = room.hit;
     const prayers = heroes.filter((hero) => hero.place === "church").slice(0, slots.length);
-    return [{ ...churchPriest(art), act: priest }, ...prayers.map((hero, i) => {
+    return [{ ...churchPriest(art), act: () => talk("priest") }, ...prayers.map((hero, i) => {
       const [x, y] = slots[i];
       return { x: x + dx, y: y + dy, w, h, act: () => commands(hero.id, x, y) };
+    }), { ...room.exit, text: tr("▼ そとへ", "▼ Exit"), act: () => go("town") }];
+  }
+  if (place === "library" || place === "shop") {
+    const visitors = heroes.filter((hero) => hero.place === place);
+    const room = place === "library" ? art.entry("bg-library").library! : art.entry("bg-shop").shop!;
+    const positions = place === "library" ? libraryPositions(art, visitors.map((hero) => Boolean(hero.librarySearch))) : shopSlots(art);
+    const k = place === "shop" ? SHOP_SCALE : LIBRARY_SCALE, [dx, dy, w, h] = room.hit.map((n) => n * k);
+    const npc = place === "shop" ? { ...shopkeeperBox(art), act: () => talk("shopkeeper") } : { ...librarianBox(art), act: () => talk("librarian") };
+    return [npc, ...visitors.flatMap((hero, i) => {
+      const point = positions[i];
+      return point ? [{ x: point[0] + dx, y: point[1] + dy, w, h, act: () => commands(hero.id, ...point) }] : [];
     }), { ...room.exit, text: tr("▼ そとへ", "▼ Exit"), act: () => go("town") }];
   }
   if (place === "town") {
     const spots = [questBoardHotspot(art, theme, board),
       { ...townSpots(art, theme).inn, act: () => go("inn"), text: undefined as string | undefined },
       { ...townSpots(art, theme).church, act: () => go("church"), text: undefined as string | undefined },
+      { ...townSpots(art, theme).library, act: () => go("library"), text: undefined as string | undefined },
+      { ...townSpots(art, theme).shop, act: () => go("shop"), text: undefined as string | undefined },
     ];
     for (const walker of walkers.filter((w) => heroes.some((h) => h.id === w.id))) {
       spots.push({ x: walker.x - 16, y: walker.y - 76, w: 32, h: 80, text: undefined, act: () => commands(walker.id, walker.x, walker.y) });

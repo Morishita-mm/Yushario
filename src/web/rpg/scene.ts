@@ -10,6 +10,8 @@ import { openBattleCommands, openHeroCommands } from "./hero-commands";
 import { Following } from "./following";
 import { showArchivedTowns, showThemeChooser, showTownList } from "../town/herald";
 import { PRIEST_LINES } from "../town/church";
+import { SHOPKEEPER_LINES } from "../town/shop";
+import { LIBRARIAN_LINES } from "../town/library";
 import { Sheets } from "../town/sheets";
 import { drawNavigation } from "../town/navigation";
 import { TOWN_H, TOWN_W } from "../town/town";
@@ -29,6 +31,7 @@ type Hot = { x: number; y: number; w: number; h: number; text?: string; act: () 
 export class Scene {
   selected: string | undefined;
   openQuests: () => void = () => undefined;
+  hasUnstartedQuest: (town: string | undefined) => boolean = () => false;
   townName = (key: string): string => this.towns.get(key)?.label ?? townNameForKey(key, this.records);
   get currentTown(): string | undefined { return this.place === "world" ? undefined : this.project; }
   get projects(): Project[] { return [...this.towns.values()]; }
@@ -46,7 +49,7 @@ export class Scene {
   private readonly ctx: CanvasRenderingContext2D;
   private place: Place = "world"; private project: string | undefined;
   private focused: string | undefined; private ambient: Ambient | undefined;
-  private gateMenu = false; private priestLine = 0;
+  private gateMenu = false; private npcLine = { priest: 0, shopkeeper: 0, librarian: 0 };
   private sleepingPlate = { x: 0, y: 0, w: 0, h: 0 }; private archivedPlate = { x: 0, y: 0, w: 0, h: 0 };
   private pointer: [number, number] = [-1, -1]; private last = 0;
   private flashAt = -Infinity; private flashWhite = false;
@@ -251,7 +254,12 @@ export class Scene {
     return [...reports, ...localHotspots(this.art, this.place, this.localHeroes(), this.travel.walkers, this.gateMenu,
       (place, focused) => this.go(place, false, focused),
       (id, x, y, watch) => this.commands(id, x, y, watch), () => { this.gateMenu = true; },
-      () => { const line = PRIEST_LINES[this.priestLine++ % PRIEST_LINES.length]; this.say(tr(`神父さま「${line}」`, `Priest: "${line}"`), Date.now()); }, this.project ? this.look(this.project) : undefined, this.openQuests)];
+      (who) => this.npcSays(who), this.project ? this.look(this.project) : undefined, this.openQuests)];
+  }
+  private npcSays(who: "priest" | "shopkeeper" | "librarian"): void {
+    const lines = { priest: PRIEST_LINES, shopkeeper: SHOPKEEPER_LINES, librarian: LIBRARIAN_LINES }[who];
+    const line = lines[this.npcLine[who]++ % lines.length];
+    this.say(who === "priest" ? tr(`神父さま「${line}」`, `Priest: "${line}"`) : who === "shopkeeper" ? tr(`てんしゅ「${line}」`, `Shopkeeper: "${line}"`) : tr(`ししょ「${line}」`, `Librarian: "${line}"`), Date.now());
   }
   private point(event: MouseEvent): [number, number] {
     const rect = this.canvas.getBoundingClientRect(), [w, h] = this.size();
@@ -280,7 +288,7 @@ export class Scene {
       this.sleepingPlate = plates.sleepingPlate; this.archivedPlate = plates.archivedPlate;
     }
     else drawLocalScene(ctx, this.art, { place: this.place, time, now, heroes: local, theme: theme!,
-      name: displayName!, walkers: this.travel.local(this.project, local), notice }, this.gear);
+      name: displayName!, walkers: this.travel.local(this.project, local), notice, unstartedQuest: this.hasUnstartedQuest(this.project) }, this.gear);
     drawReportSigns(ctx, this.art, time, this.signs(), notice);
     drawNoticeArrow(ctx, notice);
     drawNavigation(ctx, this.hotspots(), this.pointer, this.gateMenu);

@@ -24,7 +24,7 @@ AgentEvent から core で活動・様子・居場所を計算し、ドットの
 
 1. **活動の細かさ**: 読む・探す・直す・テスト・調べもの・計画・手分けを区別し、部屋の **場所** で表す。
 2. **時間の流れから出る様子**: 長い待ち、失敗の連続、立ち直り、テンポ、疲れを、1つのイベントではなく直近の流れから出す。
-3. **計画の見える化**: タスク（TaskCreate / TaskUpdate）の内容と進み具合をホワイトボードに出す。
+3. **人の依頼の見える化**: 利用者が書くクエストの台帳へ、町の掲示板から入る。CLI 内部のタスク一覧は画面に出さない。
 4. **フックで出勤**: エージェントはアプリの中で起動しなくてよい。自分のターミナルや IDE のワークツリーで動かしている Claude Code が、フック経由で部屋に入ってくる。
 
 ## 観察の3層
@@ -33,7 +33,7 @@ AgentEvent から core で活動・様子・居場所を計算し、ドットの
 |---|---|---|---|
 | 活動 | 何をしているか | 居場所と動作（本棚で本をめくる、机でタイピング…） | 視界の端 |
 | 様子 | どうやっているか | 表情アイコン・動きの速さ・頭上の記号（💦 ⏳ 💤 ❗） | ちらっと見る |
-| 詳細 | どれくらい・何について | 手元の紙のファイル名、ホワイトボードの TODO、クリックで最近の行動 | 目を向ける |
+| 詳細 | どれくらい・何について | 対象のファイル名、利用者のクエスト、クリックで最近の行動 | 目を向ける |
 
 ## 入力：Claude Code のフック
 
@@ -49,7 +49,7 @@ Claude Code 2.1.295 の実行ファイルで、以下のイベント名と入力
 | PostToolUse | `tool_name`、成否 | 活動の終了・成功 |
 | PostToolUseFailure | `tool_name`、`is_interrupt` | 活動の失敗（中断は失敗に数えない） |
 | PermissionRequest | `tool_name`、`agent_id` | 許可待ち（柱Bの許可要求と同じ HTTP フック） |
-| TaskCreated / TaskCompleted | `task_id`、`task_subject` | ホワイトボード |
+| TaskCreated / TaskCompleted | `task_id`、`task_subject` | 内部集計のみ（掲示板や小物には結び付けない） |
 | Notification | `notification_type` | permission_prompt / elicitation_dialog だけ呼び出し。idle_prompt / auth_success 等は待機 |
 | SubagentStart / SubagentStop | `agent_id`、`agent_type` | 助っ人の入退室 |
 | PreCompact / PostCompact | `trigger` | 整理中（休憩） |
@@ -93,23 +93,27 @@ pi は拡張で同じ AgentEvent に変換する。session_start / before_agent_
 | 活動 | 判定 | 部屋の場所・動作 | 対象（手元の表示） |
 |---|---|---|---|
 | `think` | UserPromptSubmit の後、最初のツールが来るまで | たき火の前で考え込む（…の吹き出し） | — |
-| `read` | Read、NotebookRead | 図書館の前で本を開く | ファイル名 |
-| `search` | Grep、Glob、LS 系 | 図書館の前で本と周りを見比べる | 検索パターンは出さない |
+| `read` | Read、NotebookRead | 図書館の中で書見台の本を読む（3コマ） | ファイル名 |
+| `search` | Grep、Glob、LS 系 | 図書館の中で本棚を探す（背面4コマ） | 検索パターンは出さない |
 | `edit` | Edit、Write、NotebookEdit | フィールドでスライムに斬りかかる（ファイル名のスライム） | ファイル名 |
 | `test` | Bash でコマンドの先頭がテスト・検証系（`npm test`、`npm run typecheck`、`vitest`、`jest`、`pytest`、`go test`、`cargo test`、`tsc`、`eslint` など） | フィールドで「しれんのゴーレム」と対峙し、結果を待つ | コマンドの先頭 |
-| `git` | Bash で先頭が `git` / `gh` | 「ぼうけんのしょ」（セーブクリスタル）に祈って記録する | コマンドの先頭（`git commit -m` など） |
+| `git` | Bash で先頭が `git` / `gh` | 光る本の台座「ぼうけんのしょ」（node `crystal`）に背面のひざまずく姿で向く | コマンドの先頭（`git commit -m` など） |
 | `run` | 上以外の Bash | フィールドでおばけに呪文を唱える | コマンドの先頭 |
-| `web` | WebSearch、WebFetch | 物見の塔の上から遠くを見る | ドメインのみ |
-| `plan` | TaskCreate / TaskUpdate / TaskList / TaskGet（旧 TodoWrite も） | クエストボードに依頼書を貼る | タスクの一覧（ボードの依頼書） |
+| `web` | WebSearch、WebFetch | 物見の塔の前（node `tower`）で遠くを見る | ドメインのみ |
+| `plan` | TaskCreate / TaskUpdate / TaskList / TaskGet（旧 TodoWrite も） | 専用の場所なし。小物・掲示板とは無関係 | CLI 内部のタスク一覧は表示しない |
 | `delegate` | Task / Agent（サブエージェント起動） | パーティーでドラゴンに挑む | `agent_type` |
 | `ask` | AskUserQuestion、PermissionRequest、waiting_input の Notification のみ | 画面の手前（あなたの前）に来て手を振る（！の吹き出し） | ツール名 |
-| `tool` | MCP ツール（`mcp__*`）など上以外 | 道具屋の前に立つ | サーバー名（`mcp__<server>__` の部分） |
+| `tool` | MCP ツール（`mcp__*`）など上以外 | 道具屋の中で品定め・薬を持ち上げる（背面3コマ） | サーバー名（`mcp__<server>__` の部分） |
 | `rest` | PreCompact 〜 PostCompact | 教会で会話を整理する（成功時だけ MP 回復の語り） | — |
 | `idle` | Stop / StopFailure / InterruptConfirmed の後、入力不要の通知 | 町でひとやすみ（居眠り時は宿屋）。通知だけでは停止確認にならない | — |
 
 `Interrupt` は停止の要求だけ。確認待ちの間は次の依頼・装備・操作を受けず、本体の新しい SessionStart・Stop・StopFailure・PostCompact・SessionEnd・InterruptConfirmed で確認する。経過時間・古い知らせ・仲間やツールの終了・idle 通知だけでは確認しない。端末は直接操作でき、30秒後も未確認なら「まだ とまったか わからない」と出す。
 
 分類に迷うものは `tool` にまとめる。種類を増やすのは、実際に使って見分けたくなってからにする。
+
+専用の行き先は `think` → `fire`、`git` → `crystal`、`web` → `tower`、`read` / `search` → `library`、`tool` → `shop`。共通の `stationActivity` / `townStation` で、対応活動中は滞在を維持し、別活動（`idle` / `plan` 等）へ変わっても最後の対応活動から8秒（`STATION_HOLD_MS`）は保持する。別の対応活動なら直ちに切り替える。戦闘・教会・居眠りは従来どおり優先。`plan` 自体には行き先を持たせない。
+
+散歩先（`TOWN_WANDER_STOPS`）は plazaW / plazaE / well / bridge / homeE だけ。同じ屋外小物は3〜4枠を使い、超過分は最寄りの枠を共有する。図書館は読む3枠・探す3枠、道具屋は4枠を描き、超過分は人数で示す。室内の勇者は町のwalkerから外し、町へ戻った時は対応する入口nodeから歩き始める。建物の人数表示とクリックで中を確認でき、下中央の「▼ そとへ」で町へ戻る。
 
 ## 様子：時間の流れから出すもの
 
@@ -140,7 +144,7 @@ Live2D の表情判断（Decider・Jev／モック）は廃止。ドットの町
 ## 詳細
 
 - モンスターの名札：戦っている相手（ファイル名・コマンドの先頭・サブエージェント種別）。
-- クエストボード：計画中（またはタスクを持つ）エージェントの依頼書（最大 6 枚、進行中は黄色の印、達成は赤い判）と、完了数／全体数。
+- クエストボード：利用者が作ったクエスト一覧への入口。ホバーで「クエスト」/「Quests」と示す。その町に未着手（`open`）があれば貼り紙つき、無ければ空の板。CLI の `plan`・内部タスクとは結び付けない。
 - つよさウィンドウ（右）：Lv・HP・MP・いまの行動・様子・なかま・クエスト一覧。許可要求には「はい／いいえ／ターミナルで こたえる」で答えられる。
 - 勇者かウィンドウをクリックすると「ぼうけんの きろく」（最近の行動、○×つき）を表示する。
 
@@ -149,7 +153,7 @@ Live2D の表情判断（Decider・Jev／モック）は廃止。ドットの町
 - アダプタが送るのは上の表の「対象」まで。ただし **UserPromptSubmit の依頼本文と Stop の最後の返答だけ**、`text`（最大8000文字）としてローカルの relay と会話画面へ送る。ツールの出力・ファイルの中身は送らない。Bash の終了フックだけコマンドを最大8000文字まで照合用に送り、履歴・配信の前に外す。証拠に残るのは先頭200文字だけ。
   - ファイル名はベース名のみ（ディレクトリは送らない）。Web はドメインまで。
   - コマンドは先頭の `cd …` 区間と `FOO=bar` 形式の代入を飛ばし、最大3語まで。パス（`/` を含む語）・引用符・`=` などを含む語が出たらそこで打ち切る（例：`git commit -m "…"` → `git commit -m`、`ls /path` → `ls`）。
-  - 例外として、タスクの件名はホワイトボード用に送る（各 200 文字、1 エージェント 50 件まで）。
+  - タスクの件名は内部集計用に受け取る（各200文字、1エージェント50件まで）。掲示板には表示しない。
 - 対象・TODO・依頼本文・最後の返答はローカルの server と画面で使い、外部へ送らない（Jev 連携は廃止）。
 - 会話窓と行動ログはメモリだけで、server の再起動で消える。仕事の台帳には題（依頼の1行目）・目的・状態・報告の要点・ためすことの証拠が残る。依頼と返事の本文は「かいわも のこす」を選んだ人だけ保存する（既定オフ）。許可の全文・端末やツールの出力は保存しない。町・設定・名前・再開用のめいぼの JSON に会話本文は含めない。各 CLI 自身の履歴保存はこのアプリとは別。
 

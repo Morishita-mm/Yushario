@@ -1,5 +1,6 @@
 import { tr } from "../language";
 import { relocateWalk, roadRoute, roadStep, walkTo } from "../../core/walking";
+import { STATION_SLOTS, TOWN_WANDER_STOPS, type PropStation } from "../../core/town-station";
 import { townLayout } from "./art-data";
 import type { TownTheme } from "./themes";
 import { label } from "./field";
@@ -7,18 +8,24 @@ import { weaponBesideLabel } from "./weapon";
 import type { Sheets } from "./sheets";
 import { drawNoticeHero, type NoticeMarkFrame } from "./notice-mark";
 
-// Street graph coordinates/edges come from the same data that places the buildings.
-const STOPS: { node: string; pose: [string, string]; balloon?: string }[] = [
-  { node: "plazaW", pose: ["hero-model", "front"], balloon: "thinking dots" }, { node: "plazaE", pose: ["hero-model", "front"], balloon: "music note" },
-  { node: "board", pose: ["hero-model", "back"] }, { node: "shop", pose: ["hero-model", "back"] },
-  { node: "well", pose: ["hero-model", "back"] }, { node: "bridge", pose: ["hero-town", "look far"], balloon: "music note" },
-  { node: "fire", pose: ["hero-model", "back"], balloon: "heart" }, { node: "crystal", pose: ["hero-pray", "kneel facing up (back)"] },
-  { node: "library", pose: ["hero-town", "read"] }, { node: "homeE", pose: ["hero-model", "front"] },
-];
+type StopPose = { pose: [string, string]; balloon?: string };
+// Only neutral places are random stops. Activity props and the quest entrance are never destinations for idlers.
+const STOP_POSES: Record<typeof TOWN_WANDER_STOPS[number], StopPose> = {
+  plazaW: { pose: ["hero-model", "front"] }, plazaE: { pose: ["hero-model", "front"], balloon: "music note" },
+  well: { pose: ["hero-model", "back"] }, bridge: { pose: ["hero-town", "look far"], balloon: "music note" },
+  homeE: { pose: ["hero-model", "front"] },
+};
+const STOPS = TOWN_WANDER_STOPS.map((node) => ({ node, ...STOP_POSES[node] }));
+const STATION_POSES: Record<PropStation, StopPose> = {
+  fire: { pose: ["hero-model", "back"], balloon: "thinking dots" },
+  crystal: { pose: ["hero-pray", "kneel facing up (back)"] },
+  tower: { pose: ["hero-town", "look far"] },
+};
 export type Walker = {
   theme?: TownTheme;
   id: string; name: string; variant: number; x: number; y: number; at: string; stop: number; path: string[];
   waitUntil: number; walked: number; dx: number; dy: number; party: string[];
+  station?: PropStation; stationSlot?: number; settling?: boolean;
   leaving?: boolean; wavedAt?: number; paused?: boolean; weaponTier?: number; branch?: string;
 };
 export type TownSign = { name: string; x: number; y: number; icon: string };
@@ -38,7 +45,7 @@ export function changeWalkerTheme(art: Sheets, walker: Walker, theme?: TownTheme
   if (walker.theme === theme) return;
   const town = art.entry("bld-inn").town!;
   Object.assign(walker, relocateWalk(townLayout(town, walker.theme), townLayout(town, theme), walker,
-    walker.leaving ? "gate" : STOPS[walker.stop].node));
+    walker.leaving ? "gate" : walker.station ?? STOPS[walker.stop].node));
   walker.theme = theme;
 }
 
@@ -46,13 +53,28 @@ export function leave(art: Sheets, walker: Walker): void {
   const roads = townLayout(art.entry("bld-inn").town!, walker.theme);
   // Without a road to the gate the hero waves goodbye where it stands.
   Object.assign(walker, walkTo(roads, walker.x, walker.y, "gate") ?? { path: [] });
-  walker.leaving = true;
+  walker.leaving = true; walker.station = undefined; walker.settling = false;
 }
 
-export function returnWalker(art: Sheets, walker: Walker): void {
+export function returnWalker(art: Sheets, walker: Walker, from = "gate"): void {
   const { nodes } = townLayout(art.entry("bld-inn").town!, walker.theme);
-  walker.x = nodes.gate[0]; walker.y = nodes.gate[1]; walker.at = "gate";
-  walker.path = route(art, "gate", STOPS[walker.stop].node, walker.theme); walker.dy = -1;
+  walker.x = nodes[from][0]; walker.y = nodes[from][1]; walker.at = from;
+  walker.path = route(art, from, walker.station ?? STOPS[walker.stop].node, walker.theme); walker.dy = -1;
+}
+
+export function setWalkerStation(art: Sheets, walker: Walker, station: PropStation | undefined, neighbours: Walker[]): void {
+  if (walker.station === station || walker.leaving) return;
+  const roads = townLayout(art.entry("bld-inn").town!, walker.theme);
+  if (station) {
+    const taken = new Set(neighbours.filter((w) => w !== walker && w.station === station).map((w) => w.stationSlot));
+    const slots = STATION_SLOTS[station], [x, y] = roads.nodes[station];
+    // Keep existing slots stable. Overflow shares the nearest slot, never expands into scenery.
+    walker.stationSlot = slots.findIndex((_, i) => !taken.has(i));
+    if (walker.stationSlot < 0) walker.stationSlot = slots.map(([dx, dy], i) => ({ i, distance: Math.hypot(x + dx - walker.x, y + dy - walker.y) }))
+      .sort((a, b) => a.distance - b.distance)[0].i;
+  } else walker.stationSlot = undefined;
+  walker.station = station; walker.settling = false; walker.waitUntil = 0;
+  Object.assign(walker, walkTo(roads, walker.x, walker.y, station ?? STOPS[walker.stop].node));
 }
 
 export function stepWalkers(art: Sheets, walkers: Walker[], t: number, dt: number): Walker[] {
@@ -64,17 +86,25 @@ export function stepWalkers(art: Sheets, walkers: Walker[], t: number, dt: numbe
       if (t - walker.wavedAt > 1600) departed.push(walker);
       continue;
     }
+    const roads = townLayout(art.entry("bld-inn").town!, walker.theme);
+    if (!walker.path.length && walker.station) {
+      const [x, y] = roads.nodes[walker.station], [dx, dy] = STATION_SLOTS[walker.station][walker.stationSlot ?? 0];
+      const step = roadStep(walker.x, walker.y, [x + dx, y + dy], dt);
+      walker.x = step.x; walker.y = step.y; walker.walked += step.move; walker.settling = !step.arrived;
+      if (step.move > 0) { walker.dx = step.dx; walker.dy = step.dy; }
+      continue;
+    }
     if (!walker.path.length) {
       if (!walker.waitUntil) walker.waitUntil = t + 3000 + Math.random() * 5000;
       if (t < walker.waitUntil) continue;
-      const taken = new Set(walkers.map((w) => w.stop));
+      const taken = new Set(walkers.filter((w) => !w.station).map((w) => w.stop));
       const free = STOPS.map((_, i) => i).filter((i) => !taken.has(i));
       walker.stop = free[Math.floor(Math.random() * free.length)] ?? (walker.stop + 1) % STOPS.length;
       walker.path = route(art, walker.at, STOPS[walker.stop].node, walker.theme);
       walker.waitUntil = 0;
       continue;
     }
-    const target = townLayout(art.entry("bld-inn").town!, walker.theme).nodes[walker.path[0]];
+    const target = roads.nodes[walker.path[0]];
     const step = roadStep(walker.x, walker.y, target, dt);
     walker.x = step.x; walker.y = step.y;
     if (step.move > 0) { walker.dx = step.dx; walker.dy = step.dy; }
@@ -87,8 +117,8 @@ export function stepWalkers(art: Sheets, walkers: Walker[], t: number, dt: numbe
 
 export function drawWalker(ctx: CanvasRenderingContext2D, art: Sheets, walker: Walker, t: number, notice?: NoticeMarkFrame): void {
   const mark = notice?.id === walker.id ? notice : undefined;
-  const stride = Math.floor(walker.walked / 7) % 4;
-  walker.party.forEach((id, i) => art.draw(ctx, id, walker.path.length ? art.pose(id, "follow", stride % 2) : "front", walker.x - 22 - i * 18, walker.y + 12 + i * 12));
+  const stride = Math.floor(walker.walked / 7) % 4, moving = walker.path.length > 0 || walker.settling;
+  walker.party.forEach((id, i) => art.draw(ctx, id, moving ? art.pose(id, "follow", stride % 2) : "front", walker.x - 22 - i * 18, walker.y + 12 + i * 12));
   if (walker.leaving && !walker.path.length) {
     const age = t - (walker.wavedAt ?? t);
     ctx.globalAlpha = Math.max(0, 1 - Math.max(0, age - 1000) / 600);
@@ -100,8 +130,8 @@ export function drawWalker(ctx: CanvasRenderingContext2D, art: Sheets, walker: W
   }
   if (walker.paused) {
     drawNoticeHero(ctx, art, art.variant("hero-model", walker.variant), "front", walker.x, walker.y, mark);
-  } else if (!walker.path.length) {
-    const stop = STOPS[walker.stop];
+  } else if (!moving) {
+    const stop = walker.station ? STATION_POSES[walker.station] : STOPS[walker.stop];
     const [sheet, frame] = stop.pose;
     drawNoticeHero(ctx, art, art.variant(sheet, walker.variant), frame, walker.x, walker.y - (Math.floor((t + walker.variant * 300) / 700) % 2), mark);
     if (stop.balloon !== undefined && Math.floor((t + walker.variant * 900) / 2500) % 3 === 0) art.draw(ctx, "ui-balloons", stop.balloon, walker.x, walker.y - 60);

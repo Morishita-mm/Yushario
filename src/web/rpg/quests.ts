@@ -1,4 +1,4 @@
-import { finishedQuest, questTitle, type Quest, type QuestBinding, type QuestDetail, type QuestReportLink } from "../../core/quests";
+import { finishedQuest, hasUnstartedQuest, questTitle, type Quest, type QuestBinding, type QuestDetail, type QuestReportLink } from "../../core/quests";
 import { roleLabel, type PartyRole } from "../../core/party";
 import type { RoomAgent } from "../../core/room";
 import { language, tr } from "../language";
@@ -245,6 +245,7 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
   }
   return { set, render, choose, open,
     reportTitle: (hero: string, at: number) => reportQuestTitle(hero, at, quests),
+    hasUnstarted: (town: string | undefined) => hasUnstartedQuest(quests, town),
     current: (session: string) => quests.find((quest) => quest.id === bindings.find((item) => item.session === session)?.quest),
     // "Quest title · role" for a hero in a quest that is still open; finished quests are not shown.
     membership: (session?: string) => {

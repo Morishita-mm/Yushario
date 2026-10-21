@@ -10,12 +10,14 @@
       <button type="button" data-place="forest">夜の森</button>
       <button type="button" data-place="inn">宿屋</button>
       <button type="button" data-place="church">教会</button>
+      <button type="button" data-place="library">図書館</button>
+      <button type="button" data-place="shop">道具屋</button>
       <button type="button" data-place="meadow" data-battle="ミラ">せんとう（草原）</button>
       <button type="button" data-place="cave" data-battle="ルカ">せんとう（洞窟）</button>
       <button type="button" data-place="forest" data-battle="ノア">せんとう（夜の森）</button>
       <button type="button" data-place="meadow" data-battle="アレン" data-dragon>せんとう（ドラゴン）</button>
     </nav>
     <form id="mock-add-hero"><label>勇者を追加 <input name="hero" maxlength="24" placeholder="デモ勇者の名前" aria-label="追加する勇者の名前"></label><button type="submit">＋ 追加</button><button id="mock-add-quest" type="button">＋ クエストを書く</button></form>
-    <div class="mock-state"><label>選択中の勇者の状態 <select id="mock-activity"><option value="idle">待機</option><option value="edit">ファイル編集</option><option value="test">テスト</option><option value="run">コマンド実行</option><option value="rest">会話整理</option><option value="ask">返事待ち</option><option value="done">デモの報告を出す</option></select></label><button id="mock-apply" type="button">状態を反映</button><span id="mock-feedback" role="status"></span></div>
+    <div class="mock-state"><label>選択中の勇者の状態 <select id="mock-activity"><option value="idle">待機</option><option value="think">考え中（たき火）</option><option value="git">記録（ぼうけんのしょ）</option><option value="web">Web調査（物見の塔）</option><option value="read">読む（図書館）</option><option value="search">探す（図書館）</option><option value="tool">道具を使う（道具屋）</option><option value="plan">計画（行き先なし）</option><option value="edit">ファイル編集</option><option value="test">テスト</option><option value="run">コマンド実行</option><option value="rest">会話整理</option><option value="ask">返事待ち</option><option value="done">デモの報告を出す</option></select></label><button id="mock-apply" type="button">状態を反映</button><span id="mock-feedback" role="status"></span></div>
   </div>
 </details>

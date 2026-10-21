@@ -1,5 +1,6 @@
 import { tr } from "../language";
 import { label, placeTitle } from "./field";
+import { plate } from "./world";
 import { drawNoticeHero, type NoticeMarkFrame } from "./notice-mark";
 import { drawWeather, THEME_NAMES, type TownTheme } from "./themes";
 import { drawWalker, type Walker, type TownSign } from "./walkers";
@@ -103,7 +104,7 @@ function churchLight(ctx: CanvasRenderingContext2D, art: Sheets, church: Part, x
 }
 
 type TownData = {
-  sleepers: number; prayers?: number; theme: TownTheme; name: string; walkers: Walker[];
+  sleepers: number; prayers?: number; readers?: number; shoppers?: number; unstartedQuest?: boolean; theme: TownTheme; name: string; walkers: Walker[];
   reports?: TownSign[]; caller?: { name: string; x: number; y: number }; read?: Set<string>; notice?: NoticeMarkFrame;
 };
 
@@ -140,7 +141,8 @@ export function drawTown(ctx: CanvasRenderingContext2D, art: Sheets, t: number, 
     if (look.waterfall) put("obj-river", `waterfall ${1 + Math.floor(t / 200) % 2}`, ...town.river.waterfall);
   }
   put(...look.inn, ...building.inn);
-  put("bld-questboard", "board", ...building.board); put(...look.shop, ...building.shop);
+  put("bld-questboard", data.unstartedQuest ? "board pending" : "board", ...building.board); put(...look.shop, ...building.shop);
+  put("bld-tower", "building", ...building.tower);
   put("obj-crystal", art.pose("obj-crystal", "glow", Math.floor(t / 220) % 4), ...town.crystal);
   put("obj-campfire", art.pose("obj-campfire", "fire", Math.floor(t / 140) % 4), ...town.fire);
   if (!look.backdrop) {
@@ -172,18 +174,19 @@ export function drawTown(ctx: CanvasRenderingContext2D, art: Sheets, t: number, 
   drawWeather(ctx, art, theme, t);
   if (look.tint) { ctx.fillStyle = look.tint; ctx.fillRect(0, 0, TOWN_W, TOWN_H); }
   if (sleepers) {
-    const [x, y] = building.inn, { balloon, count } = town.innSleep;
+    const [x, y] = building.inn, { balloon } = town.innSleep;
     art.draw(ctx, "ui-balloons", "sleep Zz", x + balloon[0], y + balloon[1] + (Math.floor(t / 500) % 2));
-    label(ctx, `×${sleepers}`, x + count[0], y + count[1], "#ffffff", 11);
   }
-  for (const [text, [x, y]] of [[tr("やどや", "INN"), building.inn], [tr("きょうかい", "CHURCH"), building.church],
-    [tr("としょかん", "LIBRARY"), building.library], [tr("どうぐや", "ITEM SHOP"), building.shop]] as const) {
+  for (const [text, [x, y], inside] of [[tr("やどや", "INN"), building.inn, sleepers], [tr("きょうかい", "CHURCH"), building.church, data.prayers ?? 0],
+    [tr("としょかん", "LIBRARY"), building.library, data.readers ?? 0], [tr("どうぐや", "ITEM SHOP"), building.shop, data.shoppers ?? 0]] as const) {
     // Mount above the doorway, clear of the walking lane and the inn's sleep balloon.
     const width = text.length * 12 + 12, left = x - width / 2, top = y - 66;
     ctx.fillStyle = "#0a0a1a"; ctx.fillRect(left - 1, top - 1, width + 2, 24);
     ctx.fillStyle = "#ffffff"; ctx.fillRect(left, top, width, 22);
     ctx.fillStyle = "#0a0a1a"; ctx.fillRect(left + 1, top + 1, width - 2, 20);
     label(ctx, text, x, top + 15, "#ffffff", 12);
+    // How many heroes are inside: the same gold plate, on the right of every building's sign.
+    if (inside) plate(ctx, [[`×${inside}`, "#ffe066", 18]], left + width + 24, top - 3);
   }
   placeTitle(ctx, tr(`まち（${THEME_NAMES[theme]}）`, `TOWN (${THEME_NAMES[theme].toUpperCase()})`), TOWN_W / 2, 8, name);
 }

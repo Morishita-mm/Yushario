@@ -1,10 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { ownerAnswer, questForRecall, questStateAfterEvent, questStateForParty, questTitle, savedQuestEvent, sortedQuests, validQuestPatch, type Quest, type QuestDetail } from "./quests";
+import { hasUnstartedQuest, QUEST_STATES, ownerAnswer, questForRecall, questStateAfterEvent, questStateForParty, questTitle, savedQuestEvent, sortedQuests, validQuestPatch, type Quest, type QuestDetail } from "./quests";
 import { askingAfterEvent } from "./session-actions";
 import type { AgentEvent } from "./events";
 import { registerTown, townKey, townLabel } from "./town-ledger";
 
 describe("persistent quests", () => {
+  it("pins papers only for unstarted quests in the current town", () => {
+    expect(hasUnstartedQuest([], "town-a")).toBe(false);
+    for (const state of QUEST_STATES) {
+      expect(hasUnstartedQuest([{ town: "town-a", state }], "town-a")).toBe(state === "open");
+    }
+    const quests = [{ town: "town-a", state: "review" }, { town: "town-b", state: "open" }] as const;
+    expect(hasUnstartedQuest(quests, "town-a")).toBe(false);
+    expect(hasUnstartedQuest(quests, "town-b")).toBe(true);
+    expect(hasUnstartedQuest(quests, undefined)).toBe(false);
+    expect(hasUnstartedQuest([...quests, { town: "town-a", state: "open" }], "town-a")).toBe(true);
+  });
   it("takes only the first 60 characters of the request's first line", () => {
     expect(questTitle("first line\nprivate body")).toBe("first line");
     expect(questTitle("x".repeat(100))).toHaveLength(60);

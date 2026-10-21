@@ -86,7 +86,7 @@ function begin(name: string, activity: Activity, target: string | undefined, too
     case "git": return tr(`${name}は 冒険の書に きろくした。${quoted(target, "", "ja")}`, `${name} records the journey. ${quoted(target, "", "en")}`);
     case "delegate": return tr(`${name}は なかまを よびあつめた！`, `${name} gathers the party!`);
     case "ask": return tr(`${name}は あなたに たずねている。`, `${name} has a question for you.`);
-    case "tool": return tr(`${name}は どうぐを つかった。（${tool}）`, `${name} uses a tool. (${tool})`);
+    case "tool": return tr(`${name}は 道具屋で どうぐを つかった。（${tool}）`, `${name} uses a tool in the item shop. (${tool})`);
     default: return undefined;
   }
 }

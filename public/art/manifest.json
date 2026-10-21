@@ -541,18 +541,18 @@
   "group": "まち",
   "name": "ものみのとう",
   "frame": [
-   62,
-   143
+   46,
+   99
   ],
   "frames": [
    "building"
   ],
-  "colors": 14,
+  "colors": 17,
   "sub": "建物",
   "use": "Web 検索・取得の時に登る（フィールド側に置く案もあり）",
   "foot": [
-   31.0,
-   143
+   23.0,
+   99
   ]
  },
  {
@@ -560,18 +560,19 @@
   "group": "まち",
   "name": "クエストボード",
   "frame": [
-   78,
-   69
+   72,
+   63
   ],
   "frames": [
-   "board"
+   "board",
+   "board pending"
   ],
-  "colors": 10,
+  "colors": 14,
   "sub": "建物",
-  "use": "計画：タスクを依頼書として貼る",
+  "use": "計画：タスクを依頼書として貼る。board＝未着手のクエストなし、board pending＝あり",
   "foot": [
-   39.0,
-   69
+   36.0,
+   63
   ]
  },
  {
@@ -805,6 +806,291 @@
   ]
  },
  {
+  "id": "bg-library",
+  "group": "まち",
+  "name": "図書館の中（1枚絵）",
+  "frame": [
+   960,
+   540
+  ],
+  "frames": [
+   "backdrop"
+  ],
+  "colors": 32,
+  "sub": "図書館の中",
+  "use": "本棚・窓・司書の机・中央のじゅうたんを含む背景",
+  "library": {
+   "slots": {
+    "read": [
+     [
+      260,
+      300
+     ],
+     [
+      620,
+      300
+     ],
+     [
+      260,
+      415
+     ]
+    ],
+    "search": [
+     [
+      170,
+      205
+     ],
+     [
+      250,
+      205
+     ],
+     [
+      615,
+      205
+     ]
+    ]
+   },
+   "hit": [
+    -24,
+    -56,
+    48,
+    82
+   ],
+   "report": [
+    34,
+    -8
+   ],
+   "label": [
+    0,
+    14
+   ],
+   "npc": {
+    "x": 824,
+    "y": 164,
+    "w": 36,
+    "h": 54
+   },
+   "exit": {
+    "x": 430,
+    "y": 500,
+    "w": 100,
+    "h": 34
+   }
+  },
+  "foot": [
+   480.0,
+   540
+  ]
+ },
+ {
+  "id": "bg-shop",
+  "group": "まち",
+  "name": "道具屋の中（1枚絵）",
+  "frame": [
+   960,
+   540
+  ],
+  "frames": [
+   "backdrop"
+  ],
+  "colors": 32,
+  "sub": "道具屋の中",
+  "use": "道具の棚・カウンター・樽・入口の青い敷物を含む背景",
+  "shop": {
+   "slots": [
+    [
+     670,
+     218
+    ],
+    [
+     770,
+     218
+    ],
+    [
+     260,
+     290
+    ],
+    [
+     420,
+     290
+    ]
+   ],
+   "hit": [
+    -24,
+    -56,
+    48,
+    82
+   ],
+   "report": [
+    34,
+    -8
+   ],
+   "label": [
+    0,
+    14
+   ],
+   "npc": {
+    "x": 547,
+    "y": 181,
+    "w": 36,
+    "h": 54
+   },
+   "exit": {
+    "x": 430,
+    "y": 500,
+    "w": 100,
+    "h": 34
+   }
+  },
+  "foot": [
+   480.0,
+   540
+  ]
+ },
+ {
+  "id": "hero-library-read",
+  "group": "キャラクター",
+  "name": "勇者 図書館で読む（3コマ）",
+  "frame": [
+   34,
+   51
+  ],
+  "frames": [
+   "read 1",
+   "turn page",
+   "read 2"
+  ],
+  "colors": 15,
+  "sub": "勇者（マップ用）",
+  "use": "read：書見台の本を読む正面姿。台も絵の一部。服・マントは設定画の色替えを継承",
+  "sequences": {
+   "read": [
+    "read 1",
+    "read 1",
+    "turn page",
+    "read 2",
+    "read 2"
+   ]
+  },
+  "foot": [
+   17.0,
+   51
+  ]
+ },
+ {
+  "id": "hero-library-search",
+  "group": "キャラクター",
+  "name": "勇者 図書館で探す（4コマ）",
+  "frame": [
+   40,
+   56
+  ],
+  "frames": [
+   "scan left",
+   "scan right",
+   "reach up",
+   "found book"
+  ],
+  "colors": 19,
+  "sub": "勇者（マップ用）",
+  "use": "search：本棚を探す背面姿。服・マントは設定画の色替えを継承",
+  "sequences": {
+   "search": [
+    "scan left",
+    "scan right",
+    "reach up",
+    "found book",
+    "found book"
+   ]
+  },
+  "foot": [
+   20.0,
+   56
+  ]
+ },
+ {
+  "id": "hero-shop-browse",
+  "group": "キャラクター",
+  "name": "勇者 道具屋で品定め（3コマ）",
+  "frame": [
+   52,
+   50
+  ],
+  "frames": [
+   "look",
+   "hold potion",
+   "potion sparkle"
+  ],
+  "colors": 19,
+  "sub": "勇者（マップ用）",
+  "use": "tool：道具を使う背面姿。服・マントは設定画の色替えを継承",
+  "sequences": {
+   "browse": [
+    "look",
+    "look",
+    "hold potion",
+    "potion sparkle",
+    "hold potion"
+   ]
+  },
+  "foot": [
+   26.0,
+   50
+  ]
+ },
+ {
+  "id": "npc-librarian",
+  "group": "まち",
+  "name": "司書（待機2コマ）",
+  "frame": [
+   26,
+   49
+  ],
+  "frames": [
+   "idle",
+   "blink"
+  ],
+  "colors": 15,
+  "sub": "図書館の中",
+  "use": "図書館の右奥の机のそばで本を持つ司書",
+  "sequences": {
+   "idle": [
+    "idle",
+    "blink"
+   ]
+  },
+  "foot": [
+   13.0,
+   49
+  ]
+ },
+ {
+  "id": "npc-shopkeeper",
+  "group": "まち",
+  "name": "道具屋の店主（待機2コマ）",
+  "frame": [
+   34,
+   51
+  ],
+  "frames": [
+   "idle",
+   "blink"
+  ],
+  "colors": 16,
+  "sub": "道具屋の中",
+  "use": "カウンターの横の床に立つ店主",
+  "sequences": {
+   "idle": [
+    "idle",
+    "blink"
+   ]
+  },
+  "foot": [
+   17.0,
+   51
+  ]
+ },
+ {
   "id": "church-wall",
   "group": "まち",
   "name": "きょうかいの奥の壁（ステンドグラス）",
@@ -930,10 +1216,10 @@
  {
   "id": "obj-crystal",
   "group": "まち",
-  "name": "ぼうけんのしょ（セーブクリスタル、光る4コマ）",
+  "name": "ぼうけんのしょ（台座の本、光る4コマ）",
   "frame": [
-   26,
-   41
+   30,
+   42
   ],
   "frames": [
    "glow 1",
@@ -941,9 +1227,9 @@
    "glow 3",
    "glow 4"
   ],
-  "colors": 15,
+  "colors": 18,
   "sub": "広場・小物",
-  "use": "git（冒険の書に記録）の時に祈る",
+  "use": "git（冒険の書に記録）の時に祈る（id は旧クリスタルのまま）",
   "sequences": {
    "glow": [
     "glow 1",
@@ -953,8 +1239,8 @@
    ]
   },
   "foot": [
-   13.0,
-   41
+   15.0,
+   42
   ]
  },
  {
@@ -962,8 +1248,8 @@
   "group": "まち",
   "name": "たき火（4コマ）",
   "frame": [
-   32,
-   35
+   38,
+   41
   ],
   "frames": [
    "fire 1",
@@ -983,8 +1269,8 @@
    ]
   },
   "foot": [
-   16.0,
-   35
+   19.0,
+   41
   ]
  },
  {
@@ -2040,6 +2326,10 @@
      850,
      218
     ],
+    "tower": [
+     935,
+     160
+    ],
     "houses": []
    },
    "innSleep": {
@@ -2715,6 +3005,18 @@
     92
    ],
    "spots": {
+    "library": {
+     "x": 539,
+     "y": 66,
+     "w": 132,
+     "h": 108
+    },
+    "shop": {
+     "x": 539,
+     "y": 268,
+     "w": 132,
+     "h": 110
+    },
     "inn": {
      "x": 293,
      "y": 266,
@@ -2780,6 +3082,10 @@
     "eastExit": [
      925,
      258
+    ],
+    "tower": [
+     925,
+     240
     ],
     "crystalTurn": [
      925,
@@ -2906,6 +3212,10 @@
     [
      "eastExit",
      "crystalTurn"
+    ],
+    [
+     "eastExit",
+     "tower"
     ],
     [
      "crystalTurn",
@@ -3075,6 +3385,10 @@
         850,
         218
        ],
+       "tower": [
+        935,
+        160
+       ],
        "houses": []
       },
       "entrances": {
@@ -3096,6 +3410,18 @@
        ]
       },
       "spots": {
+       "library": {
+        "x": 539,
+        "y": 66,
+        "w": 132,
+        "h": 108
+       },
+       "shop": {
+        "x": 539,
+        "y": 268,
+        "w": 132,
+        "h": 110
+       },
        "inn": {
         "x": 293,
         "y": 266,
@@ -3171,6 +3497,10 @@
        "eastExit": [
         925,
         258
+       ],
+       "tower": [
+        925,
+        240
        ],
        "crystalTurn": [
         925,
@@ -3281,6 +3611,10 @@
        [
         "eastExit",
         "crystalTurn"
+       ],
+       [
+        "eastExit",
+        "tower"
        ],
        [
         "crystalTurn",

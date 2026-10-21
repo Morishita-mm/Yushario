@@ -185,7 +185,8 @@ function updateActivity(agent: RoomAgent, event: AgentEvent, at: number): void {
   if (!activity || at < agent.activityAt || agent.stopRequestedAt !== undefined && (at < agent.stopRequestedAt || activity === "idle")) return;
   const target = event.hook === "PreToolUse" || resumed ? event.target : undefined;
   if (activity !== agent.activity || target !== agent.target) agent.since = at;
-  if (activity !== agent.activity || event.hook === "PreToolUse") {
+  // Repeated thinking signals also renew the town station's last matching activity time.
+  if (activity !== agent.activity || event.hook === "PreToolUse" || activity === "think") {
     agent.log.push({ at, activity, ...(target ? { target } : {}) });
     if (agent.log.length > LOG_LIMIT) agent.log.shift();
   }

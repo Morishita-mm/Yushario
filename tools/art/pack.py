@@ -274,7 +274,7 @@ def main() -> None:
             manifest[component["id"]] = entry
     # Art contracts also follow components.json with --meta, without changing any PNG.
     keys = ("name", "group", "sub", "use", "frameNames", "sequences", "recolor", "windows",
-            "reach", "water", "bridge", "town", "inn", "church", "regions", "field", "fieldLight")
+            "reach", "water", "bridge", "town", "inn", "church", "library", "shop", "regions", "field", "fieldLight")
     for component in components:
         if component["id"] in manifest:
             entry = manifest[component["id"]]

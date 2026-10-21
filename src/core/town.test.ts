@@ -71,7 +71,7 @@ describe("townView", () => {
     expect(townView(room, MOOD_RULES.dozingMs).projects[0].heroes[0]).toMatchObject({ monster, place });
   });
 
-  it.each<Activity>(["idle", "think", "read", "search", "web", "git", "plan", "ask", "tool"])
+  it.each<Activity>(["idle", "think", "web", "git", "plan", "ask"])
     ("places nonbattle %s in town until the dozing threshold", (activity) => {
       const room = new Room();
       arrive(room, "a").activity = activity;
@@ -81,6 +81,35 @@ describe("townView", () => {
       expect(townView(room, MOOD_RULES.dozingMs).projects[0].heroes[0].place).toBe("inn");
     });
 
+  it.each<[string, HeroPlace, boolean]>([["Read", "library", false], ["Grep", "library", true], ["mcp__demo__inspect", "shop", false]])
+    ("puts %s inside and retains its place for eight seconds after the last matching activity", (tool, place, librarySearch) => {
+      const room = new Room(); arrive(room, "a");
+      room.apply({ state: "working", agent: "a", hook: "PreToolUse", tool }, 1000);
+      expect(townView(room, 60_000).projects[0].heroes[0]).toMatchObject({ place, librarySearch });
+      room.apply({ state: "working", agent: "a", hook: "PreToolUse", tool: "TaskUpdate" }, 2000);
+      expect(townView(room, 8999).projects[0].heroes[0].place).toBe(place);
+      expect(townView(room, 9000).projects[0].heroes[0].place).toBe("town");
+      room.apply({ state: "working", agent: "a", hook: "PreToolUse", tool }, 10_000);
+      room.apply({ state: "idle", agent: "a", hook: "Stop" }, 11_000);
+      expect(townView(room, 17_999).projects[0].heroes[0].place).toBe(place);
+      expect(townView(room, 18_000).projects[0].heroes[0].place).toBe("town");
+    });
+  it("switches interiors immediately and preserves battle/rest/dozing priority", () => {
+    const room = new Room(); arrive(room, "a");
+    const change = (tool: string, at: number) => {
+      room.apply({ state: "working", agent: "a", hook: "PreToolUse", tool }, at);
+      return townView(room, at).projects[0].heroes[0];
+    };
+    expect(change("Read", 1000).place).toBe("library");
+    expect(change("Grep", 2000)).toMatchObject({ place: "library", librarySearch: true });
+    expect(change("mcp__demo__inspect", 3000).place).toBe("shop");
+    expect(change("Edit", 4000).place).toBe("meadow");
+    change("Read", 5000);
+    room.apply({ state: "working", agent: "a", hook: "PreCompact" }, 6000);
+    expect(townView(room, 6000).projects[0].heroes[0].place).toBe("church");
+    change("Read", 7000);
+    expect(townView(room, 7000 + MOOD_RULES.dozingMs).projects[0].heroes[0].place).toBe("inn");
+  });
   it("maps all helpers to jobs in their existing order and retains the source agent", () => {
     const room = new Room();
     const agent = arrive(room, "a");

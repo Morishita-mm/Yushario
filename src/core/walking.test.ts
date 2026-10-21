@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { nearestRoadPoint, relocateWalk, roadRoute, roadStep, walkTo, type Roads } from "./walking";
 import manifest from "../../public/art/manifest.json";
+import { STATION_SLOTS, type PropStation } from "./town-station";
 
 const road: Roads = {
   nodes: { west: [0, 0], corner: [100, 0], south: [100, 100] },
@@ -64,10 +65,26 @@ const layouts = Object.entries(town.looks).map(([theme, look]) => ({
 }));
 // Ground-level foundations; the tall sprites' roofs may occlude the street behind.
 const buildings = [[293, 140, 421, 174], [539, 140, 671, 174], [291, 320, 423, 378], [539, 320, 671, 378],
-  [200, 310, 288, 354], [765, 310, 865, 354], [742, 370, 792, 398]];
+  [200, 310, 288, 354], [765, 310, 865, 354], [742, 370, 792, 398], [912, 150, 958, 160]];
 
 describe("the five shipped town street graphs", () => {
   for (const { theme, roads } of layouts) {
+    it(`${theme}: tower has one orthogonal approach below its foundation and station slots stay on clear ground`, () => {
+      expect(roads.nodes.tower).toEqual([925, 240]);
+      expect(roads.edges.filter((edge) => edge.includes("tower"))).toEqual([["eastExit", "tower"]]);
+      expect(roads.nodes.eastExit[0]).toBe(roads.nodes.tower[0]);
+      for (const station of Object.keys(STATION_SLOTS) as PropStation[]) {
+        const [nx, ny] = roads.nodes[station];
+        for (const [dx, dy] of STATION_SLOTS[station]) {
+          const x = nx + dx, y = ny + dy;
+          expect(x).toBeGreaterThanOrEqual(192); expect(x).toBeLessThanOrEqual(944);
+          expect(y).toBeLessThanOrEqual(474);
+          for (const [left, top, right, bottom] of buildings) {
+            expect(x + 14 > left && x - 14 < right && y > top && y - 4 < bottom, `${station}: slot`).toBe(false);
+          }
+        }
+      }
+    });
     it(`${theme}: every road is connected and clears fountain, buildings and river/lava`, () => {
       for (const node of Object.keys(roads.nodes)) {
         if (node !== "gate") expect(roadRoute(roads, node, "gate").length).toBeGreaterThan(0);
