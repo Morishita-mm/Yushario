@@ -3,6 +3,7 @@ name: Release
 # After a merge to main, publish to npm when package.json has a version npm does not have yet.
 # The publish job waits for approval in the "npm" environment. It signs in with npm trusted
 # publishing (OIDC), so no npm token is stored in GitHub.
+# After a successful publish, the release job tags that commit vX.Y.Z and creates a GitHub Release.
 
 on:
   push:
@@ -66,3 +67,22 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm publish --provenance --access public
+
+  release:
+    name: Tag and GitHub Release
+    needs: [check, publish]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write # create the tag and the release
+    steps:
+      # The tag points at the commit that was published. A rerun does nothing if the release exists.
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.check.outputs.version }}
+        run: |
+          if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "v$VERSION already has a release; nothing to do."
+          else
+            gh release create "v$VERSION" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "v$VERSION" --generate-notes
+          fi
