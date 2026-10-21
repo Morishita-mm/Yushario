@@ -35,7 +35,7 @@ Yushario is a local browser app that watches your coding agents and plays their 
 
 ## Why?
 
-Agents work in a terminal: useful, but easy to lose track of once several are running. Yushario turns that invisible activity into something you can glance at — and makes the hours of waiting a little more fun.
+I wanted the waiting time of an AI agent to be something fun to watch, so I gave the agent a body: a hero who moves around a town. It is not a tool for working faster or for reducing mental load.
 
 ## Features
 
