@@ -113,7 +113,7 @@ pi は拡張で同じ AgentEvent に変換する。session_start / before_agent_
 
 専用の行き先は `think` → `fire`、`git` → `crystal`、`web` → `tower`、`read` / `search` → `library`、`tool` → `shop`。共通の `stationActivity` / `townStation` で、対応活動中は滞在を維持し、別活動（`idle` / `plan` 等）へ変わっても最後の対応活動から8秒（`STATION_HOLD_MS`）は保持する。別の対応活動なら直ちに切り替える。戦闘・教会・居眠りは従来どおり優先。`plan` 自体には行き先を持たせない。
 
-散歩先（`TOWN_WANDER_STOPS`）は plazaW / plazaE / well / bridge / homeE だけ。同じ屋外小物は3〜4枠を使い、超過分は最寄りの枠を共有する。図書館は読む3枠・探す3枠、道具屋は4枠を描き、超過分は人数で示す。室内の勇者は町のwalkerから外し、町へ戻った時は対応する入口nodeから歩き始める。建物の人数表示とクリックで中を確認でき、下中央の「▼ そとへ」で町へ戻る。
+散歩先（`TOWN_WANDER_STOPS`）は plazaW / plazaE / well / bridge / homeE だけ。同じ屋外小物は3〜4枠を使い、超過分は最寄りの枠を共有する。図書館は読む3枠・探す3枠、道具屋は4枠を描き、超過分は右上の「ほか N人」の札で示す。室内の勇者は町のwalkerから外し、町へ戻った時は対応する入口nodeから歩き始める。宿屋・教会・図書館・道具屋の看板の右の人数札と、クリックで中を確認でき、下中央の「▼ そとへ」で町へ戻る。
 
 ## 様子：時間の流れから出すもの
 

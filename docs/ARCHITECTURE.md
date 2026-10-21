@@ -215,7 +215,7 @@ Codex の PostToolUse は成否不明として扱い、成功数・報告のテ�
 町の端末窓と `/terminal.html` は `src/web/terminal.ts` の接続部品を共有する。
 戦闘の `Focus.status[].name` は完全な名前を渡し、`drawFocus` の描画時だけ省略する。HTTP／WS の API 形式は変えない。
 画面専用の選択・開閉・下書きは各画面の中に置き、汎用ストアやイベントバスは作らない。
-図書館・道具屋は `town/library.ts` / `shop.ts` の小さな共有描画。`bg-library.library` / `bg-shop.shop` の枠・当たり判定・報告位置・NPC・出口を描画とクリックで共用し、図書館だけ読む／探すの枠を分ける。背景内の家具は描き直さず、NPC→勇者→名札・装備・報告の順に重ねる。`Sheets.variant` は既存の `hero-model.recolor` を継承する。新しいAPI・汎用室内エンジンは設けない。
+図書館・道具屋は `town/library.ts` / `shop.ts` の小さな共有描画。`bg-library.library` / `bg-shop.shop` の枠・当たり判定・報告位置・NPC・出口を描画とクリックで共用し、図書館だけ読む／探すの枠を分ける。背景内の家具は描き直さず、NPC→勇者→名札・装備・報告の順に重ねる。`Sheets.variant` は既存の `hero-model.recolor` を継承する。室内の人物は部屋ごとの定数（図書館1.5・道具屋1.7）で拡大して描き、当たり判定・報告位置・通知の矢印も同じ倍率に合わせる。店主・司書のクリック会話は神父と同じ `localHotspots` の1つの経路（`talk`）で処理する。超過人数の札は `town/field.ts` の `overflowPlate` を全室・全フィールドで共有する。新しいAPI・汎用室内エンジンは設けない。
 
 `rpg/main.ts` の `scene`・起動完了 `started` と、既存の移動処理 `Scene.go` をモックの外側パネルから使用する。場面ボタンをアプリ本体へ入れたり、テスト用イベントバス・描画層・汎用DIを挟んだりしない。HTMLの変更はViteの共通差し込みで3入口へ反映し、開発時は共通HTMLの変更でページを再読み込みする。
 
