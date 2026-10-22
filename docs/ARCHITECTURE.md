@@ -61,7 +61,7 @@ Yushario と勇者は同じ OS 利用者で動く。悪意ある同一利用者�
 | `src/core/turns.ts` | 進行中の往復の累計、最後のテスト結果と異常終了、直近256イベント内の遅着補正、許可待ちを除いた所要時間、報告の付与 | events, activity |
 | `src/core/event-history.ts` | 2000件の履歴から、勇者ごとの件数と保護するイベントに基づいて捨てる順を決める | events |
 | `src/core/permissions.ts` | 許可の表示用要約・回答 JSON、期限と省略本文の回答可否、端末／仲間に限定した進行の判定 | events |
-| `src/core/mobile-protocol.ts`, `mobile-display.ts`, `mobile-signing.ts`, `mobile-pairing.ts`, `mobile-push.ts` | モバイル v1 の本文・許可リスト・連番／時刻窓・署名／hash 入力・nonce・コードの遷移・SAS の桁・固定通知・receipt と安全な診断値の検査 | core の型・関数のみ |
+| `src/core/mobile-protocol.ts`, `mobile-display.ts`, `mobile-quests.ts`, `mobile-signing.ts`, `mobile-pairing.ts`, `mobile-push.ts` | モバイル v1 の本文・許可リスト・連番／時刻窓・署名／hash 入力・nonce・コードの遷移・SAS の桁・固定通知・receipt と安全な診断値の検査 | core の型・関数のみ |
 | `src/core/terminal-session.ts` | 起動入力のフィールド検査、端末の行列数、保持出力の行・UTF-8 バイト境界 | なし |
 | `src/core/terminal-modes.ts` | 端末の出力の切り捨てた部分で有効になったモード（別画面・マウス・貼り付け等）を覚え、開き直した時に先に送る | なし |
 | `src/core/local-request.ts` | 実際の待受ポートに対する Host の判定 | なし |
@@ -216,7 +216,7 @@ Codex の PostToolUse は成否不明として扱い、成功数・報告のテ�
 
 ### server ↔ mobile: 独立した HTTP 窓口
 
-`--mobile <host:port>` の時だけ、指定先へ別 listener を bind する（既定は停止）。`POST /mobile/v1` だけで `pair/status/permissions/decide/reports/push-token/unpair` を扱い、既存の HTTP／WS 経路へ転送しない。正確な body・署名・暗号・一般拒否は `MOBILE-PROTOCOL.md`。`decide` は同じ `PermissionWaiter.decide` に通し、ブラウザとの先着1件だけを採る。
+`--mobile <host:port>` の時だけ、指定先へ別 listener を bind する（既定は停止）。`POST /mobile/v1` だけで `pair/status/permissions/decide/reports/push-token/unpair/towns/quests/quest-create` を扱い、既存の HTTP／WS 経路へ転送しない。正確な body・署名・暗号・一般拒否は `MOBILE-PROTOCOL.md`。`decide` は同じ `PermissionWaiter.decide` に通し、ブラウザとの先着1件だけを採る。`quest-create` は登録済み町の不透明 ID を窓口内だけで解決し、同じ `validQuestPatch` と `QuestLedger.create` で未着手の札だけを作る（送信・担当・出陣はしない）。要求 ID を作成前に耐クラッシュ予約し、端末ごと5件/60秒に制限する。`reports` はクエストの題と、保存済みまたは同じ勇者・時刻のメモリ返答を最大8000文字で返す。内部のパス・cwd・branch・コマンド出力のフィールドは返さない。
 Mac の「スマホ」は起動時だけ表示し、5分の QR／コピー文字列、6桁 SAS の承認／拒否、端末の取り消しを既存の認可済み API で行う。QR の符号化だけ `qrcode-generator`（依存なし）を使い、自作しない。開いている間だけ状態を読む。端末ごとの通知結果と固定文言のテスト送信もこの認可済み画面だけに置き、receipt の成功を端末の表示・閲覧と混同しない。
 
 ### web 内: 描画データと端末の接続

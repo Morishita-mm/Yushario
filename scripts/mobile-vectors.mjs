@@ -82,6 +82,19 @@ const offer = { v: 1, addresses: ["http://192.0.2.1:8791", "http://100.64.0.1:87
   pairingCode: b64(pairingCode), expiresAt: 1700000300000 };
 const pairRequest = { ...header, seq: 1, operation: "pair", body: { pairingCode: b64(pairingCode), name: "Test phone", pushToken: null } };
 const pairResponse = { ...header, seq: 1, timestamp: header.timestamp + 1000, operation: "pair", body: { registered: true } };
+const town = { id: "town-opaque", name: "町" };
+const quest = { id: "quest-1", title: "題😀", town: town.name, state: "open", updatedAt: header.timestamp };
+const qv = [quest.id, quest.title, quest.town, quest.state, quest.updatedAt];
+const report = { id: "report-1", questId: quest.id, questTitle: quest.title, title: "報告", success: null, at: header.timestamp, excerpt: "先頭", text: "全文😀\n" };
+const rv = [report.id, report.questId, report.questTitle, report.title, report.success, report.at, report.excerpt];
+const creationId = `${header.timestamp}.${b64(pairingCode)}`;
+const questCases = [
+  ["towns", { cursor: null }, [null], { towns: [town], nextCursor: null }, [[[town.id, town.name]], null]],
+  ["quests", { cursor: "previous" }, ["previous"], { quests: [quest], nextCursor: quest.id }, [[qv], quest.id]],
+  ["quest-create", { requestId: creationId, townId: town.id, title: quest.title, purpose: "目的" }, [creationId, town.id, quest.title, "目的"], { quest }, [qv]],
+  ["reports", {}, [], { reports: [{ ...report, text: null }], nextCursor: null }, [[[...rv, null]], null]],
+  ["reports", { questId: quest.id, cursor: null }, [quest.id, null], { reports: [report], nextCursor: report.id }, [[[...rv, report.text]], report.id]],
+];
 const vectors = {
   description: "Yushario mobile v1 PUBLIC TEST KEYS; raw X25519 private scalars / Ed25519 seeds; ciphertext includes the final 16-byte tag.",
   keys: { gatewayX25519: gatewayX.vector, gatewayEd25519: gatewayEd.vector, phoneX25519: phoneX.vector, phoneEd25519: phoneEd.vector },
@@ -95,5 +108,9 @@ const vectors = {
   response: sample("response", response, [true]),
   pairRequest: sample("request", pairRequest, [b64(pairingCode), "Test phone", null]),
   pairResponse: sample("response", pairResponse, [true]),
+  quests: questCases.map(([operation, body, values, responseBody, responseValues], index) => ({
+    request: sample("request", { ...header, seq: index + 3, operation, body }, values),
+    response: sample("response", { ...header, seq: index + 3, operation, body: responseBody }, responseValues),
+  })),
 };
 writeFileSync(new URL("../docs/mobile-protocol-vectors.json", import.meta.url), JSON.stringify(vectors, null, 2) + "\n");

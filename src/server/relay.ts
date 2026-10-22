@@ -3,7 +3,8 @@ import { join } from "node:path";
 import { Room } from "../core/room";
 import { MobileGateway } from "./mobile/gateway";
 import { handleMobileApi } from "./mobile/api";
-import { mobileHeroes, mobileReports } from "./mobile/data";
+import { mobileHeroes } from "./mobile/data";
+import { MobileQuests } from "./mobile/quests";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import type { Duplex } from "node:stream";
 import { WebSocket, WebSocketServer, type RawData } from "ws";
@@ -38,7 +39,6 @@ let mobile: MobileGateway | undefined, mobileRoom: Room | undefined;
 function refreshMobile(): void {
   if (!mobile || !mobileRoom) return;
   mobile.heroes = mobileHeroes(mobileRoom, ledger.names, ledger.towns);
-  mobile.reports = mobileReports(quests.recentReports(), ledger.saveConversation);
 }
 function broadcast(message: object): void {
   const type = (message as { type?: string }).type;
@@ -158,7 +158,8 @@ function reviewed(url: URL): void {
 // Reserve mobile first and exclude overlapping addresses explicitly: some OSes
 // allow a later loopback listener to share a wildcard listener's port.
 if (options.mobile) {
-  mobileRoom = new Room(); mobile = new MobileGateway(join(dataDirectory, "mobile"), permissions);
+  mobileRoom = new Room(); mobile = new MobileGateway(join(dataDirectory, "mobile"), permissions,
+    new MobileQuests(quests, () => ledger.towns, () => mobileRoom));
   await mobile.listen(options.mobile.host, options.mobile.port);
 }
 const server = createServer(dispatchHttp);

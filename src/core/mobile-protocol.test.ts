@@ -12,8 +12,8 @@ const validRequest = vectors.request.signedEnvelope;
 const parseRequest = (changes: Record<string, unknown>) => parseMobileRequest({ ...validRequest, ...changes });
 
 describe("mobile wire validation", () => {
-  it("has exactly the seven allowed operations and rejects unknown fields", () => {
-    expect(MOBILE_OPERATIONS).toEqual(["pair", "status", "permissions", "decide", "reports", "push-token", "unpair"]);
+  it("has exactly the ten allowed operations and rejects unknown fields", () => {
+    expect(MOBILE_OPERATIONS).toEqual(["pair", "status", "permissions", "decide", "reports", "push-token", "unpair", "towns", "quests", "quest-create"]);
     for (const operation of ["terminal", "exec", "permission-decision", "PAIR", "__proto__", null]) {
       expect(isMobileOperation(operation)).toBe(false);
       expect(parseMobileRequestBody(operation, {})).toBeUndefined();
@@ -74,10 +74,10 @@ describe("mobile wire validation", () => {
     const hero = { id: "a", name: "勇者", town: "町", state: "idle", permissionPending: false };
     expect(parseMobileResponseBody("status", { heroes: [hero] })).toBeDefined();
     expect(parseMobileResponseBody("status", { heroes: [{ ...hero, state: "other" }] })).toBeUndefined();
-    const report = { id: "r", title: "報告", success: null, at: 0, excerpt: "" };
-    expect(parseMobileResponseBody("reports", { reports: [report] })).toBeDefined();
-    expect(parseMobileResponseBody("reports", { reports: [{ ...report, excerpt: "x".repeat(501) }] })).toBeUndefined();
-    expect(parseMobileResponseBody("reports", { reports: Array(51).fill(report) })).toBeUndefined();
+    const report = { id: "r", questId: "q", questTitle: "クエスト", title: "報告", success: null, at: 0, excerpt: "", text: null };
+    expect(parseMobileResponseBody("reports", { reports: [report], nextCursor: null })).toBeDefined();
+    expect(parseMobileResponseBody("reports", { reports: [{ ...report, excerpt: "x".repeat(501) }], nextCursor: null })).toBeUndefined();
+    expect(parseMobileResponseBody("reports", { reports: Array(51).fill(report), nextCursor: null })).toBeUndefined();
     expect(parseMobileResponseBody("push-token", { updated: true })).toBeDefined();
     expect(parseMobileResponseBody("unpair", { unpaired: true })).toBeDefined();
     expect(parseMobileResponseBody("decide", { decided: false })).toBeUndefined();
@@ -106,12 +106,12 @@ describe("mobile deterministic bytes", () => {
   it("projects the remaining operation bodies to fixed nested arrays", () => {
     const header = { v: 1, deviceId: vectors.deviceId, seq: 2, timestamp: 1700000000000 };
     const hero = { id: "h", name: "勇者", town: "町", state: "idle", permissionPending: true };
-    const report = { id: "r", title: "報告", success: null, at: 0, excerpt: "先頭" };
+    const report = { id: "r", questId: "q", questTitle: "クエスト", title: "報告", success: null, at: 0, excerpt: "先頭", text: null };
     const p = vectors.permission.displayed;
     const cases = [
       ["status", { heroes: [hero] }, [[["h", "勇者", "町", "idle", true]]]],
       ["permissions", { permissions: [p] }, [[[p.id, p.heroId, p.heroName, p.town, p.tool, p.summary, p.content, p.omitted, p.expiresAt, p.contentHash]]]],
-      ["reports", { reports: [report] }, [[["r", "報告", null, 0, "先頭"]]]],
+      ["reports", { reports: [report], nextCursor: null }, [[["r", "q", "クエスト", "報告", null, 0, "先頭", null]], null]],
       ["push-token", { updated: true }, [true]], ["unpair", { unpaired: true }, [true]],
     ] as const;
     for (const [operation, body, values] of cases) {

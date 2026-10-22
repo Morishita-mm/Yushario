@@ -30,7 +30,7 @@ describe("mobile Node crypto shared vectors", () => {
   });
   it("matches signing input, signatures, nonces, AAD and request/response ciphertext byte for byte", () => {
     const phone = new TestPhone({ ...vectors.pairing.offer, v: 1 }, phoneIdentity);
-    for (const sample of [vectors.request, vectors.pairRequest]) {
+    for (const sample of [vectors.request, vectors.pairRequest, ...vectors.quests.map(sample => sample.request)]) {
       const request = parseMobileRequest(sample.signedEnvelope)!;
       expect(hex(mobileRequestSigningInput(request))).toBe(sample.signingInputHex);
       expect(hex(Buffer.from(mobileSign(mobileRequestSigningInput(request), phoneIdentity.signingPrivateKey), "base64url"))).toBe(sample.signatureHex);
@@ -41,7 +41,7 @@ describe("mobile Node crypto shared vectors", () => {
       expect(hex(Buffer.from(packet.ciphertext, "base64url"))).toBe(sample.ciphertextHex);
       expect(openMobileRequest(packet, gateway)).toEqual(sample.signedEnvelope);
     }
-    for (const sample of [vectors.response, vectors.pairResponse]) {
+    for (const sample of [vectors.response, vectors.pairResponse, ...vectors.quests.map(sample => sample.response)]) {
       const response = parseMobileResponse(sample.signedEnvelope)!;
       expect(hex(mobileResponseSigningInput(response))).toBe(sample.signingInputHex);
       expect(hex(Buffer.from(mobileSign(mobileResponseSigningInput(response), gateway.signingPrivateKey), "base64url"))).toBe(sample.signatureHex);

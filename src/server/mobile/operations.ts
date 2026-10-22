@@ -3,6 +3,7 @@ import { mobileText, type MobileSignedRequest } from "../../core/mobile-protocol
 import type { PermissionWaiter } from "../permissions";
 import { mobileEqual, mobileHash } from "./crypto";
 import type { MobileStore } from "./store";
+import type { MobileQuests } from "./quests";
 
 export function mobileShort(value: string, max: number, fallback = ""): string {
   let text = value.slice(0, max);
@@ -22,7 +23,7 @@ export function mobilePermissionViews(permissions: PermissionWaiter, heroes: Mob
 }
 
 export function mobileOperation(request: MobileSignedRequest, store: MobileStore, permissions: PermissionWaiter,
-  heroes: MobileHero[], reports: import("../../core/mobile-display").MobileReport[]): MobileResponseBody {
+  heroes: MobileHero[], quests?: MobileQuests): MobileResponseBody {
   switch (request.operation) {
     case "status": {
       const waiting = new Set(permissions.pending.filter(permission => permission.expiresAt > Date.now()).map(permission => permission.agent ?? permission.terminal));
@@ -30,8 +31,10 @@ export function mobileOperation(request: MobileSignedRequest, store: MobileStore
         .sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0).slice(0, 100) } };
     }
     case "permissions": return { operation: "permissions", body: { permissions: mobilePermissionViews(permissions, heroes) } };
-    case "reports": return { operation: "reports", body: { reports: [...reports]
-      .sort((a, b) => b.at - a.at || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)).slice(0, 50) } };
+    case "reports": case "towns": case "quests": case "quest-create": {
+      if (!quests) throw Error("Quests unavailable");
+      return quests.operate(request, store);
+    }
     case "decide": {
       const displayed = mobilePermissionViews(permissions, heroes).find(permission => permission.id === request.body.permissionId);
       if (!displayed || !mobileEqual(displayed.contentHash, request.body.contentHash)
