@@ -7,7 +7,7 @@ const env = { ...process.env, NODE_ENV: "development", AGENT_CHARACTER_TOKEN: to
 console.log(`Open http://127.0.0.1:${webPort}/?token=${encodeURIComponent(token)}`);
 // Launch both Node processes directly so shutdown does not leave npm shell children.
 const children = [
-  spawn(process.execPath, ["--import", "tsx", "src/server/relay.ts", ...process.argv.slice(2)], { stdio: "inherit", env }),
+  spawn(process.execPath, ["--import", "tsx", "scripts/dev-relay.mjs", ...process.argv.slice(2)], { stdio: "inherit", env }),
   spawn(process.execPath, ["node_modules/vite/bin/vite.js", "--host", "127.0.0.1", "--port", webPort, "--strictPort"], { stdio: "inherit", env }),
 ];
 let stopping = false;

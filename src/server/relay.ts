@@ -155,19 +155,21 @@ function reviewed(url: URL): void {
   } catch (error) { console.error("Quest review save failed:", error); }
 }
 
+// Reserve mobile first and exclude overlapping addresses explicitly: some OSes
+// allow a later loopback listener to share a wildcard listener's port.
+if (options.mobile) {
+  mobileRoom = new Room(); mobile = new MobileGateway(join(dataDirectory, "mobile"), permissions);
+  await mobile.listen(options.mobile.host, options.mobile.port);
+}
 const server = createServer(dispatchHttp);
-port = await listenAvailable(server, options.port);
+port = await listenAvailable(server, options.port, mobile?.reservedMainPort);
 const sockets = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 });
 const pty = createPtyServer(port, (session) => ledger.register(session.projectName ?? session.project, session.cwd, session.createdAt, session.project, session.projectParent), broadcast,
   record, (terminal) => { quests.forgetSession(terminal); party.forgetSession(terminal); broadcast(party.snapshot()); }, (id) => namedHero(ledger.names, id), broadcast, broadcast,
   (session, text, hero) => quests.requested(session, text, Date.now(), hero));
 const party = new QuestParty(quests, pty, broadcast, record, (id) => namedHero(ledger.names, id));
 const tactics = new QuestTactics(party);
-if (options.mobile) {
-  mobileRoom = new Room(); mobile = new MobileGateway(join(dataDirectory, "mobile"), permissions);
-  await mobile.listen(options.mobile.host, options.mobile.port);
-  refreshMobile();
-}
+refreshMobile();
 function archive(): void {
   try { ledger.archive(pty.activeTownKeys(), Date.now()); }
   catch (error) { console.error("Town archive failed:", error); }

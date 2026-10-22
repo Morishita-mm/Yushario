@@ -2,6 +2,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { networkInterfaces } from "node:os";
 import type { MobileHero, MobileReport, MobileResponse } from "../../core/mobile-display";
 import { mobileInteger, mobileReplayAllowed, parseMobilePacket } from "../../core/mobile-protocol";
+import { mobileBindSharesMainPort } from "../../core/startup";
 import type { PermissionWaiter } from "../permissions";
 import { openMobileRequest, sealMobileResponse } from "./crypto";
 import { MobileStore } from "./store";
@@ -16,6 +17,7 @@ export class MobileGateway {
   heroes: MobileHero[] = [];
   reports: MobileReport[] = [];
   addresses: string[] = [];
+  reservedMainPort?: number;
   private readonly rate = new MobileRateLimit();
   private readonly server = createServer((request, response) => { void this.handle(request, response); });
   constructor(directory: string, private readonly permissions: PermissionWaiter) {
@@ -36,11 +38,19 @@ export class MobileGateway {
       });
       const address = this.server.address();
       if (!address || typeof address === "string") throw Error("Mobile listener unavailable");
+      this.reservedMainPort = mobileBindSharesMainPort(address.address) ? address.port : undefined;
       const hosts = host === "0.0.0.0" || host === "::" ? Object.values(networkInterfaces()).flat()
         .filter(item => item && !item.internal && !item.address.includes("%"))
         .map(item => item!.address).slice(0, 8) : [host];
       this.addresses = (hosts.length ? hosts : ["127.0.0.1"]).map(host => `http://${host.includes(":") ? `[${host}]` : host}:${address.port}`);
-    } catch (error) { this.store.close(); throw error; }
+    } catch (cause) {
+      this.store.close();
+      const address = `${host.includes(":") ? `[${host}]` : host}:${port}`;
+      const occupied = (cause as NodeJS.ErrnoException).code === "EADDRINUSE";
+      throw new Error(occupied
+        ? `Mobile gateway ${address} is already in use; choose another --mobile host:port. / スマホ窓口 ${address} は使用中です。--mobile のポートを変えてください。`
+        : `Cannot bind mobile gateway ${address}; check --mobile host:port. / スマホ窓口 ${address} を開けません。--mobile のアドレスとポートを確認してください。`, { cause });
+    }
     this.server.on("error", () => console.error("Mobile listener error / スマホ窓口でエラー"));
   }
   startPairing(addresses = this.addresses) { this.pairing.start(addresses); return this.snapshot(); }

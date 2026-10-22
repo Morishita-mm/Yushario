@@ -15,6 +15,12 @@ export function parseMobileBind(value: string): MobileBind | undefined {
   if (!match || Number(match[2]) > 65535) return;
   return { host: match[1].startsWith("[") ? match[1].slice(1, -1) : match[1], port: Number(match[2]) };
 }
+// Receives Node server.address().address (resolved/normalized), not a CLI hostname.
+export function mobileBindSharesMainPort(address: string): boolean {
+  return ["127.0.0.1", "0.0.0.0", "::", "::ffff:127.0.0.1", "::ffff:7f00:1",
+    "::ffff:0.0.0.0", "::ffff:0:0"].includes(address.toLowerCase());
+}
+
 type StartupResult = { options: StartupOptions } | { help: true } | { error: string; japanese: string };
 
 export function parseStartupOptions(args: string[], environmentPort?: string, open = true): StartupResult {

@@ -44,7 +44,7 @@
     "build": "vite build && node scripts/build-server.mjs",
     "prepack": "npm run build",
     "start": "node scripts/yushario.mjs",
-    "dev:relay": "NODE_ENV=development tsx src/server/relay.ts",
+    "dev:relay": "NODE_ENV=development node --import tsx scripts/dev-relay.mjs",
     "dev:web": "vite",
     "dev": "node scripts/dev.mjs"
   },
