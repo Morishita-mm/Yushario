@@ -1,6 +1,6 @@
 # モバイル窓口：ASVS L2 の該当チェック
 
-基準は [OWASP ASVS 4.0.3](https://github.com/OWASP/ASVS/tree/v4.0.3)。対象はこの PoC の Mac 窓口に該当する管理策で、網羅的な ASVS 適合宣言・第三者認証ではない。L2 を目標に、実装／自動証拠のあるもの、部分的なもの、未実施を区別する。脅威の対応は [threat-model.md](threat-model.md)。実行結果は [窓口の初回検証](runs/2026-10-22-f881937.md) と [通知の配送確認・診断](runs/2026-10-22-7094164.md)、[静的解析・lock race 修正](runs/2026-10-23-sast-da6d36b.md)。
+基準は [OWASP ASVS 4.0.3](https://github.com/OWASP/ASVS/tree/v4.0.3)。対象はこの PoC の Mac 窓口に該当する管理策で、網羅的な ASVS 適合宣言・第三者認証ではない。L2 を目標に、実装／自動証拠のあるもの、部分的なもの、未実施を区別する。脅威の対応は [threat-model.md](threat-model.md)。実行結果は [窓口の初回検証](runs/2026-10-22-f881937.md) と [通知の配送確認・診断](runs/2026-10-22-7094164.md)、[静的解析・lock race 修正](runs/2026-10-23-sast-da6d36b.md)、[クエスト発行・報告確認（SEC-18〜20）](runs/2026-10-23-mobile-quests-28c94e1.md)。
 
 ## 証拠の入口
 
