@@ -5,7 +5,7 @@ CLI エージェントの仕事を **RPG 風の町と勇者** として見せ、
 
 Node 22.13.0 以上（組み込み `node:sqlite`）の1プロセスが `127.0.0.1` で build 済みの web と API・WebSocket を配信する。`yushario` の bin はビルド済み `lib/server/relay.js` を起動し、実行時に tsx・Vite は使わない。既存 Vite の SSR ビルドで server と pi 拡張の Node ESM を `lib/` に出し、web・絵は `dist/` に入れる。Vite のサーバーと tsx は開発時だけ使う。
 状態の読み取りは `docs/OBSERVATION.md`（現在の観察契約）、勇者の操作と現在の対応範囲は `docs/PLATFORM.md` の最新段階、絵は `docs/ART.md` が正。過去段階の制限を現在の仕様として扱わない。
-スマホの小さな別アプリと、それに答える本体側のモバイル窓口（計画中）は `docs/MOBILE.md` が正。
+スマホの小さな別アプリと、本体側のモバイル窓口は `docs/MOBILE.md`、通信のバイト列は `docs/MOBILE-PROTOCOL.md` が正。
 
 ## 原則：ハーネスではなく ADE
 
@@ -61,6 +61,7 @@ Yushario と勇者は同じ OS 利用者で動く。悪意ある同一利用者�
 | `src/core/turns.ts` | 進行中の往復の累計、最後のテスト結果と異常終了、直近256イベント内の遅着補正、許可待ちを除いた所要時間、報告の付与 | events, activity |
 | `src/core/event-history.ts` | 2000件の履歴から、勇者ごとの件数と保護するイベントに基づいて捨てる順を決める | events |
 | `src/core/permissions.ts` | 許可の表示用要約・回答 JSON、期限と省略本文の回答可否、端末／仲間に限定した進行の判定 | events |
+| `src/core/mobile-protocol.ts`, `mobile-display.ts`, `mobile-signing.ts`, `mobile-pairing.ts`, `mobile-push.ts` | モバイル v1 の本文・許可リスト・連番／時刻窓・署名／hash 入力・nonce・コードの遷移・SAS の桁・固定通知・receipt と安全な診断値の検査 | core の型・関数のみ |
 | `src/core/terminal-session.ts` | 起動入力のフィールド検査、端末の行列数、保持出力の行・UTF-8 バイト境界 | なし |
 | `src/core/terminal-modes.ts` | 端末の出力の切り捨てた部分で有効になったモード（別画面・マウス・貼り付け等）を覚え、開き直した時に先に送る | なし |
 | `src/core/local-request.ts` | 実際の待受ポートに対する Host の判定 | なし |
@@ -89,7 +90,8 @@ Yushario と勇者は同じ OS 利用者で動く。悪意ある同一利用者�
 | `src/server/pty.ts`, `pty-session.ts`, `pty-socket.ts` | 複数の端末セッションと API、起動・終了・停止、WS /pty の接続・受信と保持出力の配信 | core, server, Node, node-pty, ws |
 | `src/server/pty-launch.ts`, `pty-process.ts` | CLI の起動、フック設定、環境変数、子プロセスの終了 | agents, core, Node, node-pty |
 | `src/server/pty-actions.ts` | 依頼の送信・預かり、にげる・やすむ・みおくる | core, agents, pty-session |
-| `src/server/permissions.ts` | core の許可判定を呼び、独立した Promise・タイマーで利用者の回答・時間切れをフックへ返す | core/permissions, language, Node timer |
+| `src/server/permissions.ts` | core の許可判定を呼び、独立した Promise・タイマーで利用者の回答・時間切れをフックへ返す。モバイルの監査保存は判断の配送前に行う | core/permissions, language, Node timer |
+| `src/server/mobile/*` | 別ポートの窓口、Node crypto、鍵・端末と連番の耐クラッシュ保存、保留ペアリング、固定 Expo 通知と receipt 確認・上限つき0600診断、画面用の登録／テスト通知 API、既存の状態／報告からの表示値 | core, permissions, Node crypto/http/fs、固定先への fetch |
 | `src/server/project.ts`, `town-api.ts`, `town-data.ts` | git 共通ディレクトリの実パスによる町の鍵・短い名前の取得、旧 JSON の移行、町・設定・名前・めいぼの API と JSON 保存 | core, agents, Node |
 | `src/server/quest-db.ts`, `quest-migrations.ts`, `quest-ledger.ts`, `quest-api.ts` | SQLite の1接続と全表の番号付き移行、クエスト・出来事・端末の結び付きの保存、依頼・報告の記録、クエスト API と WS の通知。party/checks/previews の保存クラスは表を作らない | core, Node sqlite/fs/crypto, server |
 | `src/server/party.ts`, `party-db.ts`, `party-api.ts`, `party-agent-api.ts` | パーティーの保存・人の確認・巻物・会話対応の端末だけへの配送、現在の書き換える役の取得、セッション専用 API と一定時間の合言葉比較 | core, server, Node sqlite/crypto/http |
@@ -187,6 +189,7 @@ Codex の PostToolUse は成否不明として扱い、成功数・報告のテ�
 | `WS /pty?session=<id>` | 同じ端末の保持出力とライブ出力。web からは `input` / `resize`。停止の確認待ちでも人が調べて復旧できるよう入力を受ける |
 | `/api/roster` | 旅立った勇者の一覧と `/:sessionId/recall` で再開 |
 | `/api/names`, `/api/towns`, `/api/settings` | 名前、町の鍵で引く台帳・すがた、町をしまうまでの日数・`saveConversation`（既定 false） |
+| `/api/mobile` と配下の `/pair`、`/confirm`、`/cancel`、`/devices/:id`、`/test-push` | 同じ Host／Origin／画面 token 検査。起動の有無、公開用アドレス、登録の最小情報と QR／SAS の表示・人の確認・取り消し。秘密鍵・端末公開鍵の台帳・通知 ID・連番は返さず、WS にも流さない |
 | `/api/review?session=<id>` または `?quest=<id>` | GET 既知の端末／保存クエスト拠点の cwd・branch・短い HEAD・上流との差・変更一覧と行の増減。`mode=uncommitted`（既定）／`branch`、`base=<branch>`。comparison に候補・既定・選んだ元・mergeBase を返す。既定の元は origin/HEAD → main → master。成功した読み取りは `QuestLedger.reviewed` で記録 |
 | `/api/review/verdict?session=<id>`（`quest` でも可） | POST `{verdict:"approved"|"changes",mode,base?}`。拠点は鑑定の読み取りと同じ選び方。サーバーが branch・HEAD・作業状態の指紋を読み、出来事 `verdict` に残す。窓を開いた記録（`reviewed`、「かんていを ひらいた」）とは別（段階21） |
 | `/api/review/diff?session=<id>&path=<相対パス>`（`quest` でも可） | GET 同じ mode・base の1ファイルの unified diff、または binary／tooLarge の印。相対パスと実パスの両方で cwd の外を拒否。任意の cwd は受け付けない |
@@ -211,6 +214,11 @@ Codex の PostToolUse は成否不明として扱い、成功数・報告のテ�
 | `/preview-link.js` | GET トークン不要の静的 JS。`yushario-preview` の `{url,title,errors,count}` を opener に知らせるだけ |
 | `POST /hooks/permission` | Claude Code の HTTP フック。Authorization Bearer の端末へ結び付け、許可・拒否を返す。Origin つき403、CORSなし。合言葉なし／不一致は表示だけで `{}`（端末判断）、許可カードは作らない |
 
+### server ↔ mobile: 独立した HTTP 窓口
+
+`--mobile <host:port>` の時だけ、指定先へ別 listener を bind する（既定は停止）。`POST /mobile/v1` だけで `pair/status/permissions/decide/reports/push-token/unpair` を扱い、既存の HTTP／WS 経路へ転送しない。正確な body・署名・暗号・一般拒否は `MOBILE-PROTOCOL.md`。`decide` は同じ `PermissionWaiter.decide` に通し、ブラウザとの先着1件だけを採る。
+Mac の「スマホ」は起動時だけ表示し、5分の QR／コピー文字列、6桁 SAS の承認／拒否、端末の取り消しを既存の認可済み API で行う。QR の符号化だけ `qrcode-generator`（依存なし）を使い、自作しない。開いている間だけ状態を読む。端末ごとの通知結果と固定文言のテスト送信もこの認可済み画面だけに置き、receipt の成功を端末の表示・閲覧と混同しない。
+
 ### web 内: 描画データと端末の接続
 
 本番・モックは `src/web/rpg/app.html` と `rpg/main.ts`（Scene・Status・会話・クエスト・本番CSS）を共用する。モック用の偽データとHTTP／WS応答は `src/web/art/*` に閉じ、モック専用のサイドバーや詳細の開閉処理は作らない。モックが置き換えるのは既存HTTP／WS境界だけで、本番のコードはモックの通信処理を読み込まない。紹介サイトは本体リポジトリの管理・配布対象に含めない。
@@ -229,12 +237,14 @@ Codex の PostToolUse は成否不明として扱い、成功数・報告のテ�
 
 ## 寿命・保存・セキュリティ
 
-- server は `127.0.0.1` のみ。起動ごとにランダムなトークンを作り、URL に表示する。token ファイルは読まず・書かず、残っていても使わない。開発時だけ明示的な `AGENT_CHARACTER_TOKEN` 指定を許す。ブラウザを自動で開く（`--no-open` で無効）。既定8790／`--port`／`PORT` から、使用中なら次の空きポートを実際に bind して使う。
+- ブラウザ用 server は `127.0.0.1` のみ（別 listener のモバイル窓口だけが明示したアドレスを使う）。起動ごとにランダムなトークンを作り、URL に表示する。token ファイルは読まず・書かず、残っていても使わない。開発時だけ明示的な `AGENT_CHARACTER_TOKEN` 指定を許す。ブラウザを自動で開く（`--no-open` で無効）。既定8790／`--port`／`PORT` から、使用中なら次の空きポートを実際に bind して使う。
 - npm パッケージの allowlist は `dist/`・`lib/`・Claudeフック・bin・`LICENSE`・`NOTICE`。ライセンスと通知はブラウザ配布用の `dist/` にもコピーする。アダプタはパッケージの絶対パスから読み込み、ソース・テスト・作業用ファイル・利用者データを同梱しない。
 - HTTP・WS Upgrade の入口で Host を `127.0.0.1:<実ポート>`／`localhost:<実ポート>` に限定する。Vite proxy は Host を転送先へ変更する。WS `/ws`・`/pty` と `/api/*` はトークンと自分自身の Origin を検査する。WS は Origin 必須、HTTP API の Origin 無しリクエストはトークンで許可する。開発時だけローカルの別ポートも許可する。
 - フックの `POST /event`・`/hooks/permission` は画面用トークンを使わず、端末の `AGENT_CHARACTER_AGENT_TOKEN` を Authorization Bearer で受ける。Claude HTTP 許可フックは公式の `headers`・`allowedEnvVars` で環境変数を展開する。すべての Origin つきを拒否し、CORS は返さない。合言葉なし／不一致の知らせは terminal・branch・command を外し、agent を `external:` 名前空間にして描くだけ。台帳・パーティー・証拠・許可・失効・PTY へは渡さない。本文の上限は1MiB、端末作成・町の設定は4KiB、端末操作は64KiB（UTF-8バイト、超過は413）。Claude の command フック stdin も1MiBで、超過時は無言で正常終了する。
 - 再開による所属移動は、画面の「よびもどす」で起動した端末の `recalledHero` と SessionStart の hero が一致し、旧端末が終了／削除済みの時だけ。recalledHero はメモリだけで DB に保存しない。ほかの端末の既知の hero を名乗るフックは表示専用に落とす。
 - サーバーの Git は `core.fsmonitor=false`・`core.hooksPath` を null device に固定し、global/system 設定と継承した `GIT_*` を使わない。repo の filter 名を `git config` で読み、clean・smudge・process を空、required を false に上書きする。外部 diff・textconv も読み取り側で無効化する。filter による変換を行わない拠点なので、必要な準備は人が端末で行う。同一利用者による同時の設定差し替え、PATH 上の git 自体の改変は隔離しない。
+- モバイル窓口は Origin つきを拒否し、CORS／ブラウザ token を使わない。1MiB 上限・送信元 IP／登録端末ごと毎分30件・コード3失敗で失効・最大5台。`0.0.0.0`／`::` は起動時に警告する。公開インターネット向けにはしない。
+- `AGENT_CHARACTER_HOME/mobile/` は0700、鍵・台帳・判断の記録は0600。連番を操作／応答の前に一時ファイル＋fsync＋rename＋ディレクトリ fsync で保存し、同じ台帳を2プロセスが使わないよう lock する。破損では停止し、連番を初期化しない。バックアップの古い台帳へ戻す場合は Mac 鍵も作り直し、再登録する。通知は固定文言だけで、失敗は本文／通知 ID を出さず短く記録する。
 - PTY はブラウザ切断では止めない。明示的な終了・CLI の終了・server の停止で終わる。最大16セッション、各出力の直近256KBを保持する。切り捨てた部分で有効になった端末のモード（pi の別画面・マウスなど）は覚えておき、開き直した時に先に送る。
 - 起動時に検査した CLI の絶対パスを保持し、別の作業ディレクトリでも同じパスを起動する。子プロセスに `AGENT_CHARACTER_URL`・`AGENT_CHARACTER_SESSION`・`AGENT_CHARACTER_PROJECT` を渡す。Claude フックは渡された project を使い、外部起動でその値が無い時だけ git から調べる。transcript_path が無い Stop は再試行しない。server のトークンや親の入れ子セッション判定用変数は渡さない。
 - Codex は利用者の設定ファイルを書き換えず、`-c features.hooks=true`・`-c hooks.<Event>=[...]` と `--no-daemon` を付ける。後者は共有デーモンに別端末の合言葉を継承させないため。`/hooks` の信頼確認と管理者制限を迂回しない（初回はターミナルで確認・依頼）。`notify` は重複するため使わず、transcript・画面・出力の解析もしない。Codex 用の保存表・利用者設定は足さず、会話と報告は既存の保存方針のまま。PostToolUse の成否の契約がないので、自動証拠は作らない。
@@ -254,7 +264,7 @@ Codex の PostToolUse は成否不明として扱い、成功数・報告のテ�
 - 拠点の path・branch は SQLite のクエストの `worktreePath`・`worktreeBranch` に保存し、`QuestLedger.setWorktree(id,{path,branch})` で結び付ける。たたんだ拠点の結び付きは外すが branch は Git に残す。worktree は Git 自身が管理し、別の台帳は作らない。`execFile` の引数で `check-ref-format --branch`・`worktree add -b`・`worktree list --porcelain -z`・`worktree remove` を呼ぶ（5秒・1MiB上限、force なし）。新しい置き場所の既存フォルダ・既存拠点内・別のリポジトリ内・シンボリックリンクの親を確かめる。撤去中は同じ場所への端末作成を断り、活動中の端末（shell も含む）と未追跡も含む変更があれば撤去しない。フックの記録は git の読み直しで待たせず、branch の更新は次のイベント／一覧に使う。
 - 同じ同期処理内の台帳変更は1回の `queueMicrotask` にまとめて一覧を構成・配信する（close後は配信しない）。`QuestDatabase.summary`／`QuestLedger.summary` は出来事・条件・証拠を読まない札、`reportsAfter` は遅着補正に要る報告だけを返し、日常のフック記録で全クエストの全出来事を数え直さない。現在の所属はセッション主キーの party member で引く。配信済み一覧のID集合を `Party.prune(knownQuests)` に渡し、クエストごとの再問い合わせを避ける。`list()` は書き換える役・条件と最新の証拠を一括で読み、`CheckDatabase.listAll()` は `latestEvent` への結合で条件ごと1証拠だけ読み、履歴件数を走査しない。証拠の保存と最新IDの更新は同じsavepointで行い、遅着はより新しい証拠を上書きしない。出来事・全証拠の詳しい本文は札を開いた時だけ読む。報告リンクは索引で1返事を引き、毎回の snapshot には載せない。
 - `QuestLedger.current(session)`・`addEvent(id,{kind,at,title,...})`・`reviewed(session,at,questId?)` は鑑定側からも直接呼べる。出来事の要点は core の往復集計から保存し、直近範囲の遅着で補正する。`done`・`dropped` はフックで上書きしない。
-- 許可は id ごとに最大16件、独立した120秒の期限で待つ。再接続では全件を再送し、画面がすべて切断したら全件を端末判断へ戻す。コマンド／パスの表示は待っている間だけ2000文字まで保持し、超過時は画面での許可を禁止する。履歴・ログには短い要約だけを渡す。
+- 許可は id ごとに最大16件、独立した120秒の期限で待つ。再接続では全件を再送し、ブラウザがすべて切断し登録スマホもなければ全件を端末判断へ戻す（登録スマホがある場合も120秒の期限は延長しない）。コマンド／パスの表示は待っている間だけ2000文字まで保持し、超過時は画面での許可を禁止する。履歴・ログには短い要約だけを渡す。
 - 報告の出来事は `result: {cwd,branch?,head?}` を持つ。既存の `quest_events.report` JSON の任意の result キーに保存し、API では集計 report と分けて返す（列・移行の追加なし）。Stop はまず cwd と報告を保存・配信し、安全な Git 読み取りで branch・短い HEAD を後から元の出来事に付ける。遅着の集計補正でも result は保つ。割当・再開の出来事にも cwd を保存し、worktreePath が無い時は最後の割当（無ければ報告）の保存 cwd を鑑定に使う。新しい仲間の報告だけでは割当先を変えない。古い記録に cwd が無ければ不明の理由を出す。保存済みのパスの実在・Git 作業ツリー・町の共通 Git ディレクトリを確かめ、別の生存端末では代用しない。
 - 鑑定は `execFile` の git 読み取りだけ（シェルを通さない）。外部 diff・textconv・色を無効にし、各コマンドは5秒、出力は1MiBまで。未追跡の内容は選んだ時だけ読み、バイナリ・1MiB超は本文を返さない。絶対パス・`..`・外向きのシンボリックリンクを拒否し、差分の本文は保存しない。編集後の最後のテストが成功した報告だけ宝箱、未実行・失敗は巻物。見出しは core の `reportTitle` を画面と台帳で共有する。
 - エディタ（なし＝パスをコピー／VS Code／Cursor）と報告の鑑定済み印（勇者IDと時刻、直近200件）は localStorage。ファイルを開く操作は URL／クリップボードだけで、サーバーに開く API はない。
