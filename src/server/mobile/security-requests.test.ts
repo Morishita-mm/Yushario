@@ -54,7 +54,7 @@ describe("mobile real HTTP request security", () => {
   it("SEC-07 sends only fixed content-free push fields and keeps permission content inside AEAD", async () => {
     const phone = await fixture.pair();
     for (const kind of ["permission", "report", "error"] as const) {
-      expect(mobilePushPayload(kind)).toEqual({ title: "Yushario", body: "確認が必要です", data: { kind } });
+      expect(mobilePushPayload(kind)).toEqual({ priority: "high", title: "Yushario", body: "確認が必要です", data: { kind } });
     }
     const held = fixture.permissions.wait(permission(), true);
     const response = await fixture.post(phone.packet("permissions"));

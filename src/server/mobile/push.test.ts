@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { mobilePushPayload } from "../../core/mobile-pairing";
 import { generateMobileIdentity } from "./crypto";
 import { MobilePush } from "./push";
 import { MobileStore } from "./store";
@@ -32,7 +31,7 @@ describe("Expo push ticket/receipt delivery (no real pushes)", () => {
       ? json({ data: { status: "ok", id: "ticket-1" } }) : json({ data: { "ticket-1": { status: "ok" } } }));
     push.notify("permission"); await vi.advanceTimersByTimeAsync(0);
     expect(fetch).toHaveBeenCalledTimes(1);
-    expect(JSON.parse(String(fetch.mock.calls[0][1]?.body))).toEqual({ to: token, ...mobilePushPayload("permission") });
+    expect(JSON.parse(String(fetch.mock.calls[0][1]?.body))).toEqual({ to: token, priority: "high", title: "Yushario", body: "確認が必要です", data: { kind: "permission" } });
     expect(push.results().find(entry => entry.deviceId === id)?.receiptStatus).toBe("pending");
     expect(push.results().find(entry => entry.deviceId === otherId)?.errorCode).toBe("NoPushToken");
     await vi.advanceTimersByTimeAsync(4999); expect(fetch).toHaveBeenCalledTimes(1);

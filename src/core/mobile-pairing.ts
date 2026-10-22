@@ -63,8 +63,8 @@ export function mobileSasDigits(hash: Uint8Array): string {
 }
 
 export function mobilePushPayload(kind: "permission" | "report" | "error"): {
-  title: "Yushario"; body: "確認が必要です"; data: { kind: "permission" | "report" | "error" };
+  priority: "high"; title: "Yushario"; body: "確認が必要です"; data: { kind: "permission" | "report" | "error" };
 } {
   if (!["permission", "report", "error"].includes(kind)) throw new RangeError("Invalid push kind");
-  return { title: "Yushario", body: "確認が必要です", data: { kind } };
+  return { priority: "high", title: "Yushario", body: "確認が必要です", data: { kind } };
 }

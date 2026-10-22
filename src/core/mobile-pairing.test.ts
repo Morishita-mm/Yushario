@@ -83,9 +83,9 @@ describe("mobile pairing offer and privacy", () => {
     expect(() => mobileSasDigits(new Uint8Array(31))).toThrow(RangeError);
   });
 
-  it("never includes work content in a push payload", () => {
+  it("uses high priority without work content or an unconfigured channel", () => {
     for (const kind of ["permission", "report", "error"] as const) {
-      expect(mobilePushPayload(kind)).toEqual({ title: "Yushario", body: "確認が必要です", data: { kind } });
+      expect(mobilePushPayload(kind)).toEqual({ priority: "high", title: "Yushario", body: "確認が必要です", data: { kind } });
     }
     expect(() => mobilePushPayload("command" as "permission")).toThrow(RangeError);
   });
