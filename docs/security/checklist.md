@@ -1,0 +1,44 @@
+# モバイル窓口：ASVS L2 の該当チェック
+
+基準は [OWASP ASVS 4.0.3](https://github.com/OWASP/ASVS/tree/v4.0.3)。対象はこの PoC の Mac 窓口に該当する管理策で、網羅的な ASVS 適合宣言・第三者認証ではない。L2 を目標に、実装／自動証拠のあるもの、部分的なもの、未実施を区別する。脅威の対応は [threat-model.md](threat-model.md)、今回の実行結果は [2026-10-22-f881937](runs/2026-10-22-f881937.md)。
+
+## 証拠の入口
+
+- [P：実 HTTP ペアリング検査](../../src/server/mobile/security-pairing.test.ts)
+- [R：実 HTTP 要求・判断検査](../../src/server/mobile/security-requests.test.ts)
+- [S：実 Yushario プロセスの起動・認可・経路分離検査](../../src/server/mobile/security-startup.test.ts)
+- [C：Node 暗号の共有ベクトル](../../src/server/mobile/crypto.test.ts)／[共通の仕様](../MOBILE-PROTOCOL.md)
+- [F：実 FS 故障・同一台帳 lock・破損時停止](../../src/server/mobile/security-storage.test.ts)
+- [core の純粋な検査](../../src/core/mobile-protocol.test.ts)／[コード状態・SAS・通知](../../src/core/mobile-pairing.test.ts)
+
+## 窓口に該当する管理策
+
+| ASVS の該当範囲 | 確認すること | 状態 | 証拠／残ること |
+|---|---|---|---|
+| V1 Architecture / Threat Modeling | 境界、攻撃者、信頼する入力、許可リストを明文化 | 実装・文書化済み | threat-model、MOBILE、MOBILE-PROTOCOL、ARCHITECTURE。公開インターネットと同一 OS 利用者の隔離は範囲外 |
+| V4.1.1 | 認可を信頼できる server 側で強制 | 自動確認済み | P SEC-01/03、S SEC-12。署名・登録・Mac の明示承認が必要 |
+| V4.1.3 | 最小権限・既定拒否 | 自動確認済み | R/S SEC-12。7操作だけで、PTY・WS・任意コマンド・他端末の unpair へ届かない |
+| V4 Access Control | 取り消しを次の要求へ即時反映 | 自動確認済み | P SEC-10、R SEC-08、S SEC-12。公開鍵台帳・通知 ID・連番を画面 API に出さない |
+| V5.1.3 / V5.1.4 | allowlist、型・長さ・数値範囲の検査 | 自動確認済み | core、R SEC-12/13。UTF-8、base64url、孤立サロゲート、本文上限、固定 shape |
+| V5 Input Validation | 表示内容と承認の対象が同じ | 自動確認済み | R SEC-14、C。9値の SHA-256、期限・省略・未回答と先着の検査 |
+| V6.2 Cryptographic Algorithms | 標準の認証付き暗号・署名、独自暗号を作らない | 自動確認済み | C、P SEC-04、R SEC-06。Node crypto だけ、X25519／Ed25519／HKDF-SHA256／IETF ChaCha20-Poly1305 |
+| V6.2 Cryptographic Algorithms | 同じ鍵の nonce 再使用を防ぐ | 自動確認＋実装確認 | R/F SEC-05（再起動・実 FS 故障・lock・破損含む）、[store](../../src/server/mobile/store.ts)。方向別鍵・コードに結び付く deviceId・耐クラッシュ連番・1プロセス lock。OS／ディスク故障時の電源断試験は未実施 |
+| V6.3.1 | 適切な乱数生成器 | 実装確認済み | [crypto](../../src/server/mobile/crypto.ts) の generateKeyPairSync、[pairing](../../src/server/mobile/pairing.ts) の randomBytes(16)。固定鍵は C のテストだけ |
+| V6.4 Secret Management | 秘密鍵の保管・最小公開 | 自動確認＋実装確認 | P SEC-10、S SEC-12。0700/0600、破損時停止。古い台帳の復元は鍵の再作成と再登録が必要 |
+| V7.1 Logging | 本文・コード・通知 ID をログへ出さない | 自動確認＋実装確認 | R SEC-15、[push](../../src/server/mobile/push.ts)。判断は deviceId/permissionId/result/time の4項目だけ |
+| V7.1 Logging | セキュリティ上の事象の追跡 | 部分実装 | 判断の監査保存は配送前で、実 FS 失敗なら判断しない（R SEC-15）。登録・失敗・取り消し全件の長期監査は本タスクの範囲外 |
+| V7.4.1 | 情報を漏らさないエラー | 自動確認済み | P SEC-01、R SEC-06/12/13。一般拒否1種類、版違いだけ supportedVersion。nonce を再使用する暗号エラー応答は作らない |
+| V8 Data Protection | 最小データ、キャッシュ・通知の抑制 | 自動確認＋実装確認 | R SEC-07/08/15、S SEC-12。no-store、要約500文字、保存方針で本文なし、固定通知、unpair で token 消去 |
+| V9.1.1 Communications | クライアント通信に TLS を使う | 未達／設計上の制限 | LAN/Tailscale の HTTP にアプリ間 AEAD を必須にするが、HTTP transport 自体の TLS を必須にはしていない。ASVS 全体適合とはしない。Expo へは Node 標準の検証付き HTTPS |
+| V14 Configuration | 明示的な有効化、限定経路、要求数・サイズ上限 | 自動確認済み | S SEC-11/12、R/P SEC-13。flag なし停止、全アドレス警告、既存 Host/Origin/token 不変 |
+| V14 Dependencies | 依存の固定と既知の脆弱性の検査 | 部分検証 | lockfile、QR 以外の追加依存なし。runtime audit は0件、全体は既存の Vitest/mocker に moderate 2件（実行記録参照）。CodeQL／OSV／gitleaks の新しい CI 運用・実行証跡は未整備 |
+
+## 自動化していない項目・実機の残作業
+
+- **SEC-09**：各判断の生体認証／端末ロック解除はスマホ OS と別アプリの責務。Mac の HTTP 検査だけでは保証できない。
+- **SEC-16**：Mac の npm audit は実行したが、既存の開発依存 Vitest/mocker の moderate 2件が残る（GHSA-qxg6-89mg-rqv8、GHSA-xp26-3454-mjgp）。別リポジトリのスマホ依存、CodeQL／OSV／gitleaks、リリースビルドの MobSF と供給元の評価もこの作業では完了していない。
+- **SEC-17**：iOS の「この端末のみ」Keychain、Android Keystore の暗号化、バックアップからの除外・復元は別アプリと実機で確かめる。
+- **SEC-07/08 の実配送部分**：APNs／FCM／Expo への配送、Expo が DeviceNotRegistered を返した時の実サービス動作は未検証。送信実装はその応答で同じ token のみを消し、更新済み token を消さない。
+- カメラでの QR 読み取り、LAN／Tailscale と iOS／Android の経路切り替え、紛失時の手順、耐クラッシュ保存の電源断は手動で残る。自動試験と Orca 内蔵ブラウザでの登録表示だけを実機検証の代わりにしない。
+
+未実施項目を隠してリリース条件を満たしたとは扱わない。今回の完了は「Mac 窓口の実装と指定した自動検査」であり、別アプリの実機検証と全体のリリース承認は別段階。
