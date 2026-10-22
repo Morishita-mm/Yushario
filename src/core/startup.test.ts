@@ -18,6 +18,20 @@ describe("startup options", () => {
     expect(parseStartupOptions(["--port=65535"], "8800")).toEqual({ options: { port: 65535, open: true } });
     expect(parseStartupOptions(["--port", "1"])).toEqual({ options: { port: 1, open: true } });
   });
+  it("enables the separate mobile bind only when explicitly requested", () => {
+    expect(parseStartupOptions(["--mobile", "127.0.0.1:8791", "--no-open"])).toEqual({ options: {
+      port: 8790, open: false, mobile: { host: "127.0.0.1", port: 8791 },
+    } });
+    expect(parseStartupOptions(["--mobile=[::]:8791"])).toEqual({ options: {
+      port: 8790, open: true, mobile: { host: "::", port: 8791 },
+    } });
+    expect(parseStartupOptions(["--mobile", "0.0.0.0:8791"])).toHaveProperty("options.mobile.host", "0.0.0.0");
+    for (const value of ["", "127.0.0.1", "http://127.0.0.1:8791", "127.0.0.1:0", "localhost:65536", "localhost:01", "::1:8791", "a:1/path"]) {
+      expect(parseStartupOptions([`--mobile=${value}`])).toHaveProperty("error");
+    }
+    expect(parseStartupOptions(["--mobile"])).toHaveProperty("error");
+    expect(parseStartupOptions(["--mobile", "--no-open"])).toHaveProperty("error");
+  });
   it.each(["--help", "-h"])("handles %s even with an invalid PORT", (arg) => {
     expect(parseStartupOptions([arg], "bad")).toEqual({ help: true });
   });
