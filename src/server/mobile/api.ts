@@ -25,6 +25,8 @@ export async function handleMobileApi(request: IncomingMessage, response: Server
       } else if (url.pathname === "/api/mobile/confirm" && mobileObject(body, ["deviceId", "approve"])
         && typeof body.deviceId === "string" && typeof body.approve === "boolean") {
         if (!gateway.confirm(body.deviceId, body.approve)) throw Error("Pairing no longer pending");
+      } else if (url.pathname === "/api/mobile/test-push" && mobileObject(body, ["deviceId"]) && mobileBase64url(body.deviceId, 32)) {
+        if (!gateway.testPush(body.deviceId)) throw Error("Device not found");
       } else if (url.pathname === "/api/mobile/cancel" && mobileObject(body, [])) gateway.cancelPairing();
       else throw Error("Invalid mobile operation");
     } else throw Error("Invalid mobile route");

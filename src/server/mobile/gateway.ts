@@ -9,11 +9,12 @@ import { MobileStore } from "./store";
 import { MobilePairing } from "./pairing";
 import { MobileRateLimit, mobileJson, mobileRejected, readMobileJson } from "./http";
 import { mobileOperation, mobilePermissionViews } from "./operations";
-import { sendMobilePush } from "./push";
+import { MobilePush } from "./push";
 
 export class MobileGateway {
   readonly store: MobileStore;
   readonly pairing: MobilePairing;
+  private readonly push: MobilePush;
   heroes: MobileHero[] = [];
   reports: MobileReport[] = [];
   addresses: string[] = [];
@@ -21,7 +22,7 @@ export class MobileGateway {
   private readonly rate = new MobileRateLimit();
   private readonly server = createServer((request, response) => { void this.handle(request, response); });
   constructor(directory: string, private readonly permissions: PermissionWaiter) {
-    this.store = new MobileStore(directory); this.pairing = new MobilePairing(this.store);
+    this.store = new MobileStore(directory); this.pairing = new MobilePairing(this.store); this.push = new MobilePush(this.store);
     this.server.headersTimeout = 10_000; this.server.requestTimeout = 15_000;
     this.server.on("upgrade", (_request, socket) => socket.end("HTTP/1.1 400 Bad Request\r\nConnection: close\r\nContent-Type: application/json\r\nContent-Length: 20\r\n\r\n{\"error\":\"rejected\"}"));
     this.server.on("clientError", (_error, socket) => {
@@ -59,9 +60,14 @@ export class MobileGateway {
   permissionViews() { return mobilePermissionViews(this.permissions, this.heroes); }
   snapshot() {
     return { enabled: true as const, addresses: this.addresses,
-      devices: this.store.devices.map(({ id, name, createdAt, lastSeenAt }) => ({ id, name, createdAt, lastSeenAt })), pairing: this.pairing.snapshot() };
+      devices: this.store.devices.map(({ id, name, createdAt, lastSeenAt }) => ({ id, name, createdAt, lastSeenAt })),
+      pairing: this.pairing.snapshot(), pushResults: this.push.results() };
   }
-  notify(kind: "permission" | "report" | "error"): void { void sendMobilePush(this.store, kind); }
+  notify(kind: "permission" | "report" | "error"): void { this.push.notify(kind); }
+  testPush(deviceId: string): boolean {
+    if (!this.store.devices.some(device => device.id === deviceId)) return false;
+    this.push.notify("permission", deviceId); return true;
+  }
   private async handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
     let pairCandidate = false;
     try {
@@ -106,7 +112,7 @@ export class MobileGateway {
     }
   }
   async close(): Promise<void> {
-    this.cancelPairing();
+    this.cancelPairing(); this.push.close();
     await new Promise<void>(resolve => { this.server.close(() => resolve()); this.server.closeAllConnections(); });
     this.store.close();
   }

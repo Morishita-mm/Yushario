@@ -1,7 +1,17 @@
 import qrcode from "qrcode-generator";
 import { tr } from "../language";
-import { loadMobile, startPairing, confirmPairing, cancelPairing, revokeDevice, type MobileState } from "./mobile-api";
+import { loadMobile, startPairing, confirmPairing, cancelPairing, revokeDevice, testPush, type MobileState } from "./mobile-api";
+import { mobilePushOutcome, type MobilePushLogEntry } from "../../core/mobile-push";
 import "./mobile.css";
+
+function lastPushLabel(entry?: MobilePushLogEntry): string {
+  const outcome = entry ? mobilePushOutcome(entry) : "unconfirmed";
+  const result = outcome === "delivered" ? tr("配送済み（FCM/APNs 受理）", "Sent (accepted by FCM/APNs)")
+    : outcome === "no-token" ? tr("通知 ID なし", "No push token")
+      : outcome === "failed" ? tr(`失敗（${entry?.errorCode ?? "UnknownExpoError"}）`, `Failed (${entry?.errorCode ?? "UnknownExpoError"})`)
+        : tr(`未確認${entry?.errorCode ? `（${entry.errorCode}）` : ""}`, `Unconfirmed${entry?.errorCode ? ` (${entry.errorCode})` : ""}`);
+  return tr(`最後の通知: ${result}`, `Last push: ${result}`) + (entry ? ` · ${new Date(entry.time).toLocaleString()}` : "");
+}
 
 export function initMobile(): void {
   const get = <T extends HTMLElement>(id: string) => document.getElementById(`mobile-${id}`) as T;
@@ -11,7 +21,7 @@ export function initMobile(): void {
   const qrCanvas = get<HTMLCanvasElement>("qr"), devices = get("devices");
   let current: MobileState = { enabled: false }, busy = false, timer: ReturnType<typeof setInterval> | undefined;
   let shownQr = "", addressEdited = false;
-  const rows = new Map<string, { row: HTMLElement; name: HTMLElement; seen: HTMLElement }>();
+  const rows = new Map<string, { row: HTMLElement; name: HTMLElement; seen: HTMLElement; push: HTMLElement; test: HTMLButtonElement }>();
   addresses.addEventListener("input", () => { addressEdited = true; });
   function error(cause: unknown): void { status.textContent = cause instanceof Error ? cause.message : tr("読み込めなかった。", "Could not load."); }
   function render(state: MobileState): void {
@@ -39,23 +49,28 @@ export function initMobile(): void {
       }
       shownQr = pairingText.value;
     }
+    const results = new Map((state.pushResults ?? []).map(result => [result.deviceId, result]));
     const ids = new Set(state.devices.map(device => device.id));
     for (const [id, item] of rows) if (!ids.has(id)) { item.row.remove(); rows.delete(id); }
     for (const device of state.devices) {
       let item = rows.get(device.id);
       if (!item) {
         const row = document.createElement("div"), name = document.createElement("strong"), seen = document.createElement("span"), revoke = document.createElement("button");
+        const push = document.createElement("span"), test = document.createElement("button");
+        test.type = "button"; test.className = "mobile-push-test"; test.textContent = tr("テスト通知を送る", "Send test push");
+        test.addEventListener("click", () => void mutate(() => testPush(device.id)));
         row.className = "mobile-device"; revoke.type = "button"; revoke.textContent = tr("取り消す", "Revoke");
         revoke.addEventListener("click", () => {
           if (confirm(tr(`${device.name} の登録を 取り消す？`, `Revoke ${device.name}?`))) void mutate(() => revokeDevice(device.id));
         });
-        row.append(name, seen, revoke); devices.append(row); item = { row, name, seen }; rows.set(device.id, item);
+        row.append(name, seen, push, revoke, test); devices.append(row); item = { row, name, seen, push, test }; rows.set(device.id, item);
       }
       item.name.textContent = device.name; item.seen.textContent = tr(`最後の接続 ${new Date(device.lastSeenAt).toLocaleString()}`, `Last seen ${new Date(device.lastSeenAt).toLocaleString()}`);
+      item.push.textContent = lastPushLabel(results.get(device.id)); item.test.disabled = busy || state.pushResults === undefined;
     }
     get("emulator").hidden = !state.addresses.some(address => address.includes("127.0.0.1"));
     get("emulator").textContent = tr("Android エミュレーターでは 127.0.0.1 を 10.0.2.2 に かえてから登録しよう。", "For the Android emulator, replace 127.0.0.1 with 10.0.2.2 before pairing.");
-    if (!busy) status.textContent = state.devices.length >= 5 ? tr("登録は5台まで。不要な端末を取り消そう。", "Five-device limit. Revoke an unused phone.")
+    if (!busy) status.textContent = state.pushResults === undefined ? tr("通知の診断にはサーバーを再起動してください。", "Restart the server to enable push diagnostics.") : state.devices.length >= 5 ? tr("登録は5台まで。不要な端末を取り消そう。", "Five-device limit. Revoke an unused phone.")
       : pairing?.status === "expired" ? tr("期限が切れた。もう一度 登録しよう。", "Expired. Start pairing again.")
         : pairing?.status === "locked" ? tr("失敗が3回あった。新しく 登録しよう。", "Three failed attempts. Start pairing again.") : "";
   }
@@ -68,6 +83,7 @@ export function initMobile(): void {
       busy = false;
       for (const button of dialog.querySelectorAll<HTMLButtonElement>("button")) button.disabled = false;
       if (current.enabled) get<HTMLButtonElement>("pair").disabled = current.devices.length >= 5;
+      for (const item of rows.values()) item.test.disabled = !current.enabled || current.pushResults === undefined;
     }
   }
   async function poll(): Promise<void> {

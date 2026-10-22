@@ -12,3 +12,4 @@
 .mobile-device strong, .mobile-device span { overflow-wrap: anywhere; }
 .mobile-device span { grid-column: 1; font-size: 12px; }
 .mobile-device button { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
+.mobile-device .mobile-push-test { grid-row: 3; }
