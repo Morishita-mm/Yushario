@@ -11,6 +11,7 @@
       <button id="terminals" data-en="Terminal" type="button">ターミナル</button>
       <button id="roster" data-en="Roster" type="button">めいぼ</button>
       <button id="help" data-en="Help" type="button">ヘルプ</button>
+      <button id="mobile" data-en="Phone" type="button" hidden>スマホ</button>
       <div class="settings-buttons">
         <button id="settings" data-en="Settings" type="button">せってい</button>
         <button id="sound" type="button" data-mode="all" aria-label="おと：ぜんいん" data-en-aria-label="Sound: all heroes" disabled>
@@ -116,6 +117,32 @@
         <li data-en="Esc to close">Esc で とじる</li>
       </ul>
       <div class="actions"><button id="help-close" data-en="▶ Close" type="button">▶ とじる</button></div>
+    </dialog>
+    <dialog id="mobile-dialog" class="report-window mobile-window" aria-labelledby="mobile-title">
+      <h3 id="mobile-title" data-en="Phone">スマホ</h3>
+      <p id="mobile-status" class="settings-status" role="status"></p>
+      <section id="mobile-start" hidden>
+        <label for="mobile-addresses" data-en="Addresses the phone connects to (one per line)">スマホが つなぐ アドレス（1行に 1つ）</label>
+        <textarea id="mobile-addresses" rows="3" spellcheck="false" autocomplete="off"></textarea>
+        <p id="mobile-emulator" class="mobile-hint" hidden></p>
+        <div class="actions"><button id="mobile-pair" data-en="▶ Register a phone" type="button">▶ スマホを登録</button></div>
+      </section>
+      <section id="mobile-offer" hidden>
+        <canvas id="mobile-qr" aria-label="ペアリング用 QR コード" data-en-aria-label="Pairing QR code"></canvas>
+        <p class="mobile-hint" data-en="Scan this with the Yushario app, or paste the text below.">Yushario の アプリで よみとるか、下の 文字を はりつけよう。</p>
+        <div class="mobile-copy"><input id="mobile-string" readonly aria-label="ペアリング用の 文字" data-en-aria-label="Pairing text" /><button id="mobile-copy" data-en="▶ Copy" type="button">▶ コピー</button></div>
+      </section>
+      <section id="mobile-confirm" hidden>
+        <p data-en="Approve only if the phone shows the same number.">スマホにも 同じ番号が 出ているときだけ 承認しよう。</p>
+        <p id="mobile-device-name" class="name"></p>
+        <p id="mobile-sas" class="mobile-sas"></p>
+        <div class="actions"><button id="mobile-approve" data-en="▶ Approve" type="button">▶ 承認</button><button id="mobile-reject" data-en="▶ Stop" type="button">▶ やめる</button></div>
+      </section>
+      <p id="mobile-countdown" class="mobile-hint" hidden></p>
+      <div class="actions" id="mobile-offer-actions" hidden><button id="mobile-cancel" data-en="▶ Stop" type="button">▶ やめる</button></div>
+      <h4 data-en="Registered phones">登録した スマホ</h4>
+      <div id="mobile-devices" class="town-list"></div>
+      <div class="actions"><button id="mobile-close" data-en="▶ Close" type="button">▶ とじる</button></div>
     </dialog>
     <dialog id="roster-dialog" class="report-window" aria-labelledby="roster-title">
       <h3 id="roster-title" data-en="Adventurers' roster">ぼうけんしゃの めいぼ</h3>

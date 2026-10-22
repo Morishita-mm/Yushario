@@ -1,0 +1,14 @@
+#mobile[hidden], #mobile-dialog [hidden] { display: none; }
+.mobile-window { width: min(560px, 92vw); max-height: 88vh; overflow-y: auto; }
+.mobile-window section { margin: 12px 0; }
+.mobile-window textarea { display: block; width: 100%; box-sizing: border-box; margin: 8px 0; }
+.mobile-window h4 { margin-top: 20px; }
+#mobile-qr { display: block; width: min(100%, 320px); height: auto; margin: 12px auto; image-rendering: pixelated; }
+.mobile-hint { font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.mobile-copy { display: flex; align-items: center; gap: 8px; }
+.mobile-copy input { min-width: 0; flex: 1; font-size: 12px; }
+.mobile-sas { text-align: center; font-size: 36px; letter-spacing: .18em; font-variant-numeric: tabular-nums; margin: 16px 0; }
+.mobile-device { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 5px 10px; padding: 10px 0; border-bottom: 1px solid #666; }
+.mobile-device strong, .mobile-device span { overflow-wrap: anywhere; }
+.mobile-device span { grid-column: 1; font-size: 12px; }
+.mobile-device button { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
