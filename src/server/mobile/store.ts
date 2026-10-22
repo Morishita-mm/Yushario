@@ -103,6 +103,8 @@ export class MobileStore {
       chmodSync(file, 0o600);
       appendFileSync(descriptor, JSON.stringify({ deviceId: entry.deviceId, permissionId: entry.permissionId, result: entry.result, time: entry.time }) + "\n");
       fsyncSync(descriptor);
+      const directory = openSync(this.directory, "r");
+      try { fsyncSync(directory); } finally { closeSync(directory); }
     } finally { closeSync(descriptor); }
   }
   close(): void {
