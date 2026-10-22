@@ -1,0 +1,190 @@
+# Mobile protocol v1
+
+`MOBILE.md` の合意を、Mac の窓口と別リポジトリのアプリで共有する通信仕様にしたもの。v1 の実装はこの文書と `mobile-protocol-vectors.json` に従う。暗号は Mac では Node 標準 `crypto`、アプリでは `@noble/*` を使う。core は入力の検査とバイト列の組み立てだけを行う。
+
+## 記法と共通の表現
+
+- `||` はバイト列の連結、`UTF8(s)` は BOM なし UTF-8、`SHA256` は32バイトの SHA-256。`"...\0"` の末尾は実際の1バイト `00`（文字の `\\0` ではない）。
+- `B64(b)` は RFC 4648 §5 の base64url。パディングなし、空白なし、末尾の未使用ビットは0。復号後16／32／64バイトの文字列はそれぞれ22／43／86文字。
+- JSON は UTF-8 のオブジェクト。プロパティ名は大文字小文字を区別し、表にないメンバーを拒否する。メンバー順と空白は問わない。重複名は ECMAScript `JSON.parse` と同じく最後の値を使い、検証・署名・表示も必ずその同じ値に対して行う。
+- 数値はすべて `0..9007199254740991` の安全な整数。`seq` だけは1以上。時刻は Unix epoch からのミリ秒。文字列は不正な UTF-8・孤立サロゲートを拒否し、Unicode 正規化・改行変換・trim をしない。
+- 以下の文字数上限は既存の許可処理と同じ **UTF-16 コード単位数**。切る場合はサロゲート対の途中で切らない。`id` は特記しない限り空でない200文字以内の不透明な文字列。
+- `C(value)` は下記の配列・文字列・数値・真偽値・null だけの JSON を、空白なしで UTF-8 にしたもの。オブジェクトを `C` に渡さない。
+  - 配列は列挙順。数値は10進整数（指数・先頭0・`+` なし。0は `0`）。真偽値と null は小文字。
+  - 文字列は byte `22` で囲む。U+0022 は bytes `5c 22`、U+005C は `5c 5c`、BS/TAB/LF/FF/CR はそれぞれ `5c 62` / `5c 74` / `5c 6e` / `5c 66` / `5c 72` にする。残る U+0000..001F は byte `5c` と ASCII `u00xx`（小文字16進）。それ以外（`/`、U+2028、U+2029 を含む）はそのまま UTF-8。これは有効な入力に対する `UTF8(JSON.stringify(value))` と一致する。
+
+## 鍵と端末 ID
+
+| 記号 | 内容 | wire 表現 |
+|---|---|---|
+| `GX`, `PX` | Mac／スマホの X25519 公開鍵 | RFC 7748 の32バイト（u 座標、little-endian）の `B64` |
+| `GS`, `PS` | Mac／スマホの Ed25519 公開鍵 | RFC 8032 の32バイト compressed point の `B64` |
+| `code` | ペアリングコード | CSPRNG の16バイト（128bit）の `B64` |
+| `D` | 端末 ID の32バイト | `SHA256(UTF8("yushario.device.v1\0") || PX || PS || code)` |
+| `deviceId` | 端末 ID | `B64(D)` |
+
+この表以降、ハッシュ式の `GX/GS/PX/PS/code` は **復号した生バイト**、JSON の値では `B64` の文字列を指す。
+Mac は X25519 と Ed25519 の鍵対を初回起動で作り0600で保管する。スマホは Mac ごと・新しいペアリング試行ごとに独立した新しい2鍵対を作り、この端末のみの安全な保管庫へ置く。X25519 と Ed25519 の秘密鍵を兼用・変換しない。Ed25519 は pure Ed25519（prehash／context なし）、署名は生64バイト（DER ではない）。
+
+登録後は `D`、両側の公開鍵、スマホの秘密鍵と送信連番を保つ。Mac は `D`、端末公開鍵・名前・通知 ID と受信済み連番を保つ。`code` は登録後の通信には不要で、保存しない。Mac の鍵の再作成では全端末を登録し直す。公開鍵の pin はアドレス変更で変えない。
+
+## ペアリング
+
+### QR と手入力文字列
+
+```text
+yushario-pair:1:<B64(UTF8(JSON の offer))>
+```
+
+`offer` は次の6メンバーだけを持つ（JSON の順序は任意）。prefix の版と `v` は一致しなければならない。
+
+| メンバー | 値 |
+|---|---|
+| `v` | `1` |
+| `addresses` | 重複なし1〜8件の窓口 origin（各300文字以内）。`http://host:port` または `https://host:port`。host は ASCII の名前／IPv4 または `[IPv6]`、port は1〜65535の先頭0なし10進。userinfo・パス・query・fragment・末尾 `/` なし |
+| `gatewayEncryptionKey` | `GX` |
+| `gatewaySigningKey` | `GS` |
+| `pairingCode` | `code` |
+| `expiresAt` | Mac の作成時刻 + **300000ms** |
+
+Mac は同時に1つのコードだけを表示する。新しいコードの表示・再起動で以前のコードと保留中の要求を失効させる。スマホは期限切れの offer を使わず、時計の60秒差を見込んでも expiresAt が現在から360000msを超えて先なら拒否する。Mac の期限が最終判断で、確認待ちでも延長しない。QR を URL の query やログへ出さない。origin の登録・編集は到達先だけを変え、鍵の pin を変更しない。
+
+### 要求から登録まで
+
+1. スマホは QR の鍵を pin し、鍵対と `D` を作る。下記の通常の暗号化・署名形式で `pair` を送る。最初の `seq` は1。公開鍵は packet の外側、コード・名前・通知 ID は暗号の内側に入る。
+2. 未登録 `deviceId` の復号は、有効なコードが **available** の時だけ試す。コード、`D` の再計算、鍵、署名、時刻、本文を検査する。失敗はコードごとに累計し、**3回目で locked**。復号／形式／署名の失敗も1回に数える（このため第三者による失効 DoS は残る）。新しいコードだけが回数をリセットする。
+3. 正しい要求1件を **pending** として予約し、Mac に端末名と SAS を出す。スマホも自分で SAS を計算して表示する。他の要求は予約を横取りできない。pending 中の不正要求は予約や失敗回数を変えず、一般拒否する。
+4. 人が両画面の6桁を比較し、**Mac で承認**した時だけ登録を保存する。スマホの操作だけでは承認できない。保存後に `pair` の成功応答を返す。それまでは同じ HTTP 要求を開いたままにする（HTTP timeout は残り期限より長くする）。待機に入れた要求の時刻を、承認時に再び60秒窓で判定しない。
+5. 人の拒否では **consumed**、期限到達では **expired**。いずれも登録せず一般拒否。承認成功も consumed で、同じコードは再使用しない。登録数は Mac ごと最大 **5台**で、予約時と承認の保存直前に調べる。承認時に満杯なら consumed にして一般拒否する。
+
+pairing state は `(createdAt, expiresAt, failures, status, deviceId|null)`。available からの `fail` は failures+1、`reserve` は pending、pending からの人の confirm/reject は consumed。`now >= expiresAt` なら available/pending を expired にする。locked/consumed/expired から登録へ戻る遷移はない。判定・予約・登録の保存は並列要求に対して不可分に行う。
+
+### 確認番号（SAS）
+
+```text
+H = SHA256(UTF8("yushario.sas.v1\0") || GX || GS || PX || PS || code)
+n = uint32_big_endian(H[0..3]) mod 1000000
+SAS = n の10進表現を左に 0 埋めした6文字
+```
+
+ラベル・NUL 以外は固定長なので境界の曖昧さはない。番号が一致しなければ承認せず、新しい QR でやり直す。番号そのものをネットワークから受け取って信用しない。
+
+## セッション鍵と nonce
+
+```text
+Z = X25519(自分の秘密鍵, 相手の X25519 公開鍵)
+salt = SHA256(UTF8("yushario.hkdf.v1\0") || GX || GS || PX || PS || D)
+K_request  = HKDF-SHA256(IKM=Z, salt=salt, info=UTF8("yushario.mobile.v1/request"), L=32)
+K_response = HKDF-SHA256(IKM=Z, salt=salt, info=UTF8("yushario.mobile.v1/response"), L=32)
+nonce(seq) = 00 00 00 00 || uint64_big_endian(seq)   # 合計12バイト
+```
+
+HKDF は RFC 5869（Extract + Expand）。X25519 の全0共有結果を拒否する。暗号は RFC 8439 の **IETF ChaCha20-Poly1305**、鍵32・nonce12・tag16バイト。XChaCha ではない。`D` を salt に含めるため、新しいコードでの再登録は別の鍵になる。この静的 DH には forward secrecy はない。鍵漏えい後の過去の通信の保護は v1 の範囲外。
+
+**同じ方向の同じ鍵で nonce を2度使わない規則：**
+
+- スマホは `seq` を暗号化の **前** に安全な保管庫へ予約保存して増やす。送れなかった番号も欠番にし、プロセス再起動・経路変更でも戻さない。上限到達・連番の保管を失った場合は鍵を使わず、新しいコードで登録し直す。
+- Mac は受け付けた `seq` を操作・応答の前に耐クラッシュの端末記録へ保存する。署名・形式・時刻・登録を検査した後に不可分に連番を進める。以降の操作が失敗しても番号を戻さない。保存失敗では操作も応答の暗号化もしない。
+- 応答は要求と同じ `seq` を1回だけ使い、方向別の鍵を使う。拒否は暗号化しない。Mac は同じ `seq` への応答を再生成しない。
+- TCP 等の再送は同じ暗号文バイト列の再配送であり再暗号化しない。ただしアプリの HTTP 再試行は v1 では行わない。応答を失うと処理済みか不明なので、新しい番号で状態を読み直す。新しい時刻・本文を同じ `seq` で暗号化してはならない。
+- pair も同じ規則。予約は1件のみで、成功応答の前に pair の `seq` を保存する。新しい試行は新しい鍵で作り直す。取り消した登録を古いコード・連番で復活させない。
+
+## packet と署名付き envelope
+
+HTTP の要求と成功応答は同じ packet 形を使う。
+
+```ts
+{ v: 1, deviceId: string, seq: number,
+  phoneEncryptionKey: string, phoneSigningKey: string, ciphertext: string }
+```
+
+外側の公開鍵は `PX/PS`。登録済みなら保存した値と一致しなければ拒否する。未登録では pair 以外を受け付けない。`ciphertext` は `B64(暗号文本体 || 16-byte tag)`（復号後512KiB以下）。暗号の内側は次の JSON。`v/deviceId/seq` は外側と一致すること。
+
+```ts
+{ v: 1, deviceId: string, seq: number, timestamp: number,
+  operation: "pair" | "status" | "permissions" | "decide" | "reports" | "push-token" | "unpair",
+  body: object, signature: string }
+```
+
+署名する正確なバイト列は次のとおり。`bodyValues` は次節の **配列**で、JSON オブジェクトの canonicalization は行わない。要求はスマホの Ed25519、応答は Mac の Ed25519 で署名し、`signature=B64(署名64バイト)` を内側に加えてから JSON を暗号化する。
+
+```text
+requestSigningInput  = C(["yushario.request.v1", 1, deviceId, seq, timestamp, operation, bodyValues])
+responseSigningInput = C(["yushario.response.v1", 1, deviceId, seq, timestamp, operation, bodyValues])
+AAD = C(["yushario.aead.v1", direction, 1, deviceId, seq, GX, GS, PX, PS])
+```
+
+`direction` は要求なら文字列 `"request"`、応答なら `"response"`。AAD の鍵は `B64` 文字列。受け手は pin／登録から gateway 鍵を取る。暗号が通っても、署名・登録・本文・外内の一致の検査を省略しない。
+
+Mac の要求判定は `seq > lastAccepted`（pair は初期値0）かつ `abs(timestamp-now) <= 60000`。境界の±60000msは可、60001msは不可。順不同で遅れた番号も拒否するので、アプリは Mac ごとに要求を直列化する。応答は未完了の要求と `deviceId/seq/operation` が一致し、署名が正しく、同じ±60秒窓内のものを1度だけ受け付ける。
+
+## 操作と本文（許可リストのすべて）
+
+各表の `{}` はメンバー0個。null は省略ではない。成功以外の本文は後述の一般拒否だけで、個別の失敗理由は返さない。
+
+| operation | 要求 body | 要求 bodyValues | 成功応答 body | 応答 bodyValues |
+|---|---|---|---|---|
+| `pair` | `{pairingCode, name, pushToken}` | `[pairingCode,name,pushToken]` | `{registered:true}` | `[true]` |
+| `status` | `{}` | `[]` | `{heroes:[Hero,...]}` | `[[heroValues,...]]` |
+| `permissions` | `{}` | `[]` | `{permissions:[Permission,...]}` | `[[permissionValues,...]]` |
+| `decide` | `{permissionId, contentHash, decision}` | `[permissionId,contentHash,decision]` | `{decided:true}` | `[true]` |
+| `reports` | `{}` | `[]` | `{reports:[Report,...]}` | `[[reportValues,...]]` |
+| `push-token` | `{token}` | `[token]` | `{updated:true}` | `[true]` |
+| `unpair` | `{}` | `[]` | `{unpaired:true}` | `[true]` |
+
+- pair の `name` は空でない80文字以内、C0/DEL なし。`pushToken` と push-token の `token` は Expo 通知 ID（ASCII U+0021..007E の1〜512文字）または null（通知 ID の削除）。pair の code は16バイトの `B64`。
+- decide の `permissionId` は id、`contentHash` は SHA-256 の32バイトの `B64`、`decision` は `"allow"` または `"deny"` だけ（`terminal` はない）。アプリは毎回生体認証または端末のロック解除を求めてから送る。
+- unpair は自分の登録・通知 ID だけを消す。他端末の ID を body に取らない。応答を1度組み立て、削除の保存を済ませてから配送する。Mac での取り消しも以後の要求を直ちに拒否する。
+
+### 表示データと配列の順序
+
+下記は **オブジェクトの全メンバー**と、署名用の固定順の配列。
+
+```ts
+Hero = {id, name, town, state, permissionPending}
+heroValues = [id, name, town, state, permissionPending]
+Permission = {id, heroId, heroName, town, tool, summary, content, omitted, expiresAt, contentHash}
+permissionContentValues = [id, heroId, heroName, town, tool, summary, content, omitted, expiresAt]
+permissionValues = [...permissionContentValues, contentHash]
+Report = {id, title, success, at, excerpt}
+reportValues = [id, title, success, at, excerpt]
+```
+
+- Hero は最大100件、id の UTF-16 辞書順で先頭100件。`name/town` は表示名で、空でない200文字以内。町の実パスを名前の代わりに返さない。`state` は `idle|thinking|working|waiting_input|success|error`、`permissionPending` は真偽値。
+- Permission は未回答かつ `now < expiresAt` の最大16件。expiresAt 昇順、同時刻は id の UTF-16 辞書順。`heroId` は id、`heroName/town/tool/summary` は空でない200文字以内。`content` は既存のコマンド／パス表示そのもの（空も可、最大2000文字）。`omitted` は省略した UTF-16 単位数で0以上、`expiresAt` は既存の120秒期限をそのまま使い、取得で延長しない。長い表示名や要約は表示用に上限内へ切り、切った後の表示値を hash に使う。
+- Report は最近50件、at 降順、同時刻は id の UTF-16 辞書順。`title` は空でない200文字以内、`success` は true/false/不明なら null、`at` は報告時刻。`excerpt` は保存方針上読める本文の先頭 **500文字**（サロゲート対の途中なら直前まで）。本文がなければ空文字。要約を LLM に作らせない。
+
+### 許可の表示内容の hash
+
+```text
+contentHash = B64(SHA256(C(["yushario.permission.v1", ...permissionContentValues])))
+```
+
+アプリは検証済みの Permission の9値を取得時のまま保持し、この hash を自分で再計算して `contentHash` と照合する。勇者名・町・ツール・要約・コマンド／パス・省略数・期限を判断画面で確認できるようにする。コマンド／パスをさらに切る・改行を正規化する・制御文字を見えないまま捨てるなど、異なる文字列を判断の根拠にしない。安全な文字表示（制御文字の可視化等）は元の文字列と対応づける。固定の UI ラベルと残り秒数のカウントダウンは hash の対象ではない。
+
+Mac は現在の同じ9値から hash を再計算し、decide の hash が一致し、期限内・未回答の時だけ既存 `permission-decision` の処理へ渡す。`allow` はさらに omitted=0 が必要で、省略された要求への `deny` は可。ブラウザとの競合は先に届いた1件だけを採る。失敗理由を区別せず拒否する。端末 ID・許可 ID・判断・Mac の時刻だけを監査記録へ残し、本文・hash の入力列は記録しない。
+
+## HTTP と拒否
+
+- 窓口の独立したポートの **`POST /mobile/v1`** だけを使う。origin にこのパスを付ける。query なし。LAN/Tailscale で同じ形式。HTTP 自体が平文でもアプリ間暗号を必須にし、HTTPS でも省略しない。
+- 要求／応答は `Content-Type: application/json`（要求では `application/json; charset=utf-8` も可）、`Content-Encoding` は使わない。HTTP 本文は両方向 **1048576バイト（1MiB）以下**。成功は200と packet。応答には `Cache-Control: no-store`。
+- Origin つき要求を拒否し、CORS を返さない。ブラウザ用 token/cookie、`/api/*`、`/pty`、`/ws`、任意の操作へ転送しない。
+- 要求数はソケットの送信元 IP ごとに `floor(now/60000)` の区間で最大30件。転送ヘッダーの IP を信用しない。pair の失敗回数制限は別に適用する。上限を超えた要求も一般拒否する。
+- 復号・認証・署名・登録・連番・時刻・コード・SAS 拒否・端末数・本文・許可の競合・HTTP 形式・サイズ・経路／method・要求数などの失敗は、**すべて HTTP 400、本文 `{"error":"rejected"}`**。暗号化 packet、個別の理由、Retry-After 等の診断を返さない。
+- 唯一の例外は外側の `v` が安全な整数で1以外の場合。**HTTP 426、本文 `{"error":"version","supportedVersion":1}`**。文字列・欠落等は一般拒否。パスは版不一致でも `/mobile/v1` を使う。この平文エラーを鍵の更新・操作成功の証拠には使わない。
+- JSON エラー本文に末尾改行・追加メンバーなし。拒否の理由はスマホへ明かさず、一般拒否や通信切断では操作が未実行だったとも断定しない。
+
+## Push（作業内容をサービスへ渡さない）
+
+```json
+{"title":"Yushario","body":"確認が必要です","data":{"kind":"permission"}}
+```
+
+`title/body` はこの固定文字列のみ。`data` は `kind` だけ（`permission|report|error` のいずれか）、または省略。勇者名・コマンド・パス・端末 ID・許可 ID・報告 ID・URL・暗号文を載せない。Expo への配送用 `to` は別途保存した通知 ID で、本文を足す場所ではない。通知から直接判断せず、開いた後に窓口へ取りに行く。取り消しで通知 ID も消す。
+
+## 共有テスト用データと実装の境界
+
+- `node scripts/mobile-vectors.mjs` で `docs/mobile-protocol-vectors.json` を再生成する（毎回同一）。秘密鍵も含めた **公開のテスト専用データ**であり実運用へ流用しない。
+- X25519 の秘密値は32バイト raw scalar、Ed25519 は32バイト seed。固定鍵・コード・連番・時刻から、公開鍵、共有値、salt/info、方向別 HKDF 鍵、SAS、表示 hash、署名入力 hex、署名、AAD、nonce、平文、tag つき暗号文、packet を収録する。pair と decide の要求／応答を両方収録する。
+- アプリの `@noble/*` でも同じ JSON の全暗号値を照合する。JSON の読み込み順や各実装のオブジェクト順を署名仕様の代わりにしない。
+- 純粋な検査・配列化は `src/core/mobile-protocol.ts`、表示値と hash 入力は `mobile-display.ts`、署名入力／AAD／nonce は `mobile-signing.ts`、コードの遷移／SAS の桁／push は `mobile-pairing.ts`。時刻は引数。暗号そのもの、厳密な UTF-8 復号、HTTP、連番の永続化、pin・登録・内容 hash の照合、不可分な状態更新は server／アプリ側の責務。
