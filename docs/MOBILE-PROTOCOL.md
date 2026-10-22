@@ -182,6 +182,15 @@ Mac は現在の同じ9値から hash を再計算し、decide の hash が一�
 
 `title/body` はこの固定文字列のみ。`data` は `kind` だけ（`permission|report|error` のいずれか）、または省略。勇者名・コマンド・パス・端末 ID・許可 ID・報告 ID・URL・暗号文を載せない。Expo への配送用 `to` は別途保存した通知 ID で、本文を足す場所ではない。通知から直接判断せず、開いた後に窓口へ取りに行く。取り消しで通知 ID も消す。
 
+### Expo の配送確認（Mac 内の診断。スマホ v1 の wire は変更しない）
+
+- `POST https://exp.host/--/api/v2/push/send` に `{to:<通知 ID 1件>,title,body,data}` を送る。`to` は文字列で、本文・kind は上記の固定値だけ。ticket は `data` が1オブジェクトでも要素1個の配列でも受け付ける。ticket の `ok` は Expo の受付であり、配送成功と表示しない。
+- ticket の ID を使い、5秒後に `POST https://exp.host/--/api/v2/push/getReceipts`、本文 `{"ids":["<ticket ID>"]}` で照会する。結果は `data[ticket ID]`。未確認／照会の失敗なら追加で30秒後・120秒後（送信後およそ5／35／155秒、各 HTTP は最大10秒）に照会し、それでも不明なら未確認で止める。通知自体の自動再送はしない。
+- receipt の `ok` は APNs/FCM の受理までで、スマホの表示・音・閲覧の証拠ではない。ticket／receipt の `DeviceNotRegistered` は、まだ同じ token を持つ登録だけから通知 ID を消す。照会中に更新された新しい token は消さない。
+- 診断ログは `{time,deviceId,kind,ticketStatus,receiptStatus,errorCode}` の6項目だけ。time は試行の開始時刻で、同じ試行の進行でも保持する。ticketStatus は `pending|ok|error|skipped`、receiptStatus は `none|pending|ok|error|unknown`。errorCode は `src/core/mobile-push.ts` の許可リストか null だけで、未知の provider error は `UnknownExpoError`。token・ticket ID・provider message・題／本文・許可 ID は記録しない。
+- メモリの履歴は50件、0600の JSONL は32KiBで1世代の backup を更新する。保持範囲の端末別最新試行を Mac 画面へ返し、古い試行の遅い receipt で新しい結果を上書きしない。token なしは `NoPushToken`、処理中の終了／再起動は `GatewayStopped/Interrupted` の未確認。ticket ID はメモリだけなので再起動後に照会を再開しない。同時処理も最大50件で、上限は `QueueFull` として記録する。
+- 画面用の認可済み `POST /api/mobile/test-push` は `{deviceId}` だけを取り、その登録1件へ kind=`permission` の同じ固定通知を送る。新しい許可要求やスマホ側操作は作らない。これは既存の画面 API であり、窓口の7操作・署名入力・暗号・共有ベクトルには変更を加えない。
+
 ## 共有テスト用データと実装の境界
 
 - `node scripts/mobile-vectors.mjs` で `docs/mobile-protocol-vectors.json` を再生成する（毎回同一）。秘密鍵も含めた **公開のテスト専用データ**であり実運用へ流用しない。

@@ -11,7 +11,7 @@
 | T3 | ペアリング中に経路で鍵をすり替える | Mac の公開鍵を QR で受け取る | SEC-04：同上（pin／端末鍵の書き換えを拒否） |
 | T4 | 承認の要求を再送する | 連番・時刻・許可 ID の1回限りの受け付け | SEC-05：[実 HTTP 要求検査](../../src/server/mobile/security-requests.test.ts)（±60秒境界、再起動、判断の再送）＋[実 FS 故障・lock 検査](../../src/server/mobile/security-storage.test.ts) |
 | T5 | 経路で要求を書き換える | AEAD による暗号化、改ざんを拒否 | SEC-06：同上。[共有暗号ベクトル](../../src/server/mobile/crypto.test.ts) |
-| T6 | Apple・Google・Expo に作業の中身が渡る | 通知は固定の文言だけ | SEC-07：同上（固定3種の payload、作業内容は AEAD 内）。[送信処理](../../src/server/mobile/push.ts) は固定 URL と token/kind しか受け取らない |
+| T6 | Apple・Google・Expo に作業の中身が渡る | 通知は固定の文言だけ | SEC-07：同上（固定3種の payload、作業内容は AEAD 内）。[送信処理](../../src/server/mobile/push.ts) は固定 URL と token/kind だけを使い、[診断の純粋検査](../../src/core/mobile-push.test.ts) で provider message／token の記録を禁止 |
 | T7 | 通知用 ID の漏れによる偽の通知 | 通知では操作できない。登録を消すと ID も消える | SEC-08：同上（token 更新、通知の偽造では認可されない、unpair 後の消去） |
 | T8 | スマホの紛失・盗難 | 承認ごとの生体認証、Mac からの取り消し、鍵の安全な保管 | SEC-10：ペアリング検査（即時取り消し）。SEC-09 は別アプリの実機で手動 |
 | T9 | 窓口をインターネットへ公開してしまう | 既定で停止、アドレスの明示、全アドレス待受の警告 | SEC-11：[実プロセス・別 listener 検査](../../src/server/mobile/security-startup.test.ts)（既定停止／flag／警告）。`::` も同じ警告分岐 |
@@ -28,5 +28,5 @@
 - プロトコル共通のベクトルは固定の公開テスト鍵であり、実データではない。各 HTTP テストは OS の一時ディレクトリへ新しい鍵を作り、終了時に消す。
 - 同一コードの3失敗による失効 DoS と、静的 DH に forward secrecy がないことは v1 の明示的な限界。コードは作り直せるが、人の確認を迂回してはならない。
 - 連番は操作／応答前に fsync を伴って保存する。Mac の古いバックアップへ戻す時は鍵も作り直して再登録する。意図的なロールバックを同じ OS 利用者から守る機構ではない。
-- 自動試験は Expo/APNs/FCM へ通知を実配送しない。固定 payload の検査と送信処理の確認はあるが、実配送、失効 token のサービス応答、生体認証、カメラによる QR 読み取り、紛失・バックアップの手順は実機検証として残る。
+- 自動試験は Expo/APNs/FCM へ通知を実配送しない。ticket／receipt の外部 HTTP 境界と経過時間だけを fake にする追加単体検査で、object／配列 ticket、照会、失効 token の保護、50件・0600・32KiB×2のログを確認する。既存の real HTTP／暗号の SEC 検査は変更しない。実配送・端末での表示、生体認証、カメラ、紛失・バックアップの手順は実機検証として残る。
 - この証跡だけで ASVS L2 全体への適合やリリース承認を主張しない。状態は [checklist.md](checklist.md)、対象コミットと実行環境は `runs/` に残す。

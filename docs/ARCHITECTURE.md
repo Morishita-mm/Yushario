@@ -61,7 +61,7 @@ Yushario と勇者は同じ OS 利用者で動く。悪意ある同一利用者�
 | `src/core/turns.ts` | 進行中の往復の累計、最後のテスト結果と異常終了、直近256イベント内の遅着補正、許可待ちを除いた所要時間、報告の付与 | events, activity |
 | `src/core/event-history.ts` | 2000件の履歴から、勇者ごとの件数と保護するイベントに基づいて捨てる順を決める | events |
 | `src/core/permissions.ts` | 許可の表示用要約・回答 JSON、期限と省略本文の回答可否、端末／仲間に限定した進行の判定 | events |
-| `src/core/mobile-protocol.ts`, `mobile-display.ts`, `mobile-signing.ts`, `mobile-pairing.ts` | モバイル v1 の本文・許可リスト・連番／時刻窓・署名／hash 入力・nonce・コードの遷移・SAS の桁・固定通知 | core の型・関数のみ |
+| `src/core/mobile-protocol.ts`, `mobile-display.ts`, `mobile-signing.ts`, `mobile-pairing.ts`, `mobile-push.ts` | モバイル v1 の本文・許可リスト・連番／時刻窓・署名／hash 入力・nonce・コードの遷移・SAS の桁・固定通知・receipt と安全な診断値の検査 | core の型・関数のみ |
 | `src/core/terminal-session.ts` | 起動入力のフィールド検査、端末の行列数、保持出力の行・UTF-8 バイト境界 | なし |
 | `src/core/terminal-modes.ts` | 端末の出力の切り捨てた部分で有効になったモード（別画面・マウス・貼り付け等）を覚え、開き直した時に先に送る | なし |
 | `src/core/local-request.ts` | 実際の待受ポートに対する Host の判定 | なし |
@@ -91,7 +91,7 @@ Yushario と勇者は同じ OS 利用者で動く。悪意ある同一利用者�
 | `src/server/pty-launch.ts`, `pty-process.ts` | CLI の起動、フック設定、環境変数、子プロセスの終了 | agents, core, Node, node-pty |
 | `src/server/pty-actions.ts` | 依頼の送信・預かり、にげる・やすむ・みおくる | core, agents, pty-session |
 | `src/server/permissions.ts` | core の許可判定を呼び、独立した Promise・タイマーで利用者の回答・時間切れをフックへ返す。モバイルの監査保存は判断の配送前に行う | core/permissions, language, Node timer |
-| `src/server/mobile/*` | 別ポートの窓口、Node crypto、鍵・端末と連番の耐クラッシュ保存、保留ペアリング、固定 Expo 通知、画面用の登録 API、既存の状態／報告からの表示値 | core, permissions, Node crypto/http/fs、固定先への fetch |
+| `src/server/mobile/*` | 別ポートの窓口、Node crypto、鍵・端末と連番の耐クラッシュ保存、保留ペアリング、固定 Expo 通知と receipt 確認・上限つき0600診断、画面用の登録／テスト通知 API、既存の状態／報告からの表示値 | core, permissions, Node crypto/http/fs、固定先への fetch |
 | `src/server/project.ts`, `town-api.ts`, `town-data.ts` | git 共通ディレクトリの実パスによる町の鍵・短い名前の取得、旧 JSON の移行、町・設定・名前・めいぼの API と JSON 保存 | core, agents, Node |
 | `src/server/quest-db.ts`, `quest-migrations.ts`, `quest-ledger.ts`, `quest-api.ts` | SQLite の1接続と全表の番号付き移行、クエスト・出来事・端末の結び付きの保存、依頼・報告の記録、クエスト API と WS の通知。party/checks/previews の保存クラスは表を作らない | core, Node sqlite/fs/crypto, server |
 | `src/server/party.ts`, `party-db.ts`, `party-api.ts`, `party-agent-api.ts` | パーティーの保存・人の確認・巻物・会話対応の端末だけへの配送、現在の書き換える役の取得、セッション専用 API と一定時間の合言葉比較 | core, server, Node sqlite/crypto/http |
@@ -189,7 +189,7 @@ Codex の PostToolUse は成否不明として扱い、成功数・報告のテ�
 | `WS /pty?session=<id>` | 同じ端末の保持出力とライブ出力。web からは `input` / `resize`。停止の確認待ちでも人が調べて復旧できるよう入力を受ける |
 | `/api/roster` | 旅立った勇者の一覧と `/:sessionId/recall` で再開 |
 | `/api/names`, `/api/towns`, `/api/settings` | 名前、町の鍵で引く台帳・すがた、町をしまうまでの日数・`saveConversation`（既定 false） |
-| `/api/mobile` と配下の `/pair`、`/confirm`、`/cancel`、`/devices/:id` | 同じ Host／Origin／画面 token 検査。起動の有無、公開用アドレス、登録の最小情報と QR／SAS の表示・人の確認・取り消し。秘密鍵・端末公開鍵の台帳・通知 ID・連番は返さず、WS にも流さない |
+| `/api/mobile` と配下の `/pair`、`/confirm`、`/cancel`、`/devices/:id`、`/test-push` | 同じ Host／Origin／画面 token 検査。起動の有無、公開用アドレス、登録の最小情報と QR／SAS の表示・人の確認・取り消し。秘密鍵・端末公開鍵の台帳・通知 ID・連番は返さず、WS にも流さない |
 | `/api/review?session=<id>` または `?quest=<id>` | GET 既知の端末／保存クエスト拠点の cwd・branch・短い HEAD・上流との差・変更一覧と行の増減。`mode=uncommitted`（既定）／`branch`、`base=<branch>`。comparison に候補・既定・選んだ元・mergeBase を返す。既定の元は origin/HEAD → main → master。成功した読み取りは `QuestLedger.reviewed` で記録 |
 | `/api/review/verdict?session=<id>`（`quest` でも可） | POST `{verdict:"approved"|"changes",mode,base?}`。拠点は鑑定の読み取りと同じ選び方。サーバーが branch・HEAD・作業状態の指紋を読み、出来事 `verdict` に残す。窓を開いた記録（`reviewed`、「かんていを ひらいた」）とは別（段階21） |
 | `/api/review/diff?session=<id>&path=<相対パス>`（`quest` でも可） | GET 同じ mode・base の1ファイルの unified diff、または binary／tooLarge の印。相対パスと実パスの両方で cwd の外を拒否。任意の cwd は受け付けない |
@@ -217,7 +217,7 @@ Codex の PostToolUse は成否不明として扱い、成功数・報告のテ�
 ### server ↔ mobile: 独立した HTTP 窓口
 
 `--mobile <host:port>` の時だけ、指定先へ別 listener を bind する（既定は停止）。`POST /mobile/v1` だけで `pair/status/permissions/decide/reports/push-token/unpair` を扱い、既存の HTTP／WS 経路へ転送しない。正確な body・署名・暗号・一般拒否は `MOBILE-PROTOCOL.md`。`decide` は同じ `PermissionWaiter.decide` に通し、ブラウザとの先着1件だけを採る。
-Mac の「スマホ」は起動時だけ表示し、5分の QR／コピー文字列、6桁 SAS の承認／拒否、端末の取り消しを既存の認可済み API で行う。QR の符号化だけ `qrcode-generator`（依存なし）を使い、自作しない。開いている間だけ状態を読む。
+Mac の「スマホ」は起動時だけ表示し、5分の QR／コピー文字列、6桁 SAS の承認／拒否、端末の取り消しを既存の認可済み API で行う。QR の符号化だけ `qrcode-generator`（依存なし）を使い、自作しない。開いている間だけ状態を読む。端末ごとの通知結果と固定文言のテスト送信もこの認可済み画面だけに置き、receipt の成功を端末の表示・閲覧と混同しない。
 
 ### web 内: 描画データと端末の接続
 
