@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { appendFileSync, chmodSync, closeSync, existsSync, fsyncSync, mkdirSync, openSync,
   readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { mobileBase64url, mobileInteger, mobileObject, mobilePushToken, mobileText } from "../../core/mobile-protocol";
 import { generateMobileIdentity, mobileIdentity, type MobileIdentity } from "./crypto";
 
@@ -26,18 +26,15 @@ export class MobileStore {
   constructor(readonly directory: string) {
     mkdirSync(directory, { recursive: true, mode: 0o700 });
     chmodSync(directory, 0o700);
-    this.lock = join(directory, "gateway.lock"); this.stateFile = join(directory, "state.json");
-    if (existsSync(this.lock)) {
-      const pid = Number(readFileSync(this.lock, "utf8"));
-      let alive = true;
-      if (Number.isSafeInteger(pid) && pid > 0) {
-        try { process.kill(pid, 0); } catch (error) { alive = (error as NodeJS.ErrnoException).code !== "ESRCH"; }
-      }
-      if (alive) throw Error("Mobile data is locked by another gateway; do not reset its sequence state");
-      rmSync(this.lock);
-    }
-    const descriptor = openSync(this.lock, "wx", 0o600);
-    try { writeFileSync(descriptor, String(process.pid)); fsyncSync(descriptor); } finally { closeSync(descriptor); }
+    this.lock = resolve(directory, "gateway.lock"); this.stateFile = join(directory, "state.json");
+    let descriptor: number;
+    try { descriptor = openSync(this.lock, "wx", 0o600); }
+    catch (error) { if ((error as NodeJS.ErrnoException).code === "EEXIST") throw this.lockFailure(); throw error; }
+    // Never reclaim a stale path automatically: another starter could own it by the time we unlink it.
+    try {
+      writeFileSync(descriptor, JSON.stringify({ pid: process.pid, startedAt: new Date(Date.now() - process.uptime() * 1000).toISOString() }));
+      fsyncSync(descriptor);
+    } finally { closeSync(descriptor); }
     try {
       if (existsSync(this.stateFile)) {
         chmodSync(this.stateFile, 0o600);
@@ -54,6 +51,20 @@ export class MobileStore {
     } catch (error) { rmSync(this.lock, { force: true }); throw error; }
   }
   get devices(): MobileDevice[] { return this.records.map(device => ({ ...device })); }
+  private lockFailure(): Error {
+    let owner = "";
+    try {
+      const value: unknown = JSON.parse(readFileSync(this.lock, "utf8"));
+      const record = mobileObject(value, ["pid", "startedAt"]) ? value : undefined;
+      const pid = typeof value === "number" ? value : record?.pid;
+      if (mobileInteger(pid, 1)) {
+        const startedAt = record?.startedAt;
+        owner = ` (PID=${pid}${typeof startedAt === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(startedAt) ? `, startedAt=${startedAt}` : ""})`;
+      }
+    } catch { /* An unreadable/malformed lock must still prevent startup; never print its raw contents. */ }
+    const command = `rm -- '${this.lock.replaceAll("'", "'\\''")}'`;
+    return Error(`Mobile data locked${owner}; confirm no Yushario with this AGENT_CHARACTER_HOME is running; remove ONLY lock, keep state.json. / ロック中。同じ AGENT_CHARACTER_HOME の Yushario が動いていないことを確認し、state.json は残してロック1ファイルだけ削除: ${command}`);
+  }
   private save(devices: MobileDevice[]): void {
     if (this.closed) throw Error("Mobile store is closed");
     const temp = join(this.directory, `.state-${randomUUID()}`);
