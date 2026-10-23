@@ -11,12 +11,15 @@ import { MobileRateLimit, mobileJson, mobileRejected, readMobileJson } from "./h
 import { mobileOperation, mobilePermissionViews } from "./operations";
 import { MobilePush } from "./push";
 import type { MobileQuests } from "./quests";
+import type { MobileWork } from "./work";
+import { mobileWorkNotices } from "./work-audit";
 
 export class MobileGateway {
   readonly store: MobileStore;
   readonly pairing: MobilePairing;
   private readonly push: MobilePush;
   heroes: MobileHero[] = [];
+  work?: MobileWork;
   addresses: string[] = [];
   reservedMainPort?: number;
   private readonly rate = new MobileRateLimit();
@@ -60,8 +63,8 @@ export class MobileGateway {
   permissionViews() { return mobilePermissionViews(this.permissions, this.heroes); }
   snapshot() {
     return { enabled: true as const, addresses: this.addresses,
-      devices: this.store.devices.map(({ id, name, createdAt, lastSeenAt }) => ({ id, name, createdAt, lastSeenAt })),
-      pairing: this.pairing.snapshot(), pushResults: this.push.results() };
+      devices: this.store.devices.map(({ id, name, createdAt, lastSeenAt, allowWork }) => ({ id, name, createdAt, lastSeenAt, allowWork })),
+      pairing: this.pairing.snapshot(), pushResults: this.push.results(), workNotices: mobileWorkNotices(this.store.directory) };
   }
   notify(kind: "permission" | "report" | "error"): void { this.push.notify(kind); }
   testPush(deviceId: string): boolean {
@@ -100,7 +103,7 @@ export class MobileGateway {
       } else {
         if (envelope.operation === "pair" || !mobileReplayAllowed(envelope.seq, envelope.timestamp, device.lastSeq, Date.now())) throw Error("Invalid mobile replay");
         this.store.advance(device.id, envelope.seq, Date.now()); // Durable before effects and before response encryption.
-        const operation = mobileOperation(envelope, this.store, this.permissions, this.heroes, this.quests);
+        const operation = await mobileOperation(envelope, this.store, this.permissions, this.heroes, this.quests, this.work);
         result = { v: 1, deviceId: envelope.deviceId, seq: envelope.seq, timestamp: Date.now(), ...operation };
       }
       const encrypted = sealMobileResponse(result, this.store.identity, packet.phoneEncryptionKey, packet.phoneSigningKey);

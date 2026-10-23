@@ -11,6 +11,7 @@ export async function handleMobileApi(request: IncomingMessage, response: Server
     if (url.pathname === "/api/mobile" && request.method === "GET") { mobileJson(response, gateway?.snapshot() ?? { enabled: false }); return; }
     if (!gateway) throw Error("Mobile is disabled");
     const device = /^\/api\/mobile\/devices\/([^/]+)$/.exec(url.pathname);
+    const work = /^\/api\/mobile\/devices\/([^/]+)\/work$/.exec(url.pathname);
     if (device && request.method === "DELETE") {
       const id = decodeURIComponent(device[1]);
       if (!mobileBase64url(id, 32) || !gateway.store.remove(id)) throw Error("Device not found");
@@ -27,6 +28,10 @@ export async function handleMobileApi(request: IncomingMessage, response: Server
         if (!gateway.confirm(body.deviceId, body.approve)) throw Error("Pairing no longer pending");
       } else if (url.pathname === "/api/mobile/test-push" && mobileObject(body, ["deviceId"]) && mobileBase64url(body.deviceId, 32)) {
         if (!gateway.testPush(body.deviceId)) throw Error("Device not found");
+      } else if (work && mobileObject(body, ["enabled"]) && typeof body.enabled === "boolean") {
+        const id = decodeURIComponent(work[1]);
+        if (!mobileBase64url(id, 32)) throw Error("Device not found");
+        gateway.store.setAllowWork(id, body.enabled); // Throws for an unknown device.
       } else if (url.pathname === "/api/mobile/cancel" && mobileObject(body, [])) gateway.cancelPairing();
       else throw Error("Invalid mobile operation");
     } else throw Error("Invalid mobile route");

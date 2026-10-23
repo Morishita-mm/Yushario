@@ -5,6 +5,8 @@ import {
 
 import { parseMobileQuestResponse, mobileQuestValues, mobileReportValues, type MobileQuestResponseBody } from "./mobile-quests";
 export type { MobileReport, MobileQuest, MobileTown } from "./mobile-quests";
+import { mobileWorkResponseValues, parseMobileWorkResponse, type MobileWorkResponseBody } from "./mobile-work-display";
+export type { MobileDelivery, MobileWorkResponseBody } from "./mobile-work-display";
 
 export type MobileHero = {
   id: string; name: string; town: string;
@@ -15,7 +17,7 @@ export type MobilePermissionContent = {
   content: string; omitted: number; expiresAt: number;
 };
 export type MobilePermission = MobilePermissionContent & { contentHash: string };
-export type MobileResponseBody = MobileQuestResponseBody
+export type MobileResponseBody = MobileQuestResponseBody | MobileWorkResponseBody
   | { operation: "pair"; body: { registered: true } }
   | { operation: "status"; body: { heroes: MobileHero[] } }
   | { operation: "permissions"; body: { permissions: MobilePermission[] } }
@@ -75,7 +77,7 @@ export function parseMobileResponseBody(operation: unknown, body: unknown): Mobi
         return { operation, body: { permissions: body.permissions } };
       }
       break;
-    default: return parseMobileQuestResponse(operation, body);
+    default: return parseMobileQuestResponse(operation, body) ?? parseMobileWorkResponse(operation, body);
   }
 }
 
@@ -100,5 +102,6 @@ export function mobileResponseBodyValues(response: MobileResponseBody): unknown[
     case "reports": return [response.body.reports.map(mobileReportValues), response.body.nextCursor];
     case "push-token": return [response.body.updated];
     case "unpair": return [response.body.unpaired];
+    default: return mobileWorkResponseValues(response);
   }
 }

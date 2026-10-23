@@ -31,6 +31,15 @@ export class MobileQuests {
       return { id: this.townIds.get(key)!, name: mobileShort(townLabel(town, towns), 200, "町") };
     }).sort(byId);
   }
+  // Internal town key for a gateway-issued town ID; only currently registered towns resolve.
+  townKey(townId: string): string {
+    this.townViews();
+    const key = [...this.townIds].find(([, id]) => id === townId)?.[0];
+    if (!key || !this.towns().some(town => townKey(town) === key)) throw Error("Unknown town");
+    return key;
+  }
+  // The town key a room hero reports, for heroes without a PTY on this Mac.
+  agentTown(agent: string): string | undefined { return this.room()?.agents.get(agent)?.project; }
   private questView(quest: Quest): MobileQuest {
     const towns = this.towns(), town = towns.find(town => townKey(town) === quest.town);
     return { id: quest.id, title: mobileShort(quest.title, 200, "クエスト"),

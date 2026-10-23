@@ -95,6 +95,35 @@ const questCases = [
   ["reports", {}, [], { reports: [{ ...report, text: null }], nextCursor: null }, [[[...rv, null]], null]],
   ["reports", { questId: quest.id, cursor: null }, [quest.id, null], { reports: [report], nextCursor: report.id }, [[[...rv, report.text]], report.id]],
 ];
+// Work operations: every nested object is written in its canonical member order.
+const choice = { id: "gear-1", name: "盾" };
+const preset = { id: "preset-1", name: "Claude", weapons: [choice], accessories: [] };
+const workHero = { id: "hero-1", name: "勇者", preset: "Claude", weapon: "盾", accessory: null,
+  busy: false, canTalk: true, active: true, questId: null, permissionGate: true };
+const launch = { baseId: "base-1", presetId: preset.id, weaponId: choice.id, accessoryId: null };
+const lv = [launch.baseId, launch.presetId, launch.weaponId, launch.accessoryId];
+const member = { heroId: workHero.id, role: "implement", writer: true, ask: "実装して\n" };
+const mv = [member.heroId, member.role, member.writer, member.ask];
+const draft = { questId: quest.id, text: "依頼😀", tactic: "review", members: [member],
+  fits: [{ tactic: "review", ok: false, gaps: ["reviewer"], inside: [workHero.id], outside: [] }],
+  editable: true, draftLost: false, departure: { state: "partial", steps: [{ heroId: workHero.id, kind: "request", state: "sent" }] } };
+const dv = [draft.questId, draft.text, draft.tactic, [mv], [["review", false, ["reviewer"], [workHero.id], []]],
+  true, false, ["partial", [[workHero.id, "request", "sent"]]]];
+const workId = `${header.timestamp}.${b64(Buffer.alloc(16, 0x11))}`;
+questCases.push(
+  ["quest-options", { townId: town.id }, [town.id],
+    { allowWork: true, heroes: [workHero], bases: [{ id: "base-1", name: "拠点" }], presets: [preset] },
+    [true, [[workHero.id, workHero.name, "Claude", "盾", null, false, true, true, null, true]], [["base-1", "拠点"]],
+      [[preset.id, preset.name, [[choice.id, choice.name]], []]]]],
+  ["quest-draft", { questId: quest.id }, [quest.id], { draft }, [dv]],
+  ["quest-prepare", { requestId: workId, townId: town.id, text: draft.text, mode: "send", heroId: null, launch },
+    [workId, town.id, draft.text, "send", null, lv], { draft, heroId: "hero-2", delivery: "none" }, [dv, "hero-2", "none"]],
+  ["quest-form", { requestId: workId, questId: quest.id, text: draft.text, members: [member], tactic: "review" },
+    [workId, quest.id, draft.text, [mv], "review"], { draft }, [dv]],
+  ["quest-embark", { requestId: workId, questId: quest.id, launch, role: "review", writer: false },
+    [workId, quest.id, lv, "review", false], { draft, heroId: "hero-2" }, [dv, "hero-2"]],
+  ["quest-depart", { requestId: workId, questId: quest.id }, [workId, quest.id], { draft }, [dv]],
+);
 const vectors = {
   description: "Yushario mobile v1 PUBLIC TEST KEYS; raw X25519 private scalars / Ed25519 seeds; ciphertext includes the final 16-byte tag.",
   keys: { gatewayX25519: gatewayX.vector, gatewayEd25519: gatewayEd.vector, phoneX25519: phoneX.vector, phoneEd25519: phoneEd.vector },

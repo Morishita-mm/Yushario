@@ -12,8 +12,9 @@ const validRequest = vectors.request.signedEnvelope;
 const parseRequest = (changes: Record<string, unknown>) => parseMobileRequest({ ...validRequest, ...changes });
 
 describe("mobile wire validation", () => {
-  it("has exactly the ten allowed operations and rejects unknown fields", () => {
-    expect(MOBILE_OPERATIONS).toEqual(["pair", "status", "permissions", "decide", "reports", "push-token", "unpair", "towns", "quests", "quest-create"]);
+  it("has exactly the sixteen allowed operations and rejects unknown fields", () => {
+    expect(MOBILE_OPERATIONS).toEqual(["pair", "status", "permissions", "decide", "reports", "push-token", "unpair", "towns", "quests", "quest-create",
+      "quest-options", "quest-draft", "quest-prepare", "quest-form", "quest-embark", "quest-depart"]);
     for (const operation of ["terminal", "exec", "permission-decision", "PAIR", "__proto__", null]) {
       expect(isMobileOperation(operation)).toBe(false);
       expect(parseMobileRequestBody(operation, {})).toBeUndefined();
@@ -87,8 +88,9 @@ describe("mobile wire validation", () => {
 
 describe("mobile deterministic bytes", () => {
   it("matches both request and response signing, AAD and nonce vectors", () => {
-    for (const [direction, samples] of [["request", [vectors.request, vectors.pairRequest]],
-      ["response", [vectors.response, vectors.pairResponse]]] as const) {
+    // vectors.quests also holds every work operation with nested arrays (options, draft, prepare, form, embark, depart).
+    for (const [direction, samples] of [["request", [vectors.request, vectors.pairRequest, ...vectors.quests.map(sample => sample.request)]],
+      ["response", [vectors.response, vectors.pairResponse, ...vectors.quests.map(sample => sample.response)]]] as const) {
       for (const sample of samples) {
         const envelope = direction === "request" ? parseMobileRequest(sample.signedEnvelope) : parseMobileResponse(sample.signedEnvelope);
         expect(envelope).toBeDefined();

@@ -1,8 +1,11 @@
 // Wire validation only. Cryptography and durable sequence storage belong to server.
+import { MOBILE_WORK_OPERATIONS, mobileWorkRequestValues, parseMobileWorkRequest, type MobileWorkRequestBody } from "./mobile-work";
+
 export const MOBILE_VERSION = 1;
-export const MOBILE_OPERATIONS = ["pair", "status", "permissions", "decide", "reports", "push-token", "unpair", "towns", "quests", "quest-create"] as const;
+export const MOBILE_OPERATIONS = ["pair", "status", "permissions", "decide", "reports", "push-token", "unpair", "towns", "quests", "quest-create",
+  ...MOBILE_WORK_OPERATIONS] as const;
 export type MobileOperation = typeof MOBILE_OPERATIONS[number];
-export type MobileRequestBody =
+export type MobileRequestBody = MobileWorkRequestBody
   | { operation: "pair"; body: { pairingCode: string; name: string; pushToken: string | null } }
   | { operation: "status" | "permissions" | "reports" | "unpair"; body: Record<string, never> }
   | { operation: "towns" | "quests"; body: { cursor: string | null } }
@@ -92,7 +95,9 @@ export function parseMobileRequestBody(operation: unknown, body: unknown): Mobil
     if (mobileObject(body, ["questId", "cursor"]) && mobileText(body.questId, 200) && mobileCursor(body.cursor)) {
       return { operation, body: { questId: body.questId, cursor: body.cursor } };
     }
-  } else if (mobileObject(body, [])) return { operation, body: {} };
+  } else if (operation === "status" || operation === "permissions" || operation === "unpair") {
+    if (mobileObject(body, [])) return { operation, body: {} };
+  } else return parseMobileWorkRequest(operation, body);
 }
 
 export function parseMobileRequest(input: unknown): MobileSignedRequest | undefined {
@@ -125,6 +130,7 @@ export function mobileRequestBodyValues(request: MobileRequestBody): unknown[] {
     case "towns": case "quests": return [request.body.cursor];
     case "quest-create": return [request.body.requestId, request.body.townId, request.body.title, request.body.purpose];
     case "reports": return "questId" in request.body ? [request.body.questId, request.body.cursor] : [];
-    default: return [];
+    case "status": case "permissions": case "unpair": return [];
+    default: return mobileWorkRequestValues(request);
   }
 }
