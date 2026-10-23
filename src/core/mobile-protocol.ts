@@ -1,10 +1,16 @@
 // Wire validation only. Cryptography and durable sequence storage belong to server.
+import { MOBILE_WORK_OPERATIONS, mobileWorkRequestValues, parseMobileWorkRequest, type MobileWorkRequestBody } from "./mobile-work";
+
 export const MOBILE_VERSION = 1;
-export const MOBILE_OPERATIONS = ["pair", "status", "permissions", "decide", "reports", "push-token", "unpair"] as const;
+export const MOBILE_OPERATIONS = ["pair", "status", "permissions", "decide", "reports", "push-token", "unpair", "towns", "quests", "quest-create",
+  ...MOBILE_WORK_OPERATIONS] as const;
 export type MobileOperation = typeof MOBILE_OPERATIONS[number];
-export type MobileRequestBody =
+export type MobileRequestBody = MobileWorkRequestBody
   | { operation: "pair"; body: { pairingCode: string; name: string; pushToken: string | null } }
   | { operation: "status" | "permissions" | "reports" | "unpair"; body: Record<string, never> }
+  | { operation: "towns" | "quests"; body: { cursor: string | null } }
+  | { operation: "reports"; body: { questId: string; cursor: string | null } }
+  | { operation: "quest-create"; body: { requestId: string; townId: string; title: string; purpose: string } }
   | { operation: "decide"; body: { permissionId: string; contentHash: string; decision: "allow" | "deny" } }
   | { operation: "push-token"; body: { token: string | null } };
 export type MobileHeader = { v: 1; deviceId: string; seq: number; timestamp: number };
@@ -52,6 +58,17 @@ export function isMobileOperation(value: unknown): value is MobileOperation {
   return typeof value === "string" && (MOBILE_OPERATIONS as readonly string[]).includes(value);
 }
 
+export function mobileCursor(value: unknown): value is string | null {
+  return value === null || mobileText(value, 200);
+}
+
+// Time-bound random ID: expired IDs remain invalid even after dedup records are pruned.
+export function mobileQuestRequestTime(value: unknown): number | undefined {
+  if (typeof value !== "string" || !/^(0|[1-9][0-9]{0,15})\.[A-Za-z0-9_-]{22}$/.test(value)) return;
+  const [time, random] = value.split(".");
+  if (mobileInteger(Number(time)) && mobileBase64url(random, 16)) return Number(time);
+}
+
 export function parseMobileRequestBody(operation: unknown, body: unknown): MobileRequestBody | undefined {
   if (!isMobileOperation(operation)) return;
   if (operation === "pair") {
@@ -66,7 +83,21 @@ export function parseMobileRequestBody(operation: unknown, body: unknown): Mobil
     }
   } else if (operation === "push-token") {
     if (mobileObject(body, ["token"]) && mobilePushToken(body.token)) return { operation, body: { token: body.token } };
-  } else if (mobileObject(body, [])) return { operation, body: {} };
+  } else if (operation === "towns" || operation === "quests") {
+    if (mobileObject(body, ["cursor"]) && mobileCursor(body.cursor)) return { operation, body: { cursor: body.cursor } };
+  } else if (operation === "quest-create") {
+    if (mobileObject(body, ["requestId", "townId", "title", "purpose"]) && mobileQuestRequestTime(body.requestId) !== undefined
+      && mobileText(body.townId, 200) && mobileText(body.title, 200) && body.title.trim().length > 0 && mobileText(body.purpose, 2000, true)) {
+      return { operation, body: { requestId: body.requestId as string, townId: body.townId, title: body.title, purpose: body.purpose } };
+    }
+  } else if (operation === "reports") {
+    if (mobileObject(body, [])) return { operation, body: {} };
+    if (mobileObject(body, ["questId", "cursor"]) && mobileText(body.questId, 200) && mobileCursor(body.cursor)) {
+      return { operation, body: { questId: body.questId, cursor: body.cursor } };
+    }
+  } else if (operation === "status" || operation === "permissions" || operation === "unpair") {
+    if (mobileObject(body, [])) return { operation, body: {} };
+  } else return parseMobileWorkRequest(operation, body);
 }
 
 export function parseMobileRequest(input: unknown): MobileSignedRequest | undefined {
@@ -96,6 +127,10 @@ export function mobileRequestBodyValues(request: MobileRequestBody): unknown[] {
     case "pair": return [request.body.pairingCode, request.body.name, request.body.pushToken];
     case "decide": return [request.body.permissionId, request.body.contentHash, request.body.decision];
     case "push-token": return [request.body.token];
-    default: return [];
+    case "towns": case "quests": return [request.body.cursor];
+    case "quest-create": return [request.body.requestId, request.body.townId, request.body.title, request.body.purpose];
+    case "reports": return "questId" in request.body ? [request.body.questId, request.body.cursor] : [];
+    case "status": case "permissions": case "unpair": return [];
+    default: return mobileWorkRequestValues(request);
   }
 }

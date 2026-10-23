@@ -1,7 +1,8 @@
 import { tr } from "../language";
 import type { MobilePushLogEntry } from "../../core/mobile-push";
 
-export type MobileDevice = { id: string; name: string; createdAt: number; lastSeenAt: number };
+export type MobileDevice = { id: string; name: string; createdAt: number; lastSeenAt: number; allowWork: boolean };
+export type MobileWorkNotice = { deviceId: string; operation: string; questId: string; heroId: string | null; time: number };
 export type MobilePairing = {
   status: "available" | "pending" | "consumed" | "expired" | "locked";
   expiresAt: number;
@@ -10,7 +11,7 @@ export type MobilePairing = {
   name: string | null;
   deviceId: string | null;
 };
-export type MobileState = { enabled: false } | { enabled: true; addresses: string[]; devices: MobileDevice[]; pairing: MobilePairing | null; pushResults?: MobilePushLogEntry[] };
+export type MobileState = { enabled: false } | { enabled: true; addresses: string[]; devices: MobileDevice[]; pairing: MobilePairing | null; pushResults?: MobilePushLogEntry[]; workNotices?: MobileWorkNotice[] };
 
 const token = new URLSearchParams(location.search).get("token") ?? "";
 
@@ -28,4 +29,5 @@ export const startPairing = (addresses: string[]) => request("/pair", "POST", { 
 export const confirmPairing = (deviceId: string, approve: boolean) => request("/confirm", "POST", { deviceId, approve });
 export const cancelPairing = () => request("/cancel", "POST", {});
 export const revokeDevice = (id: string) => request(`/devices/${encodeURIComponent(id)}`, "DELETE");
+export const setDeviceWork = (id: string, enabled: boolean) => request(`/devices/${encodeURIComponent(id)}/work`, "POST", { enabled });
 export const testPush = (deviceId: string) => request("/test-push", "POST", { deviceId });

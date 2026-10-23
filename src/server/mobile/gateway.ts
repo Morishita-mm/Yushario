@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { networkInterfaces } from "node:os";
-import type { MobileHero, MobileReport, MobileResponse } from "../../core/mobile-display";
+import type { MobileHero, MobileResponse } from "../../core/mobile-display";
 import { mobileInteger, mobileReplayAllowed, parseMobilePacket } from "../../core/mobile-protocol";
 import { mobileBindSharesMainPort } from "../../core/startup";
 import type { PermissionWaiter } from "../permissions";
@@ -10,18 +10,21 @@ import { MobilePairing } from "./pairing";
 import { MobileRateLimit, mobileJson, mobileRejected, readMobileJson } from "./http";
 import { mobileOperation, mobilePermissionViews } from "./operations";
 import { MobilePush } from "./push";
+import type { MobileQuests } from "./quests";
+import type { MobileWork } from "./work";
+import { mobileWorkNotices } from "./work-audit";
 
 export class MobileGateway {
   readonly store: MobileStore;
   readonly pairing: MobilePairing;
   private readonly push: MobilePush;
   heroes: MobileHero[] = [];
-  reports: MobileReport[] = [];
+  work?: MobileWork;
   addresses: string[] = [];
   reservedMainPort?: number;
   private readonly rate = new MobileRateLimit();
   private readonly server = createServer((request, response) => { void this.handle(request, response); });
-  constructor(directory: string, private readonly permissions: PermissionWaiter) {
+  constructor(directory: string, private readonly permissions: PermissionWaiter, private readonly quests?: MobileQuests) {
     this.store = new MobileStore(directory); this.pairing = new MobilePairing(this.store); this.push = new MobilePush(this.store);
     this.server.headersTimeout = 10_000; this.server.requestTimeout = 15_000;
     this.server.on("upgrade", (_request, socket) => socket.end("HTTP/1.1 400 Bad Request\r\nConnection: close\r\nContent-Type: application/json\r\nContent-Length: 20\r\n\r\n{\"error\":\"rejected\"}"));
@@ -60,8 +63,8 @@ export class MobileGateway {
   permissionViews() { return mobilePermissionViews(this.permissions, this.heroes); }
   snapshot() {
     return { enabled: true as const, addresses: this.addresses,
-      devices: this.store.devices.map(({ id, name, createdAt, lastSeenAt }) => ({ id, name, createdAt, lastSeenAt })),
-      pairing: this.pairing.snapshot(), pushResults: this.push.results() };
+      devices: this.store.devices.map(({ id, name, createdAt, lastSeenAt, allowWork }) => ({ id, name, createdAt, lastSeenAt, allowWork })),
+      pairing: this.pairing.snapshot(), pushResults: this.push.results(), workNotices: mobileWorkNotices(this.store.directory) };
   }
   notify(kind: "permission" | "report" | "error"): void { this.push.notify(kind); }
   testPush(deviceId: string): boolean {
@@ -100,7 +103,7 @@ export class MobileGateway {
       } else {
         if (envelope.operation === "pair" || !mobileReplayAllowed(envelope.seq, envelope.timestamp, device.lastSeq, Date.now())) throw Error("Invalid mobile replay");
         this.store.advance(device.id, envelope.seq, Date.now()); // Durable before effects and before response encryption.
-        const operation = mobileOperation(envelope, this.store, this.permissions, this.heroes, this.reports);
+        const operation = await mobileOperation(envelope, this.store, this.permissions, this.heroes, this.quests, this.work);
         result = { v: 1, deviceId: envelope.deviceId, seq: envelope.seq, timestamp: Date.now(), ...operation };
       }
       const encrypted = sealMobileResponse(result, this.store.identity, packet.phoneEncryptionKey, packet.phoneSigningKey);

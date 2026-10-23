@@ -102,7 +102,8 @@ HTTP の要求と成功応答は同じ packet 形を使う。
 
 ```ts
 { v: 1, deviceId: string, seq: number, timestamp: number,
-  operation: "pair" | "status" | "permissions" | "decide" | "reports" | "push-token" | "unpair",
+  operation: "pair" | "status" | "permissions" | "decide" | "reports" | "push-token" | "unpair" | "towns" | "quests" | "quest-create"
+    | "quest-options" | "quest-draft" | "quest-prepare" | "quest-form" | "quest-embark" | "quest-depart",
   body: object, signature: string }
 ```
 
@@ -128,13 +129,28 @@ Mac の要求判定は `seq > lastAccepted`（pair は初期値0）かつ `abs(t
 | `status` | `{}` | `[]` | `{heroes:[Hero,...]}` | `[[heroValues,...]]` |
 | `permissions` | `{}` | `[]` | `{permissions:[Permission,...]}` | `[[permissionValues,...]]` |
 | `decide` | `{permissionId, contentHash, decision}` | `[permissionId,contentHash,decision]` | `{decided:true}` | `[true]` |
-| `reports` | `{}` | `[]` | `{reports:[Report,...]}` | `[[reportValues,...]]` |
+| `towns` | `{cursor}` | `[cursor]` | `{towns:[Town,...],nextCursor}` | `[[townValues,...],nextCursor]` |
+| `quests` | `{cursor}` | `[cursor]` | `{quests:[Quest,...],nextCursor}` | `[[questValues,...],nextCursor]` |
+| `quest-create` | `{requestId,townId,title,purpose}` | `[requestId,townId,title,purpose]` | `{quest:Quest}` | `[questValues]` |
+| `reports`（最近） | `{}` | `[]` | `{reports:[Report,...],nextCursor:null}` | `[[reportValues,...],null]` |
+| `reports`（1クエスト） | `{questId,cursor}` | `[questId,cursor]` | `{reports:[Report,...],nextCursor}` | `[[reportValues,...],nextCursor]` |
 | `push-token` | `{token}` | `[token]` | `{updated:true}` | `[true]` |
 | `unpair` | `{}` | `[]` | `{unpaired:true}` | `[true]` |
+| `quest-options` ほか5操作 | 下記「クエストの作業操作」 | | | |
 
 - pair の `name` は空でない80文字以内、C0/DEL なし。`pushToken` と push-token の `token` は Expo 通知 ID（ASCII U+0021..007E の1〜512文字）または null（通知 ID の削除）。pair の code は16バイトの `B64`。
 - decide の `permissionId` は id、`contentHash` は SHA-256 の32バイトの `B64`、`decision` は `"allow"` または `"deny"` だけ（`terminal` はない）。アプリは毎回生体認証または端末のロック解除を求めてから送る。
 - unpair は自分の登録・通知 ID だけを消す。他端末の ID を body に取らない。応答を1度組み立て、削除の保存を済ませてから配送する。Mac での取り消しも以後の要求を直ちに拒否する。
+
+### クエストの入力・重複とページ
+
+- `cursor` は先頭なら null、次ページなら前応答の `nextCursor`（最後の行の id）。省略不可。`nextCursor:null` が末尾。知らない／別クエストの cursor は一般拒否。更新をまたぐ snapshot 保証はなく、一覧変更時は先頭から読み直す。
+- `townId` は `towns` から取得した不透明 ID。窓口内だけのランダム UUID → 内部の町の鍵の対応表で引く（path を hash/base64 にした ID ではない）。再起動で無効になる。削除済み／未知の町・内部の町の鍵やパスを直接指定しても拒否する。
+- `quest-create` の `title` は1〜200文字で trim 後が空でないこと、`purpose` は0〜2000文字（空も明示）。検査・署名では trim せず、保存時の題だけ既存 `QuestLedger.create` と同じ trim。既存 `validQuestPatch` の検査を再使用する。状態は open。割当・送信・出陣・party・done/adopt への引数は許可しない。
+- `requestId` は `Unixミリ秒の10進表記.B64(16バイトのCSPRNG乱数)`。先頭0は0自身以外不可。例 `1700000000000.gIGCg4SFhoeIiYqLjI2Ojw`。受理時 `issuedAt <= now+60000` かつ `now < issuedAt+600000`。端末は明示送信時に一度だけ生成し、不明な結果を新しい ID で自動再送しない。
+- 登録・署名・連番の既存検査後、作成前に ID を耐クラッシュ予約する。同じ ID は端末・本文・連番が変わっても拒否（応答の再生成もしない）。直近60秒の予約が端末ごと5件以上なら拒否。予約・監査が保存できなければ作成しない。期限後も同じ ID は無効、古い予約は次の作成時に間引く（最大1000件、満杯も一般拒否）。
+- 予約と監査は札作成の前なので、停止や SQLite 保存失敗では札がない予約が残り得る。応答消失・一般拒否は未実行の証明ではない。新しい連番で一覧を読み直して人が確認する。HTTP 自動再送は禁止のまま。
+- 監査は `{deviceId,questId,time}` のみ（0600、fsync）。要求本文・題・目的は記録しない。詳細と作成ごとの追加生体認証を不要とした理由は `MOBILE.md`。`decide` の本人確認は変更しない。
 
 ### 表示データと配列の順序
 
@@ -146,13 +162,66 @@ heroValues = [id, name, town, state, permissionPending]
 Permission = {id, heroId, heroName, town, tool, summary, content, omitted, expiresAt, contentHash}
 permissionContentValues = [id, heroId, heroName, town, tool, summary, content, omitted, expiresAt]
 permissionValues = [...permissionContentValues, contentHash]
-Report = {id, title, success, at, excerpt}
-reportValues = [id, title, success, at, excerpt]
+Town = {id, name}
+townValues = [id, name]
+Quest = {id, title, town, state, updatedAt}
+questValues = [id, title, town, state, updatedAt]
+Report = {id, questId, questTitle, title, success, at, excerpt, text}
+reportValues = [id, questId, questTitle, title, success, at, excerpt, text]
 ```
 
 - Hero は最大100件、id の UTF-16 辞書順で先頭100件。`name/town` は表示名で、空でない200文字以内。町の実パスを名前の代わりに返さない。`state` は `idle|thinking|working|waiting_input|success|error`、`permissionPending` は真偽値。
 - Permission は未回答かつ `now < expiresAt` の最大16件。expiresAt 昇順、同時刻は id の UTF-16 辞書順。`heroId` は id、`heroName/town/tool/summary` は空でない200文字以内。`content` は既存のコマンド／パス表示そのもの（空も可、最大2000文字）。`omitted` は省略した UTF-16 単位数で0以上、`expiresAt` は既存の120秒期限をそのまま使い、取得で延長しない。長い表示名や要約は表示用に上限内へ切り、切った後の表示値を hash に使う。
-- Report は最近50件、at 降順、同時刻は id の UTF-16 辞書順。`title` は空でない200文字以内、`success` は true/false/不明なら null、`at` は報告時刻。`excerpt` は保存方針上読める本文の先頭 **500文字**（サロゲート対の途中なら直前まで）。本文がなければ空文字。要約を LLM に作らせない。
+- Town は id の UTF-16 辞書順、1ページ100件まで。`name` は空でない200文字以内の表示名だけ。
+- Quest は updatedAt 降順、同時刻は id の UTF-16 辞書順、1ページ100件まで。`title/town` は空でない200文字以内、town は表示名（削除済み等なら「町」）。`state` は `open|active|waiting|review|done|dropped`。目的・担当・パス・cwd・branch・拠点・条件・コマンドは返さない。
+- Report の `questId` は所属クエストの ID、`questTitle` は現在のクエストの題、`title` は報告の見出し（各200文字まで）。`success` は true/false/不明なら null、`at` は報告時刻。`excerpt` は読める本文の先頭 **500文字**。`text` は全文を **8000文字**まで、本文がなければ null（空の本文は空文字）。切る場合はサロゲート対を分断しない。
+- `reports {}` は最近50件、at 降順・同時刻は id の UTF-16 辞書順。要約一覧なので `text` は常に null、`nextCursor` も null。`reports {questId,cursor}` はそのクエストだけを at 昇順・同時刻は id の UTF-16 辞書順で1ページ8件まで返す。JSON の制御文字エスケープを含めても既存512KiB暗号文・1MiB HTTP 上限内にするため全文ページを8件に制限する。
+- 本文は保存済みの報告、無ければ同じ勇者・同じ報告時刻のメモリの返答だけ。`saveConversation=false` の返答は保存せず再起動・保持期限で消える。無ければ excerpt は空・text は null。別の返答やツール出力から補わない。result/cwd/branch/files/checks/command/permission と報告以外の出来事を返さない。返答の文章に人／CLI が書いた機密を自動検出・墨消しする仕様ではない。要約を LLM に作らせない。
+- クエスト拡張では reports の shape と署名配列も増えている。暗号・pair/decide の wire は不変だが、古いアプリは新 reports を拒否するので Mac／アプリをそろえて更新する。
+
+### クエストの作業操作（A2：勇者を動かす6操作）
+
+既存の10操作と shape・署名配列はそのまま。次の6操作を許可リストへ加える。検査と署名配列は `src/core/mobile-work.ts`（要求）／`mobile-work-display.ts`（応答）。
+
+| operation | 要求 body | 要求 bodyValues | 成功応答 body | 応答 bodyValues |
+|---|---|---|---|---|
+| `quest-options` | `{townId}` | `[townId]` | `{allowWork,heroes:[WorkHero,...],bases:[Choice,...],presets:[WorkPreset,...]}` | `[allowWork,[workHeroValues,...],[choiceValues,...],[presetValues,...]]` |
+| `quest-draft` | `{questId}` | `[questId]` | `{draft:WorkDraft}` | `[draftValues]` |
+| `quest-prepare` | `{requestId,townId,text,mode,heroId,launch}` | `[requestId,townId,text,mode,heroId,launchValues\|null]` | `{draft,heroId,delivery}` | `[draftValues,heroId,delivery]` |
+| `quest-form` | `{requestId,questId,text,members:[FormMember,...],tactic}` | `[requestId,questId,text,[memberValues,...],tactic]` | `{draft}` | `[draftValues]` |
+| `quest-embark` | `{requestId,questId,launch,role,writer}` | `[requestId,questId,launchValues,role,writer]` | `{draft,heroId}` | `[draftValues,heroId]` |
+| `quest-depart` | `{requestId,questId}` | `[requestId,questId]` | `{draft}` | `[draftValues]` |
+
+```ts
+Launch = {baseId, presetId, weaponId, accessoryId}
+launchValues = [baseId, presetId, weaponId, accessoryId]
+Choice = {id, name}
+choiceValues = [id, name]
+WorkPreset = {id, name, weapons:[Choice,...], accessories:[Choice,...]}
+presetValues = [id, name, [choiceValues,...], [choiceValues,...]]
+WorkHero = {id, name, preset, weapon, accessory, busy, canTalk, active, questId, permissionGate}
+workHeroValues = [id, name, preset, weapon, accessory, busy, canTalk, active, questId, permissionGate]
+FormMember = {heroId, role, writer, ask}
+memberValues = [heroId, role, writer, ask]
+WorkFit = {tactic, ok, gaps, inside, outside}
+fitValues = [tactic, ok, gaps, inside, outside]
+WorkStep = {heroId, kind, state}
+stepValues = [heroId, kind, state]
+WorkDraft = {questId, text, tactic, members:[FormMember,...], fits:[WorkFit,...], editable, draftLost, departure:{state, steps:[WorkStep,...]}}
+draftValues = [questId, text, tactic, [memberValues,...], [fitValues,...], editable, draftLost, [departure.state, [stepValues,...]]]
+```
+
+- 構造上、パス・コマンド・引数・環境変数・session・cwd・branch を渡す欄はない。要求・応答のどのオブジェクトも列挙したメンバーだけで、足したものは一般拒否／応答の不採用。ID は空でない200文字以内。townId/heroId/baseId/presetId/weaponId/accessoryId と Choice.id・inside/outside の勇者 ID は窓口がプロセス内で発行した不透明 ID だけを解決する（再起動で無効）。questId は既存台帳の永続 UUID、gaps は不足条件の短いコードであり、プロセス内 ID ではない。町・拠点・勇者・preset・装備の内部の鍵やパスを直接書いても解決しない。
+- null 可は prepare の `heroId`（要求・応答）と `launch`、Launch の `weaponId/accessoryId`、WorkHero の `weapon/accessory/questId` だけ。WorkHero の `preset/weapon/accessory` と各 `name` は1〜200文字の表示ラベルで、実パスではない。
+- `requestId` は quest-create と同じ形式・時刻判定。変更系の5操作（create・prepare・form・embark・depart）は同じ `quest-requests.json` の名前空間を共有し、10分有効・未来60秒まで。同じ ID は操作・本文・端末を変えても拒否する。
+- prepare・form の `text` は1〜8000文字（UTF-16）で trim 後が空でないこと（検査・署名は trim しない）。`ask` は0〜8000文字。`draft.text` は0〜8000文字。
+- `mode` は `only|send|party`、`role` は `implement|research|review|command`、`tactic` は `obey|review|research|delegate`、`delivery` は `none|sent|held`、`departure.state` は `not-started|partial|complete|uncertain`、`step.kind` は `request|ask|research`、`step.state` は `pending|sent|held|deferred|unknown`。
+- prepare の `heroId` と `launch` は同時に指定できない。`launch` は `mode:"send"` の時だけ。Mac は新しい勇者を作って札へ割り当てるが本文は送らない。`send` で勇者も launch も無ければ札の作成だけ（`delivery:"none"`）。`quest-form` は下書きの保存とメンバーの割当で、本文は送らない。選んだ作戦は出発まで有効にしない（実際の作戦は obey のまま）。
+- 件数：heroes・members 16、steps 17（リーダー＋補助16）、fits 4（tactic 重複なし）、gaps/inside/outside 各16、bases 100、presets 8、各 preset の weapons/accessories 100。heroes・bases・presets・members（heroId）・装備の id 重複は拒否する。
+- 本人確認：アプリは控えめに、`heroId` または `launch` が null でない prepare（mode を問わない）、`members` が空でない form、すべての embark・depart で毎回、Mac ごとの直列処理の中で連番予約の直前に OS の生体認証／端末ロック解除を求める（`mobileWorkMovesAgents`）。この結果を wire に載せず、Mac も信用しない。Mac の判断材料は登録鍵の署名、Mac 側で端末ごとに既定 off の作業許可、その時点の状態による効果の分類（下記）だけ。
+- 効果の分類（窓口）：launch・embark は出陣、depart は出発、勇者つきの `mode:"send"` は送信。prepare・form のうち command 役の付与、忙しい勇者、送信待ちの本文／装備変更が残る勇者、別クエストからの付け替えを含むものも送信と同じ扱い。それ以外（札だけ、空の form、待機中で未割当の勇者を command 以外で置く）は作業許可 off でも受け付ける。出陣・送信・出発は作業許可が必要で、端末ごと合計2件/分（出陣は1件/分・3件/時）。変更系は全体で5件/分。
+- 失敗はすべて既存の一般拒否（HTTP 400）。部分的な結果を返すのは depart の成功応答（`departure.state:"partial"` と各 step の状態）だけ。
+- 最大の draft（16人×ask 8000＋text 8000）は通常の本文なら暗号文512KiB以内だが、制御文字だらけの極端な本文ではエスケープで超え得る。その場合は送信前のローカルエラーか一般拒否になる。
 
 ### 許可の表示内容の hash
 
@@ -177,23 +246,23 @@ Mac は現在の同じ9値から hash を再計算し、decide の hash が一�
 ## Push（作業内容をサービスへ渡さない）
 
 ```json
-{"priority":"high","title":"Yushario","body":"確認が必要です","data":{"kind":"permission"}}
+{"priority":"high","channelId":"alerts","title":"Yushario","body":"確認が必要です","data":{"kind":"permission"}}
 ```
 
-`priority` は時間制約のある利用者向け通知のため常に `"high"`（配送の優先度だけで、到達や表示の保証ではない）。`channelId` は app 側で定義した high-importance channel の ID をまだ確認・合意していないため指定しない。Android の channel importance は配送優先度と別で、専用 channel の作成と ID の共有は別アプリ側の変更として行う。`title/body` はこの固定文字列のみ。`data` は `kind` だけ（`permission|report|error` のいずれか）、または省略。勇者名・コマンド・パス・端末 ID・許可 ID・報告 ID・URL・暗号文を載せない。Expo への配送用 `to` は別途保存した通知 ID で、本文を足す場所ではない。通知から直接判断せず、開いた後に窓口へ取りに行く。取り消しで通知 ID も消す。
+`priority` は時間制約のある利用者向け通知のため常に `"high"`（配送の優先度だけで、到達や表示の保証ではない）。`channelId` は合意した `"alerts"` を常に指定する。Android の channel importance は配送優先度と別で、別アプリ側が `alerts` を HIGH の重要度で作成する。`title/body` はこの固定文字列のみ。`data` は `kind` だけ（`permission|report|error` のいずれか）、または省略。勇者名・コマンド・パス・端末 ID・許可 ID・報告 ID・URL・暗号文を載せない。Expo への配送用 `to` は別途保存した通知 ID で、本文を足す場所ではない。通知から直接判断せず、開いた後に窓口へ取りに行く。取り消しで通知 ID も消す。
 
 ### Expo の配送確認（Mac 内の診断。スマホ v1 の wire は変更しない）
 
-- `POST https://exp.host/--/api/v2/push/send` に `{to:<通知 ID 1件>,priority:"high",title,body,data}` を送る。`to` は文字列で、本文・kind は上記の固定値だけ。ticket は `data` が1オブジェクトでも要素1個の配列でも受け付ける。ticket の `ok` は Expo の受付であり、配送成功と表示しない。
+- `POST https://exp.host/--/api/v2/push/send` に `{to:<通知 ID 1件>,priority:"high",channelId:"alerts",title,body,data}` を送る。`to` は文字列で、本文・kind は上記の固定値だけ。ticket は `data` が1オブジェクトでも要素1個の配列でも受け付ける。ticket の `ok` は Expo の受付であり、配送成功と表示しない。
 - ticket の ID を使い、5秒後に `POST https://exp.host/--/api/v2/push/getReceipts`、本文 `{"ids":["<ticket ID>"]}` で照会する。結果は `data[ticket ID]`。未確認／照会の失敗なら追加で30秒後・120秒後（送信後およそ5／35／155秒、各 HTTP は最大10秒）に照会し、それでも不明なら未確認で止める。通知自体の自動再送はしない。
 - receipt の `ok` は APNs/FCM の受理までで、スマホの表示・音・閲覧の証拠ではない。ticket／receipt の `DeviceNotRegistered` は、まだ同じ token を持つ登録だけから通知 ID を消す。照会中に更新された新しい token は消さない。
 - 診断ログは `{time,deviceId,kind,ticketStatus,receiptStatus,errorCode}` の6項目だけ。time は試行の開始時刻で、同じ試行の進行でも保持する。ticketStatus は `pending|ok|error|skipped`、receiptStatus は `none|pending|ok|error|unknown`。errorCode は `src/core/mobile-push.ts` の許可リストか null だけで、未知の provider error は `UnknownExpoError`。token・ticket ID・provider message・題／本文・許可 ID は記録しない。
 - メモリの履歴は50件、0600の JSONL は32KiBで1世代の backup を更新する。保持範囲の端末別最新試行を Mac 画面へ返し、古い試行の遅い receipt で新しい結果を上書きしない。token なしは `NoPushToken`、処理中の終了／再起動は `GatewayStopped/Interrupted` の未確認。ticket ID はメモリだけなので再起動後に照会を再開しない。同時処理も最大50件で、上限は `QueueFull` として記録する。
-- 画面用の認可済み `POST /api/mobile/test-push` は `{deviceId}` だけを取り、その登録1件へ kind=`permission` の同じ固定通知を送る。新しい許可要求やスマホ側操作は作らない。これは既存の画面 API であり、窓口の7操作・署名入力・暗号・共有ベクトルには変更を加えない。
+- 画面用の認可済み `POST /api/mobile/test-push` は `{deviceId}` だけを取り、その登録1件へ kind=`permission` の同じ固定通知を送る。新しい許可要求やスマホ側操作は作らない。これは既存の画面 API であり、窓口の操作には追加しない。
 
 ## 共有テスト用データと実装の境界
 
 - `node scripts/mobile-vectors.mjs` で `docs/mobile-protocol-vectors.json` を再生成する（毎回同一）。秘密鍵も含めた **公開のテスト専用データ**であり実運用へ流用しない。
-- X25519 の秘密値は32バイト raw scalar、Ed25519 は32バイト seed。固定鍵・コード・連番・時刻から、公開鍵、共有値、salt/info、方向別 HKDF 鍵、SAS、表示 hash、署名入力 hex、署名、AAD、nonce、平文、tag つき暗号文、packet を収録する。pair と decide の要求／応答を両方収録する。
+- X25519 の秘密値は32バイト raw scalar、Ed25519 は32バイト seed。固定鍵・コード・連番・時刻から、公開鍵、共有値、salt/info、方向別 HKDF 鍵、SAS、表示 hash、署名入力 hex、署名、AAD、nonce、平文、tag つき暗号文、packet を収録する。pair・decide に加え、towns・quests・quest-create・reports の最近／クエスト別と、作業の6操作（quest-options・quest-draft・quest-prepare（launch つき）・quest-form・quest-embark・quest-depart）について、入れ子の配列を含む要求／応答を両方収録する（`quests` 配列に追記し、既存の値は不変）。各組で別の seq を使う。
 - アプリの `@noble/*` でも同じ JSON の全暗号値を照合する。JSON の読み込み順や各実装のオブジェクト順を署名仕様の代わりにしない。
-- 純粋な検査・配列化は `src/core/mobile-protocol.ts`、表示値と hash 入力は `mobile-display.ts`、署名入力／AAD／nonce は `mobile-signing.ts`、コードの遷移／SAS の桁／push は `mobile-pairing.ts`。時刻は引数。暗号そのもの、厳密な UTF-8 復号、HTTP、連番の永続化、pin・登録・内容 hash の照合、不可分な状態更新は server／アプリ側の責務。
+- 純粋な検査・配列化は `src/core/mobile-protocol.ts`（作業の6操作は `mobile-work.ts`／`mobile-work-display.ts`）、表示値と hash 入力は `mobile-display.ts`、署名入力／AAD／nonce は `mobile-signing.ts`、コードの遷移／SAS の桁／push は `mobile-pairing.ts`。時刻は引数。暗号そのもの、厳密な UTF-8 復号、HTTP、連番の永続化、pin・登録・内容 hash の照合、不可分な状態更新は server／アプリ側の責務。

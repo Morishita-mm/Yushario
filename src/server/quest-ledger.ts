@@ -93,8 +93,8 @@ export class QuestLedger {
       if (!this.closed) this.changed(this.snapshot());
     });
   }
-  create(town: string, title: string, purpose = "", at = Date.now()): Quest {
-    const quest: Quest = { id: randomUUID(), town, title: title.trim(), purpose, state: "open", createdAt: at, updatedAt: at };
+  create(town: string, title: string, purpose = "", at = Date.now(), id: string = randomUUID()): Quest {
+    const quest: Quest = { id, town, title: title.trim(), purpose, state: "open", createdAt: at, updatedAt: at };
     this.db.save(quest); this.notify(); return quest;
   }
   patch(id: string, patch: Partial<Pick<Quest, "title" | "purpose" | "state">>, at = Date.now()): Quest {

@@ -20,6 +20,11 @@ export function worktreeRemoving(cwd: string): boolean { return [...removing].so
 export async function worktreeBranch(cwd: string): Promise<string | undefined> {
   try { return (await git(cwd, ["symbolic-ref", "--quiet", "--short", "HEAD"])).trim() || undefined; } catch { return; }
 }
+// Existing checkouts as git lists them; mobile launch offers and revalidates only these.
+export async function existingWorktrees(cwd: string): Promise<string[]> {
+  const { worktrees } = await listing(realpathSync(cwd));
+  return worktrees.filter((tree) => !tree.bare && !tree.prunable && exists(tree.path) && !worktreeRemoving(tree.path)).map((tree) => realpathSync(tree.path));
+}
 async function listing(cwd: string) {
   let output: string;
   try { output = await git(cwd, ["worktree", "list", "--porcelain", "-z"]); }

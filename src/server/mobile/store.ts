@@ -6,11 +6,18 @@ import { mobileBase64url, mobileInteger, mobileObject, mobilePushToken, mobileTe
 import { generateMobileIdentity, mobileIdentity, type MobileIdentity } from "./crypto";
 
 export type MobileDevice = { id: string; phoneEncryptionKey: string; phoneSigningKey: string; name: string;
-  pushToken: string | null; lastSeq: number; createdAt: number; lastSeenAt: number };
+  pushToken: string | null; lastSeq: number; createdAt: number; lastSeenAt: number; allowWork: boolean };
 export type MobileAudit = { deviceId: string; permissionId: string; result: "allow" | "deny"; time: number };
 
+const deviceKeys = ["id", "phoneEncryptionKey", "phoneSigningKey", "name", "pushToken", "lastSeq", "createdAt", "lastSeenAt"];
 function validDevice(value: unknown): value is MobileDevice {
-  return mobileObject(value, ["id", "phoneEncryptionKey", "phoneSigningKey", "name", "pushToken", "lastSeq", "createdAt", "lastSeenAt"])
+  if (!mobileObject(value, [...deviceKeys, "allowWork"]) || typeof value.allowWork !== "boolean") return false;
+  const { allowWork: _, ...rest } = value;
+  return validLegacyDevice(rest);
+}
+// Records saved before allowWork existed lack the field; they load as opted out, keeping identity and sequence.
+function validLegacyDevice(value: unknown): value is Omit<MobileDevice, "allowWork"> {
+  return mobileObject(value, deviceKeys)
     && mobileBase64url(value.id, 32) && mobileBase64url(value.phoneEncryptionKey, 32) && mobileBase64url(value.phoneSigningKey, 32)
     && mobileText(value.name, 80) && !/[\u0000-\u001f\u007f]/.test(value.name) && mobilePushToken(value.pushToken)
     && mobileInteger(value.lastSeq, 1) && mobileInteger(value.createdAt) && mobileInteger(value.lastSeenAt);
@@ -41,10 +48,10 @@ export class MobileStore {
         const value: unknown = JSON.parse(readFileSync(this.stateFile, "utf8"));
         if (!mobileObject(value, ["v", "encryptionPrivateKey", "signingPrivateKey", "devices"]) || value.v !== 1
           || typeof value.encryptionPrivateKey !== "string" || typeof value.signingPrivateKey !== "string"
-          || !Array.isArray(value.devices) || value.devices.length > 5 || !value.devices.every(validDevice)
+          || !Array.isArray(value.devices) || value.devices.length > 5 || !value.devices.every(device => validDevice(device) || validLegacyDevice(device))
           || new Set(value.devices.map(device => device.id)).size !== value.devices.length) throw Error("Invalid mobile state; preserve the file and repair it manually");
         this.identity = mobileIdentity(value.encryptionPrivateKey, value.signingPrivateKey);
-        this.records = value.devices;
+        this.records = value.devices.map(device => ({ ...device, allowWork: "allowWork" in device && device.allowWork }));
       } else {
         this.identity = generateMobileIdentity(); this.save([]);
       }
@@ -81,14 +88,16 @@ export class MobileStore {
       this.records = devices;
     } finally { rmSync(temp, { force: true }); }
   }
-  put(device: MobileDevice): void {
+  // A new device starts opted out of agent-moving operations; only setAllowWork changes the choice.
+  put(input: Omit<MobileDevice, "allowWork"> & { allowWork?: boolean }): void {
+    const previous = this.records.find(item => item.id === input.id);
+    const device = { ...input, allowWork: input.allowWork ?? previous?.allowWork ?? false };
     if (!validDevice(device)) throw Error("Invalid mobile device");
-    const previous = this.records.find(item => item.id === device.id);
     if (previous && (previous.phoneEncryptionKey !== device.phoneEncryptionKey || previous.phoneSigningKey !== device.phoneSigningKey
       || device.lastSeq < previous.lastSeq)) throw Error("Cannot reset mobile identity or sequence");
     const records = this.records.filter(item => item.id !== device.id);
     if (records.length >= 5) throw Error("Too many mobile devices");
-    this.save([...records, { ...device }]);
+    this.save([...records, device]);
   }
   remove(id: string): boolean {
     if (!this.records.some(device => device.id === id)) return false;
@@ -104,6 +113,11 @@ export class MobileStore {
     const previous = this.records.find(device => device.id === id);
     if (!previous || !mobilePushToken(token)) throw Error("Invalid mobile push token");
     this.put({ ...previous, pushToken: token });
+  }
+  setAllowWork(id: string, allowWork: boolean): void {
+    const previous = this.records.find(device => device.id === id);
+    if (!previous || typeof allowWork !== "boolean") throw Error("Invalid mobile work setting");
+    this.put({ ...previous, allowWork });
   }
   audit(entry: MobileAudit): void {
     if (!mobileBase64url(entry.deviceId, 32) || !mobileText(entry.permissionId, 200)
