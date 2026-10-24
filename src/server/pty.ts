@@ -19,7 +19,7 @@ import { projectIdentity } from "./project";
 import { launchPty, writeClaudeSettings } from "./pty-launch";
 import { AGENTS, publicAgents } from "./agents";
 import { replacedSession } from "../core/session-actions";
-import { descendants } from "./pty-process";
+import { descendants, killTree } from "./pty-process";
 import { authenticatedHookSession } from "./hook-auth";
 import { readJsonBody, SETTINGS_BODY_LIMIT } from "./http-body";
 
@@ -116,6 +116,7 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
       for (const pid of pids) { children.add(pid); killPid(pid, "SIGHUP"); }
       // Keep the original group cleanup too, including jobs that are not in the snapshot.
       killGroup(terminal.pid, "SIGHUP");
+      killTree(terminal.pid);
       try { terminal.kill(); } catch { /* Already exited. */ }
       const timer = setTimeout(() => {
         for (const pid of pids) { killPid(pid, "SIGKILL"); children.delete(pid); }
