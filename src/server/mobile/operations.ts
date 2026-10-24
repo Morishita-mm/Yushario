@@ -16,7 +16,7 @@ export function mobilePermissionViews(permissions: PermissionWaiter, heroes: Mob
     && mobileText(permission.id, 200) && mobileText(permission.tool, 200)).map(permission => {
     const hero = heroes.find(hero => hero.id === permission.agent || hero.id === permission.terminal);
     const value = { id: permission.id, heroId: permission.agent ?? permission.terminal,
-      heroName: hero?.name ?? mobileShort(permission.name ?? "", 200, "勇者"), town: hero?.town ?? "町",
+      heroName: hero?.name ?? mobileShort(permission.name ?? "", 200, "勇者"), town: hero?.town ?? "町", townId: hero?.townId ?? null,
       tool: permission.tool, summary: mobileShort(permission.summary, 200, permission.tool), content: permission.content,
       omitted: permission.omitted, expiresAt: permission.expiresAt };
     return { ...value, contentHash: mobileHash(mobilePermissionHashInput(value)).toString("base64url") };

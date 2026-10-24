@@ -4,8 +4,8 @@ import { mobileResponseBodyValues, parseMobileResponseBody } from "./mobile-disp
 
 const requestId = "1700000000000.AAAAAAAAAAAAAAAAAAAAAA";
 const create = { requestId, townId: "opaque-town", title: " 題😀 ", purpose: "目的\n次の行" };
-const quest = { id: "quest-1", title: "題😀", town: "町", state: "open", updatedAt: 123 };
-const report = { id: "report-1", questId: quest.id, questTitle: quest.title, title: "報告", success: null, at: 123, excerpt: "先頭", text: "全文😀" };
+const quest = { id: "quest-1", title: "題😀", town: "町", state: "open", updatedAt: 123, townId: "town-1" };
+const report = { id: "report-1", questId: quest.id, questTitle: quest.title, title: "報告", success: null, at: 123, excerpt: "先頭", text: "全文😀", townId: "town-1" };
 
 describe("mobile quest protocol", () => {
   it("requires exact bounded creation and paging inputs without normalizing signed text", () => {
@@ -35,12 +35,12 @@ describe("mobile quest protocol", () => {
       ["towns", { cursor: null }, [null]], ["quests", { cursor: "q" }, ["q"]],
       ["reports", { questId: "q", cursor: "r" }, ["q", "r"]],
     ] as const) expect(mobileRequestBodyValues(parseMobileRequestBody(op, body)!)).toEqual(values);
-    const qv = ["quest-1", "題😀", "町", "open", 123];
+    const qv = ["quest-1", "題😀", "町", "open", 123, "town-1"];
     for (const [op, body, values] of [
-      ["towns", { towns: [{ id: "town-1", name: "町" }], nextCursor: "town-1" }, [[["town-1", "町"]], "town-1"]],
+      ["towns", { towns: [{ id: "town-1", name: "町", theme: "port" }], nextCursor: "town-1" }, [[["town-1", "町", "port"]], "town-1"]],
       ["quests", { quests: [quest], nextCursor: null }, [[qv], null]],
       ["quest-create", { quest }, [qv]],
-      ["reports", { reports: [report], nextCursor: null }, [[["report-1", "quest-1", "題😀", "報告", null, 123, "先頭", "全文😀"]], null]],
+      ["reports", { reports: [report], nextCursor: null }, [[["report-1", "quest-1", "題😀", "報告", null, 123, "先頭", "全文😀", "town-1"]], null]],
     ] as const) expect(mobileResponseBodyValues(parseMobileResponseBody(op, body)!)).toEqual(values);
   });
 

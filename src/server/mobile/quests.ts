@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { validQuestPatch, type Quest, type QuestEvent } from "../../core/quests";
-import { townKey, townLabel, type TownRecord } from "../../core/town-ledger";
+import { TOWN_THEMES, townKey, townLabel, type TownRecord } from "../../core/town-ledger";
 import type { Room } from "../../core/room";
 import type { MobileQuest, MobileReport, MobileTown, MobileQuestResponseBody } from "../../core/mobile-quests";
 import type { MobileSignedRequest } from "../../core/mobile-protocol";
@@ -28,8 +28,14 @@ export class MobileQuests {
     return towns.map(town => {
       const key = townKey(town);
       if (!this.townIds.has(key)) this.townIds.set(key, randomUUID());
-      return { id: this.townIds.get(key)!, name: mobileShort(townLabel(town, towns), 200, "町") };
+      return { id: this.townIds.get(key)!, name: mobileShort(townLabel(town, towns), 200, "町"),
+        theme: town.theme && TOWN_THEMES.includes(town.theme) ? town.theme : null };
     }).sort(byId);
+  }
+  // All DTOs use this same process-local mapping; absent/deleted towns never acquire an ID.
+  townId(key: string | undefined): string | null {
+    this.townViews();
+    return key === undefined ? null : this.townIds.get(key) ?? null;
   }
   // Internal town key for a gateway-issued town ID; only currently registered towns resolve.
   townKey(townId: string): string {
@@ -43,7 +49,7 @@ export class MobileQuests {
   private questView(quest: Quest): MobileQuest {
     const towns = this.towns(), town = towns.find(town => townKey(town) === quest.town);
     return { id: quest.id, title: mobileShort(quest.title, 200, "クエスト"),
-      town: mobileShort(town ? townLabel(town, towns) : "", 200, "町"), state: quest.state, updatedAt: quest.updatedAt };
+      town: mobileShort(town ? townLabel(town, towns) : "", 200, "町"), townId: this.townId(quest.town), state: quest.state, updatedAt: quest.updatedAt };
   }
   private reportView(event: QuestEvent, full: boolean): MobileReport {
     const quest = this.ledger.summary(event.quest);
@@ -53,7 +59,7 @@ export class MobileQuests {
     const reply = event.hero ? this.room()?.agents.get(event.hero)?.talk.find(entry => entry.from === "hero" && entry.at === event.at) : undefined;
     const text = event.text ?? reply?.text;
     return { id: `report-${event.id}`, questId: quest.id, questTitle: mobileShort(quest.title, 200, "クエスト"),
-      title: mobileShort(event.title, 200, "報告"),
+      townId: this.townId(quest.town), title: mobileShort(event.title, 200, "報告"),
       success: event.report?.stopFailure || event.report?.tests?.last === "failed" ? false : event.report?.tests?.last === "passed" ? true : null,
       at: event.at, excerpt: mobileShort(text ?? "", 500), text: full && text !== undefined ? mobileShort(text, 8000) : null };
   }

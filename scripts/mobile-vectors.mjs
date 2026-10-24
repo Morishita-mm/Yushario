@@ -40,7 +40,7 @@ const sasHash = hash(sasInput);
 const sas = String(sasHash.readUInt32BE(0) % 1_000_000).padStart(6, "0");
 const permission = {
   id: "permission-1", heroId: "hero-1", heroName: "勇者", town: "テストの町", tool: "Bash",
-  summary: "Bash: printf 'hello'", content: "printf 'hello'\n", omitted: 0, expiresAt: 1700000120000,
+  summary: "Bash: printf 'hello'", content: "printf 'hello'\n", omitted: 0, expiresAt: 1700000120000, townId: "town-opaque",
 };
 const permissionValues = Object.values(permission);
 const permissionInput = json(["yushario.permission.v1", ...permissionValues]);
@@ -82,38 +82,38 @@ const offer = { v: 1, addresses: ["http://192.0.2.1:8791", "http://100.64.0.1:87
   pairingCode: b64(pairingCode), expiresAt: 1700000300000 };
 const pairRequest = { ...header, seq: 1, operation: "pair", body: { pairingCode: b64(pairingCode), name: "Test phone", pushToken: null } };
 const pairResponse = { ...header, seq: 1, timestamp: header.timestamp + 1000, operation: "pair", body: { registered: true } };
-const town = { id: "town-opaque", name: "町" };
-const quest = { id: "quest-1", title: "題😀", town: town.name, state: "open", updatedAt: header.timestamp };
-const qv = [quest.id, quest.title, quest.town, quest.state, quest.updatedAt];
-const report = { id: "report-1", questId: quest.id, questTitle: quest.title, title: "報告", success: null, at: header.timestamp, excerpt: "先頭", text: "全文😀\n" };
+const town = { id: "town-opaque", name: "町", theme: "snow" };
+const quest = { id: "quest-1", title: "題😀", town: town.name, state: "open", updatedAt: header.timestamp, townId: town.id };
+const qv = [quest.id, quest.title, quest.town, quest.state, quest.updatedAt, quest.townId];
+const report = { id: "report-1", questId: quest.id, questTitle: quest.title, title: "報告", success: null, at: header.timestamp, excerpt: "先頭", text: "全文😀\n", townId: town.id };
 const rv = [report.id, report.questId, report.questTitle, report.title, report.success, report.at, report.excerpt];
 const creationId = `${header.timestamp}.${b64(pairingCode)}`;
 const questCases = [
-  ["towns", { cursor: null }, [null], { towns: [town], nextCursor: null }, [[[town.id, town.name]], null]],
+  ["towns", { cursor: null }, [null], { towns: [town], nextCursor: null }, [[[town.id, town.name, town.theme]], null]],
   ["quests", { cursor: "previous" }, ["previous"], { quests: [quest], nextCursor: quest.id }, [[qv], quest.id]],
   ["quest-create", { requestId: creationId, townId: town.id, title: quest.title, purpose: "目的" }, [creationId, town.id, quest.title, "目的"], { quest }, [qv]],
-  ["reports", {}, [], { reports: [{ ...report, text: null }], nextCursor: null }, [[[...rv, null]], null]],
-  ["reports", { questId: quest.id, cursor: null }, [quest.id, null], { reports: [report], nextCursor: report.id }, [[[...rv, report.text]], report.id]],
+  ["reports", {}, [], { reports: [{ ...report, text: null }], nextCursor: null }, [[[...rv, null, report.townId]], null]],
+  ["reports", { questId: quest.id, cursor: null }, [quest.id, null], { reports: [report], nextCursor: report.id }, [[[...rv, report.text, report.townId]], report.id]],
 ];
 // Work operations: every nested object is written in its canonical member order.
 const choice = { id: "gear-1", name: "盾" };
 const preset = { id: "preset-1", name: "Claude", weapons: [choice], accessories: [] };
 const workHero = { id: "hero-1", name: "勇者", preset: "Claude", weapon: "盾", accessory: null,
-  busy: false, canTalk: true, active: true, questId: null, permissionGate: true };
+  busy: false, canTalk: true, active: true, questId: null, permissionGate: true, townId: town.id };
 const launch = { baseId: "base-1", presetId: preset.id, weaponId: choice.id, accessoryId: null };
 const lv = [launch.baseId, launch.presetId, launch.weaponId, launch.accessoryId];
 const member = { heroId: workHero.id, role: "implement", writer: true, ask: "実装して\n" };
 const mv = [member.heroId, member.role, member.writer, member.ask];
 const draft = { questId: quest.id, text: "依頼😀", tactic: "review", members: [member],
   fits: [{ tactic: "review", ok: false, gaps: ["reviewer"], inside: [workHero.id], outside: [] }],
-  editable: true, draftLost: false, departure: { state: "partial", steps: [{ heroId: workHero.id, kind: "request", state: "sent" }] } };
+  editable: true, draftLost: false, departure: { state: "partial", steps: [{ heroId: workHero.id, kind: "request", state: "sent" }] }, townId: town.id };
 const dv = [draft.questId, draft.text, draft.tactic, [mv], [["review", false, ["reviewer"], [workHero.id], []]],
-  true, false, ["partial", [[workHero.id, "request", "sent"]]]];
+  true, false, ["partial", [[workHero.id, "request", "sent"]]], draft.townId];
 const workId = `${header.timestamp}.${b64(Buffer.alloc(16, 0x11))}`;
 questCases.push(
   ["quest-options", { townId: town.id }, [town.id],
-    { allowWork: true, heroes: [workHero], bases: [{ id: "base-1", name: "拠点" }], presets: [preset] },
-    [true, [[workHero.id, workHero.name, "Claude", "盾", null, false, true, true, null, true]], [["base-1", "拠点"]],
+    { allowWork: true, heroes: [workHero], bases: [{ id: "base-1", name: "拠点", townId: town.id }], presets: [preset] },
+    [true, [[workHero.id, workHero.name, "Claude", "盾", null, false, true, true, null, true, workHero.townId]], [["base-1", "拠点", town.id]],
       [[preset.id, preset.name, [[choice.id, choice.name]], []]]]],
   ["quest-draft", { questId: quest.id }, [quest.id], { draft }, [dv]],
   ["quest-prepare", { requestId: workId, townId: town.id, text: draft.text, mode: "send", heroId: null, launch },
@@ -123,6 +123,15 @@ questCases.push(
   ["quest-embark", { requestId: workId, questId: quest.id, launch, role: "review", writer: false },
     [workId, quest.id, lv, "review", false], { draft, heroId: "hero-2" }, [dv, "hero-2"]],
   ["quest-depart", { requestId: workId, questId: quest.id }, [workId, quest.id], { draft }, [dv]],
+);
+const hero = { id: "hero-1", name: "勇者", town: town.name, state: "idle", permissionPending: true, townId: town.id };
+const themes = ["village", "port", "snow", "desert", "volcano", null];
+questCases.push(
+  ["status", {}, [], { heroes: [hero, { ...hero, id: "hero-2", townId: null }] },
+    [[[hero.id, hero.name, hero.town, hero.state, true, town.id], ["hero-2", hero.name, hero.town, hero.state, true, null]]]],
+  ["permissions", {}, [], { permissions: [permission] }, [[[...permissionValues, permission.contentHash]]]],
+  ["towns", { cursor: null }, [null], { towns: themes.map((theme, i) => ({ id: `town-${i}`, name: "同じ町", theme })), nextCursor: null },
+    [themes.map((theme, i) => [`town-${i}`, "同じ町", theme]), null]],
 );
 const vectors = {
   description: "Yushario mobile v1 PUBLIC TEST KEYS; raw X25519 private scalars / Ed25519 seeds; ciphertext includes the final 16-byte tag.",

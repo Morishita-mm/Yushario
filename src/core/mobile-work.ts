@@ -11,11 +11,12 @@ export const MOBILE_WORK_ROLES = ["implement", "research", "review", "command"] 
 export type MobileWorkRole = typeof MOBILE_WORK_ROLES[number];
 
 export type MobileChoice = { id: string; name: string };
+export type MobileWorkBase = MobileChoice & { townId: string | null };
 export type MobileWorkPreset = { id: string; name: string; weapons: MobileChoice[]; accessories: MobileChoice[] };
 // preset/weapon/accessory are display labels, never raw paths.
 // permissionGate=false means tool use is not checked before it runs (e.g. a Mac-started pi); warn before sending.
 export type MobileWorkHero = {
-  id: string; name: string; preset: string; weapon: string | null; accessory: string | null;
+  id: string; name: string; townId: string | null; preset: string; weapon: string | null; accessory: string | null;
   busy: boolean; canTalk: boolean; active: boolean; questId: string | null; permissionGate: boolean;
 };
 export type MobileLaunch = { baseId: string; presetId: string; weaponId: string | null; accessoryId: string | null };
@@ -26,7 +27,7 @@ export type MobileWorkStep = {
   state: "pending" | "sent" | "held" | "deferred" | "unknown";
 };
 export type MobileWorkDraft = {
-  questId: string; text: string; tactic: MobileTactic; members: MobileFormMember[]; fits: MobileWorkFit[];
+  questId: string; townId: string | null; text: string; tactic: MobileTactic; members: MobileFormMember[]; fits: MobileWorkFit[];
   editable: boolean; draftLost: boolean;
   departure: { state: "not-started" | "partial" | "complete" | "uncertain"; steps: MobileWorkStep[] };
 };

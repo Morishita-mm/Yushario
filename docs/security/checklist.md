@@ -15,6 +15,8 @@
 - [Q：実 HTTP クエスト発行・報告検査](../../src/server/mobile/security-quests.test.ts)。SEC-18（最小権限／入力／端末）、SEC-19（重複／頻度／監査／実 FS 故障）、SEC-20（表示射影／本文寿命／ページ）。[純粋な型・署名の検査](../../src/core/mobile-quests.test.ts)、C の追加共通ベクトルは別アプリの noble 実装でも確認する
 - [W：A2 の作業検査](../../src/server/mobile/security-work.test.ts)、[上限・予約・部分出発](../../src/server/mobile/security-work-limits.test.ts)、[端末ごとの作業許可](../../src/server/mobile/security-capability.test.ts)。SEC-21（Mac 側の既定 off の許可）、SEC-22（権限・出陣の制限・不透明 ID・Pi）、SEC-23（全変更系の要求 ID／頻度／部分出発／注入／パスなし）。[入力・別町・注入](../../src/server/mobile/security-work-inputs.test.ts)、[作戦と権限昇格](../../src/server/mobile/security-work-tactics.test.ts)、[再起動・不確実配送](../../src/server/mobile/security-work-crash.test.ts)、[純粋な型・署名の検査](../../src/core/mobile-work.test.ts)。実 HTTP の30件と全体848件が成功（上の実行記録）。CLI は実プロセスの fixture で、実 LLM ではない。
 
+- [T：A3 の町の所属・姿（SEC-24）](../../src/server/mobile/security-towns.test.ts)。実 HTTP の3ケースで、同名町・全5テーマ/null・各 DTO の同一ID・他町拒否・削除/再起動/退場・パス非公開・許可hashの町への束縛を確認。[純粋検査](../../src/core/mobile-towns.test.ts)、[実行記録](runs/2026-10-24-mobile-towns.md)。本体854件とアプリ53件が成功。
+
 ## 窓口に該当する管理策
 
 | ASVS の該当範囲 | 確認すること | 状態 | 証拠／残ること |
@@ -24,7 +26,7 @@
 | V4.1.3 | 最小権限・既定拒否 | 自動確認済み | R/S SEC-12、Q SEC-18。16操作だけで `/pty`・`/ws`・任意コマンド API・他端末の unpair へ届かない。A2 で送信・出陣・出発を加えたため、端末ごとの作業許可（既定 off）、状態による効果の分類（しき役・忙しい／送信待ち・付け替えは送信扱い）、作戦は出発まで obey、強制した承認モード、Pi 新規出陣の拒否を W SEC-21/22 で確かめる |
 | V4 Access Control | 取り消しを次の要求へ即時反映 | 自動確認済み | P SEC-10、R SEC-08、S SEC-12。公開鍵台帳・通知 ID・連番を画面 API に出さない |
 | V5.1.3 / V5.1.4 | allowlist、型・長さ・数値範囲の検査 | 自動確認済み | core、R SEC-12/13、Q SEC-18/20。UTF-8、base64url、孤立サロゲート、A1 の題200／目的2000、A2 の依頼・全文目的8000（W SEC-22/23）、報告本文8000とページ8件、固定 shape |
-| V5 Input Validation | 表示内容と承認の対象が同じ | 自動確認済み | R SEC-14、C。9値の SHA-256、期限・省略・未回答と先着の検査 |
+| V5 Input Validation | 表示内容と承認の対象が同じ | 自動確認済み | R SEC-14、C、T SEC-24。townId を含む10値の SHA-256、期限・省略・未回答と先着の検査 |
 | V6.2 Cryptographic Algorithms | 標準の認証付き暗号・署名、独自暗号を作らない | 自動確認済み | C、P SEC-04、R SEC-06。Node crypto だけ、X25519／Ed25519／HKDF-SHA256／IETF ChaCha20-Poly1305 |
 | V6.2 Cryptographic Algorithms | 同じ鍵の nonce 再使用を防ぐ | 自動確認＋実装確認 | R/F SEC-05（再起動・実 FS 故障・lock・破損含む）、[store](../../src/server/mobile/store.ts)。方向別鍵・コードに結び付く deviceId・耐クラッシュ連番・1プロセス lock。stale lock の自動削除による同時起動 race は修正済み。電源断試験は未実施 |
 | V6.3.1 | 適切な乱数生成器 | 実装確認済み | [crypto](../../src/server/mobile/crypto.ts) の generateKeyPairSync、[pairing](../../src/server/mobile/pairing.ts) の randomBytes(16)。固定鍵は C のテストだけ |
@@ -33,6 +35,7 @@
 | V7.1 Logging | セキュリティ上の事象の追跡 | 部分実装 | 判断の監査保存は配送前で、実 FS 失敗なら判断しない（R SEC-15）。発行も予約／監査保存が作成より先で、実 FS 失敗では作成しない（Q SEC-19）。登録・失敗・取り消し全件の長期監査は本タスクの範囲外 |
 | V7.4.1 | 情報を漏らさないエラー | 自動確認済み | P SEC-01、R SEC-06/12/13。一般拒否1種類、版違いだけ supportedVersion。nonce を再使用する暗号エラー応答は作らない |
 | V8 Data Protection | 最小データ、キャッシュ・通知の抑制 | 自動確認＋実装確認 | R SEC-07/08/15、S SEC-12。no-store、要約500文字／本文8000文字、Q SEC-20 のメタデータ除外・既存の保存／メモリ方針、固定通知（channelId=alerts）、unpair で token 消去 |
+| V4 / V8 Town Context | 同名町の取り違えと内部キーの漏えいを防ぐ | 自動確認＋実装確認 | T SEC-24。窓口の1つの UUID v4 対応表、null の所属、町の台帳の5種の theme のみ。表示名／パスからIDや姿を作らない |
 | V9.1.1 Communications | クライアント通信に TLS を使う | 未達／設計上の制限 | LAN/Tailscale の HTTP にアプリ間 AEAD を必須にするが、HTTP transport 自体の TLS を必須にはしていない。ASVS 全体適合とはしない。Expo へは Node 標準の検証付き HTTPS |
 | V14 Configuration | 明示的な有効化、限定経路、要求数・サイズ上限 | 自動確認済み | S SEC-11/12、R/P SEC-13。flag なし停止、全アドレス警告、既存 Host/Origin/token 不変 |
 | V4 / V11 Business Logic | A2 の送信・出陣・出発の重複と濫用を防ぐ | 自動確認＋実装確認 | W SEC-23。変更系5操作の共有要求 ID（効果前 fsync）、5/分・送信系2/分・出陣1/分3/時・端末2人・全体16人、出発の journal（pending のみ人が新 ID で再開、unknown は再送しない、再起動後は uncertain で再開しない、編成は保存しない鍵の HMAC だけ）、0600 の5項目の試行記録（prepare／form のメンバーごと／spawn／send／出発） |

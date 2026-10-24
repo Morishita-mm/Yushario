@@ -41,9 +41,9 @@ const permissions = new PermissionWaiter();
 let mobile: MobileGateway | undefined, mobileRoom: Room | undefined, mobileQuests: MobileQuests | undefined;
 let mobileNames: TownNames = [];
 function refreshMobile(): void {
-  if (!mobile || !mobileRoom) return;
+  if (!mobile || !mobileRoom || !mobileQuests) return;
   mobileNames = townView(mobileRoom, Date.now(), mobileNames).names;
-  mobile.heroes = mobileHeroes(mobileRoom, ledger.names, ledger.towns, mobileNames);
+  mobile.heroes = mobileHeroes(mobileRoom, ledger.names, ledger.towns, mobileQuests, mobileNames);
 }
 function broadcast(message: object): void {
   const type = (message as { type?: string }).type;

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { realpathSync, statSync } from "node:fs";
 import type { MobileHero } from "../../core/mobile-display";
-import type { MobileChoice, MobileLaunch, MobileWorkHero, MobileWorkPreset } from "../../core/mobile-work";
+import type { MobileChoice, MobileWorkBase, MobileLaunch, MobileWorkHero, MobileWorkPreset } from "../../core/mobile-work";
 import { townKey, type TownRecord } from "../../core/town-ledger";
 import type { Equipment } from "../../core/equipment";
 import { AGENTS, agentExecutables, type Preset } from "../agents";
@@ -30,6 +30,7 @@ export class MobileWorkCatalog {
     private readonly getTowns: () => readonly TownRecord[], private readonly getHeroes: () => readonly MobileHero[]) {}
 
   town(townId: string): string { return this.quests.townKey(townId); }
+  townId(key: string): string | null { return this.quests.townId(key); }
 
   private identity(sessionOrAgent: string): string {
     if (this.pty.getSession(sessionOrAgent)) return `s:${sessionOrAgent}`;
@@ -108,22 +109,22 @@ export class MobileWorkCatalog {
         counts.set(label, count); name = count > 1 ? `${label} #${count}` : label;
       }
       const label = (items: { id: string; name: string }[], id?: string) => { const item = items.find(entry => entry.id === id); return item ? mobileShort(item.name, 200, "そうび") : null; };
-      return { id: this.heroId(info.id), name, preset: AGENTS[info.preset].label, weapon: label(master.weapons, info.weapon),
+      return { id: this.heroId(info.id), name, townId: hero.active ? this.townId(town) : null, preset: AGENTS[info.preset].label, weapon: label(master.weapons, info.weapon),
         accessory: label(master.accessories, info.accessory), busy: hero.busy, canTalk: hero.canTalk, active: hero.active,
         questId: this.ledger.current(info.id)?.id ?? null, permissionGate: info.preset !== "pi" };
     });
     // Heroes seen in the room without a PTY on this Mac are shown but cannot be talked to.
     for (const hero of room.values()) {
       if (this.pty.sessionForAgent(hero.id) || this.quests.agentTown(hero.id) !== town) continue;
-      views.push({ id: this.heroId(hero.id), name: hero.name, preset: "外部の勇者", weapon: null, accessory: null, busy: false,
+      views.push({ id: this.heroId(hero.id), name: hero.name, townId: null, preset: "外部の勇者", weapon: null, accessory: null, busy: false,
         canTalk: false, active: false, questId: null, permissionGate: false });
     }
     return views.slice(0, 16);
   }
 
-  async options(townId: string, allowWork: boolean): Promise<{ allowWork: boolean; heroes: MobileWorkHero[]; bases: MobileChoice[]; presets: MobileWorkPreset[] }> {
+  async options(townId: string, allowWork: boolean): Promise<{ allowWork: boolean; heroes: MobileWorkHero[]; bases: MobileWorkBase[]; presets: MobileWorkPreset[] }> {
     const town = this.town(townId);
-    const bases = (await this.baseChoices(town)).map(({ id, name }) => ({ id, name }));
+    const bases = (await this.baseChoices(town)).map(({ id, name }) => ({ id, name, townId: this.townId(town) }));
     return { allowWork, heroes: this.heroViews(town), bases, presets: this.presetChoices() };
   }
 

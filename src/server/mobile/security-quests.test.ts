@@ -55,7 +55,7 @@ describe("mobile quests real HTTP, crypto, SQLite and files", () => {
     expect(quest).toMatchObject({ town: internalPath, title: "札を作る😀", purpose: body.purpose, state: "open", events: [] });
     expect(quest.session).toBeNull(); expect(ledger.party(quest.id)).toEqual([]);
     expect(ledger.snapshot().bindings).toEqual([]); expect(room.agents.size).toBe(0);
-    expect(response.body.quest).toEqual({ id: quest.id, title: quest.title, town: "公開の町", state: "open", updatedAt: quest.updatedAt });
+    expect(response.body.quest).toEqual({ id: quest.id, title: quest.title, town: "公開の町", townId: id, state: "open", updatedAt: quest.updatedAt });
     for (const operation of ["say", "assign", "spawn", "party", "done", "adopt"]) await rejected(phone, operation, {});
   });
 

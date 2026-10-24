@@ -11,12 +11,12 @@ const form = { requestId, questId: "quest-1", text: " 依頼😀 ", members: [me
 const embark = { requestId, questId: "quest-1", launch, role: "research", writer: false };
 const fit = { tactic: "review", ok: false, gaps: ["reviewer"], inside: ["hero-1"], outside: [] };
 const step = { heroId: "hero-1", kind: "request", state: "sent" };
-const draft = { questId: "quest-1", text: "本文", tactic: "review", members: [member], fits: [fit], editable: true, draftLost: false,
+const draft = { questId: "quest-1", townId: "town-1", text: "本文", tactic: "review", members: [member], fits: [fit], editable: true, draftLost: false,
   departure: { state: "partial", steps: [step] } };
-const hero = { id: "hero-1", name: "勇者", preset: "Claude", weapon: null, accessory: "鎧", busy: false, canTalk: true, active: true, questId: null, permissionGate: false };
+const hero = { id: "hero-1", name: "勇者", townId: "town-1", preset: "Claude", weapon: null, accessory: "鎧", busy: false, canTalk: true, active: true, questId: null, permissionGate: false };
 const choice = { id: "c-1", name: "選択" };
 const preset = { id: "preset-1", name: "Claude", weapons: [choice], accessories: [] };
-const options = { allowWork: false, heroes: [hero], bases: [choice], presets: [preset] };
+const options = { allowWork: false, heroes: [hero], bases: [{ ...choice, townId: "town-1" }], presets: [preset] };
 const many = <T>(count: number, row: (i: number) => T) => Array.from({ length: count }, (_, i) => row(i));
 
 describe("mobile quest work protocol", () => {
@@ -89,9 +89,9 @@ describe("mobile quest work protocol", () => {
       ["quest-depart", { requestId, questId: "q" }, [requestId, "q"]],
     ] as const) expect(mobileRequestBodyValues(parseMobileRequestBody(op, body)!)).toEqual(values);
     const dv = ["quest-1", "本文", "review", [mv], [["review", false, ["reviewer"], ["hero-1"], []]], true, false,
-      ["partial", [["hero-1", "request", "sent"]]]];
+      ["partial", [["hero-1", "request", "sent"]]], "town-1"];
     for (const [op, body, values] of [
-      ["quest-options", options, [false, [["hero-1", "勇者", "Claude", null, "鎧", false, true, true, null, false]], [["c-1", "選択"]],
+      ["quest-options", options, [false, [["hero-1", "勇者", "Claude", null, "鎧", false, true, true, null, false, "town-1"]], [["c-1", "選択", "town-1"]],
         [["preset-1", "Claude", [["c-1", "選択"]], []]]]],
       ["quest-draft", { draft }, [dv]], ["quest-form", { draft }, [dv]], ["quest-depart", { draft }, [dv]],
       ["quest-prepare", { draft, heroId: null, delivery: "none" }, [dv, null, "none"]],

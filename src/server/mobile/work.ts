@@ -68,7 +68,7 @@ export class MobileWork {
   }
   private draft(id: string): MobileWorkDraft {
     const quest = this.quest(id), form = this.forms.get(id), lost = !form && this.departures.hadForm(id);
-    return { questId: id, text: form?.text ?? (lost ? "" : quest.purpose), tactic: form?.tactic ?? this.tactics.tactic(id), members: this.members(id),
+    return { questId: id, townId: this.catalog.townId(quest.town), text: form?.text ?? (lost ? "" : quest.purpose), tactic: form?.tactic ?? this.tactics.tactic(id), members: this.members(id),
       fits: TACTICS.map(tactic => { const fit = tacticFit(tactic, this.fitMembers(id)); return { tactic, ...fit,
         inside: fit.inside.map(session => this.catalog.heroId(session)), outside: fit.outside.map(session => this.catalog.heroId(session)) }; }),
       editable: this.editable(id), draftLost: lost, departure: this.departures.view(id) };

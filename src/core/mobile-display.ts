@@ -4,16 +4,18 @@ import {
 } from "./mobile-protocol";
 
 import { parseMobileQuestResponse, mobileQuestValues, mobileReportValues, type MobileQuestResponseBody } from "./mobile-quests";
-export type { MobileReport, MobileQuest, MobileTown } from "./mobile-quests";
+export type { MobileReport, MobileQuest, MobileTown, MobileTownTheme } from "./mobile-quests";
 import { mobileWorkResponseValues, parseMobileWorkResponse, type MobileWorkResponseBody } from "./mobile-work-display";
 export type { MobileDelivery, MobileWorkResponseBody } from "./mobile-work-display";
 
+import { mobileNullableId } from "./mobile-work";
+
 export type MobileHero = {
-  id: string; name: string; town: string;
+  id: string; name: string; town: string; townId: string | null;
   state: "idle" | "thinking" | "working" | "waiting_input" | "success" | "error"; permissionPending: boolean;
 };
 export type MobilePermissionContent = {
-  id: string; heroId: string; heroName: string; town: string; tool: string; summary: string;
+  id: string; heroId: string; heroName: string; town: string; townId: string | null; tool: string; summary: string;
   content: string; omitted: number; expiresAt: number;
 };
 export type MobilePermission = MobilePermissionContent & { contentHash: string };
@@ -29,7 +31,7 @@ export type MobileSignedResponse = MobileResponse & { signature: string };
 
 export function mobilePermissionContentValues(value: MobilePermissionContent): unknown[] {
   return [value.id, value.heroId, value.heroName, value.town, value.tool, value.summary,
-    value.content, value.omitted, value.expiresAt];
+    value.content, value.omitted, value.expiresAt, value.townId];
 }
 
 export function mobilePermissionHashInput(value: MobilePermissionContent): Uint8Array {
@@ -37,15 +39,15 @@ export function mobilePermissionHashInput(value: MobilePermissionContent): Uint8
 }
 
 function isHero(value: unknown): value is MobileHero {
-  return mobileObject(value, ["id", "name", "town", "state", "permissionPending"])
-    && mobileText(value.id, 200) && mobileText(value.name, 200) && mobileText(value.town, 200)
+  return mobileObject(value, ["id", "name", "town", "state", "permissionPending", "townId"])
+    && mobileNullableId(value.townId) && mobileText(value.id, 200) && mobileText(value.name, 200) && mobileText(value.town, 200)
     && ["idle", "thinking", "working", "waiting_input", "success", "error"].includes(value.state as string)
     && typeof value.permissionPending === "boolean";
 }
 
 export function isMobilePermission(value: unknown): value is MobilePermission {
-  return mobileObject(value, ["id", "heroId", "heroName", "town", "tool", "summary", "content", "omitted", "expiresAt", "contentHash"])
-    && mobileText(value.id, 200) && mobileText(value.heroId, 200) && mobileText(value.heroName, 200)
+  return mobileObject(value, ["id", "heroId", "heroName", "town", "tool", "summary", "content", "omitted", "expiresAt", "contentHash", "townId"])
+    && mobileNullableId(value.townId) && mobileText(value.id, 200) && mobileText(value.heroId, 200) && mobileText(value.heroName, 200)
     && mobileText(value.town, 200) && mobileText(value.tool, 200) && mobileText(value.summary, 200)
     && mobileText(value.content, 2000, true) && mobileInteger(value.omitted) && mobileInteger(value.expiresAt)
     && mobileBase64url(value.contentHash, 32);
@@ -93,10 +95,10 @@ export function parseMobileResponse(input: unknown): MobileSignedResponse | unde
 export function mobileResponseBodyValues(response: MobileResponseBody): unknown[] {
   switch (response.operation) {
     case "pair": return [response.body.registered];
-    case "status": return [response.body.heroes.map(hero => [hero.id, hero.name, hero.town, hero.state, hero.permissionPending])];
+    case "status": return [response.body.heroes.map(hero => [hero.id, hero.name, hero.town, hero.state, hero.permissionPending, hero.townId])];
     case "permissions": return [response.body.permissions.map(value => [...mobilePermissionContentValues(value), value.contentHash])];
     case "decide": return [response.body.decided];
-    case "towns": return [response.body.towns.map(town => [town.id, town.name]), response.body.nextCursor];
+    case "towns": return [response.body.towns.map(town => [town.id, town.name, town.theme]), response.body.nextCursor];
     case "quests": return [response.body.quests.map(mobileQuestValues), response.body.nextCursor];
     case "quest-create": return [mobileQuestValues(response.body.quest)];
     case "reports": return [response.body.reports.map(mobileReportValues), response.body.nextCursor];

@@ -157,17 +157,17 @@ Mac の要求判定は `seq > lastAccepted`（pair は初期値0）かつ `abs(t
 下記は **オブジェクトの全メンバー**と、署名用の固定順の配列。
 
 ```ts
-Hero = {id, name, town, state, permissionPending}
-heroValues = [id, name, town, state, permissionPending]
-Permission = {id, heroId, heroName, town, tool, summary, content, omitted, expiresAt, contentHash}
-permissionContentValues = [id, heroId, heroName, town, tool, summary, content, omitted, expiresAt]
+Hero = {id, name, town, state, permissionPending, townId}
+heroValues = [id, name, town, state, permissionPending, townId]
+Permission = {id, heroId, heroName, town, tool, summary, content, omitted, expiresAt, townId, contentHash}
+permissionContentValues = [id, heroId, heroName, town, tool, summary, content, omitted, expiresAt, townId]
 permissionValues = [...permissionContentValues, contentHash]
-Town = {id, name}
-townValues = [id, name]
-Quest = {id, title, town, state, updatedAt}
-questValues = [id, title, town, state, updatedAt]
-Report = {id, questId, questTitle, title, success, at, excerpt, text}
-reportValues = [id, questId, questTitle, title, success, at, excerpt, text]
+Town = {id, name, theme}
+townValues = [id, name, theme]
+Quest = {id, title, town, state, updatedAt, townId}
+questValues = [id, title, town, state, updatedAt, townId]
+Report = {id, questId, questTitle, title, success, at, excerpt, text, townId}
+reportValues = [id, questId, questTitle, title, success, at, excerpt, text, townId]
 ```
 
 - Hero は最大100件、id の UTF-16 辞書順で先頭100件。`name/town` は表示名で、空でない200文字以内。町の実パスを名前の代わりに返さない。`state` は `idle|thinking|working|waiting_input|success|error`、`permissionPending` は真偽値。
@@ -179,13 +179,24 @@ reportValues = [id, questId, questTitle, title, success, at, excerpt, text]
 - 本文は保存済みの報告、無ければ同じ勇者・同じ報告時刻のメモリの返答だけ。`saveConversation=false` の返答は保存せず再起動・保持期限で消える。無ければ excerpt は空・text は null。別の返答やツール出力から補わない。result/cwd/branch/files/checks/command/permission と報告以外の出来事を返さない。返答の文章に人／CLI が書いた機密を自動検出・墨消しする仕様ではない。要約を LLM に作らせない。
 - クエスト拡張では reports の shape と署名配列も増えている。暗号・pair/decide の wire は不変だが、古いアプリは新 reports を拒否するので Mac／アプリをそろえて更新する。
 
+### 町の所属と姿（A3）
+
+未配布の開発アプリを本体と同時更新する合意により、旧版互換の要求は取り下げた。A1 と同じく v1 の DTO・固定署名配列を直接更新し、切り替えフラグ・二重プロトコルは作らない。古いアプリ／窓口は新しい DTO を検証できないため双方をそろえる（外側の版不一致の426規則は不変）。
+
+- `townId: string | null` は Hero・Permission・Quest・Report・WorkHero・WorkBase・WorkDraft に必須。`Town.id` と同じ窓口内のランダム UUID v4 を使い、表示名が同じ町も区別する。パスのコピー・hash・base64・連番ではない。同じ起動中は名前や姿を変えても不変、削除後の再登録と窓口再起動では取り直す。Mac をまたいで ID を結合しない。
+- 未登録／削除済みの町、所属不明の勇者・許可は null。SessionEnd 後の勇者は status から消える。options に残る終了済み／会話不可の外部勇者は `active:false,townId:null`。不明な町の表示名をパスから補わない。
+- Report は**報告のクエストの町**に属する。勇者が後で別の町へ移っても報告の町は変えない。WorkDraft はクエストの町、WorkBase は拠点の町。draft の members/fits/steps は親 draft の町に限定される参照なので同じ townId を重複させない。preset・装備の Choice は町に属さないので追加しない。
+- `theme` は `"village" | "port" | "snow" | "desert" | "volcano" | null`。本体の `TownRecord.theme`（`src/core/town-ledger.ts` の `TOWN_THEMES`）だけを返す。Mac の Scene.look と同じ保存値で、未選択・未知なら null。パス／作業フォルダ名からの推測、画像 URL／パスの返却はしない。絵はアプリに同梱する。
+- 件数は追加しない。取得済み行を townId でグループ化し、勇者数・許可待ち数・`active|waiting|review` のクエスト数を数えられる。これは**取得済みの表示件数**で、status は100件まで、許可は16件まで、報告は最近50件まで。クエスト全件の件数なら nextCursor が null になるまで全ページを取得する。別要求間に snapshot 保証はなく、古い一覧と合算して全体の厳密な件数だと表示しない。
+- すべての追加値を応答署名に含める。Permission.townId は町ごとの区画・アイコンの判断材料になるため contentHash にも含める（10値）。同じ名前の別町へ付け替えた hash は decide で拒否する。
+
 ### クエストの作業操作（A2：勇者を動かす6操作）
 
-既存の10操作と shape・署名配列はそのまま。次の6操作を許可リストへ加える。検査と署名配列は `src/core/mobile-work.ts`（要求）／`mobile-work-display.ts`（応答）。
+A2 で次の6操作を許可リストへ加えた（A3 で応答に町の所属を追加）。検査と署名配列は `src/core/mobile-work.ts`（要求）／`mobile-work-display.ts`（応答）。
 
 | operation | 要求 body | 要求 bodyValues | 成功応答 body | 応答 bodyValues |
 |---|---|---|---|---|
-| `quest-options` | `{townId}` | `[townId]` | `{allowWork,heroes:[WorkHero,...],bases:[Choice,...],presets:[WorkPreset,...]}` | `[allowWork,[workHeroValues,...],[choiceValues,...],[presetValues,...]]` |
+| `quest-options` | `{townId}` | `[townId]` | `{allowWork,heroes:[WorkHero,...],bases:[WorkBase,...],presets:[WorkPreset,...]}` | `[allowWork,[workHeroValues,...],[baseValues,...],[presetValues,...]]` |
 | `quest-draft` | `{questId}` | `[questId]` | `{draft:WorkDraft}` | `[draftValues]` |
 | `quest-prepare` | `{requestId,townId,text,mode,heroId,launch}` | `[requestId,townId,text,mode,heroId,launchValues\|null]` | `{draft,heroId,delivery}` | `[draftValues,heroId,delivery]` |
 | `quest-form` | `{requestId,questId,text,members:[FormMember,...],tactic}` | `[requestId,questId,text,[memberValues,...],tactic]` | `{draft}` | `[draftValues]` |
@@ -197,22 +208,24 @@ Launch = {baseId, presetId, weaponId, accessoryId}
 launchValues = [baseId, presetId, weaponId, accessoryId]
 Choice = {id, name}
 choiceValues = [id, name]
+WorkBase = {id, name, townId}
+baseValues = [id, name, townId]
 WorkPreset = {id, name, weapons:[Choice,...], accessories:[Choice,...]}
 presetValues = [id, name, [choiceValues,...], [choiceValues,...]]
-WorkHero = {id, name, preset, weapon, accessory, busy, canTalk, active, questId, permissionGate}
-workHeroValues = [id, name, preset, weapon, accessory, busy, canTalk, active, questId, permissionGate]
+WorkHero = {id, name, preset, weapon, accessory, busy, canTalk, active, questId, permissionGate, townId}
+workHeroValues = [id, name, preset, weapon, accessory, busy, canTalk, active, questId, permissionGate, townId]
 FormMember = {heroId, role, writer, ask}
 memberValues = [heroId, role, writer, ask]
 WorkFit = {tactic, ok, gaps, inside, outside}
 fitValues = [tactic, ok, gaps, inside, outside]
 WorkStep = {heroId, kind, state}
 stepValues = [heroId, kind, state]
-WorkDraft = {questId, text, tactic, members:[FormMember,...], fits:[WorkFit,...], editable, draftLost, departure:{state, steps:[WorkStep,...]}}
-draftValues = [questId, text, tactic, [memberValues,...], [fitValues,...], editable, draftLost, [departure.state, [stepValues,...]]]
+WorkDraft = {questId, text, tactic, members:[FormMember,...], fits:[WorkFit,...], editable, draftLost, departure:{state, steps:[WorkStep,...]}, townId}
+draftValues = [questId, text, tactic, [memberValues,...], [fitValues,...], editable, draftLost, [departure.state, [stepValues,...]], townId]
 ```
 
 - 構造上、パス・コマンド・引数・環境変数・session・cwd・branch を渡す欄はない。要求・応答のどのオブジェクトも列挙したメンバーだけで、足したものは一般拒否／応答の不採用。ID は空でない200文字以内。townId/heroId/baseId/presetId/weaponId/accessoryId と Choice.id・inside/outside の勇者 ID は窓口がプロセス内で発行した不透明 ID だけを解決する（再起動で無効）。questId は既存台帳の永続 UUID、gaps は不足条件の短いコードであり、プロセス内 ID ではない。町・拠点・勇者・preset・装備の内部の鍵やパスを直接書いても解決しない。
-- null 可は prepare の `heroId`（要求・応答）と `launch`、Launch の `weaponId/accessoryId`、WorkHero の `weapon/accessory/questId` だけ。WorkHero の `preset/weapon/accessory` と各 `name` は1〜200文字の表示ラベルで、実パスではない。
+- null 可は prepare の `heroId`（要求・応答）と `launch`、Launch の `weaponId/accessoryId`、WorkHero の `weapon/accessory/questId` と各 DTO の `townId`。WorkHero の `preset/weapon/accessory` と各 `name` は1〜200文字の表示ラベルで、実パスではない。
 - `requestId` は quest-create と同じ形式・時刻判定。変更系の5操作（create・prepare・form・embark・depart）は同じ `quest-requests.json` の名前空間を共有し、10分有効・未来60秒まで。同じ ID は操作・本文・端末を変えても拒否する。
 - prepare・form の `text` は1〜8000文字（UTF-16）で trim 後が空でないこと（検査・署名は trim しない）。`ask` は0〜8000文字。`draft.text` は0〜8000文字。
 - `mode` は `only|send|party`、`role` は `implement|research|review|command`、`tactic` は `obey|review|research|delegate`、`delivery` は `none|sent|held`、`departure.state` は `not-started|partial|complete|uncertain`、`step.kind` は `request|ask|research`、`step.state` は `pending|sent|held|deferred|unknown`。
@@ -229,9 +242,9 @@ draftValues = [questId, text, tactic, [memberValues,...], [fitValues,...], edita
 contentHash = B64(SHA256(C(["yushario.permission.v1", ...permissionContentValues])))
 ```
 
-アプリは検証済みの Permission の9値を取得時のまま保持し、この hash を自分で再計算して `contentHash` と照合する。勇者名・町・ツール・要約・コマンド／パス・省略数・期限を判断画面で確認できるようにする。コマンド／パスをさらに切る・改行を正規化する・制御文字を見えないまま捨てるなど、異なる文字列を判断の根拠にしない。安全な文字表示（制御文字の可視化等）は元の文字列と対応づける。固定の UI ラベルと残り秒数のカウントダウンは hash の対象ではない。
+アプリは検証済みの Permission の10値を取得時のまま保持し、この hash を自分で再計算して `contentHash` と照合する。勇者名・町・ツール・要約・コマンド／パス・省略数・期限を判断画面で確認できるようにする。コマンド／パスをさらに切る・改行を正規化する・制御文字を見えないまま捨てるなど、異なる文字列を判断の根拠にしない。安全な文字表示（制御文字の可視化等）は元の文字列と対応づける。固定の UI ラベルと残り秒数のカウントダウンは hash の対象ではない。
 
-Mac は現在の同じ9値から hash を再計算し、decide の hash が一致し、期限内・未回答の時だけ既存 `permission-decision` の処理へ渡す。`allow` はさらに omitted=0 が必要で、省略された要求への `deny` は可。ブラウザとの競合は先に届いた1件だけを採る。失敗理由を区別せず拒否する。端末 ID・許可 ID・判断・Mac の時刻だけを監査記録へ残し、本文・hash の入力列は記録しない。
+Mac は現在の同じ10値から hash を再計算し、decide の hash が一致し、期限内・未回答の時だけ既存 `permission-decision` の処理へ渡す。`allow` はさらに omitted=0 が必要で、省略された要求への `deny` は可。ブラウザとの競合は先に届いた1件だけを採る。失敗理由を区別せず拒否する。端末 ID・許可 ID・判断・Mac の時刻だけを監査記録へ残し、本文・hash の入力列は記録しない。
 
 ## HTTP と拒否
 
@@ -263,6 +276,6 @@ Mac は現在の同じ9値から hash を再計算し、decide の hash が一�
 ## 共有テスト用データと実装の境界
 
 - `node scripts/mobile-vectors.mjs` で `docs/mobile-protocol-vectors.json` を再生成する（毎回同一）。秘密鍵も含めた **公開のテスト専用データ**であり実運用へ流用しない。
-- X25519 の秘密値は32バイト raw scalar、Ed25519 は32バイト seed。固定鍵・コード・連番・時刻から、公開鍵、共有値、salt/info、方向別 HKDF 鍵、SAS、表示 hash、署名入力 hex、署名、AAD、nonce、平文、tag つき暗号文、packet を収録する。pair・decide に加え、towns・quests・quest-create・reports の最近／クエスト別と、作業の6操作（quest-options・quest-draft・quest-prepare（launch つき）・quest-form・quest-embark・quest-depart）について、入れ子の配列を含む要求／応答を両方収録する（`quests` 配列に追記し、既存の値は不変）。各組で別の seq を使う。
+- X25519 の秘密値は32バイト raw scalar、Ed25519 は32バイト seed。固定鍵・コード・連番・時刻から、公開鍵、共有値、salt/info、方向別 HKDF 鍵、SAS、表示 hash、署名入力 hex、署名、AAD、nonce、平文、tag つき暗号文、packet を収録する。pair・decide に加え、towns・quests・quest-create・reports の最近／クエスト別と、作業の6操作（quest-options・quest-draft・quest-prepare（launch つき）・quest-form・quest-embark・quest-depart）について、入れ子の配列を含む要求／応答を両方収録する（`quests` 配列）。A3 では townId・theme を含む署名／暗号値を更新し、status・permissions・5テーマと null の towns も加えた。各組で別の seq を使う。
 - アプリの `@noble/*` でも同じ JSON の全暗号値を照合する。JSON の読み込み順や各実装のオブジェクト順を署名仕様の代わりにしない。
 - 純粋な検査・配列化は `src/core/mobile-protocol.ts`（作業の6操作は `mobile-work.ts`／`mobile-work-display.ts`）、表示値と hash 入力は `mobile-display.ts`、署名入力／AAD／nonce は `mobile-signing.ts`、コードの遷移／SAS の桁／push は `mobile-pairing.ts`。時刻は引数。暗号そのもの、厳密な UTF-8 復号、HTTP、連番の永続化、pin・登録・内容 hash の照合、不可分な状態更新は server／アプリ側の責務。
