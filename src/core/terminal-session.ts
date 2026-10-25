@@ -1,5 +1,16 @@
 export const OUTPUT_LIMIT = 256 * 1024;
 
+// Use the same text for CLI delivery, held-text matching and ledger de-duplication.
+export function conversationText(text: string): string {
+  return text.replace(/\r\n?/g, "\n").replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, "").trim();
+}
+
+export function initialPromptArgs(preset: string, text?: string): string[] {
+  if (text === undefined) return [];
+  // pi interprets @files even after --. A leading space keeps this a literal message.
+  return ["--", preset === "pi" && text.startsWith("@") ? ` ${text}` : text];
+}
+
 type SessionInputResult = { ok: true; preset: string; cwd?: string } | { ok: false; reason: "settings" | "preset" | "cwd" };
 
 // The server supplies its existing agent catalogue; filesystem path semantics stay there.

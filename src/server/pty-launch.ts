@@ -3,10 +3,11 @@ import { writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node-pty";
-import { AGENTS, agentExecutables, type Preset } from "./agents";
+import { AGENTS, agentExecutables, executable, type Preset } from "./agents";
 import { isClaudeSessionId } from "../core/roster";
 import { equipmentArgs, type AgentEquipment, type Equipment } from "../core/equipment";
 import { CODEX_HOOKS } from "../core/codex";
+import { initialPromptArgs } from "../core/terminal-session";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
 // Keep user configuration, but not server secrets or inherited child-session markers.
@@ -43,14 +44,14 @@ export function codexHookArgs(): string[] {
 }
 
 export function launchPty(preset: Preset, cwd: string, id: string, port: number, settings: string,
-  equipment: Equipment, master: AgentEquipment, project: string, resume?: string, agentToken?: string) {
+  equipment: Equipment, master: AgentEquipment, project: string, resume?: string, agentToken?: string, text?: string) {
   const agent = AGENTS[preset];
   if (resume !== undefined && (!agent.resume || !isClaudeSessionId(resume))) throw new Error(tr("よびもどす勇者の ID が正しくない。", "Invalid hero ID for recall"));
   const program = agent.command;
   const path = agentExecutables[preset];
-  if (!path) throw new Error(tr(`${program} が PATH に見つからない。CLI を入れて PATH に追加し、yushario を Ctrl+C で止めて起動し直そう。`, `${program} not found in PATH. Install it, add it to PATH, then stop yushario with Ctrl+C and restart it.`));
+  if (!path || !executable(path)) throw new Error(tr(`${program} が PATH に見つからない。CLI を入れて PATH に追加し、yushario を Ctrl+C で止めて起動し直そう。`, `${program} not found in PATH. Install it, add it to PATH, then stop yushario with Ctrl+C and restart it.`));
   const args = [...agent.args.flatMap((arg) => arg === "$settings" ? [settings] : arg === "$codex-hooks" ? codexHookArgs() : [arg]),
-    ...(resume ? [...agent.resumeArgs, resume] : []), ...equipmentArgs(equipment, master, agent, serverLanguage())];
+    ...(resume ? [...agent.resumeArgs, resume] : []), ...equipmentArgs(equipment, master, agent, serverLanguage()), ...initialPromptArgs(preset, text)];
   const env = Object.fromEntries(Object.entries(process.env).filter((entry): entry is [string, string] => entry[1] !== undefined));
   for (const name of serverOnlyEnvironment) delete env[name];
   env.AGENT_CHARACTER_URL = `http://127.0.0.1:${port}/event`;

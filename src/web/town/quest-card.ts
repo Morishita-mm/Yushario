@@ -28,6 +28,7 @@ export type QuestCardActions = {
   embark?: () => void;
   fold?: () => Promise<void>;
   preview?: HTMLElement;
+  held?: HTMLElement; // Texts the owner has not received yet, with a cancel.
   party?: PartyControls;
   review?: () => void;
   reload?: () => void;
@@ -61,7 +62,7 @@ export function questCard(quest: QuestDetail, actions: QuestCardActions): HTMLEl
     if (!confirm(tr("この クエストの きろくを けす？", "Delete this quest's records?"))) return;
     void actions.remove().catch((error: Error) => { status.textContent = error.message; });
   }));
-  box.append(head, track, nextMove(quest, stage, who, actions, status, edit), status, facts(quest, stage, actions));
+  box.append(head, track, nextMove(quest, stage, who, actions, status, edit), ...(actions.held ? [actions.held] : []), status, facts(quest, stage, actions));
 
   const editing = foldable(quest.id, "edit", tr("依頼・目的・状態を変える", "Edit the request, purpose or state"));
   editing.append(edit.form);

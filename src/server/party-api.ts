@@ -8,6 +8,7 @@ import { serverLanguage, tr } from "./language";
 import { AGENTS } from "./agents";
 import { validTactic } from "../core/tactics";
 import type { QuestTactics } from "./tactics";
+import { TerminalLimitError } from "./pty-session";
 
 export function partyJson(response: ServerResponse, status: number, value: unknown): void {
   response.writeHead(status, { "Content-Type": "application/json", "Cache-Control": "no-store" }).end(JSON.stringify(value));
@@ -33,7 +34,7 @@ export async function handlePartyRequest(request: IncomingMessage, response: Ser
       const body = await partyBody(request, response); if (!body) return;
       if (request.method === "DELETE") { party.dismiss(id); partyJson(response, 200, { ok: true }); return; }
       if (request.method !== "POST" || typeof body.yes !== "boolean") throw new Error("Choose yes or no");
-      partyJson(response, 200, await party.decide(id, body.yes)); return;
+      partyJson(response, 200, await party.decide(id, body.yes, body.text)); return;
     }
     const quest = party.quests.get(id);
     if (!quest) { partyJson(response, 404, { error: tr("クエストが みつからない", "Quest not found") }); return; }
@@ -79,29 +80,27 @@ export async function handlePartyRequest(request: IncomingMessage, response: Ser
     if (action === "send" || action === "handoff") {
       if (typeof body.text !== "string" || !body.text.trim() || body.text.length > 8000) throw new Error(tr("ことばは 1〜8000文字で", "Use 1–8000 characters"));
       let session = typeof body.session === "string" ? party.pty.getSession(body.session) : undefined;
+      let launched = false;
       if (session) requirePartyConversation(session.preset);
       if (!session && action === "handoff" && body.preset && body.cwd) {
         requirePartyConversation(String(body.preset));
         const { projectIdentity } = await import("./project");
         if (typeof body.cwd !== "string" || (await projectIdentity(body.cwd)).key !== quest.town) throw new Error(tr("この町の 拠点を えらんで", "Choose a base in this town"));
-        session = await party.pty.create({ preset: body.preset, cwd: body.cwd });
+        session = await party.pty.create({ preset: body.preset, cwd: body.cwd, text: body.text });
+        launched = true;
       }
       if (!session || !party.pty.agentSession(session.id)?.active || session.project !== quest.town) throw new Error(tr("この町の 勇者を えらんで", "Choose a hero in this town"));
       if (action === "handoff") {
         const old = party.quests.member(session.id);
         party.quests.join(id, session, old?.quest === id ? old.role : "implement", old?.quest === id ? old.note : "");
       }
-      const delivered = party.send(id, session.id, body.text, action === "handoff" ? "handoff" : "request");
+      const delivered = launched ? (party.recordRequest(id, session.id, body.text, "handoff"), true)
+        : party.send(id, session.id, body.text, action === "handoff" ? "handoff" : "request");
       if (action === "handoff" && body.writer === true) {
-        const previous = party.quests.party(id).find((member) => member.writer && member.session !== session!.id);
-        const member = party.quests.member(session.id)!;
-        party.quests.join(id, session, "implement", member.note, true);
-        // The previous owner stays as a helper who no longer writes.
-        const old = previous && party.pty.getSession(previous.session);
-        if (old && previous.role === "implement") party.quests.join(id, old, "research", previous.note, false);
+        party.quests.assign(id, session);
       }
       partyJson(response, 200, { delivered, session }); return;
     }
     partyJson(response, 400, { error: tr("その コマンドは ない", "Unknown party command") });
-  } catch (error) { partyJson(response, error instanceof TerminalOnlyError ? 409 : 400, { error: error instanceof Error ? error.message : "Party request failed" }); }
+  } catch (error) { partyJson(response, error instanceof TerminalOnlyError || error instanceof TerminalLimitError ? 409 : 400, { error: error instanceof Error ? error.message : "Party request failed" }); }
 }

@@ -31,9 +31,17 @@ export function pickPartyNotice(notice: Notice, openQuest: (id: string) => Promi
   const run = (action: () => Promise<void>) => { void action().catch((error: Error) => { status.textContent = error.message; }); };
   if (invitation) {
     const details = document.createElement("pre"); details.textContent = `${roleLabel(invitation.role, language)} · ${invitation.session ?? invitation.preset ?? ""}\n${invitation.cwd ?? ""}\n${invitation.note}`; dialog.append(details);
+    // A new hero starts with this text as its first prompt, so it is edited before accepting.
+    const intro = invitation.session ? undefined : document.createElement("textarea");
+    if (intro) {
+      intro.rows = 7; intro.maxLength = 8000; intro.value = roleIntroduction({ role: invitation.role, note: invitation.note, writer: false }, language);
+      dialog.append(partyField(tr("やくわりの 紹介文 · この文で はじめる", "Role introduction · The hero starts with this"), intro));
+    }
     const yes = partyButton(tr("▶ はい", "▶ Yes"), () => run(async () => {
       yes.disabled = no.disabled = true;
-      const result = await partyRequest(`party-notices/${invitation.id}`, "POST", { yes: true });
+      const text = intro?.value.trim();
+      const result = await partyRequest(`party-notices/${invitation.id}`, "POST", { yes: true, ...(text ? { text } : {}) });
+      if (intro) { status.textContent = tr("仲間が くわわった！", "Hero joined!"); yes.remove(); no.remove(); intro.disabled = true; return; }
       const members: PartyHero[] = await partyRequest(`quests/${invitation.quest}/party`);
       const member = members.find((item) => item.session === result.session?.id);
       if (!member) { close(); return; }

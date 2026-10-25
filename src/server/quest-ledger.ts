@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { AgentEvent } from "../core/events";
+import { conversationText } from "../core/terminal-session";
 import type { PartyRole } from "../core/party";
 import { canRecallHero } from "../core/hook-trust";
 import { finishedQuest, questForRecall, questStateAfterEvent, questStateForParty, questTitle, reportTitle, savedQuestEvent, type Quest, type QuestEvent, type QuestBinding, type QuestReportLink } from "../core/quests";
@@ -26,7 +27,7 @@ export class QuestLedger {
     return questStateForParty(state, this.party(id).map((member) => this.waiting.get(member.session) === true));
   }
   forgetSession(session: string): void {
-    this.turns.delete(session); this.submitted.delete(session); this.latestAt.delete(session); this.waiting.delete(session);
+    this.turns.delete(session); this.cancelPending(session); this.latestAt.delete(session); this.waiting.delete(session);
     const quest = this.current(session);
     if (quest?.state === "waiting" && this.partyState(quest.id, "review") !== "waiting") this.patch(quest.id, { state: "review" });
   }
@@ -42,7 +43,8 @@ export class QuestLedger {
     forgetCheckFingerprint(this, id);
   }
   constructor(private readonly changed: (message: { type: "quests"; quests: Quest[]; bindings: QuestBinding[]; reports: QuestReportLink[] }) => void,
-    private readonly keepText: () => boolean) {}
+    private readonly keepText: () => boolean, private readonly clearHeld: (session: string) => void) {}
+  cancelPending(session: string): void { this.submitted.delete(session); this.clearHeld(session); }
   // `members`: which quest each terminal is in and its role, for the hero list.
   snapshot() {
     return { type: "quests" as const, quests: this.db.list(), bindings: this.db.bindings(), reports: [] as QuestReportLink[],
@@ -102,13 +104,16 @@ export class QuestLedger {
     const quest: Quest = { ...previous, ...patch, state: this.partyState(id, patch.state ?? previous.state), updatedAt: at };
     this.db.update(quest);
     if (quest.state !== previous.state) this.db.add({ quest: id, kind: "state", at, title: quest.state });
+    if (patch.state && finishedQuest(patch.state)) for (const member of this.party(id)) this.cancelPending(member.session);
     this.notify(); return quest;
   }
   assign(id: string, session: TerminalSession, hero?: string, at = Date.now()): void {
     const quest = this.db.summary(id);
     if (!quest || quest.town !== session.project) throw new Error(tr("この町の クエストを えらんで", "Choose a quest in this town"));
     const member = this.member(session.id);
-    this.join(id, session, member?.quest === id ? member.role : "implement", member?.quest === id ? member.note : "", undefined, hero, at);
+    const previousWriter = this.party(id).find((item) => item.writer && item.session !== session.id);
+    this.join(id, session, "implement", member?.quest === id ? member.note : "", true, hero, at);
+    if (previousWriter?.role === "implement") this.db.party.put({ ...previousWriter, role: "research", writer: false });
     // A new owner has not been told anything yet; the old owner's work state must not carry over.
     const now = this.db.summary(id)!;
     if (quest.session !== session.id && (now.state === "active" || now.state === "waiting") && !this.waiting.get(session.id)) this.patch(id, { state: "open" }, at);
@@ -159,7 +164,7 @@ export class QuestLedger {
   }
   submittedText(session: string, text: string): void {
     const pending = this.submitted.get(session) ?? [];
-    pending.push(text); this.submitted.set(session, pending);
+    pending.push(conversationText(text)); this.submitted.set(session, pending);
   }
   observe(session: TerminalSession, event: AgentEvent, at: number, terminalEnded: (id: string) => boolean = () => false): void | false {
     const previousAt = this.latestAt.get(session.id);
@@ -181,7 +186,7 @@ export class QuestLedger {
     }
     if (event.hook === "UserPromptSubmit" && !event.subagent) {
       const pending = this.submitted.get(session.id) ?? [];
-      const text = event.text ?? "…";
+      const text = conversationText(event.text ?? "…");
       const matching = pending.findIndex((item) => item === text || text.includes(item));
       if (matching >= 0) pending.splice(0, matching + 1);
       else this.requested(session, text, at, event.agent);

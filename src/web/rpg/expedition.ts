@@ -1,4 +1,4 @@
-import { tr } from "../language";
+import { language, tr } from "../language";
 import { connectSessionTerminal, sessionRequest, type Session } from "../terminal";
 import { loadSettings, loadTowns, type TownRecord } from "./ledger";
 import { coverMap } from "./talk";
@@ -7,7 +7,10 @@ import type { EquipmentMaster } from "../../core/equipment";
 import { loadEquipment } from "./equipment";
 import { initExpeditionBases } from "./expedition-bases";
 import type { Quest } from "../../core/quests";
-export type Landing = { assign: boolean; arrived: (session: Session) => void };
+import { roleLabel, type PartyRole } from "../../core/party";
+// `text`: with assign, the quest text that starts the new hero (the server launches the CLI with it and assigns the quest).
+// `helper`: the new hero joins the quest as a helper; "now" asks for its role and first request, "gathering" sends nothing yet.
+export type Landing = { assign: boolean; text?: string; helper?: "now" | "gathering"; arrived: (session: Session) => void | Promise<void> };
 import { townLabel } from "../../core/town-ledger";
 import "./worktrees.css";
 
@@ -30,6 +33,9 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
   const pathLabel = document.querySelector<HTMLElement>("#expedition-path-label")!;
   const start = document.querySelector<HTMLButtonElement>("#expedition-start")!;
   const status = document.querySelector<HTMLElement>("#expedition-status")!;
+  const helperRole = document.querySelector<HTMLSelectElement>("#expedition-role")!;
+  const helperText = document.querySelector<HTMLTextAreaElement>("#expedition-text")!;
+  const helperHint = document.querySelector<HTMLElement>("#expedition-hint")!;
   let agents: AgentInfo[] = [], equipment: EquipmentMaster = {};
   let quest: Quest | undefined;
   const bases = initExpeditionBases(document.querySelector<HTMLElement>("#expedition-bases")!, heroName,
@@ -48,6 +54,16 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
     for (const item of items?.accessories ?? []) accessory.add(new Option(`${item.name}（${item.value}）`, item.id));
     weapon.hidden = document.querySelector<HTMLElement>("#expedition-weapon-label")!.hidden = !items?.weapons.length;
     accessory.hidden = document.querySelector<HTMLElement>("#expedition-accessory-label")!.hidden = !items?.accessories.length;
+  };
+  // A new helper: choose its role and first request (now), or only be told how it starts (while forming the party).
+  const helperFields = () => {
+    const mode = landing?.helper, now = mode === "now";
+    for (const id of ["role-label", "text-label"]) document.querySelector<HTMLElement>(`#expedition-${id}`)!.hidden = !now;
+    helperRole.hidden = helperText.hidden = !now;
+    helperHint.hidden = !mode;
+    helperHint.textContent = mode === "gathering"
+      ? tr("編成中は 何も送らない。新しい Codex は 最初の頼みごとを 自分のターミナルに 打つ必要がある。編成を終えてから 出陣させてもよい。", "Nothing is sent while forming. A new Codex must be given its first request in its own terminal, or embark it after forming.")
+      : mode === "now" ? tr("この頼みごとで 起動して、そのまま 手伝いとして パーティーに入る。", "It starts with this request and joins the party as a helper.") : "";
   };
   preset.addEventListener("change", describe);
   let dispose: (() => void) | undefined;
@@ -140,7 +156,9 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
   path.addEventListener("change", () => void loadBases());
   document.querySelector("#expedition")!.addEventListener("click", () => openLaunch());
   function openLaunch(selectedQuest?: Quest, returnTo?: () => void, land?: Landing): void {
-    quest = selectedQuest; back = returnTo; landing = land; bases.setQuest(quest); void bases.load("");
+    quest = selectedQuest; back = returnTo; landing = land;
+    helperRole.replaceChildren(...(["research", "review", "test"] as PartyRole[]).map((role) => new Option(roleLabel(role, language), role)));
+    helperText.value = ""; helperFields(); bases.setQuest(quest); void bases.load("");
     const request = ++launching;
     preset.replaceChildren();
     preset.disabled = true;
@@ -205,27 +223,36 @@ export function initExpedition(currentTown: () => string | undefined, heroName: 
     status.textContent = tr("しゅつじん中…", "Embarking…");
     void bases.prepare(destination.value || path.value.trim()).then(async (cwd) => {
       if (launching !== request || !launch.open) return;
+      const hero = Boolean(agents.find((agent) => agent.id === preset.value)?.hero);
+      const initial = selectedQuest && landing?.assign && hero ? landing.text?.trim() : undefined;
+      const helper = selectedQuest && hero && landing?.helper === "now";
+      const first = helper ? helperText.value.trim() : "";
       return sessionRequest("POST", "", { preset: preset.value, cwd,
-        ...(weapon.value ? { weapon: weapon.value } : {}), ...(accessory.value ? { accessory: accessory.value } : {}) });
+        ...(weapon.value ? { weapon: weapon.value } : {}), ...(accessory.value ? { accessory: accessory.value } : {}),
+        ...(helper ? { quest: selectedQuest.id, role: helperRole.value, ...(first ? { text: first } : {}) }
+          : selectedQuest && initial ? { quest: selectedQuest.id, text: initial } : {}) });
     }).then(async (result) => {
       if (!result) return;
       const land = landing;
-      if (selectedQuest && (land?.assign ?? true)) {
+      const session = result as Session;
+      // The quest text already started (and assigned) the hero; otherwise the quest is assigned here.
+      if (selectedQuest && (land?.assign ?? true) && !(land?.text?.trim() && agents.find((agent) => agent.id === session.preset)?.hero)) {
         const token = new URLSearchParams(location.search).get("token") ?? "";
         const response = await fetch(`/api/quests/${encodeURIComponent(selectedQuest.id)}/assign?${new URLSearchParams({ token })}`, {
-          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ session: (result as Session).id }),
+          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ session: session.id }),
         });
         if (!response.ok) throw new Error((await response.json()).error);
       }
       if (launching !== request || !launch.open) return; // Closing never cancels or deletes a created session.
-      const session = result as Session;
       // Terminal-only presets must never wait for a hero who cannot arrive.
-      if (session.preset === "codex" || !agents.find((agent) => agent.id === session.preset)?.hero) { prepareTerminal(); attach(session); return; }
+      if (!agents.find((agent) => agent.id === session.preset)?.hero) { prepareTerminal(); attach(session); return; }
       const towns = await loadTowns();
       if (launching !== request || !launch.open) return;
       closeLaunch();
       launched(session, towns, Boolean(land));
-      land?.arrived(session);
+      await land?.arrived(session);
+      // Codex's folder-trust and hooks review wait in its terminal, ahead of the initial prompt.
+      if (session.preset === "codex") await openTerminal(session.id);
     }).catch((error: Error) => {
       if (launching === request && launch.open) status.textContent = error.message;
     }).finally(() => { if (launching === request) start.disabled = false; });

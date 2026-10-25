@@ -87,6 +87,11 @@
         <label id="expedition-path-label" data-en="Absolute path" for="expedition-path">絶対パス</label>
         <input id="expedition-path" type="text" placeholder="/absolute/path/to/project" required />
         <div id="expedition-bases" hidden></div>
+        <label id="expedition-role-label" data-en="Role in the party" for="expedition-role" hidden>パーティーでの役</label>
+        <select id="expedition-role" hidden></select>
+        <label id="expedition-text-label" data-en="First request (optional)" for="expedition-text" hidden>最初の頼みごと（なくてもよい）</label>
+        <textarea id="expedition-text" rows="4" maxlength="8000" hidden></textarea>
+        <p id="expedition-hint" class="settings-status" hidden></p>
         <button id="expedition-start" data-en="▶ Embark!" type="submit">▶ しゅつじん！</button>
       </form>
       <p id="expedition-status" class="settings-status" role="status"></p>
