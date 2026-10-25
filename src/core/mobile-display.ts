@@ -9,6 +9,10 @@ import { mobileWorkResponseValues, parseMobileWorkResponse, type MobileWorkRespo
 export type { MobileDelivery, MobileWorkResponseBody } from "./mobile-work-display";
 
 import { mobileNullableId } from "./mobile-work";
+import { isMobilePermissionChange, isMobilePermissionWork, mobileChangeTextLength, mobilePermissionChangeValues,
+  mobilePermissionWorkValues, MOBILE_PERMISSION_TEXT, type MobilePermissionDetails } from "./mobile-permission";
+export { mobilePermissionCanAllow } from "./mobile-permission";
+export type { MobilePermissionChange, MobilePermissionEdit, MobilePermissionWork } from "./mobile-permission";
 
 export type MobileHero = {
   id: string; name: string; town: string; townId: string | null;
@@ -17,7 +21,7 @@ export type MobileHero = {
 export type MobilePermissionContent = {
   id: string; heroId: string; heroName: string; town: string; townId: string | null; tool: string; summary: string;
   content: string; omitted: number; expiresAt: number;
-};
+} & MobilePermissionDetails;
 export type MobilePermission = MobilePermissionContent & { contentHash: string };
 export type MobileResponseBody = MobileQuestResponseBody | MobileWorkResponseBody
   | { operation: "pair"; body: { registered: true } }
@@ -31,7 +35,8 @@ export type MobileSignedResponse = MobileResponse & { signature: string };
 
 export function mobilePermissionContentValues(value: MobilePermissionContent): unknown[] {
   return [value.id, value.heroId, value.heroName, value.town, value.tool, value.summary,
-    value.content, value.omitted, value.expiresAt, value.townId];
+    value.content, value.omitted, value.expiresAt, value.townId,
+    mobilePermissionWorkValues(value.work), mobilePermissionChangeValues(value.change)];
 }
 
 export function mobilePermissionHashInput(value: MobilePermissionContent): Uint8Array {
@@ -46,10 +51,12 @@ function isHero(value: unknown): value is MobileHero {
 }
 
 export function isMobilePermission(value: unknown): value is MobilePermission {
-  return mobileObject(value, ["id", "heroId", "heroName", "town", "tool", "summary", "content", "omitted", "expiresAt", "contentHash", "townId"])
+  return mobileObject(value, ["id", "heroId", "heroName", "town", "tool", "summary", "content", "omitted", "expiresAt", "contentHash", "townId", "work", "change"])
     && mobileNullableId(value.townId) && mobileText(value.id, 200) && mobileText(value.heroId, 200) && mobileText(value.heroName, 200)
     && mobileText(value.town, 200) && mobileText(value.tool, 200) && mobileText(value.summary, 200)
     && mobileText(value.content, 2000, true) && mobileInteger(value.omitted) && mobileInteger(value.expiresAt)
+    && isMobilePermissionWork(value.work) && isMobilePermissionChange(value.change, value.tool)
+    && value.content.length + mobileChangeTextLength(value.change) <= MOBILE_PERMISSION_TEXT
     && mobileBase64url(value.contentHash, 32);
 }
 

@@ -15,7 +15,7 @@ export const REJECTED = '{"error":"rejected"}';
 
 // Records argv/cwd and pasted requests (never tokens or keys); sends the same authenticated hooks as the adapters.
 const FAKE_CLI = `
-const { appendFileSync, renameSync, writeFileSync } = require("node:fs");
+const { appendFileSync, readFileSync, renameSync, writeFileSync } = require("node:fs");
 const { basename, join } = require("node:path");
 const { randomUUID } = require("node:crypto");
 const name = basename(process.argv[1]), log = process.env.YUSHARIO_FAKE_LOG, agent = randomUUID();
@@ -51,6 +51,15 @@ process.stdin.on("data", async chunk => {
 hook("SessionStart", "idle");
 // A real ready hook after an interrupt, sent when the test decides.
 process.on("SIGUSR1", () => hook("Stop", "success", { text: "test cli stopped" }));
+// A4 test-only permission hook; input/result contain synthetic data, never credentials.
+process.on("SIGUSR2", async () => {
+  const input = JSON.parse(readFileSync(file + ".permission-input", "utf8"));
+  const response = await fetch(new URL("/hooks/permission", process.env.AGENT_CHARACTER_URL), {
+    method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + process.env.AGENT_CHARACTER_AGENT_TOKEN },
+    body: JSON.stringify({ hook_event_name: "PermissionRequest", session_id: agent, ...input }),
+  });
+  writeFileSync(file + ".permission-result", await response.text());
+});
 setInterval(() => undefined, 60_000);
 `;
 

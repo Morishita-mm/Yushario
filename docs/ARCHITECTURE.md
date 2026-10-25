@@ -61,7 +61,7 @@ Yushario と勇者は同じ OS 利用者で動く。悪意ある同一利用者�
 | `src/core/turns.ts` | 進行中の往復の累計、最後のテスト結果と異常終了、直近256イベント内の遅着補正、許可待ちを除いた所要時間、報告の付与 | events, activity |
 | `src/core/event-history.ts` | 2000件の履歴から、勇者ごとの件数と保護するイベントに基づいて捨てる順を決める | events |
 | `src/core/permissions.ts` | 許可の表示用要約・回答 JSON、期限と省略本文の回答可否、端末／仲間に限定した進行の判定 | events |
-| `src/core/mobile-protocol.ts`, `mobile-display.ts`, `mobile-quests.ts`, `mobile-work.ts`, `mobile-work-display.ts`, `mobile-signing.ts`, `mobile-pairing.ts`, `mobile-push.ts` | モバイル v1 の本文・許可リスト（作業の6操作の固定 shape と本人確認が要る操作の判定を含む）・連番／時刻窓・署名／hash 入力・nonce・コードの遷移・SAS の桁・固定通知・receipt と安全な診断値の検査 | core の型・関数のみ |
+| `src/core/mobile-protocol.ts`, `mobile-display.ts`, `mobile-permission.ts`, `permission-change.ts`, `mobile-quests.ts`, `mobile-work.ts`, `mobile-work-display.ts`, `mobile-signing.ts`, `mobile-pairing.ts`, `mobile-push.ts` | モバイル v1 の本文・許可リスト（作業の6操作の固定 shape と本人確認が要る操作の判定を含む）・連番／時刻窓・署名／hash 入力・nonce・コードの遷移・SAS の桁・固定通知・receipt と安全な診断値の検査 | core の型・関数のみ |
 | `src/core/terminal-session.ts` | 起動入力のフィールド検査、端末の行列数、保持出力の行・UTF-8 バイト境界 | なし |
 | `src/core/terminal-modes.ts` | 端末の出力の切り捨てた部分で有効になったモード（別画面・マウス・貼り付け等）を覚え、開き直した時に先に送る | なし |
 | `src/core/local-request.ts` | 実際の待受ポートに対する Host の判定 | なし |
@@ -221,6 +221,8 @@ Codex の PostToolUse は成否不明として扱い、成功数・報告のテ�
 Mac の「スマホ」は起動時だけ表示し、5分の QR／コピー文字列、6桁 SAS の承認／拒否、端末の取り消し、端末ごとの作業許可の切り替えと直近50件の作業記録の表示を既存の認可済み API で行う。QR の符号化だけ `qrcode-generator`（依存なし）を使い、自作しない。開いている間だけ状態を読む。端末ごとの通知結果と固定文言のテスト送信もこの認可済み画面だけに置き、receipt の成功を端末の表示・閲覧と混同しない。
 
 A3 の所属は `MobileQuests` の1つのプロセス内 UUID 対応表を全モバイル DTO で共有し、Hero・Permission・Quest・Report・WorkHero・WorkBase・WorkDraft の `townId` として返す（町なしは null）。Town.theme は Mac 画面と同じ TownRecord.theme の5種または null。画像・パス・件数は返さず、取得した行の町別集計はアプリが行う。未配布アプリの同時更新を前提に v1 の DTO・署名配列・許可hashを更新し、互換切替は作らない。
+
+A4 は許可受信時の認証済み端末の `QuestLedger.current` から担当クエストの ID/題を固定し、Write 本文・Edit/MultiEdit の before/after/replaceAll と共にモバイルだけへ返す。追加本文は `PermissionWaiter` の待機項目内に分けて保持し、Mac の `Permission`／WS／画面を変えず台帳にも保存しない。本文合計2000文字・既存contentとの合計3000文字・置換16組・応答16件。追加欄全体を表示hashに含め、不明／省略された本文は窓口で承認拒否（拒否可）。作業は不明ならnull、最新依頼の本文を推測／転用しない。詳細・固定配列・SEC-25はMOBILEとMOBILE-PROTOCOLが正。
 
 ### web 内: 描画データと端末の接続
 

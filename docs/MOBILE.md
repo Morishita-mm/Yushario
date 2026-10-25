@@ -90,7 +90,7 @@ QR コードで Mac の公開鍵を直接受け取るので、経路の途中で
 |---|---|
 | `pair` | ペアリング要求。ペアリング中のコードがある時だけ受け付ける |
 | `status` | 勇者の一覧と状態（名前・町の表示名・状態・許可待ちの有無） |
-| `permissions` | 待っている許可要求の一覧（コマンドやパスを含む。既存の120秒の期限と2000文字の上限に従う） |
+| `permissions` | 待っている許可要求の一覧（コマンド／パス、受信時の担当クエスト、変更の本文。120秒の期限、本文の上限は A4 を参照） |
 | `decide` | 許可要求1件への承認・拒否 |
 | `towns` | 表示名と窓口内だけで解決するランダム ID（100件ずつ）。内部の町の鍵・パスは返さない |
 | `quests` | クエストの題・町の表示名・状態・最終更新（100件ずつ） |
@@ -164,6 +164,15 @@ A1 の前提「スマホからは札を作るだけで実行に進まない」�
 - Mac は鍵の attestation（ハードウェア証明）を受け取らず、「直前に本人確認した」ことを検証できない。改造・侵害されたアプリは本人確認を飛ばして署名できる。
 - このため Keystore に結び付けた Ed25519 は採用せず、本人確認は `LocalAuthentication.authenticateAsync`（`disableDeviceFallback:false`、`biometricsSecurityLevel:'strong'`、`requireConfirmation:true`）によるアプリ内の確認にとどめる。新しい native module・development build は不要で、既存の Expo クライアントで動く。安全性の主な支えは Mac 側の既定 off の許可・件数制限・強制した承認モード・取り消しである。実機でのこの確認の安全性は検証していない。
 
+### 許可の理由と変更本文（A4）
+
+- `work: {questId,title} | null` は認証済み端末の現担当クエストを許可受信時に固定したもの。台帳 `QuestLedger.current` の確定した ID／題を使い、端末・町・勇者を照合する。request 本文は保存設定や複数メンバーの依頼と混同しないため追加しない。不明・未割当・終了済みは null。パス・cwd・branch から作業を推測しない。
+- `change` は Write の `{kind:'write',text,omitted}`、Edit/MultiEdit の `{kind:'edit',edits:[{before,after,replaceAll}],omitted,omittedEdits}`、取得不能の `{kind:'unavailable'}`。Bash は従来の content にコマンド、他の道具も従来どおり change=null。これは置換の要求であり、実ファイルの diff ではない。
+- 本文は UTF-16 で合計2000文字、content と合わせて3000文字まで。置換は16組、応答は16件。制御文字の JSON escape 込みでも暗号文512KiB／HTTP 1MiB 内。サロゲート対を分断せず、制御文字は生値を保持し画面の visible で可視化する。
+- 追加した全値を contentHash に含める。スマホの承認は従来の外側 omitted=0 に加え、本文 omitted=0・omittedEdits=0・unavailable でない場合だけ。本文が切れたままの承認は拒否し、拒否は可能。work=null だけなら承認不可にはしない。
+- Mac の許可カード／WS とその既存の判断は変えない。追加本文は待機中メモリだけ（最大120秒）で、台帳・監査・push に保存／配信しない。既存の v1 を同時更新し互換フラグは作らない。UI 担当はアプリの `docs/MOBILE-PROTOCOL.md` の A4 節に従い、全受信本文と省略／取得不能を表示する。
+- SEC-25：実 HTTP／暗号／SQLite／隔離 relay・CLI で、他勇者・他町との非混同、本文・作業を変えた hash の拒否、省略／欠落時の承認拒否と拒否可、最悪16件応答を検査する。[実行記録](security/runs/2026-10-25-mobile-permission-content.md)。
+
 ### 許可の判断
 
 - アプリは承認・拒否の前に、必ず生体認証（または端末のロック解除）を求める。
@@ -211,6 +220,7 @@ A1 の前提「スマホからは札を作るだけで実行に進まない」�
 | T20 | 応答消失・再送・部分的な出発で二重に送る／大量に動かす | 共有の要求 ID 予約、送信前に fsync する出発の journal、pending だけを新しい ID で人が再開、unknown は再送しない、再起動では再開しない、頻度・人数の上限、監査 | SEC-23 |
 | T21 | 許可確認のないエージェントが動く | Pi の新規出陣を拒否、既存の Pi は permissionGate:false で警告 | SEC-22 |
 | T22 | 同名の町を混同して別の勇者・許可・仕事を扱う／町IDや姿から内部パスが漏れる | 同じ窓口内の UUID v4 で所属を統一、未知は null、theme は本体の5種のみ、署名と許可hashに所属を結び付ける | SEC-24 |
+| T23 | 許可の作業／変更本文が別勇者・別町と混ざる、切れた本文や違う本文を承認する | 認証済み端末の担当 snapshot、本文・作業・置換範囲・省略数を hash に束縛、本文上限と不明／省略時の承認拒否 | SEC-25 |
 
 ## 検証と証跡
 

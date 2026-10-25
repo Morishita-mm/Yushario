@@ -1,6 +1,6 @@
 # モバイル窓口の脅威モデル
 
-`../MOBILE.md` の T1〜T22 を正とする。通信の正確な形は `../MOBILE-PROTOCOL.md`。対象は Mac の別 HTTP listener と既存画面からの登録 API で、同じ OS 利用者によるファイル・プロセスの直接改変、公開インターネットでの運用、スマホ OS 自体の侵害は隔離しない。
+`../MOBILE.md` の T1〜T23 を正とする。通信の正確な形は `../MOBILE-PROTOCOL.md`。対象は Mac の別 HTTP listener と既存画面からの登録 API で、同じ OS 利用者によるファイル・プロセスの直接改変、公開インターネットでの運用、スマホ OS 自体の侵害は隔離しない。
 
 ## 脅威と証拠
 
@@ -17,7 +17,7 @@
 | T9 | 窓口をインターネットへ公開してしまう | 既定で停止、アドレスの明示、全アドレス待受の警告 | SEC-11：[実プロセス・別 listener 検査](../../src/server/mobile/security-startup.test.ts)（既定停止／flag／警告）。`::` も同じ警告分岐 |
 | T10 | 窓口から `/pty` などの操作に届く | 別ポート、許可リスト以外を拒否 | SEC-12：要求検査＋実プロセス検査（両方向の経路分離、Host／Origin／token） |
 | T11 | コードの総当たり・大量の要求 | 128bit、3失敗で失効、本文上限、要求数の制限 | SEC-13：ペアリング検査＋要求検査（1MiB、毎分30件、転送 IP を信用しない） |
-| T12 | 表示と違う内容を承認させられる | 表示した10値（townId を含む）の SHA-256 を判断へ結び付ける | SEC-14：要求検査（内容変更、省略、期限、ブラウザとの先着） |
+| T12 | 表示と違う内容を承認させられる | 表示した12値（townId・work/change を含む）の SHA-256 を判断へ結び付ける | SEC-14：要求検査（内容変更、省略、期限、ブラウザとの先着） |
 | T13 | 誰が承認したか分からない | 判断の記録 | SEC-15：要求検査（0600、4項目だけ、実 FS 保存失敗では判断しない） |
 | T14 | アプリの依存パッケージの汚染 | 最小依存、lockfile の固定、脆弱性の検査 | SEC-16：[Mac の CodeQL／OSV／gitleaks と両 npm audit](runs/2026-10-23-sast-da6d36b.md) を実行し、2 advisory と stale-lock race を修正。CI、スマホ側の依存／解析／MobSF は別途必要 |
 | T15 | 鍵がバックアップから漏れる | この端末のみの保管、バックアップから除外 | SEC-17：別アプリの Keychain／Keystore と実機バックアップで手動。Mac の0600／0700は SEC-10 |
@@ -28,6 +28,7 @@
 | T20 | 応答消失・再送・部分的な出発で二重に送る／大量に動かす／下書きが残る | 変更系5操作で共有する要求 ID の効果前 fsync 予約、出発の step journal を各送信前に fsync（編成は保存しない乱数鍵の HMAC だけ）、pending だけを人が新しい ID で再開、unknown は再送しない、再起動後は uncertain で再開しない、5/分・送信系2/分・出陣1/分3/時・端末2人（メモリ上）・全体16、0600 の5項目の試行記録 | SEC-23：[上限・予約・部分出発の実 HTTP 検査](../../src/server/mobile/security-work-limits.test.ts)＋[作業の実 HTTP 検査](../../src/server/mobile/security-work.test.ts)。**証拠は親タスクの実行待ち** |
 | T21 | 許可確認のないエージェント・注入した起動引数で動く | 出陣は Claude／Codex のみで承認モードを強制、Pi は options に出さず拒否、既存の Pi は permissionGate:false で警告、他町・未知 ID・注入フィールド・長文の拒否、応答にパスなし | SEC-22：[作業の実 HTTP 検査](../../src/server/mobile/security-work.test.ts)（選択肢、opt-in off、未知／他町 ID、起動フラグ、出発）＋[純粋検査](../../src/core/mobile-work.test.ts)。**証拠は親タスクの実行待ち** |
 | T22 | 同名町の取り違え／内部キー・姿からのパス漏えい | 全 DTO が同じ窓口の UUID v4 を使い、町なしは null、theme は本体台帳の5種のみ。町の区画は許可hashにも束縛 | SEC-24：[実 HTTP・SQLite・relay 検査](../../src/server/mobile/security-towns.test.ts)、[純粋検査](../../src/core/mobile-towns.test.ts)、[実行記録](runs/2026-10-24-mobile-towns.md) |
+| T23 | 別勇者/別町の作業・変更本文の混同、欠落や省略のある本文の承認 | 認証済み端末と同じ町/勇者の担当snapshot、Write/Edit/MultiEditの本文/順序/全置換/省略数をhashに束縛、本文合計2000・content含め3000・16組・16件、取得不能/省略時の承認拒否 | SEC-25：[実HTTP・relay・CLI検査](../../src/server/mobile/security-permission-content.test.ts)、[実行記録](runs/2026-10-25-mobile-permission-content.md) |
 
 ## 実行の性質と残る限界
 

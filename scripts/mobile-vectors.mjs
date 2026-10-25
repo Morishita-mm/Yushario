@@ -41,8 +41,16 @@ const sas = String(sasHash.readUInt32BE(0) % 1_000_000).padStart(6, "0");
 const permission = {
   id: "permission-1", heroId: "hero-1", heroName: "勇者", town: "テストの町", tool: "Bash",
   summary: "Bash: printf 'hello'", content: "printf 'hello'\n", omitted: 0, expiresAt: 1700000120000, townId: "town-opaque",
+  work: { questId: "quest-1", title: "表示を直す😀" }, change: null,
 };
-const permissionValues = Object.values(permission);
+function pv(p) {
+  const c = p.change;
+  const change = c === null ? null : c.kind === "write" ? [c.kind, c.text, c.omitted]
+    : c.kind === "edit" ? [c.kind, c.edits.map(e => [e.before, e.after, e.replaceAll]), c.omitted, c.omittedEdits] : [c.kind];
+  return [p.id, p.heroId, p.heroName, p.town, p.tool, p.summary, p.content, p.omitted, p.expiresAt, p.townId,
+    p.work === null ? null : [p.work.questId, p.work.title], change];
+}
+const permissionValues = pv(permission);
 const permissionInput = json(["yushario.permission.v1", ...permissionValues]);
 const permissionHash = hash(permissionInput);
 permission.contentHash = b64(permissionHash);
@@ -133,6 +141,18 @@ questCases.push(
   ["towns", { cursor: null }, [null], { towns: themes.map((theme, i) => ({ id: `town-${i}`, name: "同じ町", theme })), nextCursor: null },
     [themes.map((theme, i) => [`town-${i}`, "同じ町", theme]), null]],
 );
+const changes = [
+  { tool: "Write", change: { kind: "write", text: "書く本文😀\n\\u0000\u0000", omitted: 0 } },
+  { tool: "Edit", change: { kind: "edit", edits: [{ before: "old\n", after: "new\n", replaceAll: true }], omitted: 0, omittedEdits: 0 } },
+  { tool: "MultiEdit", change: { kind: "edit", edits: [{ before: "a", after: "b", replaceAll: false },
+    { before: "c", after: "d", replaceAll: true }], omitted: 7, omittedEdits: 1 } },
+  { tool: "Write", change: { kind: "unavailable" } },
+];
+for (const [index, item] of changes.entries()) {
+  const p = { ...permission, ...item, id: `change-${index}`, content: "example.ts", summary: `${item.tool}: example.ts`, work: index === 3 ? null : permission.work };
+  p.contentHash = b64(hash(json(["yushario.permission.v1", ...pv(p)])));
+  questCases.push(["permissions", {}, [], { permissions: [p] }, [[[...pv(p), p.contentHash]]]]);
+}
 const vectors = {
   description: "Yushario mobile v1 PUBLIC TEST KEYS; raw X25519 private scalars / Ed25519 seeds; ciphertext includes the final 16-byte tag.",
   keys: { gatewayX25519: gatewayX.vector, gatewayEd25519: gatewayEd.vector, phoneX25519: phoneX.vector, phoneEd25519: phoneEd.vector },

@@ -1,5 +1,6 @@
 import { serverLanguage } from "./language";
 import type { AgentEvent } from "../core/events";
+import type { MobilePermissionDetails } from "../core/mobile-permission";
 import { permissionCanDecide, permissionProgress, permissionOutput as output, permissionSummary as summary,
   type Permission, type PermissionDecision } from "../core/permissions";
 export { PERMISSION_TIMEOUT_MS, type Permission, type PermissionDecision } from "../core/permissions";
@@ -9,14 +10,16 @@ export function permissionOutput(decision: PermissionDecision): object { return 
 
 // Independent, bounded calls, not a queue. No arrival displaces another request.
 export class PermissionWaiter {
-  private readonly waiting = new Map<string, { permission: Permission; finish: (decision: PermissionDecision) => void }>();
+  private readonly waiting = new Map<string, { permission: Permission; mobile?: MobilePermissionDetails; finish: (decision: PermissionDecision) => void }>();
   get pending(): Permission[] { return [...this.waiting.values()].map((item) => item.permission); }
 
-  wait(permission: Permission, connected: boolean): Promise<PermissionDecision> {
+  mobileDetails(id: string): MobilePermissionDetails | undefined { return this.waiting.get(id)?.mobile; }
+
+  wait(permission: Permission, connected: boolean, mobile?: MobilePermissionDetails): Promise<PermissionDecision> {
     if (!connected || this.waiting.size >= 16 || this.waiting.has(permission.id)) return Promise.resolve("terminal");
     return new Promise((resolve) => {
       const timer = setTimeout(() => this.decide(permission.id, "terminal"), Math.max(0, permission.expiresAt - Date.now()));
-      this.waiting.set(permission.id, { permission, finish: (decision) => {
+      this.waiting.set(permission.id, { permission, mobile, finish: (decision) => {
         clearTimeout(timer);
         this.waiting.delete(permission.id);
         resolve(decision);

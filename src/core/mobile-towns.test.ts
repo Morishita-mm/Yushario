@@ -4,7 +4,7 @@ import { MOBILE_TOWN_THEMES } from "./mobile-quests";
 
 const hero = { id: "h", name: "勇者", town: "町", state: "idle", permissionPending: false, townId: "town-a" };
 const permission = { id: "p", heroId: "h", heroName: "勇者", town: "町", tool: "Bash", summary: "確認", content: "echo test",
-  omitted: 0, expiresAt: 123, contentHash: "A".repeat(43), townId: "town-a" };
+  omitted: 0, expiresAt: 123, contentHash: "A".repeat(43), townId: "town-a", work: null, change: null };
 const quest = { id: "q", title: "題", town: "町", state: "open", updatedAt: 123, townId: "town-a" };
 const report = { id: "r", questId: "q", questTitle: "題", title: "報告", success: null, at: 123, excerpt: "", text: null, townId: "town-a" };
 const workHero = { id: "h", name: "勇者", preset: "Pi", weapon: null, accessory: null, busy: false, canTalk: false,

@@ -17,6 +17,8 @@
 
 - [T：A3 の町の所属・姿（SEC-24）](../../src/server/mobile/security-towns.test.ts)。実 HTTP の3ケースで、同名町・全5テーマ/null・各 DTO の同一ID・他町拒否・削除/再起動/退場・パス非公開・許可hashの町への束縛を確認。[純粋検査](../../src/core/mobile-towns.test.ts)、[実行記録](runs/2026-10-24-mobile-towns.md)。本体854件とアプリ53件が成功。
 
+- [P25：A4 の許可の作業・本文（SEC-25）](../../src/server/mobile/security-permission-content.test.ts)。実 HTTP の4ケースで認証済み端末の作業snapshot・別勇者/別町非混同、本文と作業のhash束縛、省略/欠落時の承認拒否、16件の最悪escape応答を確認。[抽出の純粋検査](../../src/core/permission-change.test.ts)、[両実装の契約検査](../../src/core/mobile-permission.test.ts)、[実行記録](runs/2026-10-25-mobile-permission-content.md)。本体864件・アプリ80件成功。
+
 ## 窓口に該当する管理策
 
 | ASVS の該当範囲 | 確認すること | 状態 | 証拠／残ること |
@@ -26,7 +28,7 @@
 | V4.1.3 | 最小権限・既定拒否 | 自動確認済み | R/S SEC-12、Q SEC-18。16操作だけで `/pty`・`/ws`・任意コマンド API・他端末の unpair へ届かない。A2 で送信・出陣・出発を加えたため、端末ごとの作業許可（既定 off）、状態による効果の分類（しき役・忙しい／送信待ち・付け替えは送信扱い）、作戦は出発まで obey、強制した承認モード、Pi 新規出陣の拒否を W SEC-21/22 で確かめる |
 | V4 Access Control | 取り消しを次の要求へ即時反映 | 自動確認済み | P SEC-10、R SEC-08、S SEC-12。公開鍵台帳・通知 ID・連番を画面 API に出さない |
 | V5.1.3 / V5.1.4 | allowlist、型・長さ・数値範囲の検査 | 自動確認済み | core、R SEC-12/13、Q SEC-18/20。UTF-8、base64url、孤立サロゲート、A1 の題200／目的2000、A2 の依頼・全文目的8000（W SEC-22/23）、報告本文8000とページ8件、固定 shape |
-| V5 Input Validation | 表示内容と承認の対象が同じ | 自動確認済み | R SEC-14、C、T SEC-24。townId を含む10値の SHA-256、期限・省略・未回答と先着の検査 |
+| V5 Input Validation | 表示内容と承認の対象が同じ | 自動確認済み | R SEC-14、C、T SEC-24、P25 SEC-25。townId・work/change（前後/全置換/省略/不明）を含む12値の SHA-256、期限・本文/組省略・未回答と先着の検査 |
 | V6.2 Cryptographic Algorithms | 標準の認証付き暗号・署名、独自暗号を作らない | 自動確認済み | C、P SEC-04、R SEC-06。Node crypto だけ、X25519／Ed25519／HKDF-SHA256／IETF ChaCha20-Poly1305 |
 | V6.2 Cryptographic Algorithms | 同じ鍵の nonce 再使用を防ぐ | 自動確認＋実装確認 | R/F SEC-05（再起動・実 FS 故障・lock・破損含む）、[store](../../src/server/mobile/store.ts)。方向別鍵・コードに結び付く deviceId・耐クラッシュ連番・1プロセス lock。stale lock の自動削除による同時起動 race は修正済み。電源断試験は未実施 |
 | V6.3.1 | 適切な乱数生成器 | 実装確認済み | [crypto](../../src/server/mobile/crypto.ts) の generateKeyPairSync、[pairing](../../src/server/mobile/pairing.ts) の randomBytes(16)。固定鍵は C のテストだけ |

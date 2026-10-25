@@ -112,7 +112,7 @@ describe("mobile deterministic bytes", () => {
     const p = vectors.permission.displayed;
     const cases = [
       ["status", { heroes: [hero] }, [[["h", "勇者", "町", "idle", true, "t"]]]],
-      ["permissions", { permissions: [p] }, [[[p.id, p.heroId, p.heroName, p.town, p.tool, p.summary, p.content, p.omitted, p.expiresAt, p.townId, p.contentHash]]]],
+      ["permissions", { permissions: [p] }, [[[p.id, p.heroId, p.heroName, p.town, p.tool, p.summary, p.content, p.omitted, p.expiresAt, p.townId, [p.work.questId, p.work.title], p.change, p.contentHash]]]],
       ["reports", { reports: [report], nextCursor: null }, [[["r", "q", "クエスト", "報告", null, 0, "先頭", null, "t"]], null]],
       ["push-token", { updated: true }, [true]], ["unpair", { unpaired: true }, [true]],
     ] as const;
@@ -139,7 +139,7 @@ describe("mobile deterministic bytes", () => {
     const display = vectors.permission.displayed;
     expect(hex(mobilePermissionHashInput(display))).toBe(vectors.permission.hashInputHex);
     for (const [key, value] of Object.entries(display)) {
-      if (key === "contentHash") continue;
+      if (key === "contentHash" || key === "work" || key === "change") continue;
       const changed = { ...display, [key]: typeof value === "number" ? value + 1 : value + "x" };
       expect(mobilePermissionHashInput(changed)).not.toEqual(mobilePermissionHashInput(display));
     }

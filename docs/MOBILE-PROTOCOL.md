@@ -159,8 +159,8 @@ Mac の要求判定は `seq > lastAccepted`（pair は初期値0）かつ `abs(t
 ```ts
 Hero = {id, name, town, state, permissionPending, townId}
 heroValues = [id, name, town, state, permissionPending, townId]
-Permission = {id, heroId, heroName, town, tool, summary, content, omitted, expiresAt, townId, contentHash}
-permissionContentValues = [id, heroId, heroName, town, tool, summary, content, omitted, expiresAt, townId]
+Permission = {id, heroId, heroName, town, tool, summary, content, omitted, expiresAt, townId, work, change, contentHash}
+permissionContentValues = [id, heroId, heroName, town, tool, summary, content, omitted, expiresAt, townId, workValues, changeValues]
 permissionValues = [...permissionContentValues, contentHash]
 Town = {id, name, theme}
 townValues = [id, name, theme]
@@ -179,6 +179,32 @@ reportValues = [id, questId, questTitle, title, success, at, excerpt, text, town
 - 本文は保存済みの報告、無ければ同じ勇者・同じ報告時刻のメモリの返答だけ。`saveConversation=false` の返答は保存せず再起動・保持期限で消える。無ければ excerpt は空・text は null。別の返答やツール出力から補わない。result/cwd/branch/files/checks/command/permission と報告以外の出来事を返さない。返答の文章に人／CLI が書いた機密を自動検出・墨消しする仕様ではない。要約を LLM に作らせない。
 - クエスト拡張では reports の shape と署名配列も増えている。暗号・pair/decide の wire は不変だが、古いアプリは新 reports を拒否するので Mac／アプリをそろえて更新する。
 
+### 許可の作業と変更本文（A4）
+
+v1 を本体・アプリ同時に更新する。`work` と `change` は null の時も必須。Mac の許可カード／WS の形は変えず、追加本文は未回答の waiter 内だけに保持する（最大16件・120秒、解決／切断／終了で破棄）。台帳・監査・通知には書かない。
+
+```ts
+work = null | {questId, title}
+workValues = null | [questId, title]
+change = null
+  | {kind:"write", text, omitted}
+  | {kind:"edit", edits:[{before, after, replaceAll}, ...], omitted, omittedEdits}
+  | {kind:"unavailable"}
+changeValues = null
+  | ["write", text, omitted]
+  | ["edit", [[before,after,replaceAll], ...], omitted, omittedEdits]
+  | ["unavailable"]
+```
+
+- `work` は **許可受信時**に認証済み端末の `QuestLedger.current` から読む担当クエストの不透明 ID と題（各1〜200文字）。町がその端末と同じ、所属の勇者がその端末と一致する場合だけ返す。done/dropped・未割当・不明／不正な題なら null。本文の session_id/cwd/branch では決めず、別勇者／別町や「最近のクエスト」から補わない。後の改題・再割当ではこの snapshot を変更しない。仲間のフックは親勇者の担当クエストを示し、仲間の細かい作業を推測しない。
+- 最後の依頼文は今回追加しない。現担当の ID/題は台帳の確定値で、会話保存の有無に依存せず、複数メンバーの request や未送信の依頼を混同しないため。work に内部パス・cwd・branch・目的は載せない。利用者が題／ツール本文に書いた文字を機密判定して墨消しする仕様ではない。
+- Write は tool_input.content を `change.text` にする。Edit は old_string/new_string を `before/after` の1組に、MultiEdit は edits の入力順に各組を返す。`replaceAll` は replace_all（省略時 false）。これは実ファイルとの unified diff ではなく **要求された置換**である。空文字の挿入・削除もそのまま。Bash は既存 content のコマンド全文のみで change=null、他の道具も従来どおり change=null。
+- **上限**：content は従来の最大2000文字。変更本文は全 text／before／after の **合計2000文字**まで、さらに **content＋変更本文の合計3000文字**まで。MultiEdit は最大16組。入力順、各 before→after の順に予算を使い、サロゲート対を分断しない。change.omitted は返さなかった本文の UTF-16 単位数（省いた組の文字数も含む）、omittedEdits は省いた組数（空の組も数える）。外側 omitted は従来どおり content の省略数。
+- 元入力に本文の欠落・型不正・孤立サロゲートがあれば kind=unavailable（空本文とは違う）。構造を捏造して承認可能にはしない。変更対象の3ツールでは null を返さない。他のツールで非nullの change は拒否する。
+- **承認条件**：外側 omitted=0、かつ change が null、または write の omitted=0、または edit の omitted=0 かつ omittedEdits=0。unavailable・本文省略・組省略は承認不可、期限内なら拒否は可。不明な作業 work=null 自体は承認不可の理由ではない。
+- 1応答は従来どおり最大16件。合計3000文字の予算と固定 shape／16組上限により、制御文字がすべて JSON の6バイト escape になっても16件を既存 **暗号文512KiB／HTTP 1MiB** 以下に収める。文字列の生値は mobileText の規則どおり保持し、正規化・制御文字の除去・ANSI解釈はしない。表示はアプリの visible の規則を使う（詳細は下の hash とアプリの画面担当向け説明）。
+- 全追加値（kind、順序、replaceAll、省略数、不明/nullを含む）を応答署名と contentHash に束縛する。SEC-25 は実 HTTP／暗号／隔離 relay・CLI・SQLite で帰属、本文のすり替え、省略時の拒否、最悪16件応答を確かめる。
+
 ### 町の所属と姿（A3）
 
 未配布の開発アプリを本体と同時更新する合意により、旧版互換の要求は取り下げた。A1 と同じく v1 の DTO・固定署名配列を直接更新し、切り替えフラグ・二重プロトコルは作らない。古いアプリ／窓口は新しい DTO を検証できないため双方をそろえる（外側の版不一致の426規則は不変）。
@@ -188,7 +214,7 @@ reportValues = [id, questId, questTitle, title, success, at, excerpt, text, town
 - Report は**報告のクエストの町**に属する。勇者が後で別の町へ移っても報告の町は変えない。WorkDraft はクエストの町、WorkBase は拠点の町。draft の members/fits/steps は親 draft の町に限定される参照なので同じ townId を重複させない。preset・装備の Choice は町に属さないので追加しない。
 - `theme` は `"village" | "port" | "snow" | "desert" | "volcano" | null`。本体の `TownRecord.theme`（`src/core/town-ledger.ts` の `TOWN_THEMES`）だけを返す。Mac の Scene.look と同じ保存値で、未選択・未知なら null。パス／作業フォルダ名からの推測、画像 URL／パスの返却はしない。絵はアプリに同梱する。
 - 件数は追加しない。取得済み行を townId でグループ化し、勇者数・許可待ち数・`active|waiting|review` のクエスト数を数えられる。これは**取得済みの表示件数**で、status は100件まで、許可は16件まで、報告は最近50件まで。クエスト全件の件数なら nextCursor が null になるまで全ページを取得する。別要求間に snapshot 保証はなく、古い一覧と合算して全体の厳密な件数だと表示しない。
-- すべての追加値を応答署名に含める。Permission.townId は町ごとの区画・アイコンの判断材料になるため contentHash にも含める（10値）。同じ名前の別町へ付け替えた hash は decide で拒否する。
+- すべての追加値を応答署名に含める。Permission.townId は町ごとの区画・アイコンの判断材料になるため contentHash にも含める（A4 で work/change を加えた12値）。同じ名前の別町へ付け替えた hash は decide で拒否する。
 
 ### クエストの作業操作（A2：勇者を動かす6操作）
 
@@ -242,9 +268,9 @@ draftValues = [questId, text, tactic, [memberValues,...], [fitValues,...], edita
 contentHash = B64(SHA256(C(["yushario.permission.v1", ...permissionContentValues])))
 ```
 
-アプリは検証済みの Permission の10値を取得時のまま保持し、この hash を自分で再計算して `contentHash` と照合する。勇者名・町・ツール・要約・コマンド／パス・省略数・期限を判断画面で確認できるようにする。コマンド／パスをさらに切る・改行を正規化する・制御文字を見えないまま捨てるなど、異なる文字列を判断の根拠にしない。安全な文字表示（制御文字の可視化等）は元の文字列と対応づける。固定の UI ラベルと残り秒数のカウントダウンは hash の対象ではない。
+アプリは検証済みの Permission の12値（work/change は上記の固定配列にする）を取得時のまま保持し、この hash を自分で再計算して `contentHash` と照合する。勇者名・町・ツール・要約・コマンド／パス・作業・変更本文・省略数・期限を判断画面で確認できるようにする。コマンド／パス・本文をさらに切る・改行を正規化する・制御文字を見えないまま捨てるなど、異なる文字列を判断の根拠にしない。安全な文字表示（制御文字の可視化等）は元の文字列と対応づける。固定の UI ラベルと残り秒数のカウントダウンは hash の対象ではない。
 
-Mac は現在の同じ10値から hash を再計算し、decide の hash が一致し、期限内・未回答の時だけ既存 `permission-decision` の処理へ渡す。`allow` はさらに omitted=0 が必要で、省略された要求への `deny` は可。ブラウザとの競合は先に届いた1件だけを採る。失敗理由を区別せず拒否する。端末 ID・許可 ID・判断・Mac の時刻だけを監査記録へ残し、本文・hash の入力列は記録しない。
+Mac は現在の同じ12値から hash を再計算し、decide の hash が一致し、期限内・未回答の時だけ既存 `permission-decision` の処理へ渡す。`allow` はさらに A4 の承認条件（外側／本文の省略なし、組省略なし、unavailable でない）が必要で、省略／不明な要求への `deny` は可。ブラウザとの競合は先に届いた1件だけを採る。失敗理由を区別せず拒否する。端末 ID・許可 ID・判断・Mac の時刻だけを監査記録へ残し、本文・hash の入力列は記録しない。
 
 ## HTTP と拒否
 
@@ -276,6 +302,6 @@ Mac は現在の同じ10値から hash を再計算し、decide の hash が一�
 ## 共有テスト用データと実装の境界
 
 - `node scripts/mobile-vectors.mjs` で `docs/mobile-protocol-vectors.json` を再生成する（毎回同一）。秘密鍵も含めた **公開のテスト専用データ**であり実運用へ流用しない。
-- X25519 の秘密値は32バイト raw scalar、Ed25519 は32バイト seed。固定鍵・コード・連番・時刻から、公開鍵、共有値、salt/info、方向別 HKDF 鍵、SAS、表示 hash、署名入力 hex、署名、AAD、nonce、平文、tag つき暗号文、packet を収録する。pair・decide に加え、towns・quests・quest-create・reports の最近／クエスト別と、作業の6操作（quest-options・quest-draft・quest-prepare（launch つき）・quest-form・quest-embark・quest-depart）について、入れ子の配列を含む要求／応答を両方収録する（`quests` 配列）。A3 では townId・theme を含む署名／暗号値を更新し、status・permissions・5テーマと null の towns も加えた。各組で別の seq を使う。
+- X25519 の秘密値は32バイト raw scalar、Ed25519 は32バイト seed。固定鍵・コード・連番・時刻から、公開鍵、共有値、salt/info、方向別 HKDF 鍵、SAS、表示 hash、署名入力 hex、署名、AAD、nonce、平文、tag つき暗号文、packet を収録する。pair・decide に加え、towns・quests・quest-create・reports の最近／クエスト別と、作業の6操作（quest-options・quest-draft・quest-prepare（launch つき）・quest-form・quest-embark・quest-depart）について、入れ子の配列を含む要求／応答を両方収録する（`quests` 配列）。A3 では townId・theme を含む署名／暗号値を更新し、status・permissions・5テーマと null の towns も加えた。A4 は work/change を含む hash と署名／暗号値に更新し、Write（制御文字・絵文字）、Edit（replaceAll）、MultiEdit（本文／組省略）、unavailable と work=null の permissions も収録した。各組で別の seq を使う。
 - アプリの `@noble/*` でも同じ JSON の全暗号値を照合する。JSON の読み込み順や各実装のオブジェクト順を署名仕様の代わりにしない。
 - 純粋な検査・配列化は `src/core/mobile-protocol.ts`（作業の6操作は `mobile-work.ts`／`mobile-work-display.ts`）、表示値と hash 入力は `mobile-display.ts`、署名入力／AAD／nonce は `mobile-signing.ts`、コードの遷移／SAS の桁／push は `mobile-pairing.ts`。時刻は引数。暗号そのもの、厳密な UTF-8 復号、HTTP、連番の永続化、pin・登録・内容 hash の照合、不可分な状態更新は server／アプリ側の責務。
