@@ -1,10 +1,11 @@
 import { randomUUID } from "node:crypto";
 import type { AgentEvent } from "../core/events";
-import { agentAuthorized, outsideRole, partyEditFiles, type PartyRole } from "../core/party";
+import { agentAuthorized, outsideRole, partyEditFiles, partyRole, type PartyRole } from "../core/party";
 import type { QuestEvent } from "../core/quests";
 import type { QuestLedger } from "./quest-ledger";
 import type { createPtyServer } from "./pty";
-import type { TerminalSession } from "./pty-session";
+import { initialText, sessionInput, type TerminalSession } from "./pty-session";
+import { conversationText } from "../core/terminal-session";
 import { tr } from "./language";
 import { projectIdentity } from "./project";
 import { AGENTS, type Preset } from "./agents";
@@ -64,10 +65,34 @@ export class QuestParty {
     const invite = { ...input, id: randomUUID(), at: Date.now(), town: quest.town };
     this.invitations.set(invite.id, invite); this.changed(); return invite;
   }
-  async decide(id: string, yes: boolean): Promise<{ session?: TerminalSession }> {
+  async create(input: unknown): Promise<TerminalSession> {
+    const { preset, cwd = process.env.AGENT_CHARACTER_CWD || process.env.INIT_CWD || process.cwd() } = sessionInput(input);
+    const text = initialText(input), { quest, role, note } = input as Record<string, unknown>;
+    if (role !== undefined && (!partyRole(role) || typeof quest !== "string")
+      || note !== undefined && (typeof note !== "string" || note.length > 200)) throw new Error(tr("クエストと やくわり、200文字までの 一言を えらんで", "Choose a quest, valid role and note up to 200 characters"));
+    if (text !== undefined) requirePartyConversation(preset);
+    if (quest !== undefined) {
+      if (typeof quest !== "string" || !this.quests.summary(quest)) throw new Error(tr("クエストが みつからない", "Quest not found"));
+      if ((await projectIdentity(cwd)).key !== this.quests.summary(quest)?.town) throw new Error(tr("この町の 拠点を えらんで", "Choose a base in this town"));
+    }
+    const session = await this.pty.create(input);
+    try {
+      if (typeof quest === "string") {
+        if (partyRole(role)) this.quests.join(quest, session, role, typeof note === "string" ? note : "", false);
+        else this.quests.assign(quest, session);
+        if (text !== undefined) this.recordRequest(quest, session.id, text);
+      }
+    } catch (error) { this.pty.end(session.id); throw error; }
+    return session;
+  }
+  clearRequests(session: string): void { this.requests.delete(session); }
+  async decide(id: string, yes: boolean, inputText?: unknown): Promise<{ session?: TerminalSession }> {
     this.snapshot();
     const invite = this.invitations.get(id);
     if (!invite) throw new Error(tr("この よびかけは おわった", "This invitation has ended"));
+    const text = initialText({ text: inputText });
+    if (text !== undefined && (!yes || invite.session)) throw new Error(tr("新しい勇者の 承認だけに ことばを つけて", "Text is only allowed when accepting a new hero"));
+    if (text !== undefined) requirePartyConversation(invite.preset ?? "");
     this.invitations.delete(id); this.changed();
     if (!yes) {
       this.quests.addEvent(invite.quest, { kind: "party", at: Date.now(), title: tr("仲間の よびかけを ことわった", "Invitation declined"), session: invite.from }); return {};
@@ -76,12 +101,13 @@ export class QuestParty {
     if (!invite.session && (!invite.cwd || (await projectIdentity(invite.cwd)).key !== invite.town)) throw new Error(tr("この町の 拠点を えらんで", "Choose a base in this town"));
     const authorized = () => agentAuthorized(true, Boolean(this.pty.agentSession(invite.from)?.active), this.quests.member(invite.from), invite.quest, "invite");
     if (!authorized()) throw new Error(tr("この よびかけは おわった", "This invitation has ended"));
-    const session = invite.session ? this.pty.getSession(invite.session) : await this.pty.create({ preset: invite.preset, cwd: invite.cwd });
+    const session = invite.session ? this.pty.getSession(invite.session) : await this.pty.create({ preset: invite.preset, cwd: invite.cwd, text });
     if (!session || !this.pty.agentSession(session.id)?.active || session.project !== invite.town || !authorized()) {
       if (session && !invite.session) this.pty.end(session.id);
       throw new Error(tr("この町の 勇者を えらんで", "Choose a hero in this town"));
     }
     this.quests.join(invite.quest, session, invite.role, invite.note);
+    if (text !== undefined) this.recordRequest(invite.quest, session.id, text);
     return { session };
   }
   send(quest: string, session: string, text: string, kind: "request" | "command" | "handoff" | "tactic" = "request", from?: string): boolean {
@@ -91,6 +117,12 @@ export class QuestParty {
     if (!info) throw new Error(tr("勇者が みつからない", "Hero not found"));
     requirePartyConversation(info.preset);
     const delivered = this.pty.say(session, text);
+    this.recordRequest(quest, session, text, kind, from);
+    return delivered;
+  }
+  // Launch prompts are already submitted by argv; record them without writing to the PTY.
+  recordRequest(quest: string, session: string, text: string, kind: "request" | "command" | "handoff" | "tactic" = "request", from?: string): void {
+    text = conversationText(text);
     this.quests.submittedText(session, text);
     const at = Date.now(), hero = this.quests.member(session)?.hero;
     const title = from ? tr(`しき ${this.label(from)}から`, `From commander ${this.label(from)}`)
@@ -99,7 +131,6 @@ export class QuestParty {
     const request = { detail: from ? this.label(from) : undefined, text };
     if (hero) this.record({ state: "idle", hook: "PartyRequest", terminal: session, agent: hero, ...request });
     else this.requests.set(session, [...(this.requests.get(session) ?? []), request]);
-    return delivered;
   }
   observe(session: TerminalSession, event: AgentEvent, at: number): void {
     if (event.hook === "SessionEnd" && !event.subagent) { this.forgetSession(session.id); this.changed(); return; }

@@ -20,7 +20,8 @@ describe("early equipped exit", () => {
 
 describe("folder trust prompts", () => {
   it.each(["Do you trust the files in this folder?", "Yes, I trust this folder",
-    "Is this a project you created or one you trust?", "Trust project folder? /tmp/project"])(
+    "Is this a project you created or one you trust?", "Trust project folder? /tmp/project",
+    "Folder access\nTrust this folder? /tmp/project"])(
     "recognizes a Claude or pi prompt: %s", (output) => { expect(hasTrustPrompt(output)).toBe(true); },
   );
   it("ignores colours, OSC titles, and spaces drawn as cursor movements", () => {
@@ -58,6 +59,23 @@ describe("session readiness", () => {
     for (const hook of ["UserPromptSubmit", "PreToolUse", "PostToolUse", "PostToolUseFailure", "PreCompact"]) {
       expect(waitingAfterEvent({ state: "working", hook })).toBe(false);
     }
+  });
+
+  it("does not open delivery at Codex's first/resumed SessionStart before UserPromptSubmit", () => {
+    for (const interrupted of [false, true]) {
+      expect(waitingAfterEvent({ source: "codex", state: "idle", hook: "SessionStart" }, interrupted)).toBe(false);
+      expect(waitingAfterEvent({ source: "codex", state: "thinking", hook: "UserPromptSubmit" }, interrupted)).toBe(false);
+      for (const hook of ["Stop", "InterruptConfirmed", "PostCompact"]) {
+        expect(waitingAfterEvent({ source: "codex", state: "idle", hook }, interrupted)).toBe(true);
+      }
+    }
+  });
+
+  it("keeps Claude/pi arrival ready and ignores helper Codex starts", () => {
+    for (const source of ["claude-code", "pi"]) {
+      expect(waitingAfterEvent({ source, state: "idle", hook: "SessionStart" })).toBe(true);
+    }
+    expect(waitingAfterEvent({ source: "codex", state: "idle", hook: "SessionStart", subagent: { id: "helper" } })).toBeUndefined();
   });
 
   it("ignores interrupted-turn tool hooks until the next prompt", () => {

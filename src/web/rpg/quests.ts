@@ -14,6 +14,8 @@ import type { Project } from "../town/world";
 import { worktreeRequest, type BaseInfo } from "./expedition-bases";
 import { openReview } from "./review-window";
 import { reportQuestTitle } from "./report-links";
+import { heldNotice } from "./pending";
+import { sessionRequest, type Session } from "../terminal";
 
 const token = new URLSearchParams(location.search).get("token") ?? "";
 export async function questRequest(path = "", method = "GET", body?: unknown): Promise<any> {
@@ -49,7 +51,17 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
   const heroText = (id?: string) => id ? name(id) ?? hero(id)?.name ?? tr("町を去った勇者", "A hero who left") : "";
   const heroLabel = (quest: Quest) => heroText(quest.hero);
   // A saved owner may have left (for example across a server restart).
-  const ownerHere = (quest: Quest) => quest.hero ? Boolean(hero(quest.hero)) : Boolean(quest.session);
+  // An owner whose session has ended is not here either (it never arrived, or left before its first hook).
+  let ended = new Set<string>();
+  const ownerHere = (quest: Quest) => quest.hero ? Boolean(hero(quest.hero)) : Boolean(quest.session) && !ended.has(quest.session!);
+  function checkEnded(): void {
+    void sessionRequest().then((result) => {
+      const next = new Set((result as Session[]).filter((session) => session.exited).map((session) => session.id));
+      if (next.size === ended.size && [...next].every((id) => ended.has(id))) return;
+      ended = next; render();
+      if (selected && dialog.open && !editing()) void open(selected, true);
+    }).catch(() => undefined);
+  }
   function show(title: string): void { heading.textContent = title; coverMap(dialog); if (!dialog.open) dialog.showModal(); }
   const editing = () => Boolean(content.querySelector('[data-dirty="true"]')) || content.contains(document.activeElement);
   // Heroes now in a town, for choosing who takes a quest.
@@ -69,19 +81,19 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
       review: (id, session) => { dialog.close(); openReview(name(id) ?? hero(id)?.name ?? id, hero(id) ? session : { quest: quest.id },
         hero(id) ? (text) => text && draft ? draft(session, text) : talk(id) : undefined, hero(id) ? () => terminal?.(session) : undefined); },
       // A hero launched from the party window joins nothing yet; the window comes back with it chosen.
-      embark: (back, arrived) => { dialog.close(); embark(quest, back, { assign: false, arrived: (session) => arrived?.(session) }); },
+      embark: (gathering, back, arrived) => { dialog.close(); embark(quest, back, { assign: false, helper: gathering ? "gathering" : "now", arrived: (session) => arrived?.(session) }); },
       farewell, heroInfo, savedGear, sessionName: (session) => { const agent = heroesIn(quest.town).find((item) => item.terminal === session); return agent && (name(agent.id) ?? agent.name); },
     };
   }
   async function open(id: string, refresh = false): Promise<void> {
-    selected = id; const version = ++generation;
+    selected = id; const version = ++generation; checkEnded();
     const [quest, tactic]: [QuestDetail, TacticStatus | undefined] = await Promise.all([questRequest(`/${encodeURIComponent(id)}`),
       partyRequest(`quests/${encodeURIComponent(id)}/tactic`).catch(() => undefined)]);
     if (version !== generation || refresh && (!dialog.open || editing())) return;
     shown = { title: quest.title, purpose: quest.purpose, state: quest.state };
     const session = quest.session;
     content.replaceChildren(questCard(quest, {
-      heroName: heroText, ownerHere: ownerHere(quest),
+      heroName: heroText, ownerHere: ownerHere(quest), held: session ? heldNotice(session) : undefined,
       save: async (patch) => {
         if (patch.state) {
           const latest: QuestDetail = await questRequest(`/${encodeURIComponent(id)}`);
@@ -107,7 +119,7 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
       } : undefined,
       terminal: session ? () => { dialog.close(); terminal?.(session); } : undefined,
       // A hero launched for an ownerless quest becomes its owner; the card comes back at "send the request".
-      embark: () => { dialog.close(); embark(quest, undefined, { assign: true, arrived: () => void open(quest.id) }); },
+      embark: () => { dialog.close(); embark(quest, undefined, { assign: true, text: quest.purpose, arrived: () => open(quest.id) }); },
       fold: async () => {
         if (!quest.worktreePath) return;
         const info = await worktreeRequest<BaseInfo>("GET", quest.worktreePath);
@@ -196,7 +208,7 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
       primary.disabled = only.disabled = team.disabled = true;
       try {
         const quest: Quest = await questRequest("", "POST", { town: towns.value, title: questTitle(text), purpose: text });
-        if (choice === "embark" && send) { dialog.close(); embark(quest, undefined, { assign: true, arrived: () => void open(quest.id) }); return; }
+        if (choice === "embark" && send) { dialog.close(); embark(quest, undefined, { assign: true, text, arrived: () => open(quest.id) }); return; }
         if (choice && choice !== "embark") {
           await questRequest(`/${quest.id}/assign`, "POST", { session: choice });
           if (send) status.textContent = await sendRequest(quest.id, choice, text) ? tr("依頼を 届けた", "Request delivered") : tr("依頼を あずけた。勇者の 手が あいたら 届く", "Request held until the hero is free");
@@ -233,7 +245,7 @@ export function initQuests(town: () => string | undefined, projects: () => Proje
     });
   }
   function set(data: { quests: Quest[]; bindings: QuestBinding[]; reports?: QuestReportLink[]; members?: QuestMembership[] }): void {
-    quests = data.quests; bindings = data.bindings; members = data.members ?? []; signature = ""; render();
+    quests = data.quests; bindings = data.bindings; members = data.members ?? []; signature = ""; render(); checkEnded();
     if (selected && dialog.open) {
       if (!quests.some((quest) => quest.id === selected)) dialog.close();
       else if (!editing()) void open(selected, true);

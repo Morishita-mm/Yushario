@@ -68,7 +68,7 @@ const history: RecordedEvent[] = [];
 let externalBudget: ExternalEventBudget | undefined;
 const ledger = new TownLedger((towns) => broadcast({ type: "towns", towns }),
   (names) => broadcast({ type: "names", names }));
-const quests = new QuestLedger((message) => { broadcast(message); party.prune(new Set(message.quests.map((quest) => quest.id))); }, () => ledger.saveConversation);
+const quests = new QuestLedger((message) => { broadcast(message); party.prune(new Set(message.quests.map((quest) => quest.id))); }, () => ledger.saveConversation, (session) => { pty.clearTexts(session); party.clearRequests(session); });
 
 function record(event: AgentEvent): boolean {
   const { command, uncertain: _claimed, ...observed } = event;
@@ -147,7 +147,7 @@ async function dispatchHttp(request: IncomingMessage, response: ServerResponse):
     else if (questApi) {
       if (!await handleChecksRequest(request, response, url, quests, pty.listSessions)) await handleQuestRequest(request, response, url, quests, ledger.towns, pty.getSession, (id) => party.latestReply(id));
     }
-    else if (sessionApi) await pty.handleRequest(request, response, url);
+    else if (sessionApi) await pty.handleRequest(request, response, url, party);
     else await ledger.handleRequest(request, response, url);
     return;
   }
@@ -178,7 +178,7 @@ const server = createServer(dispatchHttp);
 port = await listenAvailable(server, options.port, mobile?.reservedMainPort);
 const sockets = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 });
 const pty = createPtyServer(port, (session) => ledger.register(session.projectName ?? session.project, session.cwd, session.createdAt, session.project, session.projectParent), broadcast,
-  record, (terminal) => { quests.forgetSession(terminal); party.forgetSession(terminal); broadcast(party.snapshot()); }, (id) => namedHero(ledger.names, id), broadcast, broadcast,
+  record, (terminal) => { quests.forgetSession(terminal); party.forgetSession(terminal); tactics.forgetSession(terminal); broadcast(party.snapshot()); }, (id) => namedHero(ledger.names, id), broadcast, broadcast,
   (session, text, hero) => quests.requested(session, text, Date.now(), hero));
 const party = new QuestParty(quests, pty, broadcast, record, (id) => namedHero(ledger.names, id));
 const tactics = new QuestTactics(party);

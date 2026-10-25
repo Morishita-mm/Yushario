@@ -3,6 +3,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { MAX_EVENT_TEXT_LENGTH, type AgentEvent } from "../core/events";
 import { equipmentInput, type AgentEquipment } from "../core/equipment";
 import { AGENTS } from "./agents";
+import { conversationText } from "../core/terminal-session";
 import { act, parseSessionAction, say } from "./pty-actions";
 import { requestEquipment } from "./pty-equipment";
 import type { EquippedMessage, PendingMessage, Session, TerminalSession } from "./pty-session";
@@ -33,6 +34,7 @@ export async function handlePtyAction(request: IncomingMessage, response: Server
       const action = parseSessionAction(value);
       if (action === "compact" && !AGENTS[session.info.preset].compact) { json(response, 409, { error: tr("この勇者は 会話の整理に対応していない。", "This hero cannot summarize the conversation") }); return false; }
       if (action === "interrupt" && !AGENTS[session.info.preset].hero) { json(response, 409, { error: tr("このターミナルでは 勇者のコマンドを使えない。", "This terminal has no hero commands") }); return false; }
+      if (action === "compact" && session.asking) { json(response, 409, { error: tr("勇者が へんじを待っている。先にこたえよう。", "Your hero awaits your answer. Answer first") }); return false; }
       if (action === "compact" && !session.waiting) { json(response, 409, { error: tr("勇者は作業中。終わってから やすませよう。", "Your hero is busy. Rest after battle") }); return false; }
       await act(session, action, changed);
       if (action === "interrupt" && session.agentId) recordEvent({ state: "working", hook: "Interrupt",
@@ -42,12 +44,15 @@ export async function handlePtyAction(request: IncomingMessage, response: Server
     }
     if (!AGENTS[session.info.preset].hero) { json(response, 409, { error: tr("このターミナルは 町での会話に対応していない。", "This terminal cannot talk in town") }); return false; }
     const fields = value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
-    const text = fields.text;
-    if (typeof text !== "string" || text.length < 1 || text.length > MAX_EVENT_TEXT_LENGTH) {
+    const text = typeof fields.text === "string" ? conversationText(fields.text) : undefined;
+    if (!text || (fields.text as string).length > MAX_EVENT_TEXT_LENGTH) {
       json(response, 400, { error: tr("ことばは 1〜8000文字で。", "Use 1–8000 characters") }); return false;
     }
     // steer: tell a working hero now; the CLI reads it after the current tool (Claude Code and pi queue typed input).
-    const steer = fields.steer === true && !session.waiting;
+    const steer = fields.steer === true;
+    if (steer && !session.hasMainHook) {
+      json(response, 409, { error: tr("起動を まだ確認できない。ターミナルで 信頼・起動の確認をしよう。", "Startup is not confirmed. Check trust and startup in the terminal first") }); return false;
+    }
     if (steer && session.asking) {
       json(response, 409, { error: tr("勇者が へんじを待っている。先にこたえよう。", "Your hero awaits your answer. Answer first") }); return false;
     }

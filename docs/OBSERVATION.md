@@ -5,7 +5,7 @@
 売りは **エージェントの様子を細かく描写すること**。「作業中」の一言で済ませず、
 **何を・どう・どれくらい** やっているかを、視界の端でも読み取れる形で見せる。
 
-現在の対象は **Claude Code・pi・Codex 0.162.1**。shell はターミナルのみ（勇者は出ない）。Codex の制限は下記「Codex」の表、操作と対応範囲の最新仕様は `docs/PLATFORM.md` の最新段階、現在の構成は `docs/ARCHITECTURE.md` を参照。
+現在の対象は **Claude Code・pi・Codex 0.164.0**。shell はターミナルのみ（勇者は出ない）。Codex の制限は下記「Codex」の表、操作と対応範囲の最新仕様は `docs/PLATFORM.md` の最新段階、現在の構成は `docs/ARCHITECTURE.md` を参照。
 
 ## 方針の選択肢
 
@@ -62,7 +62,7 @@ pi は拡張で同じ AgentEvent に変換する。session_start / before_agent_
 
 ## Codex（段階20）
 
-公式 [hooks](https://developers.openai.com/codex/hooks) と [0.162.1 の入力スキーマ](https://github.com/openai/codex/tree/rust-v0.162.1/codex-rs/hooks/schema/generated) を使う。`-c hooks.<Event>=[...]` と `features.hooks=true` を起動に付け、`--no-daemon` で端末専用の環境を保つ。Yushario は `~/.codex` を書き換えず、信頼の迂回もしない。Codex の `/hooks` で利用者がフックを確かめ、最初の依頼をターミナルから送る。管理者がユーザーフックを禁止している環境では観察できない。
+公式 [hooks](https://developers.openai.com/codex/hooks) と [0.164.0 の入力スキーマ](https://github.com/openai/codex/tree/rust-v0.164.0/codex-rs/hooks/schema/generated)（0.162.1 から変更なし） を使う。`-c hooks.<Event>=[...]` と `features.hooks=true` を起動に付け、`--no-daemon` で端末専用の環境を保つ。Yushario は `~/.codex` を書き換えず、信頼の迂回もしない。観察には Codex 自身のターミナルの `/hooks` で利用者がフックを確かめて信頼する必要がある。新規クエスト勇者は3 CLI とも依頼を起動時の初期プロンプトで受け取る（PTY への後追い入力はしない）。Codex 0.164.0 は最初の依頼後に SessionStart を送る。管理者がユーザーフックを禁止している環境では観察できない。
 
 | 公式フック | 変換・観察の範囲 |
 |---|---|

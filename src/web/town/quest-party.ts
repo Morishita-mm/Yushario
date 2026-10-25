@@ -15,7 +15,7 @@ export type PartyHero = PartyMember & { name: string; active: boolean; canTalk?:
 // `talk`: the conversation this page has seen, which has the words even when the quest log keeps none.
 export type HeroInfo = { portrait?: HTMLCanvasElement; gear?: string; mp?: number; level?: number; here?: boolean; doing?: string; talk?: readonly TalkEntry[] };
 export type PartyControls = {
-  talk: (hero: string, session: string) => void; review: (hero: string, session: string) => void; embark: (back?: () => void, arrived?: (session: Session) => void) => void;
+  talk: (hero: string, session: string) => void; review: (hero: string, session: string) => void; embark: (gathering: boolean, back?: () => void, arrived?: (session: Session) => void) => void;
   farewell?: (hero: string) => void; sessionName?: (session: string) => string | undefined; heroInfo?: (session: string) => HeroInfo; savedGear?: (preset: string | undefined, gear: { weapon?: string; accessory?: string }) => string; mock?: PartyHero[];
 };
 const token = new URLSearchParams(location.search).get("token") ?? "";
