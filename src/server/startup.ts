@@ -25,8 +25,9 @@ export function startupOptions(args: string[]): StartupOptions {
 }
 
 // Bind the real server rather than probe-and-close: no gap for another process to take the port.
-export async function listenAvailable(server: Server, start: number): Promise<number> {
+export async function listenAvailable(server: Server, start: number, reservedPort?: number): Promise<number> {
   for (let port = start; port <= 65535; port++) {
+    if (port === reservedPort) continue;
     try {
       await new Promise<void>((resolve, reject) => {
         const error = (error: Error): void => { server.off("listening", ready); reject(error); };

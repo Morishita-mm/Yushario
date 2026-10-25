@@ -24,12 +24,14 @@ export class PermissionWaiter {
     });
   }
 
-  decide(id: unknown, decision: unknown): boolean {
+  decide(id: unknown, decision: unknown, beforeFinish?: () => void): boolean {
     const item = typeof id === "string" ? this.waiting.get(id) : undefined;
     if (!item || (decision !== "allow" && decision !== "deny" && decision !== "terminal")) return false;
     const at = Date.now();
     if (at >= item.permission.expiresAt) { item.finish("terminal"); return false; }
     if (!permissionCanDecide(item.permission, decision, at)) return false;
+    // Mobile audit must be durable before a human's answer is delivered to the hook.
+    beforeFinish?.();
     item.finish(decision);
     return true;
   }

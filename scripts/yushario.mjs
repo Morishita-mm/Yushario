@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 
-const help = `Usage / 使い方: yushario [--port <1-65535>] [--no-open]
+const help = `Usage / 使い方: yushario [--port <1-65535>] [--no-open] [--mobile <host:port>]
   --help, -h     Show help and exit / 使い方を表示して終了
   --port        First port to try (default 8790) / 最初に試すポート（既定8790）
   --no-open     Do not open a browser / ブラウザを自動で開かない
+  --mobile      Enable separate phone gateway at host:port (default off)
+                スマホ窓口の待受（例 127.0.0.1:8791、IPv6 [::1]:8791）。既定は停止
   PORT          Default port; --port overrides it / ポートの既定値（--port が優先）
   AGENT_CHARACTER_HOME  Data folder (default ~/.config/agent-character)
                         データフォルダ（既定 ~/.config/agent-character）

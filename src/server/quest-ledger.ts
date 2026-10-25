@@ -53,6 +53,7 @@ export class QuestLedger {
   summary(id: string) { return this.db.summary(id); }
   reportsAfter(session: string, at: number) { return this.db.reportsAfter(session, at); }
   reportLink(hero: string, at: number) { return this.db.reportLink(hero, at); }
+  recentReports() { return this.db.recentReports(); }
   reportQuest(session: string, at: number) { return this.db.reportQuest(session, at); }
   get checks() { return this.db.checks; }
   checksChanged(): void { this.notify(); }

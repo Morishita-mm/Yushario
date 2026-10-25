@@ -1,0 +1,119 @@
+import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { networkInterfaces } from "node:os";
+import type { MobileHero, MobileReport, MobileResponse } from "../../core/mobile-display";
+import { mobileInteger, mobileReplayAllowed, parseMobilePacket } from "../../core/mobile-protocol";
+import { mobileBindSharesMainPort } from "../../core/startup";
+import type { PermissionWaiter } from "../permissions";
+import { openMobileRequest, sealMobileResponse } from "./crypto";
+import { MobileStore } from "./store";
+import { MobilePairing } from "./pairing";
+import { MobileRateLimit, mobileJson, mobileRejected, readMobileJson } from "./http";
+import { mobileOperation, mobilePermissionViews } from "./operations";
+import { MobilePush } from "./push";
+
+export class MobileGateway {
+  readonly store: MobileStore;
+  readonly pairing: MobilePairing;
+  private readonly push: MobilePush;
+  heroes: MobileHero[] = [];
+  reports: MobileReport[] = [];
+  addresses: string[] = [];
+  reservedMainPort?: number;
+  private readonly rate = new MobileRateLimit();
+  private readonly server = createServer((request, response) => { void this.handle(request, response); });
+  constructor(directory: string, private readonly permissions: PermissionWaiter) {
+    this.store = new MobileStore(directory); this.pairing = new MobilePairing(this.store); this.push = new MobilePush(this.store);
+    this.server.headersTimeout = 10_000; this.server.requestTimeout = 15_000;
+    this.server.on("upgrade", (_request, socket) => socket.end("HTTP/1.1 400 Bad Request\r\nConnection: close\r\nContent-Type: application/json\r\nContent-Length: 20\r\n\r\n{\"error\":\"rejected\"}"));
+    this.server.on("clientError", (_error, socket) => {
+      if (socket.writable) socket.end("HTTP/1.1 400 Bad Request\r\nConnection: close\r\nContent-Type: application/json\r\nContent-Length: 20\r\n\r\n{\"error\":\"rejected\"}");
+    });
+  }
+  async listen(host: string, port: number): Promise<void> {
+    if (host === "0.0.0.0" || host === "::") console.warn("WARNING: Mobile gateway listens on ALL interfaces / 警告：スマホ窓口を全アドレスで公開します。LAN/Tailscale 以外へ公開しないでください。");
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const error = (error: Error): void => { this.server.off("listening", ready); reject(error); };
+        const ready = (): void => { this.server.off("error", error); resolve(); };
+        this.server.once("error", error); this.server.once("listening", ready); this.server.listen(port, host);
+      });
+      const address = this.server.address();
+      if (!address || typeof address === "string") throw Error("Mobile listener unavailable");
+      this.reservedMainPort = mobileBindSharesMainPort(address.address) ? address.port : undefined;
+      const hosts = host === "0.0.0.0" || host === "::" ? Object.values(networkInterfaces()).flat()
+        .filter(item => item && !item.internal && !item.address.includes("%"))
+        .map(item => item!.address).slice(0, 8) : [host];
+      this.addresses = (hosts.length ? hosts : ["127.0.0.1"]).map(host => `http://${host.includes(":") ? `[${host}]` : host}:${address.port}`);
+    } catch (cause) {
+      this.store.close();
+      const address = `${host.includes(":") ? `[${host}]` : host}:${port}`;
+      const occupied = (cause as NodeJS.ErrnoException).code === "EADDRINUSE";
+      throw new Error(occupied
+        ? `Mobile gateway ${address} is already in use; choose another --mobile host:port. / スマホ窓口 ${address} は使用中です。--mobile のポートを変えてください。`
+        : `Cannot bind mobile gateway ${address}; check --mobile host:port. / スマホ窓口 ${address} を開けません。--mobile のアドレスとポートを確認してください。`, { cause });
+    }
+    this.server.on("error", () => console.error("Mobile listener error / スマホ窓口でエラー"));
+  }
+  startPairing(addresses = this.addresses) { this.pairing.start(addresses); return this.snapshot(); }
+  confirm(deviceId: string, approve: boolean): boolean { return this.pairing.confirm(deviceId, approve); }
+  cancelPairing(): void { this.pairing.cancel(); }
+  permissionViews() { return mobilePermissionViews(this.permissions, this.heroes); }
+  snapshot() {
+    return { enabled: true as const, addresses: this.addresses,
+      devices: this.store.devices.map(({ id, name, createdAt, lastSeenAt }) => ({ id, name, createdAt, lastSeenAt })),
+      pairing: this.pairing.snapshot(), pushResults: this.push.results() };
+  }
+  notify(kind: "permission" | "report" | "error"): void { this.push.notify(kind); }
+  testPush(deviceId: string): boolean {
+    if (!this.store.devices.some(device => device.id === deviceId)) return false;
+    this.push.notify("permission", deviceId); return true;
+  }
+  private async handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
+    let pairCandidate = false;
+    try {
+      if (request.url !== "/mobile/v1" || request.method !== "POST" || request.headers.origin !== undefined
+        || request.headers["content-encoding"] !== undefined || !["application/json", "application/json; charset=utf-8"].includes(request.headers["content-type"] ?? "")
+        || !this.rate.allow(`ip:${request.socket.remoteAddress ?? "unknown"}`)) throw Error("Invalid mobile transport");
+      pairCandidate = true;
+      const input = await readMobileJson(request);
+      if (input && typeof input === "object" && mobileInteger((input as { v?: unknown }).v) && (input as { v: number }).v !== 1) {
+        mobileJson(response, { error: "version", supportedVersion: 1 }, 426); return;
+      }
+      const packet = parseMobilePacket(input);
+      if (!packet) throw Error("Invalid mobile packet");
+      const device = this.store.devices.find(device => device.id === packet.deviceId);
+      pairCandidate = !device;
+      if (device) {
+        if (device.phoneEncryptionKey !== packet.phoneEncryptionKey || device.phoneSigningKey !== packet.phoneSigningKey
+          || !this.rate.allow(`device:${device.id}`)) throw Error("Invalid mobile device");
+      } else if (!this.pairing.available()) throw Error("Pairing unavailable");
+      const envelope = openMobileRequest(packet, this.store.identity);
+      let result: MobileResponse;
+      if (!device) {
+        const pending = this.pairing.request(envelope, packet);
+        const disconnected = (): void => this.pairing.cancel(packet.deviceId);
+        response.once("close", disconnected);
+        const approved = await pending;
+        response.off("close", disconnected);
+        if (!approved || response.destroyed) throw Error("Pairing rejected");
+        result = { v: 1, deviceId: envelope.deviceId, seq: envelope.seq, timestamp: Date.now(), operation: "pair", body: { registered: true } };
+      } else {
+        if (envelope.operation === "pair" || !mobileReplayAllowed(envelope.seq, envelope.timestamp, device.lastSeq, Date.now())) throw Error("Invalid mobile replay");
+        this.store.advance(device.id, envelope.seq, Date.now()); // Durable before effects and before response encryption.
+        const operation = mobileOperation(envelope, this.store, this.permissions, this.heroes, this.reports);
+        result = { v: 1, deviceId: envelope.deviceId, seq: envelope.seq, timestamp: Date.now(), ...operation };
+      }
+      const encrypted = sealMobileResponse(result, this.store.identity, packet.phoneEncryptionKey, packet.phoneSigningKey);
+      if (envelope.operation === "unpair") this.store.remove(envelope.deviceId);
+      mobileJson(response, encrypted);
+    } catch {
+      if (pairCandidate) this.pairing.failed();
+      mobileRejected(response);
+    }
+  }
+  async close(): Promise<void> {
+    this.cancelPairing(); this.push.close();
+    await new Promise<void>(resolve => { this.server.close(() => resolve()); this.server.closeAllConnections(); });
+    this.store.close();
+  }
+}

@@ -1,4 +1,9 @@
 import { randomBytes } from "node:crypto";
+import { join } from "node:path";
+import { Room } from "../core/room";
+import { MobileGateway } from "./mobile/gateway";
+import { handleMobileApi } from "./mobile/api";
+import { mobileHeroes, mobileReports } from "./mobile/data";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import type { Duplex } from "node:stream";
 import { WebSocket, WebSocketServer, type RawData } from "ws";
@@ -25,11 +30,20 @@ import { createPtyServer } from "./pty";
 import { AGENTS } from "./agents";
 import { PermissionWaiter } from "./permissions";
 import { allowedHost } from "../core/local-request";
-import { listenAvailable, openBrowser, prepareDataDirectory, startupOptions } from "./startup";
+import { dataDirectory, listenAvailable, openBrowser, prepareDataDirectory, startupOptions } from "./startup";
 import { printStartupLogo } from "./startup-logo";
 
 const permissions = new PermissionWaiter();
+let mobile: MobileGateway | undefined, mobileRoom: Room | undefined;
+function refreshMobile(): void {
+  if (!mobile || !mobileRoom) return;
+  mobile.heroes = mobileHeroes(mobileRoom, ledger.names, ledger.towns);
+  mobile.reports = mobileReports(quests.recentReports(), ledger.saveConversation);
+}
 function broadcast(message: object): void {
+  const type = (message as { type?: string }).type;
+  if (type === "permission") mobile?.notify("permission");
+  if (["names", "towns", "quests"].includes(type ?? "")) refreshMobile();
   const json = JSON.stringify(message);
   for (const client of sockets.clients) {
     if (client.readyState === WebSocket.OPEN) client.send(json);
@@ -67,12 +81,16 @@ function record(event: AgentEvent): boolean {
     catch (error) { console.error("Town activity save failed:", error); }
   }
   history.push({ event, at });
+  if (session && AGENTS[session.preset].hero) mobileRoom?.apply(event, at);
   if (history.length > EVENT_HISTORY_LIMIT) history.splice(historyDiscardIndex(history), 1);
   broadcast({ type: "event", event, at });
   if (session) pty.observe(event, at);
   if (session) try { party.observe(session, event, at); } catch (error) { console.error("Party save failed:", error); }
   if (session) try { tactics.observe(session, event, at); } catch (error) { console.error("Tactic failed:", error); }
   if (session) try { observeChecks(quests, session, { ...event, command }, at, pty.listSessions()); } catch (error) { console.error("Check save failed:", error); }
+  refreshMobile();
+  if (session && !event.subagent && ["Stop", "StopFailure"].includes(event.hook ?? "")) mobile?.notify(event.hook === "StopFailure" ? "error" : "report");
+  else if (session && event.state === "error") mobile?.notify("error");
   return true;
 }
 
@@ -103,10 +121,12 @@ async function dispatchHttp(request: IncomingMessage, response: ServerResponse):
   const reviewApi = url.pathname === "/api/review" || url.pathname === "/api/review/diff" || url.pathname === "/api/review/verdict";
   const worktreeApi = url.pathname === "/api/worktrees";
   const previewApi = url.pathname === "/api/previews";
+  const mobileApi = url.pathname === "/api/mobile" || url.pathname.startsWith("/api/mobile/");
   const partyApi = url.pathname === "/api/party-notices" || url.pathname.startsWith("/api/party-notices/") || /^\/api\/quests\/[^/]+\/(party|scroll|send|summary|handoff|tactic|research|notes)$/.test(url.pathname);
-  if (sessionApi || townApi || questApi || reviewApi || worktreeApi || previewApi || partyApi) {
+  if (sessionApi || townApi || questApi || reviewApi || worktreeApi || previewApi || partyApi || mobileApi) {
     if (!authorized(url, request.headers.origin, false)) { response.writeHead(403).end(); return; }
-    if (partyApi) await handlePartyRequest(request, response, url, party, tactics);
+    if (mobileApi) await handleMobileApi(request, response, url, mobile);
+    else if (partyApi) await handlePartyRequest(request, response, url, party, tactics);
     else if (previewApi) await handlePreview(request, response, url, port, quests, ledger.towns, pty.listSessions());
     else if (worktreeApi) await handleWorktrees(request, response, url, pty.listSessions, (path) => quests.foldedWorktree(path));
     else if (reviewApi) await handleReview(request, response, url, pty.getSession(url.searchParams.get("session") ?? ""),
@@ -119,11 +139,12 @@ async function dispatchHttp(request: IncomingMessage, response: ServerResponse):
     else await ledger.handleRequest(request, response, url);
     return;
   }
+  if (url.pathname === "/mobile/v1") { response.writeHead(404).end(); return; }
   if (request.url !== "/event" && request.url !== "/hooks/permission") {
     await serveStatic(request, response);
     return;
   }
-  await receiveHook(request, response, pty, quests, permissions, sockets, record, broadcast);
+  await receiveHook(request, response, pty, quests, permissions, sockets, record, broadcast, Boolean(mobile?.store.devices.length));
 }
 
 function reviewed(url: URL): void {
@@ -134,14 +155,21 @@ function reviewed(url: URL): void {
   } catch (error) { console.error("Quest review save failed:", error); }
 }
 
+// Reserve mobile first and exclude overlapping addresses explicitly: some OSes
+// allow a later loopback listener to share a wildcard listener's port.
+if (options.mobile) {
+  mobileRoom = new Room(); mobile = new MobileGateway(join(dataDirectory, "mobile"), permissions);
+  await mobile.listen(options.mobile.host, options.mobile.port);
+}
 const server = createServer(dispatchHttp);
-port = await listenAvailable(server, options.port);
+port = await listenAvailable(server, options.port, mobile?.reservedMainPort);
 const sockets = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 });
 const pty = createPtyServer(port, (session) => ledger.register(session.projectName ?? session.project, session.cwd, session.createdAt, session.project, session.projectParent), broadcast,
   record, (terminal) => { quests.forgetSession(terminal); party.forgetSession(terminal); broadcast(party.snapshot()); }, (id) => namedHero(ledger.names, id), broadcast, broadcast,
   (session, text, hero) => quests.requested(session, text, Date.now(), hero));
 const party = new QuestParty(quests, pty, broadcast, record, (id) => namedHero(ledger.names, id));
 const tactics = new QuestTactics(party);
+refreshMobile();
 function archive(): void {
   try { ledger.archive(pty.activeTownKeys(), Date.now()); }
   catch (error) { console.error("Town archive failed:", error); }
@@ -190,7 +218,7 @@ function connectSocket(client: WebSocket): void {
   for (const permission of permissions.pending) client.send(JSON.stringify({ ...permission, live: false }));
   client.on("message", receiveDecision);
   client.once("close", () => {
-    if (![...sockets.clients].some((socket) => socket.readyState === WebSocket.OPEN)) permissions.cancel();
+    if (!mobile?.store.devices.length && ![...sockets.clients].some((socket) => socket.readyState === WebSocket.OPEN)) permissions.cancel();
   });
 }
 function receiveDecision(data: RawData, binary: boolean): void {
@@ -215,11 +243,11 @@ function shutdown(): void {
   quests.close();
   for (const client of sockets.clients) client.terminate();
   sockets.close();
-  server.close(() => process.exit());
+  void (async () => { await mobile?.close(); server.close(() => process.exit()); })();
 }
 process.once("SIGINT", shutdown);
 process.once("SIGTERM", shutdown);
-process.once("exit", () => pty.dispose());
+process.once("exit", () => { pty.dispose(); mobile?.store.close(); });
 
 function announceStartup(): void {
   const url = `http://127.0.0.1:${port}/?token=${token}`;
@@ -227,6 +255,7 @@ function announceStartup(): void {
   printStartupLogo();
   console.log(`Open ${url}`);
   console.log(`Terminal: http://127.0.0.1:${port}/terminal.html?token=${token}`);
+  if (mobile) console.log(`Mobile / スマホ窓口: ${mobile.addresses.join(", ")} (open スマホ on the Mac to pair)`);
   if (options.open) openBrowser(url);
 }
 announceStartup();
