@@ -4,16 +4,28 @@ import { appendFileSync, chmodSync, closeSync, existsSync, fsyncSync, mkdirSync,
 import { join, resolve } from "node:path";
 import { mobileBase64url, mobileInteger, mobileObject, mobilePushToken, mobileText } from "../../core/mobile-protocol";
 import { generateMobileIdentity, mobileIdentity, type MobileIdentity } from "./crypto";
+import type { MobilePushKind } from "../../core/mobile-push";
 
 export type MobileDevice = { id: string; phoneEncryptionKey: string; phoneSigningKey: string; name: string;
-  pushToken: string | null; lastSeq: number; createdAt: number; lastSeenAt: number };
+  pushToken: string | null; lastSeq: number; createdAt: number; lastSeenAt: number; allowWork: boolean; notifiedKinds: MobilePushKind[] };
 export type MobileAudit = { deviceId: string; permissionId: string; result: "allow" | "deny"; time: number };
 
+const deviceKeys = ["id", "phoneEncryptionKey", "phoneSigningKey", "name", "pushToken", "lastSeq", "createdAt", "lastSeenAt"];
 function validDevice(value: unknown): value is MobileDevice {
-  return mobileObject(value, ["id", "phoneEncryptionKey", "phoneSigningKey", "name", "pushToken", "lastSeq", "createdAt", "lastSeenAt"])
+  return mobileObject(value, [...deviceKeys, "allowWork", "notifiedKinds"]) && typeof value.allowWork === "boolean"
+    && Array.isArray(value.notifiedKinds) && value.notifiedKinds.length <= 3
+    && value.notifiedKinds.every(kind => ["permission", "report", "error"].includes(kind))
+    && new Set(value.notifiedKinds).size === value.notifiedKinds.length
     && mobileBase64url(value.id, 32) && mobileBase64url(value.phoneEncryptionKey, 32) && mobileBase64url(value.phoneSigningKey, 32)
     && mobileText(value.name, 80) && !/[\u0000-\u001f\u007f]/.test(value.name) && mobilePushToken(value.pushToken)
     && mobileInteger(value.lastSeq, 1) && mobileInteger(value.createdAt) && mobileInteger(value.lastSeenAt);
+}
+
+// Older records default to no work capability and no unseen notifications, without resetting keys/sequence.
+function storedDevice(input: unknown): MobileDevice | undefined {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return;
+  const value = { allowWork: false, notifiedKinds: [], ...input };
+  return validDevice(value) ? value : undefined;
 }
 
 // One mobile gateway owns this directory. Locking prevents two processes reusing response nonces.
@@ -41,16 +53,16 @@ export class MobileStore {
         const value: unknown = JSON.parse(readFileSync(this.stateFile, "utf8"));
         if (!mobileObject(value, ["v", "encryptionPrivateKey", "signingPrivateKey", "devices"]) || value.v !== 1
           || typeof value.encryptionPrivateKey !== "string" || typeof value.signingPrivateKey !== "string"
-          || !Array.isArray(value.devices) || value.devices.length > 5 || !value.devices.every(validDevice)
+          || !Array.isArray(value.devices) || value.devices.length > 5 || !value.devices.every(device => storedDevice(device))
           || new Set(value.devices.map(device => device.id)).size !== value.devices.length) throw Error("Invalid mobile state; preserve the file and repair it manually");
         this.identity = mobileIdentity(value.encryptionPrivateKey, value.signingPrivateKey);
-        this.records = value.devices;
+        this.records = value.devices.map(device => storedDevice(device)!);
       } else {
         this.identity = generateMobileIdentity(); this.save([]);
       }
     } catch (error) { rmSync(this.lock, { force: true }); throw error; }
   }
-  get devices(): MobileDevice[] { return this.records.map(device => ({ ...device })); }
+  get devices(): MobileDevice[] { return this.records.map(device => ({ ...device, notifiedKinds: [...device.notifiedKinds] })); }
   private lockFailure(): Error {
     let owner = "";
     try {
@@ -81,14 +93,17 @@ export class MobileStore {
       this.records = devices;
     } finally { rmSync(temp, { force: true }); }
   }
-  put(device: MobileDevice): void {
+  // Only Mac confirmation or setAllowWork may opt in; later updates preserve that choice.
+  put(input: Omit<MobileDevice, "allowWork" | "notifiedKinds"> & { allowWork?: boolean; notifiedKinds?: MobilePushKind[] }): void {
+    const previous = this.records.find(item => item.id === input.id);
+    const device = { ...input, allowWork: input.allowWork ?? previous?.allowWork ?? false,
+      notifiedKinds: [...(input.notifiedKinds ?? previous?.notifiedKinds ?? [])] };
     if (!validDevice(device)) throw Error("Invalid mobile device");
-    const previous = this.records.find(item => item.id === device.id);
     if (previous && (previous.phoneEncryptionKey !== device.phoneEncryptionKey || previous.phoneSigningKey !== device.phoneSigningKey
       || device.lastSeq < previous.lastSeq)) throw Error("Cannot reset mobile identity or sequence");
     const records = this.records.filter(item => item.id !== device.id);
     if (records.length >= 5) throw Error("Too many mobile devices");
-    this.save([...records, { ...device }]);
+    this.save([...records, device]);
   }
   remove(id: string): boolean {
     if (!this.records.some(device => device.id === id)) return false;
@@ -97,13 +112,24 @@ export class MobileStore {
   advance(id: string, seq: number, at: number): MobileDevice {
     const previous = this.records.find(device => device.id === id);
     if (!previous || !mobileInteger(seq, 1) || seq <= previous.lastSeq || !mobileInteger(at)) throw Error("Invalid mobile sequence");
-    const device = { ...previous, lastSeq: seq, lastSeenAt: at };
+    const device = { ...previous, lastSeq: seq, lastSeenAt: at, notifiedKinds: [] };
     this.put(device); return device;
+  }
+  markNotified(id: string, kind: MobilePushKind, sentAtSeq: number): void {
+    const device = this.records.find(item => item.id === id);
+    // A late ticket cannot re-suppress a phone that has already connected, or recreate a revoked device.
+    if (!device || device.lastSeq !== sentAtSeq || device.notifiedKinds.includes(kind)) return;
+    this.put({ ...device, notifiedKinds: [...device.notifiedKinds, kind] });
   }
   setPushToken(id: string, token: string | null): void {
     const previous = this.records.find(device => device.id === id);
     if (!previous || !mobilePushToken(token)) throw Error("Invalid mobile push token");
     this.put({ ...previous, pushToken: token });
+  }
+  setAllowWork(id: string, allowWork: boolean): void {
+    const previous = this.records.find(device => device.id === id);
+    if (!previous || typeof allowWork !== "boolean") throw Error("Invalid mobile work setting");
+    this.put({ ...previous, allowWork });
   }
   audit(entry: MobileAudit): void {
     if (!mobileBase64url(entry.deviceId, 32) || !mobileText(entry.permissionId, 200)

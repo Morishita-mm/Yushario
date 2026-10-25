@@ -61,7 +61,7 @@ Yushario と勇者は同じ OS 利用者で動く。悪意ある同一利用者�
 | `src/core/turns.ts` | 進行中の往復の累計、最後のテスト結果と異常終了、直近256イベント内の遅着補正、許可待ちを除いた所要時間、報告の付与 | events, activity |
 | `src/core/event-history.ts` | 2000件の履歴から、勇者ごとの件数と保護するイベントに基づいて捨てる順を決める | events |
 | `src/core/permissions.ts` | 許可の表示用要約・回答 JSON、期限と省略本文の回答可否、端末／仲間に限定した進行の判定 | events |
-| `src/core/mobile-protocol.ts`, `mobile-display.ts`, `mobile-signing.ts`, `mobile-pairing.ts`, `mobile-push.ts` | モバイル v1 の本文・許可リスト・連番／時刻窓・署名／hash 入力・nonce・コードの遷移・SAS の桁・固定通知・receipt と安全な診断値の検査 | core の型・関数のみ |
+| `src/core/mobile-protocol.ts`, `mobile-display.ts`, `mobile-hero.ts`, `mobile-permission.ts`, `permission-change.ts`, `mobile-quests.ts`, `mobile-work.ts`, `mobile-work-display.ts`, `mobile-signing.ts`, `mobile-pairing.ts`, `mobile-push.ts` | モバイル v1 の本文・許可リスト（作業の6操作の固定 shape と本人確認が要る操作の判定を含む）・連番／時刻窓・署名／hash 入力・nonce・コードの遷移・SAS の桁・固定通知・receipt と安全な診断値の検査 | core の型・関数のみ |
 | `src/core/terminal-session.ts` | 起動入力のフィールド検査、端末の行列数、保持出力の行・UTF-8 バイト境界 | なし |
 | `src/core/terminal-modes.ts` | 端末の出力の切り捨てた部分で有効になったモード（別画面・マウス・貼り付け等）を覚え、開き直した時に先に送る | なし |
 | `src/core/local-request.ts` | 実際の待受ポートに対する Host の判定 | なし |
@@ -189,7 +189,7 @@ Codex の PostToolUse は成否不明として扱い、成功数・報告のテ�
 | `WS /pty?session=<id>` | 同じ端末の保持出力とライブ出力。web からは `input` / `resize`。停止の確認待ちでも人が調べて復旧できるよう入力を受ける |
 | `/api/roster` | 旅立った勇者の一覧と `/:sessionId/recall` で再開 |
 | `/api/names`, `/api/towns`, `/api/settings` | 名前、町の鍵で引く台帳・すがた、町をしまうまでの日数・`saveConversation`（既定 false） |
-| `/api/mobile` と配下の `/pair`、`/confirm`、`/cancel`、`/devices/:id`、`/test-push` | 同じ Host／Origin／画面 token 検査。起動の有無、公開用アドレス、登録の最小情報と QR／SAS の表示・人の確認・取り消し。秘密鍵・端末公開鍵の台帳・通知 ID・連番は返さず、WS にも流さない |
+| `/api/mobile` と配下の `/pair`、`/confirm`、`/cancel`、`/devices/:id`、`/devices/:id/work`、`/test-push` | 同じ Host／Origin／画面 token 検査。起動の有無、公開用アドレス、登録の最小情報と QR／SAS の表示・人の確認・取り消し、端末ごとの作業許可（既定 off）。秘密鍵・端末公開鍵の台帳・通知 ID・連番は返さず、WS にも流さない |
 | `/api/review?session=<id>` または `?quest=<id>` | GET 既知の端末／保存クエスト拠点の cwd・branch・短い HEAD・上流との差・変更一覧と行の増減。`mode=uncommitted`（既定）／`branch`、`base=<branch>`。comparison に候補・既定・選んだ元・mergeBase を返す。既定の元は origin/HEAD → main → master。成功した読み取りは `QuestLedger.reviewed` で記録 |
 | `/api/review/verdict?session=<id>`（`quest` でも可） | POST `{verdict:"approved"|"changes",mode,base?}`。拠点は鑑定の読み取りと同じ選び方。サーバーが branch・HEAD・作業状態の指紋を読み、出来事 `verdict` に残す。窓を開いた記録（`reviewed`、「かんていを ひらいた」）とは別（段階21） |
 | `/api/review/diff?session=<id>&path=<相対パス>`（`quest` でも可） | GET 同じ mode・base の1ファイルの unified diff、または binary／tooLarge の印。相対パスと実パスの両方で cwd の外を拒否。任意の cwd は受け付けない |
@@ -216,8 +216,17 @@ Codex の PostToolUse は成否不明として扱い、成功数・報告のテ�
 
 ### server ↔ mobile: 独立した HTTP 窓口
 
-`--mobile <host:port>` の時だけ、指定先へ別 listener を bind する（既定は停止）。`POST /mobile/v1` だけで `pair/status/permissions/decide/reports/push-token/unpair` を扱い、既存の HTTP／WS 経路へ転送しない。正確な body・署名・暗号・一般拒否は `MOBILE-PROTOCOL.md`。`decide` は同じ `PermissionWaiter.decide` に通し、ブラウザとの先着1件だけを採る。
-Mac の「スマホ」は起動時だけ表示し、5分の QR／コピー文字列、6桁 SAS の承認／拒否、端末の取り消しを既存の認可済み API で行う。QR の符号化だけ `qrcode-generator`（依存なし）を使い、自作しない。開いている間だけ状態を読む。端末ごとの通知結果と固定文言のテスト送信もこの認可済み画面だけに置き、receipt の成功を端末の表示・閲覧と混同しない。
+`--mobile <host:port>` の時だけ、指定先へ別 listener を bind する（既定は停止）。`POST /mobile/v1` だけで `pair/status/permissions/decide/reports/push-token/unpair/towns/quests/quest-create` と作業の `quest-options/quest-draft/quest-prepare/quest-form/quest-embark/quest-depart` を扱い、既存の HTTP／WS 経路へ転送しない。正確な body・署名・暗号・一般拒否は `MOBILE-PROTOCOL.md`。`decide` は同じ `PermissionWaiter.decide` に通し、ブラウザとの先着1件だけを採る。`quest-create` は登録済み町の不透明 ID を窓口内だけで解決し、同じ `validQuestPatch` と `QuestLedger.create` で未着手の札だけを作る（送信・担当・出陣はしない）。要求 ID を作成前に耐クラッシュ予約し、端末ごと5件/60秒に制限する。`reports` はクエストの題と、保存済みまたは同じ勇者・時刻のメモリ返答を最大8000文字で返す。内部のパス・cwd・branch・コマンド出力のフィールドは返さない。
+作業の6操作（A2）は遠隔実行であり、Mac の画面で端末ごとに明示した作業許可（既定 off、`/api/mobile/devices/:id/work`）がある時だけ勇者を動かす。窓口はその時点の状態で効果を分類し、しき役の付与・忙しい／送信待ちの勇者・別クエストからの付け替えも送信と同じ扱いにする。form で選んだ作戦はメモリだけに置き、実際の作戦は許可された出発で1度だけ有効にする。町・拠点・勇者・preset・装備は窓口がプロセス内で発行した不透明 ID だけで解決し、出陣は Claude（`--permission-mode default`）と Codex（`--ask-for-approval untrusted --sandbox workspace-write`）だけで、この flag は装備の引数の後ろに付ける。Pi の新規出陣は拒否する（既存の Pi は permissionGate:false で送信・参加できる）。変更系の要求 ID は `quest-requests.json` を共有し効果前に fsync、頻度・人数の上限、出発の step journal（`work-departures.json`、各送信前 fsync、編成はプロセスごとの乱数鍵の HMAC だけ、pending だけを人が新しい ID で再開、unknown は再送しない、再起動後は uncertain で再開しない、フォーム・出発とも1000件まで）、0600 の `work-audit.jsonl`（5項目の試行記録、32KiB×2）を持つ。状態変更・引き継ぎ・呼び戻し・編集・採用・削除・ワークツリーは扱わない。アプリの本人確認は Mac から検証しない。
+Mac の「スマホ」は起動時だけ表示し、5分の QR／コピー文字列、6桁 SAS の承認／拒否、端末の取り消し、端末ごとの作業許可の切り替えと直近50件の作業記録の表示を既存の認可済み API で行う。承認カードの作業許可は既定オフで登録と同時に保存し、端末名・登録日時・最終接続を表示する。自動通知の本文は既存kindごとの固定3種。端末別kindの受付済み印を既存state.jsonに持ち、認証済みの次回要求で解除する（古い記録は印なし、失敗時は印を付けない、手動テストは対象外）。permissionだけ許可期限に合わせた最大120秒のttlを付ける。QR の符号化だけ `qrcode-generator`（依存なし）を使い、自作しない。開いている間だけ状態を読む。端末ごとの通知結果と固定文言のテスト送信もこの認可済み画面だけに置き、receipt の成功を端末の表示・閲覧と混同しない。
+
+A3 の所属は `MobileQuests` の1つのプロセス内 UUID 対応表を全モバイル DTO で共有し、Hero・Permission・Quest・Report・WorkHero・WorkBase・WorkDraft の `townId` として返す（町なしは null）。Town.theme は Mac 画面と同じ TownRecord.theme の5種または null。画像・パス・件数は返さず、取得した行の町別集計はアプリが行う。未配布アプリの同時更新を前提に v1 の DTO・署名配列・許可hashを更新し、互換切替は作らない。
+
+A4 は許可受信時の認証済み端末の `QuestLedger.current` から担当クエストの ID/題を固定し、Write 本文・Edit/MultiEdit の before/after/replaceAll と共にモバイルだけへ返す。追加本文は `PermissionWaiter` の待機項目内に分けて保持し、Mac の `Permission`／WS／画面を変えず台帳にも保存しない。本文合計2000文字・既存contentとの合計3000文字・置換16組・応答16件。追加欄全体を表示hashに含め、不明／省略された本文は窓口で承認拒否（拒否可）。作業は不明ならnull、最新依頼の本文を推測／転用しない。詳細・固定配列・SEC-25はMOBILEとMOBILE-PROTOCOLが正。
+
+A5 は quest-options の武器に model、はちまきに effort、WorkHero に両値を追加する。読み込み済み装備マスタの model/value だけを使い、名前から推測しない。短い安全なモデル識別子（provider/modelを含む）と7種のeffortだけを表示し、不適合なら値だけnullにして選択肢は維持する。共通Choice・拠点・起動要求・Permissionのhashは変更せず、追加表示値は応答署名に束縛する。SEC-22を拡張して検査する。
+
+A6 は未命名の町名ベースの勇者だけを TownNames の番号つき種類名へ変え、core の `mobileHeroName` と部屋の表示値を勇者タブ／作業一覧で共有する。報告の題は `mobileReportTitle(event.report)` で日本語の端末文にし、PCの題とsuccessは変えない。Hero/WorkHeroの必須variant（0〜4）はcoreへ移したPC共通heroVariantに内部勇者ID（無ければsession ID）を渡し、応答署名に含める。Permission等には足さず、そのcontentHashは不変。詳しい規則と証拠はMOBILE/MOBILE-PROTOCOLのA6節。
 
 ### web 内: 描画データと端末の接続
 
@@ -276,7 +285,7 @@ Mac の「スマホ」は起動時だけ表示し、5分の QR／コピー文字
 ## PoC でやらないこと
 
 - ハーネス本体、アプリ自身の LLM 呼び出し、ツール出力・会話本文の意味の解析（返事のマークダウン表示だけは行う）
-- デスクトップ常駐・透過ウィンドウ、スマホでの町の表示、インターネットへの公開、ユーザー認証（スマホの別アプリと、LAN・Tailscale 上のモバイル窓口は `docs/MOBILE.md` の範囲だけ行う）
+- デスクトップ常駐・透過ウィンドウ、スマホでの町の全景表示（同梱の小さい町アイコンは別アプリ）、インターネットへの公開、ユーザー認証（スマホの別アプリと、LAN・Tailscale 上のモバイル窓口は `docs/MOBILE.md` の範囲だけ行う）
 - 任意の起動コマンド、許可の自動承認、作業中へのフック経由の割り込み
 - 過去のハーネス履歴の取り込み（仕事の台帳と、選んだ時の会話の保存は段階14から行う。ワークツリーの作成は段階17から行う）
 - プラグイン機構・ファクトリ・DI コンテナ・汎用基底クラスなど、現在の境界にない拡張の基盤

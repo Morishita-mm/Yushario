@@ -83,9 +83,9 @@ describe("mobile pairing offer and privacy", () => {
     expect(() => mobileSasDigits(new Uint8Array(31))).toThrow(RangeError);
   });
 
-  it("uses high priority without work content or an unconfigured channel", () => {
-    for (const kind of ["permission", "report", "error"] as const) {
-      expect(mobilePushPayload(kind)).toEqual({ priority: "high", title: "Yushario", body: "確認が必要です", data: { kind } });
+  it("uses high priority and the agreed alerts channel without work content", () => {
+    for (const [kind, body] of [["permission", "確認が必要です"], ["report", "報告が届きました"], ["error", "勇者が止まりました"]] as const) {
+      expect(mobilePushPayload(kind)).toEqual({ priority: "high", channelId: "alerts", title: "Yushario", body, data: { kind } });
     }
     expect(() => mobilePushPayload("command" as "permission")).toThrow(RangeError);
   });

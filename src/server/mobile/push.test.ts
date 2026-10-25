@@ -31,7 +31,7 @@ describe("Expo push ticket/receipt delivery (no real pushes)", () => {
       ? json({ data: { status: "ok", id: "ticket-1" } }) : json({ data: { "ticket-1": { status: "ok" } } }));
     push.notify("permission"); await vi.advanceTimersByTimeAsync(0);
     expect(fetch).toHaveBeenCalledTimes(1);
-    expect(JSON.parse(String(fetch.mock.calls[0][1]?.body))).toEqual({ to: token, priority: "high", title: "Yushario", body: "確認が必要です", data: { kind: "permission" } });
+    expect(JSON.parse(String(fetch.mock.calls[0][1]?.body))).toEqual({ to: token, priority: "high", channelId: "alerts", title: "Yushario", body: "確認が必要です", data: { kind: "permission" }, ttl: 120 });
     expect(push.results().find(entry => entry.deviceId === id)?.receiptStatus).toBe("pending");
     expect(push.results().find(entry => entry.deviceId === otherId)?.errorCode).toBe("NoPushToken");
     await vi.advanceTimersByTimeAsync(4999); expect(fetch).toHaveBeenCalledTimes(1);
@@ -122,7 +122,8 @@ describe("Expo push ticket/receipt delivery (no real pushes)", () => {
     const fetch = vi.spyOn(globalThis, "fetch").mockImplementation((_url, options) => new Promise((_resolve, reject) => {
       options?.signal?.addEventListener("abort", () => reject(Error("aborted")), { once: true });
     }));
-    for (let index = 0; index < 51; index++) push.notify("permission");
+    // Explicit Mac test pushes bypass automatic deduplication but still respect the job cap.
+    for (let index = 0; index < 51; index++) push.notify("permission", id);
     expect(fetch).toHaveBeenCalledTimes(50); expect(push.results()[0].errorCode).toBe("QueueFull");
     push.close(); await vi.advanceTimersByTimeAsync(0);
     expect(fetch.mock.calls.every(([, options]) => options?.signal?.aborted)).toBe(true);

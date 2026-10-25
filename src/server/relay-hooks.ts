@@ -7,6 +7,8 @@ import { EVENT_BODY_LIMIT, readJsonBody } from "./http-body";
 import { PermissionWaiter, PERMISSION_TIMEOUT_MS, permissionOutput, permissionSummary } from "./permissions";
 import type { createPtyServer } from "./pty";
 import type { QuestLedger } from "./quest-ledger";
+import { permissionChange } from "../core/permission-change";
+import { mobileText } from "../core/mobile-protocol";
 
 type PtyServer = ReturnType<typeof createPtyServer>;
 
@@ -54,7 +56,12 @@ async function receivePermission(input: unknown, response: ServerResponse, sende
   if (!sender) { response.writeHead(200, { "Content-Type": "application/json" }).end("{}"); return; }
   const permission = { type: "permission" as const, id: randomUUID(), expiresAt: Date.now() + PERMISSION_TIMEOUT_MS, ...summary, agent: event.agent, terminal: sender.id };
   const connected = mobileConnected || [...sockets.clients].some((client) => client.readyState === WebSocket.OPEN);
-  const waiting = permissions.wait(permission, connected);
+  // Freeze context at hook receipt, using the authenticated terminal, never hook cwd/branch/session_id.
+  const quest = quests.current(sender.id), member = quests.member(sender.id);
+  const work = quest && quest.town === sender.project && !["done", "dropped"].includes(quest.state)
+    && (!member?.hero || member.hero === sender.hero) && mobileText(quest.id, 200) && mobileText(quest.title, 200)
+    ? { questId: quest.id, title: quest.title } : null;
+  const waiting = permissions.wait(permission, connected, { work, change: permissionChange(input, permission.content.length) });
   if (permissions.pending.some((item) => item.id === permission.id)) broadcast(permission);
   const disconnected = (): void => { permissions.decide(permission.id, "terminal"); };
   response.once("close", disconnected);

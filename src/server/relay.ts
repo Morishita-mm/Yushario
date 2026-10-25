@@ -3,7 +3,11 @@ import { join } from "node:path";
 import { Room } from "../core/room";
 import { MobileGateway } from "./mobile/gateway";
 import { handleMobileApi } from "./mobile/api";
-import { mobileHeroes, mobileReports } from "./mobile/data";
+import { mobileHeroes } from "./mobile/data";
+import { MobileQuests } from "./mobile/quests";
+import { MobileWorkCatalog } from "./mobile/work-catalog";
+import { MobileWork } from "./mobile/work";
+import { townView, type TownNames } from "../core/town";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import type { Duplex } from "node:stream";
 import { WebSocket, WebSocketServer, type RawData } from "ws";
@@ -34,15 +38,16 @@ import { dataDirectory, listenAvailable, openBrowser, prepareDataDirectory, star
 import { printStartupLogo } from "./startup-logo";
 
 const permissions = new PermissionWaiter();
-let mobile: MobileGateway | undefined, mobileRoom: Room | undefined;
+let mobile: MobileGateway | undefined, mobileRoom: Room | undefined, mobileQuests: MobileQuests | undefined;
+let mobileNames: TownNames = [];
 function refreshMobile(): void {
-  if (!mobile || !mobileRoom) return;
-  mobile.heroes = mobileHeroes(mobileRoom, ledger.names, ledger.towns);
-  mobile.reports = mobileReports(quests.recentReports(), ledger.saveConversation);
+  if (!mobile || !mobileRoom || !mobileQuests) return;
+  mobileNames = townView(mobileRoom, Date.now(), mobileNames).names;
+  mobile.heroes = mobileHeroes(mobileRoom, ledger.names, ledger.towns, mobileQuests, mobileNames, pty.listSessions());
 }
 function broadcast(message: object): void {
   const type = (message as { type?: string }).type;
-  if (type === "permission") mobile?.notify("permission");
+  if (type === "permission") mobile?.notify("permission", (message as { expiresAt: number }).expiresAt);
   if (["names", "towns", "quests"].includes(type ?? "")) refreshMobile();
   const json = JSON.stringify(message);
   for (const client of sockets.clients) {
@@ -158,7 +163,8 @@ function reviewed(url: URL): void {
 // Reserve mobile first and exclude overlapping addresses explicitly: some OSes
 // allow a later loopback listener to share a wildcard listener's port.
 if (options.mobile) {
-  mobileRoom = new Room(); mobile = new MobileGateway(join(dataDirectory, "mobile"), permissions);
+  mobileRoom = new Room(); mobileQuests = new MobileQuests(quests, () => ledger.towns, () => mobileRoom);
+  mobile = new MobileGateway(join(dataDirectory, "mobile"), permissions, mobileQuests);
   await mobile.listen(options.mobile.host, options.mobile.port);
 }
 const server = createServer(dispatchHttp);
@@ -169,6 +175,8 @@ const pty = createPtyServer(port, (session) => ledger.register(session.projectNa
   (session, text, hero) => quests.requested(session, text, Date.now(), hero));
 const party = new QuestParty(quests, pty, broadcast, record, (id) => namedHero(ledger.names, id));
 const tactics = new QuestTactics(party);
+if (mobile && mobileQuests) mobile.work = new MobileWork(mobile.store,
+  new MobileWorkCatalog(mobileQuests, pty, quests, () => ledger.towns, () => mobile!.heroes), party, tactics, () => ledger.towns);
 refreshMobile();
 function archive(): void {
   try { ledger.archive(pty.activeTownKeys(), Date.now()); }

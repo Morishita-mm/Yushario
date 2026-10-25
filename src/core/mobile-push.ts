@@ -1,6 +1,12 @@
 import { mobileBase64url, mobileInteger, mobileObject } from "./mobile-protocol";
+import { PERMISSION_TIMEOUT_MS } from "./permissions";
 
 export type MobilePushKind = "permission" | "report" | "error";
+// Expo ttl is whole seconds. Never extend a permission's remaining lifetime.
+export function mobilePermissionPushTtl(expiresAt: number, now: number): number {
+  if (!mobileInteger(expiresAt) || !mobileInteger(now)) return 0;
+  return Math.max(0, Math.floor(Math.min(PERMISSION_TIMEOUT_MS, expiresAt - now) / 1000));
+}
 export const MOBILE_PUSH_ERRORS = ["DeviceNotRegistered", "MessageTooBig", "MessageRateExceeded", "MismatchSenderId", "InvalidCredentials",
   "UNAUTHORIZED", "PUSH_TOO_MANY_EXPERIENCE_IDS", "PUSH_TOO_MANY_NOTIFICATIONS", "PUSH_TOO_MANY_RECEIPTS", "VALIDATION_ERROR",
   "UnknownExpoError", "InvalidResponse", "SendHttpError", "SendNetworkError", "ReceiptHttpError", "ReceiptNetworkError",

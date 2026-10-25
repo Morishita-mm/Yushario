@@ -98,7 +98,7 @@ describe("mobile real process/listener isolation", () => {
     expect(phone.open(await (await pending).json()).operation).toBe("pair");
     const registered = await (await screen(value)).json();
     expect(registered.devices).toHaveLength(1);
-    expect(Object.keys(registered.devices[0])).toEqual(["id", "name", "createdAt", "lastSeenAt"]);
+    expect(Object.keys(registered.devices[0])).toEqual(["id", "name", "createdAt", "lastSeenAt", "allowWork"]);
     expect(JSON.stringify(registered)).not.toContain("PrivateKey"); expect(JSON.stringify(registered)).not.toContain("pushToken");
     expect((await screen(value, `/devices/${phone.id}`, "DELETE")).status).toBe(200);
     expect((await fetch(value.mobile + "/mobile/v1", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(phone.packet("status")) })).status).toBe(400);

@@ -12,8 +12,9 @@ const validRequest = vectors.request.signedEnvelope;
 const parseRequest = (changes: Record<string, unknown>) => parseMobileRequest({ ...validRequest, ...changes });
 
 describe("mobile wire validation", () => {
-  it("has exactly the seven allowed operations and rejects unknown fields", () => {
-    expect(MOBILE_OPERATIONS).toEqual(["pair", "status", "permissions", "decide", "reports", "push-token", "unpair"]);
+  it("has exactly the sixteen allowed operations and rejects unknown fields", () => {
+    expect(MOBILE_OPERATIONS).toEqual(["pair", "status", "permissions", "decide", "reports", "push-token", "unpair", "towns", "quests", "quest-create",
+      "quest-options", "quest-draft", "quest-prepare", "quest-form", "quest-embark", "quest-depart"]);
     for (const operation of ["terminal", "exec", "permission-decision", "PAIR", "__proto__", null]) {
       expect(isMobileOperation(operation)).toBe(false);
       expect(parseMobileRequestBody(operation, {})).toBeUndefined();
@@ -71,13 +72,13 @@ describe("mobile wire validation", () => {
     expect(parseMobileResponseBody("permissions", { permissions: [{ ...permission, content: "a".repeat(2001) }] })).toBeUndefined();
     expect(parseMobileResponseBody("permissions", { permissions: Array(17).fill(permission) })).toBeUndefined();
     expect(parseMobileResponseBody("permissions", { permissions: [{ ...permission, omitted: -1 }] })).toBeUndefined();
-    const hero = { id: "a", name: "勇者", town: "町", state: "idle", permissionPending: false };
+    const hero = { id: "a", name: "勇者", town: "町", townId: null, state: "idle", permissionPending: false, variant: 2 };
     expect(parseMobileResponseBody("status", { heroes: [hero] })).toBeDefined();
     expect(parseMobileResponseBody("status", { heroes: [{ ...hero, state: "other" }] })).toBeUndefined();
-    const report = { id: "r", title: "報告", success: null, at: 0, excerpt: "" };
-    expect(parseMobileResponseBody("reports", { reports: [report] })).toBeDefined();
-    expect(parseMobileResponseBody("reports", { reports: [{ ...report, excerpt: "x".repeat(501) }] })).toBeUndefined();
-    expect(parseMobileResponseBody("reports", { reports: Array(51).fill(report) })).toBeUndefined();
+    const report = { id: "r", questId: "q", questTitle: "クエスト", title: "報告", success: null, at: 0, excerpt: "", text: null, townId: null };
+    expect(parseMobileResponseBody("reports", { reports: [report], nextCursor: null })).toBeDefined();
+    expect(parseMobileResponseBody("reports", { reports: [{ ...report, excerpt: "x".repeat(501) }], nextCursor: null })).toBeUndefined();
+    expect(parseMobileResponseBody("reports", { reports: Array(51).fill(report), nextCursor: null })).toBeUndefined();
     expect(parseMobileResponseBody("push-token", { updated: true })).toBeDefined();
     expect(parseMobileResponseBody("unpair", { unpaired: true })).toBeDefined();
     expect(parseMobileResponseBody("decide", { decided: false })).toBeUndefined();
@@ -87,8 +88,9 @@ describe("mobile wire validation", () => {
 
 describe("mobile deterministic bytes", () => {
   it("matches both request and response signing, AAD and nonce vectors", () => {
-    for (const [direction, samples] of [["request", [vectors.request, vectors.pairRequest]],
-      ["response", [vectors.response, vectors.pairResponse]]] as const) {
+    // vectors.quests also holds every work operation with nested arrays (options, draft, prepare, form, embark, depart).
+    for (const [direction, samples] of [["request", [vectors.request, vectors.pairRequest, ...vectors.quests.map(sample => sample.request)]],
+      ["response", [vectors.response, vectors.pairResponse, ...vectors.quests.map(sample => sample.response)]]] as const) {
       for (const sample of samples) {
         const envelope = direction === "request" ? parseMobileRequest(sample.signedEnvelope) : parseMobileResponse(sample.signedEnvelope);
         expect(envelope).toBeDefined();
@@ -105,13 +107,13 @@ describe("mobile deterministic bytes", () => {
 
   it("projects the remaining operation bodies to fixed nested arrays", () => {
     const header = { v: 1, deviceId: vectors.deviceId, seq: 2, timestamp: 1700000000000 };
-    const hero = { id: "h", name: "勇者", town: "町", state: "idle", permissionPending: true };
-    const report = { id: "r", title: "報告", success: null, at: 0, excerpt: "先頭" };
+    const hero = { id: "h", name: "勇者", town: "町", townId: "t", state: "idle", permissionPending: true, variant: 2 };
+    const report = { id: "r", questId: "q", questTitle: "クエスト", title: "報告", success: null, at: 0, excerpt: "先頭", text: null, townId: "t" };
     const p = vectors.permission.displayed;
     const cases = [
-      ["status", { heroes: [hero] }, [[["h", "勇者", "町", "idle", true]]]],
-      ["permissions", { permissions: [p] }, [[[p.id, p.heroId, p.heroName, p.town, p.tool, p.summary, p.content, p.omitted, p.expiresAt, p.contentHash]]]],
-      ["reports", { reports: [report] }, [[["r", "報告", null, 0, "先頭"]]]],
+      ["status", { heroes: [hero] }, [[["h", "勇者", "町", "idle", true, "t", 2]]]],
+      ["permissions", { permissions: [p] }, [[[p.id, p.heroId, p.heroName, p.town, p.tool, p.summary, p.content, p.omitted, p.expiresAt, p.townId, [p.work.questId, p.work.title], p.change, p.contentHash]]]],
+      ["reports", { reports: [report], nextCursor: null }, [[["r", "q", "クエスト", "報告", null, 0, "先頭", null, "t"]], null]],
       ["push-token", { updated: true }, [true]], ["unpair", { unpaired: true }, [true]],
     ] as const;
     for (const [operation, body, values] of cases) {
@@ -137,7 +139,7 @@ describe("mobile deterministic bytes", () => {
     const display = vectors.permission.displayed;
     expect(hex(mobilePermissionHashInput(display))).toBe(vectors.permission.hashInputHex);
     for (const [key, value] of Object.entries(display)) {
-      if (key === "contentHash") continue;
+      if (key === "contentHash" || key === "work" || key === "change") continue;
       const changed = { ...display, [key]: typeof value === "number" ? value + 1 : value + "x" };
       expect(mobilePermissionHashInput(changed)).not.toEqual(mobilePermissionHashInput(display));
     }
