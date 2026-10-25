@@ -140,7 +140,7 @@ describe("SEC-25 permission task/body binding over real HTTP and crypto", () => 
         String(i).padEnd(200, "\u0000"), { questId: "\u0000".repeat(200), title: "\u0000".repeat(200) });
       p.card.agent = "\u0000".repeat(200); p.card.name = "\u0000".repeat(200); p.card.summary = "\u0000".repeat(200);
     }
-    fixture.gateway.heroes = [{ id: "\u0000".repeat(200), name: "\u0000".repeat(200), town: "\u0000".repeat(200), townId: "\u0000".repeat(200), state: "idle", permissionPending: true }];
+    fixture.gateway.heroes = [{ id: "\u0000".repeat(200), name: "\u0000".repeat(200), town: "\u0000".repeat(200), townId: "\u0000".repeat(200), state: "idle", permissionPending: true, variant: 2 }];
     const cards = await list(phone);
     expect(cards).toHaveLength(16);
     expect(Buffer.byteLength(JSON.stringify(cards))).toBeLessThan(480 * 1024);

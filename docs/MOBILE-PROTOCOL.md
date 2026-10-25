@@ -157,8 +157,8 @@ Mac の要求判定は `seq > lastAccepted`（pair は初期値0）かつ `abs(t
 下記は **オブジェクトの全メンバー**と、署名用の固定順の配列。
 
 ```ts
-Hero = {id, name, town, state, permissionPending, townId}
-heroValues = [id, name, town, state, permissionPending, townId]
+Hero = {id, name, town, state, permissionPending, townId, variant}
+heroValues = [id, name, town, state, permissionPending, townId, variant]
 Permission = {id, heroId, heroName, town, tool, summary, content, omitted, expiresAt, townId, work, change, contentHash}
 permissionContentValues = [id, heroId, heroName, town, tool, summary, content, omitted, expiresAt, townId, workValues, changeValues]
 permissionValues = [...permissionContentValues, contentHash]
@@ -178,6 +178,24 @@ reportValues = [id, questId, questTitle, title, success, at, excerpt, text, town
 - `reports {}` は最近50件、at 降順・同時刻は id の UTF-16 辞書順。要約一覧なので `text` は常に null、`nextCursor` も null。`reports {questId,cursor}` はそのクエストだけを at 昇順・同時刻は id の UTF-16 辞書順で1ページ8件まで返す。JSON の制御文字エスケープを含めても既存512KiB暗号文・1MiB HTTP 上限内にするため全文ページを8件に制限する。
 - 本文は保存済みの報告、無ければ同じ勇者・同じ報告時刻のメモリの返答だけ。`saveConversation=false` の返答は保存せず再起動・保持期限で消える。無ければ excerpt は空・text は null。別の返答やツール出力から補わない。result/cwd/branch/files/checks/command/permission と報告以外の出来事を返さない。返答の文章に人／CLI が書いた機密を自動検出・墨消しする仕様ではない。要約を LLM に作らせない。
 - クエスト拡張では reports の shape と署名配列も増えている。暗号・pair/decide の wire は不変だが、古いアプリは新 reports を拒否するので Mac／アプリをそろえて更新する。
+
+### 勇者の名前・報告の題・色（A6）
+
+- Hero と WorkHero の名前は同じ部屋の勇者について共通。利用者の names.json の名前を最優先し、それが無い時だけ TownNames の base を町の表示名／町のフォルダ名と完全一致で比べる。フォルダはtown.keyの `.git` の親（非Gitはkey自体、旧keyなしのみpath）で、最後に起動したworktreeへ変わるtown.pathは使わない。一致すれば `AGENTS[preset].label + " " + 番号`（例 `Claude Code 1`、`Codex 3`、`pi 2`）、種類不明は `勇者 3`。番号は TownNames の name の番号（接尾辞なしは1）で、種類別／現在の人数では数え直さない。別 worktree 等の base は従来の name のまま。PTY だけで部屋にまだ名前が無い場合の既存ラベルは変えない。
+- Report.title は保存されたPC用の題でなく event.report から下表の優先順で求める。日本語のみ。Report.success の従来の判定は変えず、null は不明（成功／失敗の札を出さない）。通知は従来の固定文言のまま。
+
+| 条件（上が優先） | title |
+|---|---|
+| report 無し | 返事が届いた |
+| stopFailure | 途中で止まった |
+| 最後のテスト失敗 | ファイル N件を変更・テスト失敗 |
+| 変更あり、テスト0回 | ファイル N件を変更・テスト未実行 |
+| 変更あり、最後のテスト成功 | ファイル N件を変更・テスト成功 |
+| kind=scroll | 調査から戻った |
+| それ以外 | 返事が届いた |
+
+- Hero と WorkHero **だけ**に必須の `variant:0|1|2|3|4` を足す（null／欠落／小数／範囲外は拒否）。本体の `src/core/mobile-hero.ts` をPCの絵も共有する。内部の部屋の勇者IDを JS の `for...of` で走査し、各文字の `charCodeAt(0)` を `hash = (hash * 31 + code) >>> 0`（初期値0）で畳み込み、`hash % 5`。PTYだけなら結びついた hero／recalledHero のID、無ければ session IDを使う。窓口が発行する不透明IDから再計算してはいけない。
+- variant は署名の heroValues／workHeroValues の末尾に入り、その入力のhashも変わる。Permission等へは足さないため **A4 contentHash は不変**。有効な別の色への改ざんでも元の応答署名では検証に失敗する。5値だけの多対一の色番号であり、内部IDを復元・一意に推測する情報にはならない（勇者の識別子としては使わない）。v1 のまま両リポジトリ・共有vectorsを同時更新する。
 
 ### 許可の作業と変更本文（A4）
 
@@ -242,8 +260,8 @@ AccessoryChoice = {id, name, effort}
 accessoryValues = [id, name, effort]
 WorkPreset = {id, name, weapons:[WeaponChoice,...], accessories:[AccessoryChoice,...]}
 presetValues = [id, name, [weaponValues,...], [accessoryValues,...]]
-WorkHero = {id, name, preset, weapon, accessory, busy, canTalk, active, questId, permissionGate, townId, model, effort}
-workHeroValues = [id, name, preset, weapon, accessory, busy, canTalk, active, questId, permissionGate, townId, model, effort]
+WorkHero = {id, name, preset, weapon, accessory, busy, canTalk, active, questId, permissionGate, townId, model, effort, variant}
+workHeroValues = [id, name, preset, weapon, accessory, busy, canTalk, active, questId, permissionGate, townId, model, effort, variant]
 FormMember = {heroId, role, writer, ask}
 memberValues = [heroId, role, writer, ask]
 WorkFit = {tactic, ok, gaps, inside, outside}

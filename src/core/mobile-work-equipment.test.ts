@@ -3,7 +3,7 @@ import { mobileModel, mobileEffort, MOBILE_EFFORTS } from "./mobile-work";
 import { parseMobileResponseBody, mobileResponseBodyValues } from "./mobile-display";
 
 const hero = { id: "h", name: "勇者", preset: "Claude", weapon: "剣", accessory: "帯", busy: false, canTalk: true,
-  active: true, questId: null, permissionGate: true, townId: "t", model: "opus", effort: "high" };
+  active: true, questId: null, permissionGate: true, townId: "t", model: "opus", effort: "high", variant: 2 };
 const weapon = { id: "w", name: "剣", model: "opus" }, accessory = { id: "a", name: "帯", effort: "high" };
 const preset = { id: "p", name: "Claude", weapons: [weapon], accessories: [accessory] };
 const options = { allowWork: false, heroes: [hero], bases: [{ id: "b", name: "拠点", townId: "t" }], presets: [preset] };

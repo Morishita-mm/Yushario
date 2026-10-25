@@ -61,7 +61,7 @@ Yushario と勇者は同じ OS 利用者で動く。悪意ある同一利用者�
 | `src/core/turns.ts` | 進行中の往復の累計、最後のテスト結果と異常終了、直近256イベント内の遅着補正、許可待ちを除いた所要時間、報告の付与 | events, activity |
 | `src/core/event-history.ts` | 2000件の履歴から、勇者ごとの件数と保護するイベントに基づいて捨てる順を決める | events |
 | `src/core/permissions.ts` | 許可の表示用要約・回答 JSON、期限と省略本文の回答可否、端末／仲間に限定した進行の判定 | events |
-| `src/core/mobile-protocol.ts`, `mobile-display.ts`, `mobile-permission.ts`, `permission-change.ts`, `mobile-quests.ts`, `mobile-work.ts`, `mobile-work-display.ts`, `mobile-signing.ts`, `mobile-pairing.ts`, `mobile-push.ts` | モバイル v1 の本文・許可リスト（作業の6操作の固定 shape と本人確認が要る操作の判定を含む）・連番／時刻窓・署名／hash 入力・nonce・コードの遷移・SAS の桁・固定通知・receipt と安全な診断値の検査 | core の型・関数のみ |
+| `src/core/mobile-protocol.ts`, `mobile-display.ts`, `mobile-hero.ts`, `mobile-permission.ts`, `permission-change.ts`, `mobile-quests.ts`, `mobile-work.ts`, `mobile-work-display.ts`, `mobile-signing.ts`, `mobile-pairing.ts`, `mobile-push.ts` | モバイル v1 の本文・許可リスト（作業の6操作の固定 shape と本人確認が要る操作の判定を含む）・連番／時刻窓・署名／hash 入力・nonce・コードの遷移・SAS の桁・固定通知・receipt と安全な診断値の検査 | core の型・関数のみ |
 | `src/core/terminal-session.ts` | 起動入力のフィールド検査、端末の行列数、保持出力の行・UTF-8 バイト境界 | なし |
 | `src/core/terminal-modes.ts` | 端末の出力の切り捨てた部分で有効になったモード（別画面・マウス・貼り付け等）を覚え、開き直した時に先に送る | なし |
 | `src/core/local-request.ts` | 実際の待受ポートに対する Host の判定 | なし |
@@ -225,6 +225,8 @@ A3 の所属は `MobileQuests` の1つのプロセス内 UUID 対応表を全モ
 A4 は許可受信時の認証済み端末の `QuestLedger.current` から担当クエストの ID/題を固定し、Write 本文・Edit/MultiEdit の before/after/replaceAll と共にモバイルだけへ返す。追加本文は `PermissionWaiter` の待機項目内に分けて保持し、Mac の `Permission`／WS／画面を変えず台帳にも保存しない。本文合計2000文字・既存contentとの合計3000文字・置換16組・応答16件。追加欄全体を表示hashに含め、不明／省略された本文は窓口で承認拒否（拒否可）。作業は不明ならnull、最新依頼の本文を推測／転用しない。詳細・固定配列・SEC-25はMOBILEとMOBILE-PROTOCOLが正。
 
 A5 は quest-options の武器に model、はちまきに effort、WorkHero に両値を追加する。読み込み済み装備マスタの model/value だけを使い、名前から推測しない。短い安全なモデル識別子（provider/modelを含む）と7種のeffortだけを表示し、不適合なら値だけnullにして選択肢は維持する。共通Choice・拠点・起動要求・Permissionのhashは変更せず、追加表示値は応答署名に束縛する。SEC-22を拡張して検査する。
+
+A6 は未命名の町名ベースの勇者だけを TownNames の番号つき種類名へ変え、core の `mobileHeroName` と部屋の表示値を勇者タブ／作業一覧で共有する。報告の題は `mobileReportTitle(event.report)` で日本語の端末文にし、PCの題とsuccessは変えない。Hero/WorkHeroの必須variant（0〜4）はcoreへ移したPC共通heroVariantに内部勇者ID（無ければsession ID）を渡し、応答署名に含める。Permission等には足さず、そのcontentHashは不変。詳しい規則と証拠はMOBILE/MOBILE-PROTOCOLのA6節。
 
 ### web 内: 描画データと端末の接続
 

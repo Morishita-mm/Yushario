@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { realpathSync, statSync } from "node:fs";
 import type { MobileHero } from "../../core/mobile-display";
+import { heroVariant } from "../../core/mobile-hero";
 import { mobileModel, mobileEffort, type MobileChoice, type MobileWorkBase, type MobileLaunch, type MobileWorkHero, type MobileWorkPreset } from "../../core/mobile-work";
 import { townKey, type TownRecord } from "../../core/town-ledger";
 import type { Equipment } from "../../core/equipment";
@@ -105,7 +106,9 @@ export class MobileWorkCatalog {
     const counts = new Map<string, number>();
     const views: MobileWorkHero[] = sessions.map(info => {
       const hero = this.hero(this.heroId(info.id), town), master = this.pty.gear(info.preset);
-      let name = info.hero ? room.get(info.hero)?.name : undefined;
+      const agent = info.hero ?? info.recalledHero;
+      const roomHero = agent ? room.get(agent) : undefined;
+      let name = roomHero?.name;
       if (!name) {
         const label = mobileShort(this.pty.sessionLabel(info.id) ?? AGENTS[info.preset].label, 190, "勇者"), count = (counts.get(label) ?? 0) + 1;
         counts.set(label, count); name = count > 1 ? `${label} #${count}` : label;
@@ -113,7 +116,7 @@ export class MobileWorkCatalog {
       const weapon = master.weapons.find(item => item.id === info.weapon), accessory = master.accessories.find(item => item.id === info.accessory);
       const model = weapon?.model, effort = accessory?.value;
       const label = (item: { name: string } | undefined) => item ? mobileShort(item.name, 200, "そうび") : null;
-      return { id: this.heroId(info.id), name, townId: hero.active ? this.townId(town) : null, preset: AGENTS[info.preset].label, weapon: label(weapon),
+      return { id: this.heroId(info.id), name, variant: roomHero?.variant ?? heroVariant(agent ?? info.id), townId: hero.active ? this.townId(town) : null, preset: AGENTS[info.preset].label, weapon: label(weapon),
         accessory: label(accessory), model: mobileModel(model) ? model : null, effort: mobileEffort(effort) ? effort : null,
         busy: hero.busy, canTalk: hero.canTalk, active: hero.active,
         questId: this.ledger.current(info.id)?.id ?? null, permissionGate: info.preset !== "pi" };
@@ -121,7 +124,7 @@ export class MobileWorkCatalog {
     // Heroes seen in the room without a PTY on this Mac are shown but cannot be talked to.
     for (const hero of room.values()) {
       if (this.pty.sessionForAgent(hero.id) || this.quests.agentTown(hero.id) !== town) continue;
-      views.push({ id: this.heroId(hero.id), name: hero.name, townId: null, preset: "外部の勇者", weapon: null, accessory: null, model: null, effort: null, busy: false,
+      views.push({ id: this.heroId(hero.id), name: hero.name, variant: hero.variant, townId: null, preset: "外部の勇者", weapon: null, accessory: null, model: null, effort: null, busy: false,
         canTalk: false, active: false, questId: null, permissionGate: false });
     }
     return views.slice(0, 16);

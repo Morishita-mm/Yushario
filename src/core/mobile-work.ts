@@ -2,6 +2,7 @@
 // Only opaque IDs, fixed enums and bounded text cross the wire; never paths, commands or session names.
 // Imports from mobile-protocol are used only at call time, so the module cycle is harmless.
 import { MOBILE_WORK_OPERATIONS, mobileObject, mobileQuestRequestTime, mobileText } from "./mobile-protocol";
+import type { HeroVariant } from "./mobile-hero";
 
 export { MOBILE_WORK_OPERATIONS };
 export type MobileWorkOperation = typeof MOBILE_WORK_OPERATIONS[number];
@@ -20,7 +21,7 @@ export type MobileWorkPreset = { id: string; name: string; weapons: MobileWeapon
 // preset/weapon/accessory are display labels, never raw paths.
 // permissionGate=false means tool use is not checked before it runs (e.g. a Mac-started pi); warn before sending.
 export type MobileWorkHero = {
-  id: string; name: string; townId: string | null; preset: string; weapon: string | null; accessory: string | null;
+  id: string; name: string; townId: string | null; variant: HeroVariant; preset: string; weapon: string | null; accessory: string | null;
   busy: boolean; canTalk: boolean; active: boolean; questId: string | null; permissionGate: boolean;
   model: string | null; effort: MobileEffort | null; // Known equipped values, not a live CLI probe.
 };

@@ -164,6 +164,13 @@ A1 の前提「スマホからは札を作るだけで実行に進まない」�
 - Mac は鍵の attestation（ハードウェア証明）を受け取らず、「直前に本人確認した」ことを検証できない。改造・侵害されたアプリは本人確認を飛ばして署名できる。
 - このため Keystore に結び付けた Ed25519 は採用せず、本人確認は `LocalAuthentication.authenticateAsync`（`disableDeviceFallback:false`、`biometricsSecurityLevel:'strong'`、`requireConfirmation:true`）によるアプリ内の確認にとどめる。新しい native module・development build は不要で、既存の Expo クライアントで動く。安全性の主な支えは Mac 側の既定 off の許可・件数制限・強制した承認モード・取り消しである。実機でのこの確認の安全性は検証していない。
 
+### 勇者の名前・報告の題・色（A6）
+
+- 利用者の名前が最優先。未命名では TownNames の base が町の表示名／町のフォルダ名（keyの `.git` の親、非Gitはkey自体、旧keyなしのみpath）に完全一致する時だけ `種類 番号`（例 `Claude Code 1`、`pi 2`、不明なら `勇者 3`）。番号はPCと同じ履歴から取り、退場後も再採番しない。別worktreeの名前は維持する。勇者タブと発行・パーティー一覧は同じ部屋の勇者名を共有する。
+- 報告は event.report から `mobileReportTitle` で漢字の題にする。PCのreportTitle・保存済みの題・successの判定は変えない。対応表はMOBILE-PROTOCOLのA6節。通知は元から固定文言だけなので変更なし。
+- Hero / WorkHero だけに `variant:0|1|2|3|4`。PCのheroVariantをcoreへ共通化し、部屋の内部勇者ID（PTYだけなら結びついた勇者ID、無ければsession ID）から計算する。窓口発行IDからは計算しない。5値だけの多対一の色なので内部IDを復元・一意に推測できず、識別子には使わない。
+- variantを応答署名の固定配列に含め、変更でその入力のhashも変わる。Permissionは変更せずA4 contentHashは不変。v1のまま両側のプロトコル・共有vectorsを同期更新。SEC-20/22/24を拡張し実HTTPで名前・題・署名改ざん拒否を確かめる。[検証記録](security/runs/2026-10-25-mobile-names-variant.md)。画面実装は別作業。
+
 ### 装備のモデル／effort の表示（A5）
 
 - quest-options の武器は `{id,name,model:string|null}`、はちまきは `{id,name,effort:MobileEffort|null}`。共通Choiceや拠点は変更しない。WorkHeroにも model/effort を平坦な必須欄として加え、既存の武器／はちまきの名前を残す。

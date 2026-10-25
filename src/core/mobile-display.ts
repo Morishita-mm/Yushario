@@ -9,13 +9,14 @@ import { mobileWorkResponseValues, parseMobileWorkResponse, type MobileWorkRespo
 export type { MobileDelivery, MobileWorkResponseBody } from "./mobile-work-display";
 
 import { mobileNullableId } from "./mobile-work";
+import { isHeroVariant, type HeroVariant } from "./mobile-hero";
 import { isMobilePermissionChange, isMobilePermissionWork, mobileChangeTextLength, mobilePermissionChangeValues,
   mobilePermissionWorkValues, MOBILE_PERMISSION_TEXT, type MobilePermissionDetails } from "./mobile-permission";
 export { mobilePermissionCanAllow } from "./mobile-permission";
 export type { MobilePermissionChange, MobilePermissionEdit, MobilePermissionWork } from "./mobile-permission";
 
 export type MobileHero = {
-  id: string; name: string; town: string; townId: string | null;
+  id: string; name: string; town: string; townId: string | null; variant: HeroVariant;
   state: "idle" | "thinking" | "working" | "waiting_input" | "success" | "error"; permissionPending: boolean;
 };
 export type MobilePermissionContent = {
@@ -44,8 +45,8 @@ export function mobilePermissionHashInput(value: MobilePermissionContent): Uint8
 }
 
 function isHero(value: unknown): value is MobileHero {
-  return mobileObject(value, ["id", "name", "town", "state", "permissionPending", "townId"])
-    && mobileNullableId(value.townId) && mobileText(value.id, 200) && mobileText(value.name, 200) && mobileText(value.town, 200)
+  return mobileObject(value, ["id", "name", "town", "state", "permissionPending", "townId", "variant"])
+    && isHeroVariant(value.variant) && mobileNullableId(value.townId) && mobileText(value.id, 200) && mobileText(value.name, 200) && mobileText(value.town, 200)
     && ["idle", "thinking", "working", "waiting_input", "success", "error"].includes(value.state as string)
     && typeof value.permissionPending === "boolean";
 }
@@ -102,7 +103,7 @@ export function parseMobileResponse(input: unknown): MobileSignedResponse | unde
 export function mobileResponseBodyValues(response: MobileResponseBody): unknown[] {
   switch (response.operation) {
     case "pair": return [response.body.registered];
-    case "status": return [response.body.heroes.map(hero => [hero.id, hero.name, hero.town, hero.state, hero.permissionPending, hero.townId])];
+    case "status": return [response.body.heroes.map(hero => [hero.id, hero.name, hero.town, hero.state, hero.permissionPending, hero.townId, hero.variant])];
     case "permissions": return [response.body.permissions.map(value => [...mobilePermissionContentValues(value), value.contentHash])];
     case "decide": return [response.body.decided];
     case "towns": return [response.body.towns.map(town => [town.id, town.name, town.theme]), response.body.nextCursor];

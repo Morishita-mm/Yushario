@@ -1,5 +1,6 @@
 // Quest work responses: exact shapes, bounds and the fixed signed value arrays.
 import { mobileObject, mobileText } from "./mobile-protocol";
+import { isHeroVariant } from "./mobile-hero";
 import {
   MOBILE_TACTICS, MOBILE_WORK_MEMBERS, MOBILE_WORK_TEXT, isMobileFormMember, mobileFormMemberValues,
   mobileId, mobileNullableId, mobileOneOf, mobileRows, mobileModel, mobileEffort,
@@ -35,8 +36,8 @@ function isPreset(value: unknown): value is MobileWorkPreset {
     && mobileRows(value.weapons, 100, isWeapon, byId) && mobileRows(value.accessories, 100, isAccessory, byId);
 }
 function isHero(value: unknown): value is MobileWorkHero {
-  return mobileObject(value, ["id", "name", "preset", "weapon", "accessory", "busy", "canTalk", "active", "questId", "permissionGate", "townId", "model", "effort"])
-    && (value.model === null || mobileModel(value.model)) && (value.effort === null || mobileEffort(value.effort))
+  return mobileObject(value, ["id", "name", "preset", "weapon", "accessory", "busy", "canTalk", "active", "questId", "permissionGate", "townId", "model", "effort", "variant"])
+    && isHeroVariant(value.variant) && (value.model === null || mobileModel(value.model)) && (value.effort === null || mobileEffort(value.effort))
     && mobileNullableId(value.townId) && mobileId(value.id) && label(value.name) && label(value.preset)
     && (value.weapon === null || label(value.weapon)) && (value.accessory === null || label(value.accessory))
     && typeof value.busy === "boolean" && typeof value.canTalk === "boolean" && typeof value.active === "boolean"
@@ -98,7 +99,7 @@ export function mobileWorkPresetValues(value: MobileWorkPreset): unknown[] {
     value.accessories.map(item => [...mobileChoiceValues(item), item.effort])];
 }
 export function mobileWorkHeroValues(value: MobileWorkHero): unknown[] {
-  return [value.id, value.name, value.preset, value.weapon, value.accessory, value.busy, value.canTalk, value.active, value.questId, value.permissionGate, value.townId, value.model, value.effort];
+  return [value.id, value.name, value.preset, value.weapon, value.accessory, value.busy, value.canTalk, value.active, value.questId, value.permissionGate, value.townId, value.model, value.effort, value.variant];
 }
 export function mobileWorkFitValues(value: MobileWorkFit): unknown[] {
   return [value.tactic, value.ok, value.gaps, value.inside, value.outside];

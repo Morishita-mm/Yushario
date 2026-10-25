@@ -108,7 +108,7 @@ const choice = { id: "gear-1", name: "盾", model: "opus" };
 const accessory = { id: "gear-2", name: "はちまき", effort: "high" };
 const preset = { id: "preset-1", name: "Claude", weapons: [choice], accessories: [accessory] };
 const workHero = { id: "hero-1", name: "勇者", preset: "Claude", weapon: "盾", accessory: null,
-  busy: false, canTalk: true, active: true, questId: null, permissionGate: true, townId: town.id, model: "opus", effort: null };
+  busy: false, canTalk: true, active: true, questId: null, permissionGate: true, townId: town.id, model: "opus", effort: null, variant: 3 };
 const launch = { baseId: "base-1", presetId: preset.id, weaponId: choice.id, accessoryId: null };
 const lv = [launch.baseId, launch.presetId, launch.weaponId, launch.accessoryId];
 const member = { heroId: workHero.id, role: "implement", writer: true, ask: "実装して\n" };
@@ -122,7 +122,7 @@ const workId = `${header.timestamp}.${b64(Buffer.alloc(16, 0x11))}`;
 questCases.push(
   ["quest-options", { townId: town.id }, [town.id],
     { allowWork: true, heroes: [workHero], bases: [{ id: "base-1", name: "拠点", townId: town.id }], presets: [preset] },
-    [true, [[workHero.id, workHero.name, "Claude", "盾", null, false, true, true, null, true, workHero.townId, workHero.model, workHero.effort]], [["base-1", "拠点", town.id]],
+    [true, [[workHero.id, workHero.name, "Claude", "盾", null, false, true, true, null, true, workHero.townId, workHero.model, workHero.effort, workHero.variant]], [["base-1", "拠点", town.id]],
       [[preset.id, preset.name, [[choice.id, choice.name, choice.model]], [[accessory.id, accessory.name, accessory.effort]]]]]],
   ["quest-draft", { questId: quest.id }, [quest.id], { draft }, [dv]],
   ["quest-prepare", { requestId: workId, townId: town.id, text: draft.text, mode: "send", heroId: null, launch },
@@ -133,11 +133,11 @@ questCases.push(
     [workId, quest.id, lv, "review", false], { draft, heroId: "hero-2" }, [dv, "hero-2"]],
   ["quest-depart", { requestId: workId, questId: quest.id }, [workId, quest.id], { draft }, [dv]],
 );
-const hero = { id: "hero-1", name: "勇者", town: town.name, state: "idle", permissionPending: true, townId: town.id };
+const hero = { id: "hero-1", name: "勇者", town: town.name, state: "idle", permissionPending: true, townId: town.id, variant: 3 };
 const themes = ["village", "port", "snow", "desert", "volcano", null];
 questCases.push(
-  ["status", {}, [], { heroes: [hero, { ...hero, id: "hero-2", townId: null }] },
-    [[[hero.id, hero.name, hero.town, hero.state, true, town.id], ["hero-2", hero.name, hero.town, hero.state, true, null]]]],
+  ["status", {}, [], { heroes: [hero, { ...hero, id: "hero-2", townId: null, variant: 4 }] },
+    [[[hero.id, hero.name, hero.town, hero.state, true, town.id, hero.variant], ["hero-2", hero.name, hero.town, hero.state, true, null, 4]]]],
   ["permissions", {}, [], { permissions: [permission] }, [[[...permissionValues, permission.contentHash]]]],
   ["towns", { cursor: null }, [null], { towns: themes.map((theme, i) => ({ id: `town-${i}`, name: "同じ町", theme })), nextCursor: null },
     [themes.map((theme, i) => [`town-${i}`, "同じ町", theme]), null]],
@@ -161,7 +161,7 @@ const equipmentPreset = { id: "preset-custom", name: "登録したそうび", we
 ], accessories: [{ id: "acc-off", name: "はちまき", effort: "off" }, { id: "acc-null", name: "はちまき", effort: null }] };
 questCases.push(["quest-options", { townId: town.id }, [town.id],
   { allowWork: false, heroes: [{ ...workHero, model: null, effort: "minimal" }], bases: [], presets: [equipmentPreset] },
-  [false, [[workHero.id, workHero.name, "Claude", "盾", null, false, true, true, null, true, town.id, null, "minimal"]], [],
+  [false, [[workHero.id, workHero.name, "Claude", "盾", null, false, true, true, null, true, town.id, null, "minimal", workHero.variant]], [],
     [[equipmentPreset.id, equipmentPreset.name, equipmentPreset.weapons.map(w => [w.id, w.name, w.model]),
       equipmentPreset.accessories.map(a => [a.id, a.name, a.effort])]]]]);
 const vectors = {

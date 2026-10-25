@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { validQuestPatch, type Quest, type QuestEvent } from "../../core/quests";
+import { mobileReportTitle, validQuestPatch, type Quest, type QuestEvent } from "../../core/quests";
 import { TOWN_THEMES, townKey, townLabel, type TownRecord } from "../../core/town-ledger";
 import type { Room } from "../../core/room";
 import type { MobileQuest, MobileReport, MobileTown, MobileQuestResponseBody } from "../../core/mobile-quests";
@@ -59,7 +59,8 @@ export class MobileQuests {
     const reply = event.hero ? this.room()?.agents.get(event.hero)?.talk.find(entry => entry.from === "hero" && entry.at === event.at) : undefined;
     const text = event.text ?? reply?.text;
     return { id: `report-${event.id}`, questId: quest.id, questTitle: mobileShort(quest.title, 200, "クエスト"),
-      townId: this.townId(quest.town), title: mobileShort(event.title, 200, "報告"),
+      // Recent rows can carry only result metadata in the report JSON, without a TalkReport.
+      townId: this.townId(quest.town), title: mobileReportTitle(event.report?.kind ? event.report : undefined),
       success: event.report?.stopFailure || event.report?.tests?.last === "failed" ? false : event.report?.tests?.last === "passed" ? true : null,
       at: event.at, excerpt: mobileShort(text ?? "", 500), text: full && text !== undefined ? mobileShort(text, 8000) : null };
   }

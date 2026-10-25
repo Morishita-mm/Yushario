@@ -43,7 +43,7 @@ let mobileNames: TownNames = [];
 function refreshMobile(): void {
   if (!mobile || !mobileRoom || !mobileQuests) return;
   mobileNames = townView(mobileRoom, Date.now(), mobileNames).names;
-  mobile.heroes = mobileHeroes(mobileRoom, ledger.names, ledger.towns, mobileQuests, mobileNames);
+  mobile.heroes = mobileHeroes(mobileRoom, ledger.names, ledger.towns, mobileQuests, mobileNames, pty.listSessions());
 }
 function broadcast(message: object): void {
   const type = (message as { type?: string }).type;

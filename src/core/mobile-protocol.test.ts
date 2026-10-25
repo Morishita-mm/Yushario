@@ -72,7 +72,7 @@ describe("mobile wire validation", () => {
     expect(parseMobileResponseBody("permissions", { permissions: [{ ...permission, content: "a".repeat(2001) }] })).toBeUndefined();
     expect(parseMobileResponseBody("permissions", { permissions: Array(17).fill(permission) })).toBeUndefined();
     expect(parseMobileResponseBody("permissions", { permissions: [{ ...permission, omitted: -1 }] })).toBeUndefined();
-    const hero = { id: "a", name: "勇者", town: "町", townId: null, state: "idle", permissionPending: false };
+    const hero = { id: "a", name: "勇者", town: "町", townId: null, state: "idle", permissionPending: false, variant: 2 };
     expect(parseMobileResponseBody("status", { heroes: [hero] })).toBeDefined();
     expect(parseMobileResponseBody("status", { heroes: [{ ...hero, state: "other" }] })).toBeUndefined();
     const report = { id: "r", questId: "q", questTitle: "クエスト", title: "報告", success: null, at: 0, excerpt: "", text: null, townId: null };
@@ -107,11 +107,11 @@ describe("mobile deterministic bytes", () => {
 
   it("projects the remaining operation bodies to fixed nested arrays", () => {
     const header = { v: 1, deviceId: vectors.deviceId, seq: 2, timestamp: 1700000000000 };
-    const hero = { id: "h", name: "勇者", town: "町", townId: "t", state: "idle", permissionPending: true };
+    const hero = { id: "h", name: "勇者", town: "町", townId: "t", state: "idle", permissionPending: true, variant: 2 };
     const report = { id: "r", questId: "q", questTitle: "クエスト", title: "報告", success: null, at: 0, excerpt: "先頭", text: null, townId: "t" };
     const p = vectors.permission.displayed;
     const cases = [
-      ["status", { heroes: [hero] }, [[["h", "勇者", "町", "idle", true, "t"]]]],
+      ["status", { heroes: [hero] }, [[["h", "勇者", "町", "idle", true, "t", 2]]]],
       ["permissions", { permissions: [p] }, [[[p.id, p.heroId, p.heroName, p.town, p.tool, p.summary, p.content, p.omitted, p.expiresAt, p.townId, [p.work.questId, p.work.title], p.change, p.contentHash]]]],
       ["reports", { reports: [report], nextCursor: null }, [[["r", "q", "クエスト", "報告", null, 0, "先頭", null, "t"]], null]],
       ["push-token", { updated: true }, [true]], ["unpair", { unpaired: true }, [true]],
