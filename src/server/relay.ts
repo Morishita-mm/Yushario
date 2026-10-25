@@ -12,6 +12,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import type { Duplex } from "node:stream";
 import { WebSocket, WebSocketServer, type RawData } from "ws";
 import type { AgentEvent } from "../core/events";
+import { admitExternalEvent, type ExternalEventBudget } from "../core/hook-trust";
 import { receiveHook } from "./relay-hooks";
 import { EVENT_HISTORY_LIMIT, historyDiscardIndex, type RecordedEvent } from "../core/event-history";
 import { DAY_MS } from "../core/town-ledger";
@@ -64,6 +65,7 @@ const token = development && process.env.AGENT_CHARACTER_TOKEN
   ? process.env.AGENT_CHARACTER_TOKEN : randomBytes(32).toString("hex");
 // Recent events let a newly opened room rebuild who is present and what they are doing.
 const history: RecordedEvent[] = [];
+let externalBudget: ExternalEventBudget | undefined;
 const ledger = new TownLedger((towns) => broadcast({ type: "towns", towns }),
   (names) => broadcast({ type: "names", names }));
 const quests = new QuestLedger((message) => { broadcast(message); party.prune(new Set(message.quests.map((quest) => quest.id))); }, () => ledger.saveConversation);
@@ -76,6 +78,11 @@ function record(event: AgentEvent): boolean {
   if (event.terminal && event.hook !== "SessionEnd" && !pty.agentSession(event.terminal)?.active) return false;
   // Hooks run concurrently, so order by the hook's own clock when it is plausible.
   const now = Date.now();
+  if (!event.terminal && event.agent?.startsWith("external:")) {
+    const admitted = admitExternalEvent(externalBudget, event.agent, now);
+    if (!admitted) return false;
+    externalBudget = admitted;
+  }
   const at = event.ts !== undefined && Math.abs(event.ts - now) < 60_000 ? event.ts : now;
   if (session) {
     event = { ...event, project: session.project, branch: session.branch ?? "" };

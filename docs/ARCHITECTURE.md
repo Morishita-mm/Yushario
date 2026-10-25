@@ -55,7 +55,7 @@ Yushario と勇者は同じ OS 利用者で動く。悪意ある同一利用者�
 |---|---|---|
 | `src/core/events.ts` | `AgentEvent` 型と入力の検証 | なし |
 | `src/core/codex.ts` | Codex 0.162.1 の公式フック JSON を AgentEvent へ変換。成否・MP を推測せず、本文・対象を制限 | events |
-| `src/core/hook-trust.ts` | 合言葉なしの知らせから端末・証拠入力を外す処理、人が選んだ再開と旧端末終了の照合 | events |
+| `src/core/hook-trust.ts` | 合言葉なしの知らせから端末・証拠入力を外す処理、外部のID数・受信頻度の判定、人が選んだ再開と旧端末終了の照合 | events |
 | `src/core/activity.ts` | フック・ツール名・対象から活動を分類 | events |
 | `src/core/room.ts` | 勇者・仲間・クエスト・行動ログ・会話の状態と、直近の流れから様子を計算 | events, activity, turns |
 | `src/core/turns.ts` | 進行中の往復の累計、最後のテスト結果と異常終了、直近256イベント内の遅着補正、許可待ちを除いた所要時間、報告の付与 | events, activity |
@@ -181,7 +181,7 @@ Codex の PostToolUse は成否不明として扱い、成功数・報告のテ�
 
 | 経路 | 契約 |
 |---|---|
-| `POST /event` | AgentEvent を検証して受付。端末専用の Authorization Bearer から terminal を確定。合言葉なし／不一致は表示専用。Origin つき403、CORSなし。正常時204、不正入力400 |
+| `POST /event` | AgentEvent を検証して受付。端末専用の Authorization Bearer から terminal を確定。合言葉なし／不一致は表示専用で、起動中の異なるIDは32件、全体で1秒30件まで。超過429。Origin つき403、CORSなし。正常時204、不正入力400 |
 | `WS /ws` | `event` / `replay`、`towns`、`names`、`quests`（一覧・端末の結び付き、各端末の参加クエストと役 `members`、`reports` は空。開いた会話の報告だけ HTTP で読む）、`pending`、`equipped`、`attention`、`permission` / `permission-resolved`、`party-notices`（仲間の確認・役割外の変更）。web からは `permission-decision`。札は未保存入力・操作フォーカスがある間、`quests` の受信でフォームを差し替えない（通信形式は不変） |
 | `/api/agents` | 起動時に PATH で検出した種類（shell は常に含む）と町・再開・整理・途中のそうび変更の対応範囲の公開部分。出陣の窓は `hero: false` を「ターミナルのみ（勇者は出ない）」と表示。Codex は hero/resume/compact が true、信頼確認・許可の端末回答と、成否・証拠・MP が取れないことを明記 |
 | `/api/equipment` | エージェントごとの武器（モデル）・アクセサリ（考える量）の読み込み済みマスタ |
@@ -250,6 +250,7 @@ A6 は未命名の町名ベースの勇者だけを TownNames の番号つき種
 - npm パッケージの allowlist は `dist/`・`lib/`・Claudeフック・bin・`LICENSE`・`NOTICE`。ライセンスと通知はブラウザ配布用の `dist/` にもコピーする。アダプタはパッケージの絶対パスから読み込み、ソース・テスト・作業用ファイル・利用者データを同梱しない。
 - HTTP・WS Upgrade の入口で Host を `127.0.0.1:<実ポート>`／`localhost:<実ポート>` に限定する。Vite proxy は Host を転送先へ変更する。WS `/ws`・`/pty` と `/api/*` はトークンと自分自身の Origin を検査する。WS は Origin 必須、HTTP API の Origin 無しリクエストはトークンで許可する。開発時だけローカルの別ポートも許可する。
 - フックの `POST /event`・`/hooks/permission` は画面用トークンを使わず、端末の `AGENT_CHARACTER_AGENT_TOKEN` を Authorization Bearer で受ける。Claude HTTP 許可フックは公式の `headers`・`allowedEnvVars` で環境変数を展開する。すべての Origin つきを拒否し、CORS は返さない。合言葉なし／不一致の知らせは terminal・branch・command を外し、agent を `external:` 名前空間にして描くだけ。台帳・パーティー・証拠・許可・失効・PTY へは渡さない。本文の上限は1MiB、端末作成・町の設定は4KiB、端末操作は64KiB（UTF-8バイト、超過は413）。Claude の command フック stdin も1MiBで、超過時は無言で正常終了する。
+- 未認証の表示用イベント（`/event` と `/hooks/permission` の表示分）は、サーバーの受信時刻で全体1秒30件、起動中の異なる agent ID は32件まで。本文の時刻・ID変更で頻度枠を分けない。終了でID枠を戻すと画面の名前・退場履歴が増え続けるため、枠は再起動まで保持する。上限時は記録・配信しない（`/event` は429、未認証の許可フックは従来どおり200の `{}` で端末判断に戻す）。認証済み端末のイベントはこの枠を使わない。
 - 再開による所属移動は、画面の「よびもどす」で起動した端末の `recalledHero` と SessionStart の hero が一致し、旧端末が終了／削除済みの時だけ。recalledHero はメモリだけで DB に保存しない。ほかの端末の既知の hero を名乗るフックは表示専用に落とす。
 - サーバーの Git は `core.fsmonitor=false`・`core.hooksPath` を null device に固定し、global/system 設定と継承した `GIT_*` を使わない。repo の filter 名を `git config` で読み、clean・smudge・process を空、required を false に上書きする。外部 diff・textconv も読み取り側で無効化する。filter による変換を行わない拠点なので、必要な準備は人が端末で行う。同一利用者による同時の設定差し替え、PATH 上の git 自体の改変は隔離しない。
 - モバイル窓口は Origin つきを拒否し、CORS／ブラウザ token を使わない。1MiB 上限・送信元 IP／登録端末ごと毎分30件・コード3失敗で失効・最大5台。`0.0.0.0`／`::` は起動時に警告する。公開インターネット向けにはしない。
@@ -259,6 +260,7 @@ A6 は未命名の町名ベースの勇者だけを TownNames の番号つき種
 - Codex は利用者の設定ファイルを書き換えず、`-c features.hooks=true`・`-c hooks.<Event>=[...]` と `--no-daemon` を付ける。後者は共有デーモンに別端末の合言葉を継承させないため。`/hooks` の信頼確認と管理者制限を迂回しない（初回はターミナルで確認・依頼）。`notify` は重複するため使わず、transcript・画面・出力の解析もしない。Codex 用の保存表・利用者設定は足さず、会話と報告は既存の保存方針のまま。PostToolUse の成否の契約がないので、自動証拠は作らない。
 - イベント全体2000件・会話窓の本文と報告・預かり・端末出力はメモリのみ（永続クエストの要点は別）。履歴があふれた時は、最も多く持つ勇者の古いイベントから捨てる。活動中の勇者の最初のイベントと最後の本体の UserPromptSubmit は保護し、SessionEnd 済みの勇者は保護しない。サーバーを再起動すると消える。往復は進行中だけ累積し、遅着補正用のイベントは直近256件まで（それ以前への遅着は集計しない）。ファイル名は往復ごと最大256件、ツール・テスト・失敗の累計は切り捨てない。完了した札は通常の新イベントで数え直さず、直近範囲への遅着時だけ補正する。
 - Esc と `action: interrupt` は `Interrupt`（停止の要求）を記録し、300ms経過を待機の証明にしない。Room の `stopRequestedAt` と PTY の `interrupting` は、その後の本体の SessionStart・Stop・StopFailure・PostCompact・SessionEnd・InterruptConfirmed だけで解除する。古い／仲間の知らせ・tool完了・idle通知では解除しない。未確認の間は新しい say・そうび・action を断り、端末を直接操作して確かめられる入口を残す。札・会話は30秒後も停止扱いにせず「まだ とまったか わからない」と表示する。状態はメモリだけで、ブラウザの再接続はイベントの再送から戻す。
+- 生存中の仲間は勇者ごと最大64件。上限時は未知の仲間の到着だけを捨て、既存の仲間の更新・終了は処理する（終了で空いた枠へ新しい仲間を迎えられる）。
 - 終了した仲間は勇者ごとにIDと終了時刻を最大256件までメモリで覚え、遅いtool／古い開始で復活させない。同じIDを使うには終了より新しい明示的な SubagentStart が必要。生存中の仲間にも最新の開始／活動時刻を持ち、それより古い Stop では消さない。本体の SessionEnd で破棄し、上限超過時は最古の終了時刻から捨てる。
 - 地図・戦闘の名前の省略は描画時だけ。保存済みの名前・イベント・API の値を切らず、省略した文字列も保存しない。
 - 町・設定・名前・再開用のめいぼは `AGENT_CHARACTER_HOME`（既定 `~/.config/agent-character`）の JSON に保存する。町の最終活動時刻はメモリで更新し5秒おきと終了時にまとめて保存、時刻だけの変更では台帳を配信しない。登録・すがた・ピン・しまう／戻すはすぐ保存・配信する。本文は保存せず、一時ファイルから置き換える。壊れたファイルは `.broken` に退避する。
