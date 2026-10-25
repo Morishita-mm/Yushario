@@ -12,8 +12,8 @@ const validRequest = vectors.request.signedEnvelope;
 const parseRequest = (changes: Record<string, unknown>) => parseMobileRequest({ ...validRequest, ...changes });
 
 describe("mobile wire validation", () => {
-  it("has exactly the sixteen allowed operations and rejects unknown fields", () => {
-    expect(MOBILE_OPERATIONS).toEqual(["pair", "status", "permissions", "decide", "reports", "push-token", "unpair", "towns", "quests", "quest-create",
+  it("has exactly the seventeen allowed operations and rejects unknown fields", () => {
+    expect(MOBILE_OPERATIONS).toEqual(["pair", "status", "permissions", "decide", "reports", "push-token", "push-prefs", "unpair", "towns", "quests", "quest-create",
       "quest-options", "quest-draft", "quest-prepare", "quest-form", "quest-embark", "quest-depart"]);
     for (const operation of ["terminal", "exec", "permission-decision", "PAIR", "__proto__", null]) {
       expect(isMobileOperation(operation)).toBe(false);

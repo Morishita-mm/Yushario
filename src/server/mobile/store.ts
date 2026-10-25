@@ -5,14 +5,17 @@ import { join, resolve } from "node:path";
 import { mobileBase64url, mobileInteger, mobileObject, mobilePushToken, mobileText } from "../../core/mobile-protocol";
 import { generateMobileIdentity, mobileIdentity, type MobileIdentity } from "./crypto";
 import type { MobilePushKind } from "../../core/mobile-push";
+import { isMobilePushPrefs, MOBILE_PUSH_DEFAULTS, type MobilePushPrefs } from "../../core/mobile-push-content";
 
 export type MobileDevice = { id: string; phoneEncryptionKey: string; phoneSigningKey: string; name: string;
-  pushToken: string | null; lastSeq: number; createdAt: number; lastSeenAt: number; allowWork: boolean; notifiedKinds: MobilePushKind[] };
+  pushToken: string | null; lastSeq: number; createdAt: number; lastSeenAt: number; allowWork: boolean; notifiedKinds: MobilePushKind[];
+  pushPrefs: MobilePushPrefs; pushSeq: number };
 export type MobileAudit = { deviceId: string; permissionId: string; result: "allow" | "deny"; time: number };
 
 const deviceKeys = ["id", "phoneEncryptionKey", "phoneSigningKey", "name", "pushToken", "lastSeq", "createdAt", "lastSeenAt"];
 function validDevice(value: unknown): value is MobileDevice {
-  return mobileObject(value, [...deviceKeys, "allowWork", "notifiedKinds"]) && typeof value.allowWork === "boolean"
+  return mobileObject(value, [...deviceKeys, "allowWork", "notifiedKinds", "pushPrefs", "pushSeq"]) && typeof value.allowWork === "boolean"
+    && isMobilePushPrefs(value.pushPrefs) && mobileInteger(value.pushSeq)
     && Array.isArray(value.notifiedKinds) && value.notifiedKinds.length <= 3
     && value.notifiedKinds.every(kind => ["permission", "report", "error"].includes(kind))
     && new Set(value.notifiedKinds).size === value.notifiedKinds.length
@@ -24,7 +27,9 @@ function validDevice(value: unknown): value is MobileDevice {
 // Older records default to no work capability and no unseen notifications, without resetting keys/sequence.
 function storedDevice(input: unknown): MobileDevice | undefined {
   if (!input || typeof input !== "object" || Array.isArray(input)) return;
-  const value = { allowWork: false, notifiedKinds: [], ...input };
+  // A partially missing A8 record is corruption, not an old registration: never reset a used nonce counter.
+  if (Object.hasOwn(input, "pushPrefs") !== Object.hasOwn(input, "pushSeq")) return;
+  const value = { allowWork: false, notifiedKinds: [], pushPrefs: { ...MOBILE_PUSH_DEFAULTS }, pushSeq: 0, ...input };
   return validDevice(value) ? value : undefined;
 }
 
@@ -62,7 +67,7 @@ export class MobileStore {
       }
     } catch (error) { rmSync(this.lock, { force: true }); throw error; }
   }
-  get devices(): MobileDevice[] { return this.records.map(device => ({ ...device, notifiedKinds: [...device.notifiedKinds] })); }
+  get devices(): MobileDevice[] { return this.records.map(device => ({ ...device, notifiedKinds: [...device.notifiedKinds], pushPrefs: { ...device.pushPrefs } })); }
   private lockFailure(): Error {
     let owner = "";
     try {
@@ -94,13 +99,15 @@ export class MobileStore {
     } finally { rmSync(temp, { force: true }); }
   }
   // Only Mac confirmation or setAllowWork may opt in; later updates preserve that choice.
-  put(input: Omit<MobileDevice, "allowWork" | "notifiedKinds"> & { allowWork?: boolean; notifiedKinds?: MobilePushKind[] }): void {
+  put(input: Omit<MobileDevice, "allowWork" | "notifiedKinds" | "pushPrefs" | "pushSeq">
+    & { allowWork?: boolean; notifiedKinds?: MobilePushKind[]; pushPrefs?: MobilePushPrefs; pushSeq?: number }): void {
     const previous = this.records.find(item => item.id === input.id);
     const device = { ...input, allowWork: input.allowWork ?? previous?.allowWork ?? false,
-      notifiedKinds: [...(input.notifiedKinds ?? previous?.notifiedKinds ?? [])] };
+      notifiedKinds: [...(input.notifiedKinds ?? previous?.notifiedKinds ?? [])],
+      pushPrefs: { ...(input.pushPrefs ?? previous?.pushPrefs ?? MOBILE_PUSH_DEFAULTS) }, pushSeq: input.pushSeq ?? previous?.pushSeq ?? 0 };
     if (!validDevice(device)) throw Error("Invalid mobile device");
     if (previous && (previous.phoneEncryptionKey !== device.phoneEncryptionKey || previous.phoneSigningKey !== device.phoneSigningKey
-      || device.lastSeq < previous.lastSeq)) throw Error("Cannot reset mobile identity or sequence");
+      || device.lastSeq < previous.lastSeq || device.pushSeq < previous.pushSeq)) throw Error("Cannot reset mobile identity or sequence");
     const records = this.records.filter(item => item.id !== device.id);
     if (records.length >= 5) throw Error("Too many mobile devices");
     this.save([...records, device]);
@@ -120,6 +127,18 @@ export class MobileStore {
     // A late ticket cannot re-suppress a phone that has already connected, or recreate a revoked device.
     if (!device || device.lastSeq !== sentAtSeq || device.notifiedKinds.includes(kind)) return;
     this.put({ ...device, notifiedKinds: [...device.notifiedKinds, kind] });
+  }
+  reservePush(id: string): number {
+    const device = this.records.find(item => item.id === id);
+    if (!device || device.pushSeq >= Number.MAX_SAFE_INTEGER) throw Error("Push sequence unavailable; re-pair");
+    const seq = device.pushSeq + 1;
+    this.put({ ...device, pushSeq: seq }); // Durable before any encryption, including failed sends.
+    return seq;
+  }
+  setPushPrefs(id: string, pushPrefs: MobilePushPrefs): void {
+    const device = this.records.find(item => item.id === id);
+    if (!device || !isMobilePushPrefs(pushPrefs)) throw Error("Invalid push preferences");
+    this.put({ ...device, pushPrefs });
   }
   setPushToken(id: string, token: string | null): void {
     const previous = this.records.find(device => device.id === id);

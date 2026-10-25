@@ -32,9 +32,10 @@ const deviceIdBytes = hash(deviceIdInput);
 const deviceId = b64(deviceIdBytes);
 const saltInput = Buffer.concat([utf8("yushario.hkdf.v1\0"), publicKeyBytes, deviceIdBytes]);
 const salt = hash(saltInput);
-const requestInfo = "yushario.mobile.v1/request", responseInfo = "yushario.mobile.v1/response";
+const requestInfo = "yushario.mobile.v1/request", responseInfo = "yushario.mobile.v1/response", pushInfo = "yushario.mobile.v1/push";
 const requestKey = Buffer.from(hkdfSync("sha256", sharedSecret, salt, utf8(requestInfo), 32));
 const responseKey = Buffer.from(hkdfSync("sha256", sharedSecret, salt, utf8(responseInfo), 32));
+const pushKey = Buffer.from(hkdfSync("sha256", sharedSecret, salt, utf8(pushInfo), 32));
 const sasInput = Buffer.concat([utf8("yushario.sas.v1\0"), publicKeyBytes, pairingCode]);
 const sasHash = hash(sasInput);
 const sas = String(sasHash.readUInt32BE(0) % 1_000_000).padStart(6, "0");
@@ -164,12 +165,32 @@ questCases.push(["quest-options", { townId: town.id }, [town.id],
   [false, [[workHero.id, workHero.name, "Claude", "盾", null, false, true, true, null, true, town.id, null, "minimal", workHero.variant]], [],
     [[equipmentPreset.id, equipmentPreset.name, equipmentPreset.weapons.map(w => [w.id, w.name, w.model]),
       equipmentPreset.accessories.map(a => [a.id, a.name, a.effort])]]]]);
+const prefs = { permission: true, report: false, error: true, contentVersion: 1 };
+questCases.push(["push-prefs", {}, [], { permission: true, report: true, error: true, contentVersion: 0 }, [true, true, true, 0]],
+  ["push-prefs", prefs, [true, false, true, 1], prefs, [true, false, true, 1]]);
+function pushSample(kind, summary, target, seq) {
+  const envelope = { v: 1, deviceId, seq, timestamp: header.timestamp, kind, heroName: "Claude Code 1", town: "テストの町",
+    summary, expiresAt: header.timestamp + (kind === "permission" ? 120000 : 3600000), target };
+  const signingInput = json(["yushario.push.v1", 1, deviceId, seq, envelope.timestamp, kind, envelope.heroName,
+    envelope.town, summary, envelope.expiresAt, target === null ? null : [target.type, target.id, target.questId]]);
+  const signature = sign(null, signingInput, gatewayEd.privateKey);
+  const signedEnvelope = { ...envelope, signature: b64(signature) }, plaintext = json(signedEnvelope);
+  const aad = json(["yushario.push.aead.v1", 1, deviceId, seq, kind, ...Object.values(publicKeys)]);
+  const nonce = Buffer.alloc(12); nonce.writeBigUInt64BE(BigInt(seq), 4);
+  const cipher = createCipheriv("chacha20-poly1305", pushKey, nonce, { authTagLength: 16 });
+  cipher.setAAD(aad, { plaintextLength: plaintext.length });
+  const encrypted = Buffer.concat([cipher.update(plaintext), cipher.final()]), tag = cipher.getAuthTag();
+  const ciphertext = Buffer.concat([encrypted, tag]);
+  return { signedEnvelope, signingInputHex: hex(signingInput), signatureHex: hex(signature), nonceHex: hex(nonce),
+    aadHex: hex(aad), plaintextHex: hex(plaintext), ciphertextHex: hex(ciphertext), tagHex: hex(tag),
+    packet: { v: 1, kind, deviceId, seq, ciphertext: b64(ciphertext) } };
+}
 const vectors = {
   description: "Yushario mobile v1 PUBLIC TEST KEYS; raw X25519 private scalars / Ed25519 seeds; ciphertext includes the final 16-byte tag.",
   keys: { gatewayX25519: gatewayX.vector, gatewayEd25519: gatewayEd.vector, phoneX25519: phoneX.vector, phoneEd25519: phoneEd.vector },
   publicKeys, deviceIdInputHex: hex(deviceIdInput), deviceId,
   hkdf: { sharedSecretHex: hex(sharedSecret), saltInputHex: hex(saltInput), saltHex: hex(salt),
-    requestInfo, responseInfo, requestKeyHex: hex(requestKey), responseKeyHex: hex(responseKey) },
+    requestInfo, responseInfo, pushInfo, requestKeyHex: hex(requestKey), responseKeyHex: hex(responseKey), pushKeyHex: hex(pushKey) },
   pairing: { offer, pairingString: `yushario-pair:1:${b64(json(offer))}`, codeHex: hex(pairingCode),
     sasInputHex: hex(sasInput), sasHashHex: hex(sasHash), sas },
   permission: { displayed: permission, hashInputHex: hex(permissionInput), hashHex: hex(permissionHash) },
@@ -177,6 +198,10 @@ const vectors = {
   response: sample("response", response, [true]),
   pairRequest: sample("request", pairRequest, [b64(pairingCode), "Test phone", null]),
   pairResponse: sample("response", pairResponse, [true]),
+  pushes: [pushSample("permission", "Bash: npm test 😀", { type: "permission", id: permission.id, questId: null }, 1),
+    pushSample("report", "ファイル 2件を変更・テスト成功", { type: "report", id: report.id, questId: quest.id }, 2),
+    pushSample("error", "止まりました", { type: "hero", id: hero.id, questId: null }, 3),
+    pushSample("permission", "テスト通知", null, 4)],
   quests: questCases.map(([operation, body, values, responseBody, responseValues], index) => ({
     request: sample("request", { ...header, seq: index + 3, operation, body }, values),
     response: sample("response", { ...header, seq: index + 3, operation, body: responseBody }, responseValues),

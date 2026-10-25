@@ -7,6 +7,7 @@ import { setTimeout } from "node:timers/promises";
 import { mobileAad, mobileNonce, type MobilePublicKeys } from "../../core/mobile-signing";
 import { mobileRequestBodyValues, parseMobileRequestBody, type MobilePacket } from "../../core/mobile-protocol";
 import { parseMobileResponse } from "../../core/mobile-display";
+import { parseMobilePushPacket, parseMobilePushEnvelope, mobilePushAad, mobilePushSigningInput, mobilePushFresh } from "../../core/mobile-push-content";
 import { mobileResponseSigningInput } from "../../core/mobile-signing";
 import type { MobilePairingOffer } from "../../core/mobile-pairing";
 import { PermissionWaiter } from "../permissions";
@@ -19,6 +20,7 @@ export class TestPhone {
   readonly keys: MobilePublicKeys;
   readonly requestKey: Buffer;
   readonly responseKey: Buffer;
+  readonly pushKey: Buffer;
   seq = 1;
   constructor(readonly offer: MobilePairingOffer, readonly identity: MobileIdentity = generateMobileIdentity()) {
     this.id = mobileDeviceId(identity.encryptionPublicKey, identity.signingPublicKey, offer.pairingCode);
@@ -29,6 +31,7 @@ export class TestPhone {
     const salt = mobileHash(Buffer.concat([Buffer.from("yushario.hkdf.v1\0"), ...Object.values(this.keys).map(value => Buffer.from(value, "base64url")), Buffer.from(this.id, "base64url")]));
     this.requestKey = Buffer.from(hkdfSync("sha256", shared, salt, "yushario.mobile.v1/request", 32));
     this.responseKey = Buffer.from(hkdfSync("sha256", shared, salt, "yushario.mobile.v1/response", 32));
+    this.pushKey = Buffer.from(hkdfSync("sha256", shared, salt, "yushario.mobile.v1/push", 32));
   }
   packet(operation: string, body: object = {}, seq = this.seq++, timestamp = Date.now(), signature?: string): MobilePacket {
     const request = parseMobileRequestBody(operation, body);
@@ -40,6 +43,16 @@ export class TestPhone {
   seal(value: object, seq: number): MobilePacket {
     return { v: 1, deviceId: this.id, seq, phoneEncryptionKey: this.identity.encryptionPublicKey, phoneSigningKey: this.identity.signingPublicKey,
       ciphertext: mobileEncrypt(Buffer.from(JSON.stringify(value)), this.requestKey, mobileNonce(seq), mobileAad("request", this.id, seq, this.keys)).toString("base64url") };
+  }
+  openPush(input: unknown, now = Date.now(), lastAccepted = 0) {
+    const packet = parseMobilePushPacket(input);
+    if (!packet || packet.deviceId !== this.id || packet.seq <= lastAccepted) throw Error("Invalid push packet");
+    const plaintext = mobileDecrypt(Buffer.from(packet.ciphertext, "base64url"), this.pushKey, mobileNonce(packet.seq), mobilePushAad(packet, this.keys));
+    const value = parseMobilePushEnvelope(JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(plaintext)));
+    if (!value || value.deviceId !== packet.deviceId || value.seq !== packet.seq || value.kind !== packet.kind
+      || !mobileVerify(mobilePushSigningInput(value), value.signature, this.offer.gatewaySigningKey)
+      || !mobilePushFresh(value, lastAccepted, now)) throw Error("Invalid push content");
+    return value;
   }
   open(packet: MobilePacket) {
     const plaintext = mobileDecrypt(Buffer.from(packet.ciphertext, "base64url"), this.responseKey, mobileNonce(packet.seq), mobileAad("response", this.id, packet.seq, this.keys));

@@ -26,7 +26,7 @@
 この表以降、ハッシュ式の `GX/GS/PX/PS/code` は **復号した生バイト**、JSON の値では `B64` の文字列を指す。
 Mac は X25519 と Ed25519 の鍵対を初回起動で作り0600で保管する。スマホは Mac ごと・新しいペアリング試行ごとに独立した新しい2鍵対を作り、この端末のみの安全な保管庫へ置く。X25519 と Ed25519 の秘密鍵を兼用・変換しない。Ed25519 は pure Ed25519（prehash／context なし）、署名は生64バイト（DER ではない）。
 
-登録後は `D`、両側の公開鍵、スマホの秘密鍵と送信連番を保つ。Mac は `D`、端末公開鍵・名前・通知 ID と受信済み連番を保つ。`code` は登録後の通信には不要で、保存しない。Mac の鍵の再作成では全端末を登録し直す。公開鍵の pin はアドレス変更で変えない。
+登録後は `D`、両側の公開鍵、スマホの秘密鍵と送信連番を保つ。Mac は `D`、端末公開鍵・名前・通知 ID と受信済み連番を保つ。A8ではMacの端末レコードに通知専用pushSeqとpushPrefs、スマホに登録×kindごとの通知受信済み連番の高水位も保つ。`code` は登録後の通信には不要で、保存しない。Mac の鍵の再作成では全端末を登録し直す。公開鍵の pin はアドレス変更で変えない。
 
 ## ペアリング
 
@@ -104,7 +104,7 @@ HTTP の要求と成功応答は同じ packet 形を使う。
 
 ```ts
 { v: 1, deviceId: string, seq: number, timestamp: number,
-  operation: "pair" | "status" | "permissions" | "decide" | "reports" | "push-token" | "unpair" | "towns" | "quests" | "quest-create"
+  operation: "pair" | "status" | "permissions" | "decide" | "reports" | "push-token" | "push-prefs" | "unpair" | "towns" | "quests" | "quest-create"
     | "quest-options" | "quest-draft" | "quest-prepare" | "quest-form" | "quest-embark" | "quest-depart",
   body: object, signature: string }
 ```
@@ -137,6 +137,8 @@ Mac の要求判定は `seq > lastAccepted`（pair は初期値0）かつ `abs(t
 | `reports`（最近） | `{}` | `[]` | `{reports:[Report,...],nextCursor:null}` | `[[reportValues,...],null]` |
 | `reports`（1クエスト） | `{questId,cursor}` | `[questId,cursor]` | `{reports:[Report,...],nextCursor}` | `[[reportValues,...],nextCursor]` |
 | `push-token` | `{token}` | `[token]` | `{updated:true}` | `[true]` |
+| `push-prefs`（読取） | `{}` | `[]` | `PushPrefs` | `[permission,report,error,contentVersion]` |
+| `push-prefs`（全更新） | `PushPrefs` | `[permission,report,error,contentVersion]` | `PushPrefs` | `[permission,report,error,contentVersion]` |
 | `unpair` | `{}` | `[]` | `{unpaired:true}` | `[true]` |
 | `quest-options` ほか5操作 | 下記「クエストの作業操作」 | | | |
 
@@ -184,7 +186,7 @@ reportValues = [id, questId, questTitle, title, success, at, excerpt, text, town
 ### 勇者の名前・報告の題・色（A6）
 
 - Hero と WorkHero の名前は同じ部屋の勇者について共通。利用者の names.json の名前を最優先し、それが無い時だけ TownNames の base を町の表示名／町のフォルダ名と完全一致で比べる。フォルダはtown.keyの `.git` の親（非Gitはkey自体、旧keyなしのみpath）で、最後に起動したworktreeへ変わるtown.pathは使わない。一致すれば `AGENTS[preset].label + " " + 番号`（例 `Claude Code 1`、`Codex 3`、`pi 2`）、種類不明は `勇者 3`。番号は TownNames の name の番号（接尾辞なしは1）で、種類別／現在の人数では数え直さない。別 worktree 等の base は従来の name のまま。PTY だけで部屋にまだ名前が無い場合の既存ラベルは変えない。
-- Report.title は保存されたPC用の題でなく event.report から下表の優先順で求める。日本語のみ。Report.success の従来の判定は変えず、null は不明（成功／失敗の札を出さない）。通知は従来の固定文言のまま。
+- Report.title は保存されたPC用の題でなく event.report から下表の優先順で求める。日本語のみ。Report.success の従来の判定は変えず、null は不明（成功／失敗の札を出さない）。A6時点の通知は従来の固定文言のまま（A8の変更は下記Push節）。
 
 | 条件（上が優先） | title |
 |---|---|
@@ -317,28 +319,96 @@ Mac は現在の同じ12値から hash を再計算し、decide の hash が一�
 - 唯一の例外は外側の `v` が安全な整数で1以外の場合。**HTTP 426、本文 `{"error":"version","supportedVersion":1}`**。文字列・欠落等は一般拒否。パスは版不一致でも `/mobile/v1` を使う。この平文エラーを鍵の更新・操作成功の証拠には使わない。
 - JSON エラー本文に末尾改行・追加メンバーなし。拒否の理由はスマホへ明かさず、一般拒否や通信切断では操作が未実行だったとも断定しない。
 
-## Push（作業内容をサービスへ渡さない）
+## Push（A8：作業内容を平文でサービスへ渡さない）
+
+### 設定と対応版の申告
+
+```ts
+PushPrefs = {permission:boolean, report:boolean, error:boolean, contentVersion:0|1}
+```
+
+`push-prefs` は通常の署名／AEAD／時刻／連番検査を通る第17の操作。{}で自分の設定を読み、4メンバーをすべて渡すと自分の設定だけを置き換える。部分更新・別端末ID・未知メンバー・型の強制変換は不可。応答も常に4メンバーで、要求／応答の配列は上表の順。作業許可allowWorkは不要で、作業の実行権限は変わらない。旧status/pairのshape・署名配列は変更しないため、旧アプリの通常通信を壊さない。
+
+- 既定は3種ともtrue、contentVersion=0。既存state.jsonの各端末にpushPrefsと独立したpushSeq（既定0）を保存。両方の欄のない旧記録だけこの既定で読む。片方欠落／型不正／負数等は破損として停止し、連番を初期化しない。
+- 新アプリはバックグラウンド処理・鍵の読取・端末内通知を準備してから、読んだ3設定を保持してcontentVersion=1を署名付きで宣言する。1なら下記のdata-only、0なら従来の固定文言。新しい端末も宣言前は0。復号失敗をMacが検知して自動downgradeはしない。明示的に0へ戻してもpushSeqをリセットしない。
+- permission/report/errorがfalseなら、その端末への**以後の自動送信**をMacが止める。すでに送信済み／配送中の通知は取り戻さない。設定は再起動でも維持。Macの明示テスト通知だけはOFFと重複抑止を迂回する。アプリ側で3設定による再フィルターは行わず、この明示テストも受け取る（OS自体の通知許可は別）。
+
+### data-onlyの外側（contentVersion=1）
+
+```ts
+// POST https://exp.host/--/api/v2/push/send
+{to: token, priority:"high", _contentAvailable:true, ttl: seconds,
+ data:{v:1, kind:"permission"|"report"|"error", deviceId, seq, ciphertext}}
+```
+
+**title/body/sound/channelIdは送らない**。Androidの背景taskが受信・復号し、既存alertsチャンネルへ端末内通知を出す。_contentAvailableは背景処理を要求するもので実行保証ではない。OSによる停止・遅延、iOSの設定・実配送はアプリと実機の責務。
+
+- dataの全メンバーは上の5つ。vは通知内容の版1（HTTP v1と別の版空間）。deviceIdは鍵選択に必要な既存のランダム登録IDだけ。対象の許可／報告／勇者／クエストID、名前・町・要約は暗号文内だけ。kindと配送先・長さ・時刻の交通情報はサービスに見える。
+- seqは端末別の通知専用連番、1..MAX_SAFE_INTEGER。Macが既存state.jsonのpushSeqをfsync/rename/ディレクトリfsyncで**暗号化前に**予約し、失敗や欠番も戻さない。HTTPのlastSeqとは独立。上限や破損では送らず再登録を要する。古いバックアップへの巻き戻しではMac鍵を作り直して再登録する（HTTPと同じ制限）。
+- ciphertextはB64(暗号文||16-byte tag)。平文の署名付きJSONは最大2400 UTF-8バイト、復号前の暗号文最大2416バイト。toの最大512 ASCII文字も含め、Expoへ送るJSON全体を4096 UTF-8バイト以下に検査する。超過や予約失敗では送らず、安全なPushPreparationFailedだけを診断する。
+
+### 通知専用鍵・AAD・署名・平文
+
+```text
+K_push = HKDF-SHA256(IKM=Z, salt=salt, info=UTF8("yushario.mobile.v1/push"), L=32)
+nonce(seq) = 00 00 00 00 || uint64_big_endian(seq)
+pushAAD = C(["yushario.push.aead.v1",1,deviceId,seq,kind,GX,GS,PX,PS])
+pushSigningInput = C(["yushario.push.v1",1,deviceId,seq,timestamp,
+                     kind,heroName,town,summary,expiresAt,targetValues])
+targetValues = null | [type,id,questId]
+```
+
+Z/salt/公開鍵の順と表現は「セッション鍵とnonce」と同じ。通知専用ラベルでrequest/responseと鍵を分離し、番号が同じでも別鍵になる。IETF ChaCha20-Poly1305（鍵32・nonce12・tag16）を使用。MacのEd25519でpushSigningInputを署名し、signature=B64(64バイト)を加えた次のJSONを暗号化する。端末IDはsalt/AAD/署名、両者の鍵はsalt/AADへ束縛する。
+
+```ts
+{v:1, deviceId, seq, timestamp, kind, heroName, town, summary, expiresAt,
+ target:null|{type:"permission"|"report"|"hero", id, questId:string|null}, signature}
+```
+
+- 全メンバー必須、余分な欄なし。時刻はUnixミリ秒の安全な整数、文字列／JSON／base64urlの検査は共通規則。外側とv/deviceId/seq/kindが一致すること。
+- heroName/town/summaryは各1〜80 UTF-16単位。通知用にC0/DEL・bidi制御U+202A..202E/U+2066..2069を空白へ置換、長ければサロゲートを分断せず末尾…で80以内。これらの制御文字は受信時も拒否する。通常の許可本文・contentHashは変換しない。
+- heroName/townは既存モバイル表示名（不明なら勇者／町）。内部の町key/cwd/branchを名前の代わりにしない。permissionのsummaryはツール名＋「: 」＋既存のコマンド／対象表示を80まで短縮する（例Bash: npm test、Edit: src/app.ts）。対象のコマンド／パスは**暗号文内の短いプレビューだけ**で、全文・Write/Editの変更本文・差分・秘密の自動墨消しは扱わない。
+- reportのsummaryは同じ報告のmobileReportTitle。reportの町はそのクエストの町（勇者の移動先ではない）。errorは「止まりました」。手動テストはpermission、heroName=勇者/town=町/summary=テスト通知/target=null。
+- permissionのexpiresAtは元の許可期限（最大発行後120秒）。report/errorは発行後3600000ms（1時間）。ttlは送信開始時の残り秒を切り捨て、1秒未満は送らない。HTTPや許可期限を延長しない。
+- targetのIDは空でない200 UTF-16単位以内、上記制御文字なし。permissionならtype=permissionでidは許可ID、questId=null。reportならtype=reportでidは既存Report.id、questIdはその既存クエストID。errorならtype=heroでidは既存statusのHero.id、questId=null。対象不明／テストはnull。IDは短縮しない。
+- 以前の「通知にIDを載せない」は、A8では**対象IDを暗号文内の画面選択ヒントに限り許す**に変更。URL・判断・contentHash・実行命令は載せない。タップ後は必ず窓口から取り直し、存在・現在の所属・未回答・期限を確認する。消えた対象は一覧へ戻す。通知プレビューだけでdecideを作らず、既存の全文表示／hash／本人確認を省略しない。
+
+### アプリの検証順序と退避
+
+1. 未登録deviceId／未知kindは表示も遷移もしない。既知の登録からpinした鍵を選び、dataの型・版・サイズ・base64url・seqを検査。未認証の通知に含まれる公開鍵やURLを読んで鍵／接続先を変えない。
+2. 端末登録×kindごとに永続保存した受信高水位（3値）以下のseqは再送として捨てる。初期値はすべて0、再起動で戻さない。暗号化用pushSeqは単一のままだが、受信側は別kindの順不同を許す（errorのseq=3の後にpermissionのseq=2を受けられる）。同kindの古い通知が遅れて来た時は捨てる。保存を失った登録は再ペアリングする。通知とHTTPの連番は共有しない。
+3. K_push、nonce、pushAADで復号。UTF-8をfatalで復号しJSONと全shapeを検査、外内一致とMac署名を検証する。本文をログやエラーへ出さない。
+4. 認証できた通知はseq>高水位、timestamp<=now+60000、timestamp<expiresAt、expiresAt-timestamp<=種類の上限、now<expiresAtを検査。**検証済みの期限切れ・再送は固定文言へ退避せず破棄する**。
+5. そのkindの高水位を表示前に安全に保存し、その後だけ端末内通知を出す。背景task同士を登録ごとに直列化する。保存失敗なら表示しない（再送時の二重表示を防ぐ）。通知のtargetはタップ後の再取得まで権限ではない。
+6. **復号不能／未対応版／暗号や署名・本文shapeの検証不良**は、既知deviceId＋既知kindについて下記の固定題・本文だけを端末内で表示する（要望により捨てない）。未認証の名前・要約・IDを使わず、targetなしの一覧入口にする。未認証seqで高水位を進めると偽の大番号で通知を止められるため、更新しない。判定できる再送は2で先に捨てる。
+
+従来のtitle/body付き通知はOS表示に任せ、アプリが同じ通知を二重にローカル表示しない。data-onlyの復号不能時はOSには本文がないため、背景処理で固定文言を出す。
+
+この退避の一般通知は認証の証拠ではなく、通知IDを得た攻撃者／配送サービスが偽装・反復できる。許可・作業の実行には使えず、窓口での再取得が必須。ロック画面へ復号した短い内容を表示すること自体の漏えいは、OSのプレビュー設定で利用者が管理する。OSが背景処理を一度も実行しない場合の配達をMacから保証するものではない。
+
+### 従来の固定文言（contentVersion=0／復号不能時）
 
 ```json
 {"priority":"high","channelId":"alerts","title":"Yushario","body":"確認が必要です","data":{"kind":"permission"}}
 ```
 
-`priority` は時間制約のある利用者向け通知のため常に `"high"`（配送の優先度だけで、到達や表示の保証ではない）。`channelId` は合意した `"alerts"` を常に指定する。Android の channel importance は配送優先度と別で、別アプリ側が `alerts` を HIGH の重要度で作成する。`title` はYushario、`body` はpermission「確認が必要です」、report「報告が届きました」、error「勇者が止まりました」の種類ごとの固定文言だけ。`data` は `kind` だけ（`permission|report|error` のいずれか）、または省略。作業内容・町名・勇者名・コマンド・パス・端末 ID・許可 ID・報告 ID・URL・暗号文を載せない。Expo への配送用 `to` は別途保存した通知 ID で、本文を足す場所ではない。通知から直接判断せず、開いた後に窓口へ取りに行く。取り消しで通知 ID も消す。
+`priority` は時間制約のある利用者向け通知のため常に `"high"`（配送の優先度だけで、到達や表示の保証ではない）。`channelId` は合意した `"alerts"` を常に指定する。Android の channel importance は配送優先度と別で、別アプリ側が `alerts` を HIGH の重要度で作成する。`title` はYushario、`body` はpermission「確認が必要です」、report「報告が届きました」、error「勇者が止まりました」の種類ごとの固定文言だけ。`data` は `kind` だけ（`permission|report|error` のいずれか）、または省略。この従来形式には作業内容・町名・勇者名・コマンド・パス・端末 ID・許可 ID・報告 ID・URL・暗号文を載せない。Expo への配送用 `to` は別途保存した通知 ID で、本文を足す場所ではない。通知から直接判断せず、開いた後に窓口へ取りに行く。取り消しで通知 ID も消す。
 
-A7では自動通知を端末別・kind別にticketのok後から次の認証済み窓口要求まで抑止する（同じ連番の送信中も重複しない）。署名不正やreplayでは解除しない。印は既存state.jsonの端末内notifiedKindsへ重複なし最大3種類だけ保存し、再起動でも継続。欄のない旧記録は空として読む。ネットワーク／ticket失敗時は印を付けず、接続後の遅いticketで再抑止しない。Macの明示テスト通知は毎回送れ、印を付けない。これはv1の要求／応答／署名入力を変えず、共有暗号vectorsの更新は不要。
+A7では自動通知を端末別・kind別にticketのok後から次の認証済み窓口要求まで抑止する（同じ連番の送信中も重複しない）。署名不正やreplayでは解除しない。印は既存state.jsonの端末内notifiedKindsへ重複なし最大3種類だけ保存し、再起動でも継続。欄のない旧記録は空として読む。ネットワーク／ticket失敗時は印を付けず、接続後の遅いticketで再抑止しない。Macの明示テスト通知は毎回送れ、印を付けない。A7時点ではv1の要求／応答／署名入力は不変。A8はこの抑止を維持し、push-prefsと通知専用暗号vectorsを加える。
 
 ### Expo の配送確認（Mac 内の診断。スマホ v1 の wire は変更しない）
 
-- `POST https://exp.host/--/api/v2/push/send` に `{to:<通知 ID 1件>,priority:"high",channelId:"alerts",title,body,data}` を送る。permissionだけ `ttl`（送信開始時のexpiresAtまでの残り秒を切り捨て、最大120秒）も付ける。残り1秒未満／期限切れは送信しない。report/errorにttlは付けない。`to` は文字列で、本文・kind は上記の固定値だけ。ticket は `data` が1オブジェクトでも要素1個の配列でも受け付ける。ticket の `ok` は Expo の受付であり、配送成功と表示しない。
+- `POST https://exp.host/--/api/v2/push/send` に `{to:<通知 ID 1件>,priority:"high",channelId:"alerts",title,body,data}` を送る。permissionだけ `ttl`（送信開始時のexpiresAtまでの残り秒を切り捨て、最大120秒）も付ける。残り1秒未満／期限切れは送信しない。従来の固定文言report/errorにttlは付けない（A8暗号化形式では全種類に上記のttlを付ける）。`to` は文字列で、本文・kind は上記の固定値だけ。ticket は `data` が1オブジェクトでも要素1個の配列でも受け付ける。ticket の `ok` は Expo の受付であり、配送成功と表示しない。
 - ticket の ID を使い、5秒後に `POST https://exp.host/--/api/v2/push/getReceipts`、本文 `{"ids":["<ticket ID>"]}` で照会する。結果は `data[ticket ID]`。未確認／照会の失敗なら追加で30秒後・120秒後（送信後およそ5／35／155秒、各 HTTP は最大10秒）に照会し、それでも不明なら未確認で止める。通知自体の自動再送はしない。
 - receipt の `ok` は APNs/FCM の受理までで、スマホの表示・音・閲覧の証拠ではない。ticket／receipt の `DeviceNotRegistered` は、まだ同じ token を持つ登録だけから通知 ID を消す。照会中に更新された新しい token は消さない。
 - 診断ログは `{time,deviceId,kind,ticketStatus,receiptStatus,errorCode}` の6項目だけ。time は試行の開始時刻で、同じ試行の進行でも保持する。ticketStatus は `pending|ok|error|skipped`、receiptStatus は `none|pending|ok|error|unknown`。errorCode は `src/core/mobile-push.ts` の許可リストか null だけで、未知の provider error は `UnknownExpoError`。token・ticket ID・provider message・題／本文・許可 ID は記録しない。
 - メモリの履歴は50件、0600の JSONL は32KiBで1世代の backup を更新する。保持範囲の端末別最新試行を Mac 画面へ返し、古い試行の遅い receipt で新しい結果を上書きしない。token なしは `NoPushToken`、処理中の終了／再起動は `GatewayStopped/Interrupted` の未確認。ticket ID はメモリだけなので再起動後に照会を再開しない。同時処理も最大50件で、上限は `QueueFull` として記録する。
-- 画面用の認可済み `POST /api/mobile/test-push` は `{deviceId}` だけを取り、その登録1件へ kind=`permission` の同じ固定通知（ttlは120秒以下）を送る。新しい許可要求やスマホ側操作は作らない。これは既存の画面 API であり、窓口の操作には追加しない。
+- 画面用の認可済み `POST /api/mobile/test-push` は `{deviceId}` だけを取り、その登録1件へ kind=`permission` のテスト通知（ttlは120秒以下）を送る。contentVersion=1は暗号化した「テスト通知」、0は同じ固定文言。3種のOFFと自動通知の抑止は迂回し、印は付けない。新しい許可要求やスマホ側操作は作らない。これは既存の画面 API であり、窓口の操作には追加しない。
 
 ## 共有テスト用データと実装の境界
 
 - `node scripts/mobile-vectors.mjs` で `docs/mobile-protocol-vectors.json` を再生成する（毎回同一）。秘密鍵も含めた **公開のテスト専用データ**であり実運用へ流用しない。
 - X25519 の秘密値は32バイト raw scalar、Ed25519 は32バイト seed。固定鍵・コード・連番・時刻から、公開鍵、共有値、salt/info、方向別 HKDF 鍵、SAS、表示 hash、署名入力 hex、署名、AAD、nonce、平文、tag つき暗号文、packet を収録する。pair・decide に加え、towns・quests・quest-create・reports の最近／クエスト別と、作業の6操作（quest-options・quest-draft・quest-prepare（launch つき）・quest-form・quest-embark・quest-depart）について、入れ子の配列を含む要求／応答を両方収録する（`quests` 配列）。A3 では townId・theme を含む署名／暗号値を更新し、status・permissions・5テーマと null の towns も加えた。A4 は work/change を含む hash と署名／暗号値に更新し、Write（制御文字・絵文字）、Edit（replaceAll）、MultiEdit（本文／組省略）、unavailable と work=null の permissions も収録した。各組で別の seq を使う。
+- A8はhkdfにpushInfo/pushKeyHex、pushesにpermission/report/error/testの独立連番1〜4と全署名／AEAD値を追加する。quests配列末尾にpush-prefsの読取／全更新を追加し、既存ケースは変更しない。アプリはこの追加ケースも必ず検査する。
 - アプリの `@noble/*` でも同じ JSON の全暗号値を照合する。JSON の読み込み順や各実装のオブジェクト順を署名仕様の代わりにしない。
 - 純粋な検査・配列化は `src/core/mobile-protocol.ts`（作業の6操作は `mobile-work.ts`／`mobile-work-display.ts`）、表示値と hash 入力は `mobile-display.ts`、署名入力／AAD／nonce は `mobile-signing.ts`、コードの遷移／SAS の桁／push は `mobile-pairing.ts`。時刻は引数。暗号そのもの、厳密な UTF-8 復号、HTTP、連番の永続化、pin・登録・内容 hash の照合、不可分な状態更新は server／アプリ側の責務。

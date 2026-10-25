@@ -5,6 +5,7 @@ import { mobileEqual, mobileHash } from "./crypto";
 import type { MobileStore } from "./store";
 import type { MobileQuests } from "./quests";
 import type { MobileWork } from "./work";
+import { isMobilePushPrefs } from "../../core/mobile-push-content";
 import { mobilePermissionCanAllow } from "../../core/mobile-permission";
 
 export function mobileShort(value: string, max: number, fallback = ""): string {
@@ -50,6 +51,12 @@ export function mobileOperation(request: MobileSignedRequest, store: MobileStore
       if (!permissions.decide(request.body.permissionId, request.body.decision, () => store.audit({ deviceId: request.deviceId,
         permissionId: request.body.permissionId, result: request.body.decision, time: Date.now() }))) throw Error("Permission rejected");
       return { operation: "decide", body: { decided: true } };
+    }
+    case "push-prefs": {
+      if (isMobilePushPrefs(request.body)) store.setPushPrefs(request.deviceId, request.body);
+      const device = store.devices.find(device => device.id === request.deviceId);
+      if (!device) throw Error("Device revoked");
+      return { operation: "push-prefs", body: device.pushPrefs };
     }
     case "push-token": store.setPushToken(request.deviceId, request.body.token); return { operation: "push-token", body: { updated: true } };
     case "unpair": return { operation: "unpair", body: { unpaired: true } };

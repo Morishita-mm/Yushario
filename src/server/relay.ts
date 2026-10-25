@@ -33,7 +33,7 @@ import { handleWorktrees } from "./worktrees";
 import { handlePreview } from "./preview";
 import { createPtyServer } from "./pty";
 import { AGENTS } from "./agents";
-import { PermissionWaiter } from "./permissions";
+import { PermissionWaiter, type Permission } from "./permissions";
 import { allowedHost } from "../core/local-request";
 import { dataDirectory, listenAvailable, openBrowser, prepareDataDirectory, startupOptions } from "./startup";
 import { printStartupLogo } from "./startup-logo";
@@ -48,7 +48,7 @@ function refreshMobile(): void {
 }
 function broadcast(message: object): void {
   const type = (message as { type?: string }).type;
-  if (type === "permission") mobile?.notify("permission", (message as { expiresAt: number }).expiresAt);
+  if (type === "permission") mobile?.notifyPermission(message as Permission);
   if (["names", "towns", "quests"].includes(type ?? "")) refreshMobile();
   const json = JSON.stringify(message);
   for (const client of sockets.clients) {
@@ -101,8 +101,7 @@ function record(event: AgentEvent): boolean {
   if (session) try { tactics.observe(session, event, at); } catch (error) { console.error("Tactic failed:", error); }
   if (session) try { observeChecks(quests, session, { ...event, command }, at, pty.listSessions()); } catch (error) { console.error("Check save failed:", error); }
   refreshMobile();
-  if (session && !event.subagent && ["Stop", "StopFailure"].includes(event.hook ?? "")) mobile?.notify(event.hook === "StopFailure" ? "error" : "report");
-  else if (session && event.state === "error") mobile?.notify("error");
+  if (session && (!event.subagent && ["Stop", "StopFailure"].includes(event.hook ?? "") || event.state === "error")) mobile?.notifyEvent(event, at);
   return true;
 }
 

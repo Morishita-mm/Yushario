@@ -7,6 +7,7 @@ import type { MobileSignedRequest } from "../../core/mobile-protocol";
 import type { QuestLedger } from "../quest-ledger";
 import type { MobileStore } from "./store";
 import { mobileShort } from "./operations";
+import type { MobilePushTarget } from "../../core/mobile-push-content";
 import { reserveMobileQuest } from "./quest-requests";
 
 const byId = (a: { id: string }, b: { id: string }): number => a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
@@ -63,6 +64,19 @@ export class MobileQuests {
       townId: this.townId(quest.town), title: mobileReportTitle(event.report?.kind ? event.report : undefined),
       success: event.report?.stopFailure || event.report?.tests?.last === "failed" ? false : event.report?.tests?.last === "passed" ? true : null,
       at: event.at, excerpt: mobileShort(text ?? "", 500), text: full && text !== undefined ? mobileShort(text, 8000) : null };
+  }
+  reportNotification(hero: string, at: number): { title: string; town?: string; target: MobilePushTarget | null } {
+    const event = this.ledger.recentReports().find(event => event.hero === hero && event.at === at);
+    if (event) {
+      const quest = this.ledger.summary(event.quest);
+      if (quest) {
+        const report = this.reportView(event, false);
+        return { title: report.title, town: this.questView(quest).town,
+          target: { type: "report", id: report.id, questId: report.questId } };
+      }
+    }
+    const reply = this.room()?.agents.get(hero)?.talk.find(entry => entry.from === "hero" && entry.at === at);
+    return { title: mobileReportTitle(reply?.report), target: null };
   }
   operate(request: MobileSignedRequest, store: MobileStore): MobileQuestResponseBody {
     switch (request.operation) {
