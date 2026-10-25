@@ -7,19 +7,21 @@ import { EVENT_BODY_LIMIT, readJsonBody } from "./http-body";
 import { PermissionWaiter, PERMISSION_TIMEOUT_MS, permissionOutput, permissionSummary } from "./permissions";
 import type { createPtyServer } from "./pty";
 import type { QuestLedger } from "./quest-ledger";
+import { permissionChange } from "../core/permission-change";
+import { mobileText } from "../core/mobile-protocol";
 
 type PtyServer = ReturnType<typeof createPtyServer>;
 
 export async function receiveHook(request: IncomingMessage, response: ServerResponse, pty: PtyServer,
   quests: QuestLedger, permissions: PermissionWaiter, sockets: WebSocketServer,
-  record: (event: AgentEvent) => boolean, broadcast: (message: object) => void): Promise<void> {
+  record: (event: AgentEvent) => boolean, broadcast: (message: object) => void, mobileConnected = false): Promise<void> {
   if (request.headers.origin !== undefined) { response.writeHead(403).end(); return; }
   if (request.method !== "POST") { response.writeHead(405, { Allow: "POST" }).end(); return; }
   const body = await readJsonBody(request, response, EVENT_BODY_LIMIT);
   if (!body.ok) return;
   let sender = pty.hookSession(request.headers.authorization);
   if (request.url === "/hooks/permission") {
-    await receivePermission(body.value, response, sender, pty, quests, permissions, sockets, record, broadcast);
+    await receivePermission(body.value, response, sender, pty, quests, permissions, sockets, record, broadcast, mobileConnected);
     return;
   }
   const result = parseAgentEvent(body.value);
@@ -31,8 +33,9 @@ export async function receiveHook(request: IncomingMessage, response: ServerResp
   const owner = result.event.agent && (quests.sessionForHero(result.event.agent) ?? pty.sessionForAgent(result.event.agent)?.id);
   if (sender && owner && owner !== sender.id && !canRecallHero(sender.recalledHero, result.event.agent, !pty.getSession(owner) || Boolean(pty.getSession(owner)?.exited))) sender = undefined;
   const event = hookEventForTerminal(result.event, sender?.id);
-  response.writeHead(204).end();
-  if (!record(event)) return;
+  const recorded = record(event);
+  response.writeHead(!recorded && !sender ? 429 : 204).end();
+  if (!recorded) return;
   if (sender) permissions.observe(event);
   // Git must never delay hook ordering; the refreshed badge is used by the next event/list.
   if (event.terminal && !event.subagent && ["SessionStart", "UserPromptSubmit", "Stop", "StopFailure"].includes(event.hook ?? "")) void pty.refreshBranch(event.terminal);
@@ -44,7 +47,7 @@ export async function receiveHook(request: IncomingMessage, response: ServerResp
 
 async function receivePermission(input: unknown, response: ServerResponse, sender: ReturnType<PtyServer["hookSession"]>,
   pty: PtyServer, quests: QuestLedger, permissions: PermissionWaiter, sockets: WebSocketServer,
-  record: (event: AgentEvent) => boolean, broadcast: (message: object) => void): Promise<void> {
+  record: (event: AgentEvent) => boolean, broadcast: (message: object) => void, mobileConnected: boolean): Promise<void> {
   const summary = permissionSummary(input);
   if (!summary) { response.writeHead(400).end(); return; }
   const event = hookEventForTerminal({ state: "waiting_input", source: "claude-code", hook: "PermissionRequest", tool: summary.tool, detail: summary.summary.slice(0, 200),
@@ -53,8 +56,13 @@ async function receivePermission(input: unknown, response: ServerResponse, sende
   record(event);
   if (!sender) { response.writeHead(200, { "Content-Type": "application/json" }).end("{}"); return; }
   const permission = { type: "permission" as const, id: randomUUID(), expiresAt: Date.now() + PERMISSION_TIMEOUT_MS, ...summary, agent: event.agent, terminal: sender.id };
-  const connected = [...sockets.clients].some((client) => client.readyState === WebSocket.OPEN);
-  const waiting = permissions.wait(permission, connected);
+  const connected = mobileConnected || [...sockets.clients].some((client) => client.readyState === WebSocket.OPEN);
+  // Freeze context at hook receipt, using the authenticated terminal, never hook cwd/branch/session_id.
+  const quest = quests.current(sender.id), member = quests.member(sender.id);
+  const work = quest && quest.town === sender.project && !["done", "dropped"].includes(quest.state)
+    && (!member?.hero || member.hero === sender.hero) && mobileText(quest.id, 200) && mobileText(quest.title, 200)
+    ? { questId: quest.id, title: quest.title } : null;
+  const waiting = permissions.wait(permission, connected, { work, change: permissionChange(input, permission.content.length) });
   if (permissions.pending.some((item) => item.id === permission.id)) broadcast(permission);
   const disconnected = (): void => { permissions.decide(permission.id, "terminal"); };
   response.once("close", disconnected);

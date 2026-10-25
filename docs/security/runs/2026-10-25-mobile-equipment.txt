@@ -1,0 +1,13 @@
+
+ RUN  v4.1.12 /Users/mzk/orca/workspaces/agent-character/モバイルアプリ開発
+
+ ✓ src/core/mobile-work-equipment.test.ts > A5 equipment display contract > accepts bounded provider/model identifiers but not arguments, controls, URLs or obvious paths 1ms
+ ✓ src/core/mobile-work-equipment.test.ts > A5 equipment display contract > requires nullable fields only on the right rows and rejects unknown or malformed values 1ms
+ ✓ src/core/mobile-work-equipment.test.ts > A5 equipment display contract > signs each model/effort and null without changing base or request shapes 1ms
+ ✓ src/server/mobile/security-work-equipment.test.ts > SEC-22 A5 equipment display values over real relay/HTTP/crypto > returns master model/effort values for choices and equipped heroes, with null for defaults 1428ms
+ ✓ src/server/mobile/security-work-equipment.test.ts > SEC-22 A5 equipment display values over real relay/HTTP/crypto > keeps custom equipment while nulling unsafe/unknown metadata, without deriving values from labels 948ms
+
+ Test Files  2 passed (2)
+      Tests  5 passed (5)
+   Start at  13:57:55
+   Duration  2.60s (transform 65ms, setup 0ms, import 95ms, tests 2.38s, environment 0ms)

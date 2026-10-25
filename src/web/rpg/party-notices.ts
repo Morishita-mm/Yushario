@@ -40,19 +40,19 @@ export function pickPartyNotice(notice: Notice, openQuest: (id: string) => Promi
     const yes = partyButton(tr("▶ はい", "▶ Yes"), () => run(async () => {
       yes.disabled = no.disabled = true;
       const text = intro?.value.trim();
-      const result = await partyRequest(`party-notices/${invitation.id}`, "POST", { yes: true, ...(text ? { text } : {}) });
+      const result = await partyRequest(`party-notices/${encodeURIComponent(invitation.id)}`, "POST", { yes: true, ...(text ? { text } : {}) });
       if (intro) { status.textContent = tr("仲間が くわわった！", "Hero joined!"); yes.remove(); no.remove(); intro.disabled = true; return; }
-      const members: PartyHero[] = await partyRequest(`quests/${invitation.quest}/party`);
+      const members: PartyHero[] = await partyRequest(`quests/${encodeURIComponent(invitation.quest)}/party`);
       const member = members.find((item) => item.session === result.session?.id);
       if (!member) { close(); return; }
       const draft = document.createElement("textarea"); draft.rows = 7; draft.maxLength = 8000; draft.value = roleIntroduction(member, language);
       yes.remove(); no.remove();
       dialog.append(partyField(tr("やくわりの 紹介文 · 下書き", "Role introduction · Draft"), draft),
-        partyButton(tr("▶ これを つたえる", "▶ Send this"), () => run(async () => { await partyRequest(`quests/${invitation.quest}/send`, "POST", { session: member.session, text: draft.value }); close(); })),
+        partyButton(tr("▶ これを つたえる", "▶ Send this"), () => run(async () => { await partyRequest(`quests/${encodeURIComponent(invitation.quest)}/send`, "POST", { session: member.session, text: draft.value }); close(); })),
         partyButton(tr("▶ 送らない", "▶ Don't send"), close));
       status.textContent = tr("仲間が くわわった！", "Hero joined!");
     }));
-    const no = partyButton(tr("▶ いいえ", "▶ No"), () => run(async () => { await partyRequest(`party-notices/${invitation.id}`, "POST", { yes: false }); close(); })); dialog.append(yes, no);
+    const no = partyButton(tr("▶ いいえ", "▶ No"), () => run(async () => { await partyRequest(`party-notices/${encodeURIComponent(invitation.id)}`, "POST", { yes: false }); close(); })); dialog.append(yes, no);
   } else if (warning) {
     dialog.append(partyButton(tr("▶ クエストを みる", "▶ View quest"), () => { close(); void openQuest(warning.quest); }),
       partyButton(tr("▶ たしかめた", "▶ Seen"), () => run(async () => { await partyRequest(`party-notices/${encodeURIComponent(warning.id)}`, "DELETE", {}); close(); })));

@@ -43,7 +43,7 @@ export class QuestLedger {
     forgetCheckFingerprint(this, id);
   }
   constructor(private readonly changed: (message: { type: "quests"; quests: Quest[]; bindings: QuestBinding[]; reports: QuestReportLink[] }) => void,
-    private readonly keepText: () => boolean, private readonly clearHeld: (session: string) => void) {}
+    private readonly keepText: () => boolean, private readonly clearHeld: (session: string) => void = () => {}) {}
   cancelPending(session: string): void { this.submitted.delete(session); this.clearHeld(session); }
   // `members`: which quest each terminal is in and its role, for the hero list.
   snapshot() {
@@ -55,6 +55,7 @@ export class QuestLedger {
   summary(id: string) { return this.db.summary(id); }
   reportsAfter(session: string, at: number) { return this.db.reportsAfter(session, at); }
   reportLink(hero: string, at: number) { return this.db.reportLink(hero, at); }
+  recentReports() { return this.db.recentReports(); }
   reportQuest(session: string, at: number) { return this.db.reportQuest(session, at); }
   get checks() { return this.db.checks; }
   checksChanged(): void { this.notify(); }
@@ -94,8 +95,8 @@ export class QuestLedger {
       if (!this.closed) this.changed(this.snapshot());
     });
   }
-  create(town: string, title: string, purpose = "", at = Date.now()): Quest {
-    const quest: Quest = { id: randomUUID(), town, title: title.trim(), purpose, state: "open", createdAt: at, updatedAt: at };
+  create(town: string, title: string, purpose = "", at = Date.now(), id: string = randomUUID()): Quest {
+    const quest: Quest = { id, town, title: title.trim(), purpose, state: "open", createdAt: at, updatedAt: at };
     this.db.save(quest); this.notify(); return quest;
   }
   patch(id: string, patch: Partial<Pick<Quest, "title" | "purpose" | "state">>, at = Date.now()): Quest {

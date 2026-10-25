@@ -1,0 +1,12 @@
+
+ RUN  v4.1.12 /Users/mzk/orca/workspaces/agent-character/モバイルアプリ開発
+
+ ✓ src/server/mobile/security-permission-content.test.ts > SEC-25 permission task/body binding over real HTTP and crypto > uses the authenticated terminal's quest snapshot, never another hero/town or supplied cwd/session_id 1400ms
+ ✓ src/server/mobile/security-permission-content.test.ts > SEC-25 permission task/body binding over real HTTP and crypto > returns literal Write/Edit/MultiEdit/Bash inputs and rejects stale hashes after any body change 116ms
+ ✓ src/server/mobile/security-permission-content.test.ts > SEC-25 permission task/body binding over real HTTP and crypto > refuses truncated text, omitted empty edits and unavailable input, while allowing denial 178ms
+ ✓ src/server/mobile/security-permission-content.test.ts > SEC-25 permission task/body binding over real HTTP and crypto > fits all 16 worst-escaped bounded entries in one encrypted HTTP response 65ms
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  13:48:32
+   Duration  1.93s (transform 69ms, setup 0ms, import 93ms, tests 1.76s, environment 0ms)

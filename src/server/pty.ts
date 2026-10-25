@@ -7,7 +7,7 @@ import { basename, isAbsolute, join } from "node:path";
 import type { AgentEvent } from "../core/events";
 import { equipmentInput } from "../core/equipment";
 import { WebSocketServer } from "ws";
-import { SESSION_LIMIT, TerminalLimitError, initialText, sessionInput, type EquippedMessage, type PendingMessage, type Session, type TerminalSession } from "./pty-session";
+import { SESSION_LIMIT, TerminalLimitError, initialText, sessionInput, type EquippedMessage, type PendingMessage, type Preset, type Session, type TerminalSession } from "./pty-session";
 import { connectTerminal, relayOutput } from "./pty-socket";
 import { worktreeBranch, worktreeRemoving } from "./worktrees";
 import { clearPending, clearTexts, observe as observeSession, pending, say } from "./pty-actions";
@@ -16,13 +16,17 @@ import { handlePtyAction } from "./pty-api-actions";
 import { addRosterEntry, isClaudeSessionId } from "../core/roster";
 import { readEquipment, readRoster, writeRoster } from "./town-data";
 import { projectIdentity } from "./project";
-import { launchPty, writeClaudeSettings } from "./pty-launch";
+import { launchPty, MOBILE_LAUNCH_ARGS, writeClaudeSettings } from "./pty-launch";
 import { AGENTS, publicAgents } from "./agents";
 import { replacedSession } from "../core/session-actions";
 import { descendants } from "./pty-process";
 import { authenticatedHookSession } from "./hook-auth";
 import { readJsonBody, ACTION_BODY_LIMIT } from "./http-body";
 import { requirePartyConversation, TerminalOnlyError, type QuestParty } from "./party";
+
+// mobile: only Claude/Codex with forced approval flags. beforeLaunch runs after every check, just before spawn.
+export type PtyLaunchOptions = { mobile?: true; beforeLaunch?: (info: { id: string; preset: Preset; cwd: string; project: string }) => void };
+export type PtyManager = ReturnType<typeof createPtyServer>;
 
 function json(response: ServerResponse, status: number, value: unknown): void {
   response.writeHead(status, { "Content-Type": "application/json", "Cache-Control": "no-store" })
@@ -87,10 +91,11 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
     try { process.kill(-pid, signal); } catch { /* Already exited. */ }
   }
 
-  async function create(input: unknown, resume?: string): Promise<TerminalSession> {
+  async function create(input: unknown, resume?: string, launch: PtyLaunchOptions = {}): Promise<TerminalSession> {
     const { preset, cwd: inputCwd = process.env.AGENT_CHARACTER_CWD || process.env.INIT_CWD || process.cwd() } = sessionInput(input);
     const text = initialText(input);
     if (text !== undefined) requirePartyConversation(preset);
+    if (launch.mobile && (!MOBILE_LAUNCH_ARGS[preset] || resume !== undefined)) throw new Error(tr("スマホからは この勇者を 起動できない。", "This hero cannot be launched from a phone"));
     let cwd = inputCwd;
     if (!isAbsolute(cwd)) throw new Error(tr("行き先は フォルダの絶対パスで。", "Use an absolute folder path"));
     try {
@@ -107,7 +112,8 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
     if (sessions.size >= SESSION_LIMIT) throw new TerminalLimitError();
     const id = randomBytes(6).toString("hex");
     const agentToken = randomBytes(32).toString("hex");
-    const terminal = launchPty(preset, cwd, id, port, settings, selectedEquipment, equipment[preset], identity.name, resume, agentToken, text);
+    launch.beforeLaunch?.({ id, preset, cwd, project: townKey });
+    const terminal = launchPty(preset, cwd, id, port, settings, selectedEquipment, equipment[preset], identity.name, resume, agentToken, launch.mobile === true, text);
     groups.add(terminal.pid);
     let stopped = false;
     function stop(): void {
@@ -258,7 +264,9 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
       .map((session) => ({ type: "attention", terminal: session.info.id, reason: "trust" })),
     create,
     end: (id: string) => { sessions.get(id)?.stop(); sessions.delete(id); },
-    agentSession: (id: string) => { const session = sessions.get(id); return session && { token: session.agentToken, waiting: session.waiting, active: !disposed && !session.ended && !session.departing && !session.info.exited }; },
+    agentSession: (id: string) => { const session = sessions.get(id); return session && { token: session.agentToken, waiting: session.waiting, active: !disposed && !session.ended && !session.departing && !session.info.exited, canSay: !session.interrupting }; },
+    // The same equipment master that create() validates against.
+    gear: (preset: Preset) => equipment[preset],
     say: (id: string, text: string) => { const session = sessions.get(id); if (!session) throw new Error(tr("勇者が みつからない", "Hero not found")); return say(session, text, pendingChanged); },
     sessionLabel: (id: string) => sessions.get(id)?.name,
     getSession: (id: string) => sessions.get(id)?.info,

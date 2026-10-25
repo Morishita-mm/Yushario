@@ -18,6 +18,7 @@ import { initRoster } from "./roster";
 import { initExpedition } from "./expedition";
 import { initTerminals } from "./terminals";
 import { initHelp } from "./help";
+import { initMobile } from "./mobile";
 import { initTitleScreen } from "./title-screen";
 import { initSound, notifySound } from "./sound";
 import { initTalk } from "./talk";
@@ -60,6 +61,7 @@ function arrived(session: Session, towns: TownRecord[], recalled = false, quiet 
 }
 initRoster((session, towns) => arrived(session, towns, true), scene.townName);
 initHelp();
+initMobile();
 initTerminals((terminal) => {
   const agent = [...room.agents.values()].find((item) => item.terminal === terminal);
   return agent && (scene.names.get(agent.id) ?? agent.name);

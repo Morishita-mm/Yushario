@@ -43,15 +43,25 @@ export function codexHookArgs(): string[] {
     `hooks.${event}=[{hooks=[{type="command",command=${JSON.stringify(command)},timeout=1}]}]`])];
 }
 
+// Force the native approval mode for phone launches. Ordinary per-tool allow rules
+// still apply; this does not promise an approval dialog for every tool invocation.
+export const MOBILE_LAUNCH_ARGS: Partial<Record<Preset, string[]>> = {
+  claude: ["--permission-mode", "default"],
+  codex: ["--ask-for-approval", "untrusted", "--sandbox", "workspace-write"],
+};
+
 export function launchPty(preset: Preset, cwd: string, id: string, port: number, settings: string,
-  equipment: Equipment, master: AgentEquipment, project: string, resume?: string, agentToken?: string, text?: string) {
+  equipment: Equipment, master: AgentEquipment, project: string, resume?: string, agentToken?: string, mobile = false, text?: string) {
   const agent = AGENTS[preset];
+  const mobileArgs = MOBILE_LAUNCH_ARGS[preset];
+  if (mobile && (!mobileArgs || resume !== undefined)) throw new Error(tr("スマホからは この勇者を 起動できない。", "This hero cannot be launched from a phone"));
   if (resume !== undefined && (!agent.resume || !isClaudeSessionId(resume))) throw new Error(tr("よびもどす勇者の ID が正しくない。", "Invalid hero ID for recall"));
   const program = agent.command;
   const path = agentExecutables[preset];
   if (!path || !executable(path)) throw new Error(tr(`${program} が PATH に見つからない。CLI を入れて PATH に追加し、yushario を Ctrl+C で止めて起動し直そう。`, `${program} not found in PATH. Install it, add it to PATH, then stop yushario with Ctrl+C and restart it.`));
   const args = [...agent.args.flatMap((arg) => arg === "$settings" ? [settings] : arg === "$codex-hooks" ? codexHookArgs() : [arg]),
-    ...(resume ? [...agent.resumeArgs, resume] : []), ...equipmentArgs(equipment, master, agent, serverLanguage()), ...initialPromptArgs(preset, text)];
+    ...(resume ? [...agent.resumeArgs, resume] : []), ...equipmentArgs(equipment, master, agent, serverLanguage()), ...(mobile ? mobileArgs! : []),
+    ...initialPromptArgs(preset, text)];
   const env = Object.fromEntries(Object.entries(process.env).filter((entry): entry is [string, string] => entry[1] !== undefined));
   for (const name of serverOnlyEnvironment) delete env[name];
   env.AGENT_CHARACTER_URL = `http://127.0.0.1:${port}/event`;

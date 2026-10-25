@@ -7,7 +7,7 @@ import { serverLanguage, tr } from "./language";
 
 // One automatic run: a review round or the research before the owner starts.
 type Run = { kind: "review" | "research"; round: number; waiting: Set<string>; replies: Map<string, { verdict?: Verdict; text: string }>;
-  request?: string; stopped?: string; done?: boolean };
+  request?: string; stopped?: string; done?: boolean; pending?: Set<string> };
 
 // Moves a party along its tactic by watching hook events (docs/PLATFORM.md stage 24). It only sends what
 // the tactic says, logs every message as a quest event, and stops (returning to the person) when unsure.
@@ -36,7 +36,7 @@ export class QuestTactics {
   status(quest: string): TacticStatus {
     const tactic = this.tactic(quest), run = this.runs.get(quest), members = this.members(quest);
     const fits = Object.fromEntries(TACTICS.map((item) => [item, tacticFit(item, members)])) as Record<Tactic, ReturnType<typeof tacticFit>>, fit = fits[tactic];
-    const running = Boolean(run && !run.stopped && !run.done && run.waiting.size);
+    const running = Boolean(run && !run.stopped && !run.done && (run.waiting.size || run.pending?.size));
     return { tactic, fit, fits, running, round: run?.round ?? 0, waiting: run?.waiting.size ?? 0, total: (run?.waiting.size ?? 0) + (run?.replies.size ?? 0), stopped: run?.stopped, done: run?.done };
   }
   choose(quest: string, tactic: Tactic, at = Date.now()): TacticStatus {
@@ -60,6 +60,25 @@ export class QuestTactics {
     }
     if (!run.waiting.size) this.stop(quest, tr("調べる役に 頼めなかった", "could not ask any researcher"), at);
     return this.status(quest);
+  }
+  // Mobile bulk departure reserves each individual delivery durably. Researchers
+  // already accepted are never sent twice; no owner starts while a delivery is pending.
+  startMobileResearch(quest: string, request: string, deliver: (session: string, text: string) => boolean): void {
+    if (this.tactic(quest) !== "research") throw Error("Research tactic changed");
+    let run = this.runs.get(quest);
+    if (!run) {
+      const fit = tacticFit("research", this.members(quest));
+      if (!fit.ok) throw Error("Research party changed");
+      run = { kind: "research", round: 1, waiting: new Set(), replies: new Map(), request, pending: new Set(fit.inside) };
+      this.runs.set(quest, run);
+    }
+    if (run.kind !== "research" || run.request !== request || !run.pending || run.stopped || run.done) throw Error("Research already ended");
+    for (const session of run.pending) {
+      const note = this.notes.get(quest)?.get(session) ?? this.party.quests.member(session)?.note ?? "";
+      if (!deliver(session, researchRequest(request, note, serverLanguage()))) continue;
+      this.takeNote(quest, session); run.pending.delete(session); run.waiting.add(session);
+    }
+    if (!run.pending.size && !run.waiting.size && run.replies.size) this.finish(quest, Date.now());
   }
   forgetQuest(quest: string): void { this.chosen.delete(quest); this.runs.delete(quest); this.notes.delete(quest); }
   setNotes(quest: string, notes: Record<string, string>): void {
@@ -121,6 +140,7 @@ export class QuestTactics {
   }
   private finish(quest: string, at: number): void {
     const run = this.runs.get(quest)!, owner = this.party.quests.party(quest).find((member) => member.writer);
+    if (run.pending?.size) return; // A partial mobile departure must finish dispatching first.
     if (!run.replies.size) { this.stop(quest, tr("返事を した 仲間が いない", "no party member replied"), at); return; }
     if (!owner) { this.stop(quest, tr("担当が いない", "there is no owner"), at); return; }
     const replies = [...run.replies].map(([session, reply]) => ({ name: this.party.label(session), ...reply }));
