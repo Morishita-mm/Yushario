@@ -3,7 +3,7 @@ import { createServer, type Server } from "node:http";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { handleMobileApi } from "./api";
-import { GatewayFixture } from "./test-client";
+import { GatewayFixture, TestPhone, decodeOffer, until } from "./test-client";
 
 let fixture: GatewayFixture, screen: Server, origin = "";
 beforeEach(async () => {
@@ -26,6 +26,37 @@ async function work(id: string, body: unknown, method = "POST") {
 }
 
 describe("mobile per-device work opt-in", () => {
+  it("SEC-02/21 saves the optional Mac pairing choice atomically with registration, defaulting off", async () => {
+    for (const allowWork of [undefined, false, true]) {
+      const offer = decodeOffer(fixture.gateway.startPairing().pairing!.pairingString!);
+      const phone = new TestPhone(offer);
+      const pending = fixture.post(phone.packet("pair", { pairingCode: offer.pairingCode, name: "同じ端末名", pushToken: null }));
+      await until(() => fixture.gateway.snapshot().pairing?.status === "pending");
+      expect(fixture.gateway.snapshot().pairing?.name).toBe("同じ端末名");
+      for (const value of [null, "true", 1, {}]) {
+        const rejected = await fetch(`${origin}/api/mobile/confirm`, { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ deviceId: phone.id, approve: true, allowWork: value }) });
+        expect(rejected.status).toBe(400);
+      }
+      const response = await fetch(`${origin}/api/mobile/confirm`, { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deviceId: phone.id, approve: true, ...(allowWork !== undefined ? { allowWork } : {}) }) });
+      expect(response.status).toBe(200); expect((await pending).status).toBe(200);
+      const registered = (await response.json()).devices.find((d: any) => d.id === phone.id);
+      expect(registered).toMatchObject({ name: "同じ端末名", allowWork: allowWork === true });
+      expect(registered.createdAt).toBeGreaterThan(0); expect(registered.lastSeenAt).toBe(registered.createdAt);
+      expect(Object.keys(registered)).toEqual(["id", "name", "createdAt", "lastSeenAt", "allowWork"]);
+      await fixture.restart();
+      expect(fixture.gateway.store.devices.find(d => d.id === phone.id)).toMatchObject({ allowWork: allowWork === true, lastSeq: 1 });
+    }
+    const offer = decodeOffer(fixture.gateway.startPairing().pairing!.pairingString!);
+    const phone = new TestPhone(offer);
+    const pending = fixture.post(phone.packet("pair", { pairingCode: offer.pairingCode, name: "拒否する端末", pushToken: null }));
+    await until(() => fixture.gateway.snapshot().pairing?.status === "pending");
+    const response = await fetch(`${origin}/api/mobile/confirm`, { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deviceId: phone.id, approve: false, allowWork: true }) });
+    expect(response.status).toBe(200); expect((await pending).status).toBe(400);
+    expect(fixture.gateway.store.devices.some(d => d.id === phone.id)).toBe(false);
+  });
   it("defaults off, persists the Mac choice across restart, and never resets identity or sequence", async () => {
     const phone = await fixture.pair();
     expect(fixture.gateway.store.devices[0].allowWork).toBe(false);

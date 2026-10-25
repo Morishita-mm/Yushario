@@ -11,7 +11,7 @@
 | T3 | ペアリング中に経路で鍵をすり替える | Mac の公開鍵を QR で受け取る | SEC-04：同上（pin／端末鍵の書き換えを拒否） |
 | T4 | 承認の要求を再送する | 連番・時刻・許可 ID の1回限りの受け付け | SEC-05：[実 HTTP 要求検査](../../src/server/mobile/security-requests.test.ts)（±60秒境界、再起動、判断の再送）＋[実 FS 故障・lock 検査](../../src/server/mobile/security-storage.test.ts) |
 | T5 | 経路で要求を書き換える | AEAD による暗号化、改ざんを拒否 | SEC-06：同上。[共有暗号ベクトル](../../src/server/mobile/crypto.test.ts) |
-| T6 | Apple・Google・Expo に作業の中身が渡る | 通知は固定の文言だけ | SEC-07：同上（固定3種の payload、作業内容は AEAD 内）。[送信処理](../../src/server/mobile/push.ts) は固定 URL と token/kind だけを使い、[診断の純粋検査](../../src/core/mobile-push.test.ts) で provider message／token の記録を禁止 |
+| T6 | Apple・Google・Expo に作業の中身が渡る | 通知は既存kindごとの固定文言だけ、許可期限ttl・端末別kind抑止 | SEC-07：同上（固定3種の payload、作業内容は AEAD 内）。[送信処理](../../src/server/mobile/push.ts) は固定 URL と token/kind/許可期限だけを使い、[診断の純粋検査](../../src/core/mobile-push.test.ts) で provider message／token の記録を禁止 |
 | T7 | 通知用 ID の漏れによる偽の通知 | 通知では操作できない。登録を消すと ID も消える | SEC-08：同上（token 更新、通知の偽造では認可されない、unpair 後の消去） |
 | T8 | スマホの紛失・盗難 | 承認・勇者を動かす操作ごとの生体認証、Mac からの取り消し、鍵の安全な保管 | SEC-10：ペアリング検査（即時取り消し）。SEC-09 は別アプリの実機で手動 |
 | T9 | 窓口をインターネットへ公開してしまう | 既定で停止、アドレスの明示、全アドレス待受の警告 | SEC-11：[実プロセス・別 listener 検査](../../src/server/mobile/security-startup.test.ts)（既定停止／flag／警告）。`::` も同じ警告分岐 |
@@ -36,7 +36,7 @@
 - プロトコル共通のベクトルは固定の公開テスト鍵であり、実データではない。各 HTTP テストは OS の一時ディレクトリへ新しい鍵を作り、終了時に消す。
 - 同一コードの3失敗による失効 DoS と、静的 DH に forward secrecy がないことは v1 の明示的な限界。コードは作り直せるが、人の確認を迂回してはならない。
 - 連番は操作／応答前に fsync を伴って保存する。stale lock も自動削除せず、同時再起動で他のプロセスの新 lock を消す競合を防ぐ。残った lock は、同じ HOME の全窓口の停止確認後にその1ファイルだけを手動削除し、state.json は残す。Mac の古いバックアップへ戻す時は鍵も作り直して再登録する。意図的なロールバックを同じ OS 利用者から守る機構ではない。
-- 自動試験は Expo/APNs/FCM へ通知を実配送しない。ticket／receipt の外部 HTTP 境界と経過時間だけを fake にする追加単体検査で、object／配列 ticket、照会、失効 token の保護、50件・0600・32KiB×2のログを確認する。既存の real HTTP／暗号の SEC 検査は変更しない。実配送・端末での表示、生体認証、カメラ、紛失・バックアップの手順は実機検証として残る。
+- 自動試験は Expo/APNs/FCM へ通知を実配送しない。ticket／receipt の外部 HTTP 境界と経過時間だけを fake にする追加単体検査で、object／配列 ticket、照会、失効 token の保護、50件・0600・32KiB×2のログを確認する。A7の[実HTTP検査](../../src/server/mobile/security-onboarding.test.ts)はローカル偽Expoへ送り、種類別固定文言・ttl・既存state内の端末別kind抑止・認証済み接続時の解除・失敗時の印なし・旧台帳互換を確認する（[記録](runs/2026-10-25-mobile-onboarding.md)）。実配送・端末での表示、生体認証、カメラ、紛失・バックアップの手順は実機検証として残る。
 - クエスト発行は札の記録だけで、追加の生体認証は不要とした。許可判断の本人確認は継続する。予約・監査と SQLite は分かれているため、障害時に札なしの予約が残ることは許し、二重作成は許さない。本文に人／CLI が書いた機密の自動判別・墨消しや、同一 OS 利用者による予約ファイル・時計のロールバックは隔離しない。
 - A2 の操作ごとの本人確認はアプリ内の `LocalAuthentication.authenticateAsync` で、結果を wire に載せず Mac も信用しない。`expo-secure-store` の `requireAuthentication` は AES の保存鍵を認証に結び付けるだけで、Ed25519 の秘密は署名時に JS へ取り出される。鍵の attestation もないため、改造・侵害されたアプリは本人確認を飛ばせる。この限界は Mac 側の既定 off の許可・上限・強制した承認モード・取り消しで補い、実機での安全性は主張しない（`../MOBILE.md`「採用しなかった鍵の束縛」）。
 - A2 で既存の Pi へ送った依頼は許可確認なしで実行される。警告は表示するが、Pi の挙動自体は隔離しない。

@@ -84,8 +84,8 @@ describe("mobile pairing offer and privacy", () => {
   });
 
   it("uses high priority and the agreed alerts channel without work content", () => {
-    for (const kind of ["permission", "report", "error"] as const) {
-      expect(mobilePushPayload(kind)).toEqual({ priority: "high", channelId: "alerts", title: "Yushario", body: "確認が必要です", data: { kind } });
+    for (const [kind, body] of [["permission", "確認が必要です"], ["report", "報告が届きました"], ["error", "勇者が止まりました"]] as const) {
+      expect(mobilePushPayload(kind)).toEqual({ priority: "high", channelId: "alerts", title: "Yushario", body, data: { kind } });
     }
     expect(() => mobilePushPayload("command" as "permission")).toThrow(RangeError);
   });

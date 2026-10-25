@@ -21,6 +21,8 @@
 
 - [E：A5の装備表示（SEC-22拡張）](../../src/server/mobile/security-work-equipment.test.ts)。実relay/HTTP/cryptoの2ケースで既定/上書きマスタと勇者のmodel/effort、64文字/7値/不適合null、選択肢維持、表示値や未知IDでの起動拒否を確認。[純粋契約検査](../../src/core/mobile-work-equipment.test.ts)、[実行記録](runs/2026-10-25-mobile-equipment.md)。Permissionのhashと起動権限の規則は変更しない。
 
+- [O：A7初回導線・通知（SEC-02/21・07/08拡張）](../../src/server/mobile/security-onboarding.test.ts)と[承認APIの作業許可](../../src/server/mobile/security-capability.test.ts)。実HTTPのMac承認・暗号化窓口・ローカル偽Expoで、allowWorkの省略/false/true・再起動、固定3種・期限ttl・端末別kind抑止・認証接続解除・遅いticket・失敗時再試行・手動テスト例外・旧台帳を確認。[実行記録](runs/2026-10-25-mobile-onboarding.md)。通知サービスへの実配送はしない。
+
 ## 窓口に該当する管理策
 
 | ASVS の該当範囲 | 確認すること | 状態 | 証拠／残ること |
@@ -38,7 +40,7 @@
 | V7.1 Logging | 本文・コード・通知 ID をログへ出さない | 自動確認＋実装確認 | R SEC-15、[push](../../src/server/mobile/push.ts)。判断は deviceId/permissionId/result/time の4項目だけ。発行予約は deviceId/questId/time の3項目（Q SEC-19）だけで題・目的を残さない。A2 の作業記録は deviceId/operation/questId/heroId/time の5項目だけで本文・依頼を残さない（W SEC-23）。通知も安全な6項目だけを50件・32KiB×2ファイルに制限し、provider message／token／ticket ID は記録しない |
 | V7.1 Logging | セキュリティ上の事象の追跡 | 部分実装 | 判断の監査保存は配送前で、実 FS 失敗なら判断しない（R SEC-15）。発行も予約／監査保存が作成より先で、実 FS 失敗では作成しない（Q SEC-19）。登録・失敗・取り消し全件の長期監査は本タスクの範囲外 |
 | V7.4.1 | 情報を漏らさないエラー | 自動確認済み | P SEC-01、R SEC-06/12/13。一般拒否1種類、版違いだけ supportedVersion。nonce を再使用する暗号エラー応答は作らない |
-| V8 Data Protection | 最小データ、キャッシュ・通知の抑制 | 自動確認＋実装確認 | R SEC-07/08/15、S SEC-12。no-store、要約500文字／本文8000文字、Q SEC-20 のメタデータ除外・既存の保存／メモリ方針、固定通知（channelId=alerts）、unpair で token 消去 |
+| V8 Data Protection | 最小データ、キャッシュ・通知の抑制 | 自動確認＋実装確認 | R SEC-07/08/15、S SEC-12。no-store、要約500文字／本文8000文字、Q SEC-20 のメタデータ除外・既存の保存／メモリ方針、固定通知（channelId=alerts）、unpair で token 消去。OのA7拡張でkind別本文・permissionの残存期限ttl・既存stateの端末別kind抑止と認証済み接続時の解除を検査 |
 | V4 / V8 Town Context | 同名町の取り違えと内部キーの漏えいを防ぐ | 自動確認＋実装確認 | T SEC-24。窓口の1つの UUID v4 対応表、null の所属、町の台帳の5種の theme のみ。表示名／パスからIDや姿を作らない |
 | V9.1.1 Communications | クライアント通信に TLS を使う | 未達／設計上の制限 | LAN/Tailscale の HTTP にアプリ間 AEAD を必須にするが、HTTP transport 自体の TLS を必須にはしていない。ASVS 全体適合とはしない。Expo へは Node 標準の検証付き HTTPS |
 | V14 Configuration | 明示的な有効化、限定経路、要求数・サイズ上限 | 自動確認済み | S SEC-11/12、R/P SEC-13。flag なし停止、全アドレス警告、既存 Host/Origin/token 不変 |
@@ -52,7 +54,7 @@
 - **SEC-21〜23 の実機部分**：自動 HTTP／PTY／CLI fixture の確認は上の実行記録に記載した。実際の Claude/Codex 各版の許可画面、スマホでの Pi 警告、OS 本人確認、送信瞬間の電源断は未実施。`unknown` の検査は journal の crash-window 状態を検査用に置いて再起動するもので、実電源断試験ではない。
 - **SEC-16**：[Mac の CodeQL／OSV／gitleaks と両 npm audit](runs/2026-10-23-sast-da6d36b.md) を実行。2つの moderate advisory（GHSA-qxg6-89mg-rqv8、GHSA-xp26-3454-mjgp）を patch 更新し、stale-lock race も修正した。未 triage／未修正の確認済み TP はないが、同一 OS の直接改変などの AR は残る。CI への継続実行、別リポジトリのスマホ依存、MobSF と供給元評価は未完了。
 - **SEC-17**：iOS の「この端末のみ」Keychain、Android Keystore の暗号化、バックアップからの除外・復元は別アプリと実機で確かめる。
-- **SEC-07/08 の実配送部分**：ticket と receipt の区別、object／単一配列 ticket、照会・timeout・DNR と更新済み token の保護は外部 fetch の単体 fake で確認した。既存の real HTTP SEC 検査は変更しない。FCM/APNs の実配送と端末表示は担当者のエミュレーター確認が必要で、receipt の ok だけで表示を保証しない。
+- **SEC-07/08 の実配送部分**：ticket と receipt の区別、object／単一配列 ticket、照会・timeout・DNR と更新済み token の保護は外部 fetch の単体 fake で確認した。A7は実HTTPのローカル偽Expoも使い固定文言・抑止・送信時ttlを確認するが、FCM/APNs の実配送と端末表示は担当者のエミュレーター確認が必要で、receipt の ok だけで表示を保証しない。
 - カメラでの QR 読み取り、LAN／Tailscale と iOS／Android の経路切り替え、紛失時の手順、耐クラッシュ保存の電源断は手動で残る。自動試験と Orca 内蔵ブラウザでの登録表示だけを実機検証の代わりにしない。
 
 未実施項目を隠してリリース条件を満たしたとは扱わない。今回の完了は「Mac 窓口の実装と指定した自動検査」であり、別アプリの実機検証と全体のリリース承認は別段階。

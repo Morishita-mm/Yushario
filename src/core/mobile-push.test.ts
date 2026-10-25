@@ -1,9 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { lastMobilePushResults, mobilePushLogEntry, mobilePushOutcome, parseMobilePushLogEntry,
+import { mobilePermissionPushTtl, lastMobilePushResults, mobilePushLogEntry, mobilePushOutcome, parseMobilePushLogEntry,
   parseMobilePushReceipt, parseMobilePushTicket, type MobilePushLogEntry } from "./mobile-push";
 
 const deviceId = "A".repeat(43);
 const base: MobilePushLogEntry = { time: 1700000000000, deviceId, kind: "permission", ticketStatus: "ok", receiptStatus: "pending", errorCode: null };
+
+describe("permission push lifetime", () => {
+  it("rounds down to the remaining whole seconds and caps at the permission timeout", () => {
+    const now = 1700000000000;
+    expect(mobilePermissionPushTtl(now + 120000, now)).toBe(120);
+    expect(mobilePermissionPushTtl(now + 120999, now)).toBe(120);
+    expect(mobilePermissionPushTtl(now + 60999, now)).toBe(60);
+    expect(mobilePermissionPushTtl(now + 1000, now)).toBe(1);
+    for (const expiry of [now + 999, now, now - 1, NaN, Infinity, -1]) expect(mobilePermissionPushTtl(expiry, now)).toBe(0);
+  });
+});
 
 describe("Expo ticket and receipt parsing", () => {
   it("accepts object and single-array tickets for one recipient", () => {
