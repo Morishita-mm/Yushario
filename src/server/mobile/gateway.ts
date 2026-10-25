@@ -3,7 +3,10 @@ import { networkInterfaces } from "node:os";
 import type { MobileHero, MobileResponse } from "../../core/mobile-display";
 import { mobileInteger, mobileReplayAllowed, parseMobilePacket } from "../../core/mobile-protocol";
 import { mobileBindSharesMainPort } from "../../core/startup";
-import type { PermissionWaiter } from "../permissions";
+import type { PermissionWaiter, Permission } from "../permissions";
+import type { AgentEvent } from "../../core/events";
+import { MOBILE_PUSH_CONTENT_TTL, mobilePushText } from "../../core/mobile-push-content";
+import { permissionPushContent } from "./push-content";
 import { openMobileRequest, sealMobileResponse } from "./crypto";
 import { MobileStore } from "./store";
 import { MobilePairing } from "./pairing";
@@ -67,6 +70,20 @@ export class MobileGateway {
       pairing: this.pairing.snapshot(), pushResults: this.push.results(), workNotices: mobileWorkNotices(this.store.directory) };
   }
   notify(kind: "permission" | "report" | "error", expiresAt?: number): void { this.push.notify(kind, undefined, expiresAt); }
+  notifyPermission(permission: Permission): void {
+    const hero = this.heroes.find(hero => hero.id === permission.agent || hero.id === permission.terminal);
+    this.push.notify("permission", undefined, permission.expiresAt, permissionPushContent(permission, hero));
+  }
+  notifyEvent(event: AgentEvent, at: number): void {
+    const kind = event.hook === "Stop" && !event.subagent ? "report" : "error";
+    const hero = this.heroes.find(hero => hero.id === event.agent);
+    const report = kind === "report" && event.agent ? this.quests?.reportNotification(event.agent, at) : undefined;
+    this.push.notify(kind, undefined, undefined, { kind, heroName: mobilePushText(hero?.name ?? "", "勇者"),
+      town: mobilePushText(report?.town ?? hero?.town ?? "", "町"),
+      summary: mobilePushText(kind === "error" ? "止まりました" : report?.title ?? "返事が届いた", "返事が届いた"),
+      expiresAt: Date.now() + MOBILE_PUSH_CONTENT_TTL,
+      target: kind === "error" && hero ? { type: "hero", id: hero.id, questId: null } : report?.target ?? null });
+  }
   testPush(deviceId: string): boolean {
     if (!this.store.devices.some(device => device.id === deviceId)) return false;
     this.push.notify("permission", deviceId); return true;

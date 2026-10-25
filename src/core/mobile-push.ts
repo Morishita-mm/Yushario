@@ -9,7 +9,7 @@ export function mobilePermissionPushTtl(expiresAt: number, now: number): number 
 }
 export const MOBILE_PUSH_ERRORS = ["DeviceNotRegistered", "MessageTooBig", "MessageRateExceeded", "MismatchSenderId", "InvalidCredentials",
   "UNAUTHORIZED", "PUSH_TOO_MANY_EXPERIENCE_IDS", "PUSH_TOO_MANY_NOTIFICATIONS", "PUSH_TOO_MANY_RECEIPTS", "VALIDATION_ERROR",
-  "UnknownExpoError", "InvalidResponse", "SendHttpError", "SendNetworkError", "ReceiptHttpError", "ReceiptNetworkError",
+  "UnknownExpoError", "InvalidResponse", "PushPreparationFailed", "SendHttpError", "SendNetworkError", "ReceiptHttpError", "ReceiptNetworkError",
   "ReceiptNotFound", "NoPushToken", "QueueFull", "GatewayStopped", "Interrupted"] as const;
 export type MobilePushError = typeof MOBILE_PUSH_ERRORS[number];
 export type MobilePushLogEntry = {

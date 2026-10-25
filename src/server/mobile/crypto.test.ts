@@ -4,8 +4,9 @@ import { mobilePermissionHashInput, parseMobileResponse } from "../../core/mobil
 import { mobileAad, mobileNonce, mobileRequestSigningInput, mobileResponseSigningInput } from "../../core/mobile-signing";
 import { parseMobileRequest } from "../../core/mobile-protocol";
 import { deriveMobileKeys, mobileDeviceId, mobileHash, mobileIdentityFromSeeds, mobileSas, mobileSign,
-  openMobileRequest, sealMobileResponse } from "./crypto";
+  openMobileRequest, sealMobileResponse, mobileEncrypt } from "./crypto";
 import { TestPhone } from "./test-client";
+import { mobilePushAad, mobilePushSigningInput, parseMobilePushEnvelope, parseMobilePushPacket } from "../../core/mobile-push-content";
 
 const gateway = mobileIdentityFromSeeds(vectors.keys.gatewayX25519.privateKeyHex, vectors.keys.gatewayEd25519.privateKeyHex);
 const phoneIdentity = mobileIdentityFromSeeds(vectors.keys.phoneX25519.privateKeyHex, vectors.keys.phoneEd25519.privateKeyHex);
@@ -24,6 +25,8 @@ describe("mobile Node crypto shared vectors", () => {
     expect(hex(derived.salt)).toBe(vectors.hkdf.saltHex);
     expect(hex(derived.requestKey)).toBe(vectors.hkdf.requestKeyHex);
     expect(hex(derived.responseKey)).toBe(vectors.hkdf.responseKeyHex);
+    expect(hex(derived.pushKey)).toBe(vectors.hkdf.pushKeyHex);
+    expect(new Set([derived.pushKey, derived.requestKey, derived.responseKey].map(hex)).size).toBe(3);
     expect(mobileSas(gateway, px, ps, vectors.pairing.offer.pairingCode)).toBe(vectors.pairing.sas);
     expect(hex(mobileHash(mobilePermissionHashInput(vectors.permission.displayed)))).toBe(vectors.permission.hashHex);
     expect(hex(mobileHash(Buffer.from(vectors.pairing.sasInputHex, "hex")))).toBe(vectors.pairing.sasHashHex);
@@ -50,6 +53,23 @@ describe("mobile Node crypto shared vectors", () => {
       expect(packet).toEqual(sample.packet);
       expect(hex(Buffer.from(packet.ciphertext, "base64url"))).toBe(sample.ciphertextHex);
       expect(phone.open(packet)).toEqual(sample.signedEnvelope);
+    }
+  });
+  it("matches the independent push HKDF, signatures, AAD, nonces and ciphertext vectors", () => {
+    const phone = new TestPhone({ ...vectors.pairing.offer, v: 1 }, phoneIdentity);
+    expect(hex(phone.pushKey)).toBe(vectors.hkdf.pushKeyHex);
+    for (const sample of vectors.pushes) {
+      const value = parseMobilePushEnvelope(sample.signedEnvelope)!, packet = parseMobilePushPacket(sample.packet)!;
+      expect(hex(mobilePushSigningInput(value))).toBe(sample.signingInputHex);
+      expect(hex(Buffer.from(mobileSign(mobilePushSigningInput(value), gateway.signingPrivateKey), "base64url"))).toBe(sample.signatureHex);
+      expect(hex(mobilePushAad(packet, phone.keys))).toBe(sample.aadHex);
+      expect(hex(mobileNonce(packet.seq))).toBe(sample.nonceHex);
+      const plaintext = Buffer.from(JSON.stringify(value));
+      expect(hex(plaintext)).toBe(sample.plaintextHex);
+      expect(hex(mobileEncrypt(plaintext, phone.pushKey, mobileNonce(packet.seq), mobilePushAad(packet, phone.keys)))).toBe(sample.ciphertextHex);
+      expect(phone.openPush(packet, value.timestamp)).toEqual(value);
+      expect(() => phone.openPush(packet, value.expiresAt)).toThrow();
+      expect(() => phone.openPush(packet, value.timestamp, packet.seq)).toThrow();
     }
   });
   it("rejects all-zero X25519 shared keys and modified tags", () => {

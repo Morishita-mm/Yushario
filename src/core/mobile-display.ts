@@ -8,6 +8,7 @@ export type { MobileReport, MobileQuest, MobileTown, MobileTownTheme } from "./m
 import { mobileWorkResponseValues, parseMobileWorkResponse, type MobileWorkResponseBody } from "./mobile-work-display";
 export type { MobileDelivery, MobileWorkResponseBody } from "./mobile-work-display";
 
+import { isMobilePushPrefs, mobilePushPrefsValues, type MobilePushPrefs } from "./mobile-push-content";
 import { mobileNullableId } from "./mobile-work";
 import { isHeroVariant, type HeroVariant } from "./mobile-hero";
 import { isMobilePermissionChange, isMobilePermissionWork, mobileChangeTextLength, mobilePermissionChangeValues,
@@ -30,6 +31,7 @@ export type MobileResponseBody = MobileQuestResponseBody | MobileWorkResponseBod
   | { operation: "permissions"; body: { permissions: MobilePermission[] } }
   | { operation: "decide"; body: { decided: true } }
   | { operation: "push-token"; body: { updated: true } }
+  | { operation: "push-prefs"; body: MobilePushPrefs }
   | { operation: "unpair"; body: { unpaired: true } };
 export type MobileResponse = MobileHeader & MobileResponseBody;
 export type MobileSignedResponse = MobileResponse & { signature: string };
@@ -69,6 +71,9 @@ export function parseMobileResponseBody(operation: unknown, body: unknown): Mobi
       break;
     case "decide":
       if (mobileObject(body, ["decided"]) && body.decided === true) return { operation, body: { decided: true } };
+      break;
+    case "push-prefs":
+      if (isMobilePushPrefs(body)) return { operation, body };
       break;
     case "push-token":
       if (mobileObject(body, ["updated"]) && body.updated === true) return { operation, body: { updated: true } };
@@ -111,6 +116,7 @@ export function mobileResponseBodyValues(response: MobileResponseBody): unknown[
     case "quest-create": return [mobileQuestValues(response.body.quest)];
     case "reports": return [response.body.reports.map(mobileReportValues), response.body.nextCursor];
     case "push-token": return [response.body.updated];
+    case "push-prefs": return mobilePushPrefsValues(response.body);
     case "unpair": return [response.body.unpaired];
     default: return mobileWorkResponseValues(response);
   }

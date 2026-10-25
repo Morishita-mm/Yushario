@@ -50,7 +50,8 @@ export function deriveMobileKeys(gateway: MobileIdentity, phoneX: string, phoneE
   const salt = mobileHash(Buffer.concat([Buffer.from("yushario.hkdf.v1\0"), keyBytes(mobileKeys(gateway, phoneX, phoneEd)), raw(deviceId)]));
   return { sharedSecret, salt,
     requestKey: Buffer.from(hkdfSync("sha256", sharedSecret, salt, "yushario.mobile.v1/request", 32)),
-    responseKey: Buffer.from(hkdfSync("sha256", sharedSecret, salt, "yushario.mobile.v1/response", 32)) };
+    responseKey: Buffer.from(hkdfSync("sha256", sharedSecret, salt, "yushario.mobile.v1/response", 32)),
+    pushKey: Buffer.from(hkdfSync("sha256", sharedSecret, salt, "yushario.mobile.v1/push", 32)) };
 }
 export function mobileEqual(a: string, b: string): boolean {
   const left = raw(a), right = raw(b);

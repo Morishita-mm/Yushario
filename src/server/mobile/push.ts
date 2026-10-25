@@ -3,6 +3,8 @@ import { PERMISSION_TIMEOUT_MS } from "../../core/permissions";
 import { mobilePermissionPushTtl, mobilePushLogEntry, parseMobilePushReceipt, parseMobilePushTicket, type MobilePushError,
   type MobilePushKind, type MobilePushLogEntry } from "../../core/mobile-push";
 import { MobilePushLog } from "./push-log";
+import { MOBILE_PUSH_CONTENT_TTL, type MobilePushContent } from "../../core/mobile-push-content";
+import { sealMobilePush } from "./push-content";
 import type { MobileDevice, MobileStore } from "./store";
 
 type Job = { entry: MobilePushLogEntry; controller: AbortController; seq: number; test: boolean };
@@ -33,13 +35,14 @@ export class MobilePush {
     return [...this.latest.values()].map(mobilePushLogEntry);
   }
   // A targeted call is the Mac's explicit test push: it neither checks nor sets suppression.
-  notify(kind: MobilePushKind, deviceId?: string, expiresAt = Date.now() + PERMISSION_TIMEOUT_MS): void {
+  notify(kind: MobilePushKind, deviceId?: string, expiresAt = Date.now() + PERMISSION_TIMEOUT_MS, content?: MobilePushContent): void {
     if (this.closed) return;
     const test = deviceId !== undefined;
     const ttl = kind === "permission" ? mobilePermissionPushTtl(expiresAt, Date.now()) : undefined;
     if (ttl === 0) return;
     try {
       for (const device of this.store.devices.filter(device => deviceId === undefined || device.id === deviceId)) {
+        if (!test && !device.pushPrefs[kind]) continue;
         if (!test && (device.notifiedKinds.includes(kind) || [...this.jobs.values()].some(job => !job.test
           && job.entry.deviceId === device.id && job.entry.kind === kind && job.seq === device.lastSeq && job.entry.ticketStatus === "pending"))) continue;
         const entry = mobilePushLogEntry({ time: this.log.nextTime(), deviceId: device.id, kind,
@@ -48,7 +51,9 @@ export class MobilePush {
         if (this.jobs.size >= 50) { this.publish({ ...entry, ticketStatus: "error", errorCode: "QueueFull" }); continue; }
         const job = { entry, controller: new AbortController(), seq: device.lastSeq, test };
         this.jobs.set(entry.time, job); this.publish(entry);
-        void this.deliver(job, device, ttl).catch(() => {
+        void this.deliver(job, device, ttl, content ?? { kind, heroName: "勇者", town: "町",
+          summary: test ? "テスト通知" : mobilePushPayload(kind).body,
+          expiresAt: kind === "permission" ? expiresAt : Date.now() + MOBILE_PUSH_CONTENT_TTL, target: null }).catch(() => {
           if (!this.closed) this.update(job, "error", "unknown", "SendNetworkError");
         }).finally(() => this.jobs.delete(entry.time));
       }
@@ -70,12 +75,27 @@ export class MobilePush {
       if (this.store.devices.find(item => item.id === device.id)?.pushToken === device.pushToken) this.store.setPushToken(device.id, null);
     } catch { console.warn("Mobile push token removal failed / 失効した通知 ID を削除できませんでした"); }
   }
-  private async deliver(job: Job, device: MobileDevice, ttl: number | undefined): Promise<void> {
+  private async deliver(job: Job, device: MobileDevice, ttl: number | undefined, content: MobilePushContent): Promise<void> {
+    let body: string;
+    try {
+      if (content.kind !== job.entry.kind) throw Error("Push kind mismatch");
+      const payload = device.pushPrefs.contentVersion === 1
+        ? { priority: "high", _contentAvailable: true, data: sealMobilePush(content, this.store, device, Date.now()) }
+        : mobilePushPayload(job.entry.kind);
+      if (device.pushPrefs.contentVersion === 1 || content.kind === "permission") {
+        const lifetime = content.kind === "permission" ? PERMISSION_TIMEOUT_MS : MOBILE_PUSH_CONTENT_TTL;
+        ttl = Math.max(0, Math.floor(Math.min(lifetime, content.expiresAt - Date.now()) / 1000));
+      }
+      if (ttl === 0) throw Error("Expired push");
+      body = JSON.stringify({ to: device.pushToken, ...payload, ...(ttl !== undefined ? { ttl } : {}) });
+      // Include the routing token too, leaving no unbounded field outside the checked payload.
+      if (Buffer.byteLength(body) > 4096) throw Error("Push too large");
+    } catch { this.update(job, "error", "none", "PushPreparationFailed"); return; }
     const signal = () => AbortSignal.any([job.controller.signal, AbortSignal.timeout(10000)]);
     let ticket: ReturnType<typeof parseMobilePushTicket>;
     try {
       const response = await fetch("https://exp.host/--/api/v2/push/send", { method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to: device.pushToken, ...mobilePushPayload(job.entry.kind), ...(ttl !== undefined ? { ttl } : {}) }), signal: signal() });
+        body, signal: signal() });
       ticket = parseMobilePushTicket(await response.json().catch(() => undefined));
       if (!response.ok) ticket = { status: "error", errorCode: ticket.status === "error" && ticket.errorCode !== "InvalidResponse" ? ticket.errorCode : "SendHttpError" };
     } catch { ticket = { status: "error", errorCode: "SendNetworkError" }; }

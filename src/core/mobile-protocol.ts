@@ -1,9 +1,10 @@
 // Wire validation only. Cryptography and durable sequence storage belong to server.
+import { isMobilePushPrefs, mobilePushPrefsValues, type MobilePushPrefs } from "./mobile-push-content";
 import { mobileWorkRequestValues, parseMobileWorkRequest, type MobileWorkRequestBody } from "./mobile-work";
 
 export const MOBILE_VERSION = 1;
 export const MOBILE_WORK_OPERATIONS = ["quest-options", "quest-draft", "quest-prepare", "quest-form", "quest-embark", "quest-depart"] as const;
-export const MOBILE_OPERATIONS = ["pair", "status", "permissions", "decide", "reports", "push-token", "unpair", "towns", "quests", "quest-create",
+export const MOBILE_OPERATIONS = ["pair", "status", "permissions", "decide", "reports", "push-token", "push-prefs", "unpair", "towns", "quests", "quest-create",
   ...MOBILE_WORK_OPERATIONS] as const;
 export type MobileOperation = typeof MOBILE_OPERATIONS[number];
 export type MobileRequestBody = MobileWorkRequestBody
@@ -13,7 +14,8 @@ export type MobileRequestBody = MobileWorkRequestBody
   | { operation: "reports"; body: { questId: string; cursor: string | null } }
   | { operation: "quest-create"; body: { requestId: string; townId: string; title: string; purpose: string } }
   | { operation: "decide"; body: { permissionId: string; contentHash: string; decision: "allow" | "deny" } }
-  | { operation: "push-token"; body: { token: string | null } };
+  | { operation: "push-token"; body: { token: string | null } }
+  | { operation: "push-prefs"; body: MobilePushPrefs | Record<string, never> };
 export type MobileHeader = { v: 1; deviceId: string; seq: number; timestamp: number };
 export type MobileRequest = MobileHeader & MobileRequestBody;
 export type MobileSignedRequest = MobileRequest & { signature: string };
@@ -82,6 +84,9 @@ export function parseMobileRequestBody(operation: unknown, body: unknown): Mobil
       && mobileBase64url(body.contentHash, 32) && (body.decision === "allow" || body.decision === "deny")) {
       return { operation, body: { permissionId: body.permissionId, contentHash: body.contentHash, decision: body.decision } };
     }
+  } else if (operation === "push-prefs") {
+    if (mobileObject(body, [])) return { operation, body: {} };
+    if (isMobilePushPrefs(body)) return { operation, body };
   } else if (operation === "push-token") {
     if (mobileObject(body, ["token"]) && mobilePushToken(body.token)) return { operation, body: { token: body.token } };
   } else if (operation === "towns" || operation === "quests") {
@@ -128,6 +133,7 @@ export function mobileRequestBodyValues(request: MobileRequestBody): unknown[] {
     case "pair": return [request.body.pairingCode, request.body.name, request.body.pushToken];
     case "decide": return [request.body.permissionId, request.body.contentHash, request.body.decision];
     case "push-token": return [request.body.token];
+    case "push-prefs": return isMobilePushPrefs(request.body) ? mobilePushPrefsValues(request.body) : [];
     case "towns": case "quests": return [request.body.cursor];
     case "quest-create": return [request.body.requestId, request.body.townId, request.body.title, request.body.purpose];
     case "reports": return "questId" in request.body ? [request.body.questId, request.body.cursor] : [];

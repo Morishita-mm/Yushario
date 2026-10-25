@@ -1,6 +1,6 @@
 # モバイル窓口の脅威モデル
 
-`../MOBILE.md` の T1〜T23 を正とする。通信の正確な形は `../MOBILE-PROTOCOL.md`。対象は Mac の別 HTTP listener と既存画面からの登録 API で、同じ OS 利用者によるファイル・プロセスの直接改変、公開インターネットでの運用、スマホ OS 自体の侵害は隔離しない。
+`../MOBILE.md` の T1〜T24 を正とする。通信の正確な形は `../MOBILE-PROTOCOL.md`。対象は Mac の別 HTTP listener と既存画面からの登録 API で、同じ OS 利用者によるファイル・プロセスの直接改変、公開インターネットでの運用、スマホ OS 自体の侵害は隔離しない。
 
 ## 脅威と証拠
 
@@ -11,7 +11,7 @@
 | T3 | ペアリング中に経路で鍵をすり替える | Mac の公開鍵を QR で受け取る | SEC-04：同上（pin／端末鍵の書き換えを拒否） |
 | T4 | 承認の要求を再送する | 連番・時刻・許可 ID の1回限りの受け付け | SEC-05：[実 HTTP 要求検査](../../src/server/mobile/security-requests.test.ts)（±60秒境界、再起動、判断の再送）＋[実 FS 故障・lock 検査](../../src/server/mobile/security-storage.test.ts) |
 | T5 | 経路で要求を書き換える | AEAD による暗号化、改ざんを拒否 | SEC-06：同上。[共有暗号ベクトル](../../src/server/mobile/crypto.test.ts) |
-| T6 | Apple・Google・Expo に作業の中身が渡る | 通知は既存kindごとの固定文言だけ、許可期限ttl・端末別kind抑止 | SEC-07：同上（固定3種の payload、作業内容は AEAD 内）。[送信処理](../../src/server/mobile/push.ts) は固定 URL と token/kind/許可期限だけを使い、[診断の純粋検査](../../src/core/mobile-push.test.ts) で provider message／token の記録を禁止 |
+| T6 | Apple・Google・Expo に作業の中身が渡る | A8対応端末は専用鍵の暗号文だけ、旧端末は種類別固定文言、期限ttl・端末別kind抑止 | SEC-07：同上（固定3種の payload、作業内容は AEAD 内）。[送信処理](../../src/server/mobile/push.ts) は固定URLへ送り、本文は端末別の暗号文か固定文言のみ。A8のSEC-26で対象・名前・要約の平文漏えいなしを実HTTPで確認し、[診断の純粋検査](../../src/core/mobile-push.test.ts) で provider message／token の記録を禁止 |
 | T7 | 通知用 ID の漏れによる偽の通知 | 通知では操作できない。登録を消すと ID も消える | SEC-08：同上（token 更新、通知の偽造では認可されない、unpair 後の消去） |
 | T8 | スマホの紛失・盗難 | 承認・勇者を動かす操作ごとの生体認証、Mac からの取り消し、鍵の安全な保管 | SEC-10：ペアリング検査（即時取り消し）。SEC-09 は別アプリの実機で手動 |
 | T9 | 窓口をインターネットへ公開してしまう | 既定で停止、アドレスの明示、全アドレス待受の警告 | SEC-11：[実プロセス・別 listener 検査](../../src/server/mobile/security-startup.test.ts)（既定停止／flag／警告）。`::` も同じ警告分岐 |
@@ -29,6 +29,7 @@
 | T21 | 許可確認のないエージェント・注入した起動引数で動く | 出陣は Claude／Codex のみで承認モードを強制、Pi は options に出さず拒否、既存の Pi は permissionGate:false で警告、他町・未知 ID・注入フィールド・長文の拒否、応答にパスなし | SEC-22：[作業の実 HTTP 検査](../../src/server/mobile/security-work.test.ts)（選択肢、opt-in off、未知／他町 ID、起動フラグ、出発）＋[純粋検査](../../src/core/mobile-work.test.ts)。**証拠は親タスクの実行待ち** |
 | T22 | 同名町の取り違え／内部キー・姿からのパス漏えい | 全 DTO が同じ窓口の UUID v4 を使い、町なしは null、theme は本体台帳の5種のみ。町の区画は許可hashにも束縛 | SEC-24：[実 HTTP・SQLite・relay 検査](../../src/server/mobile/security-towns.test.ts)、[純粋検査](../../src/core/mobile-towns.test.ts)、[実行記録](runs/2026-10-24-mobile-towns.md) |
 | T23 | 別勇者/別町の作業・変更本文の混同、欠落や省略のある本文の承認 | 認証済み端末と同じ町/勇者の担当snapshot、Write/Edit/MultiEditの本文/順序/全置換/省略数をhashに束縛、本文合計2000・content含め3000・16組・16件、取得不能/省略時の承認拒否 | SEC-25：[実HTTP・relay・CLI検査](../../src/server/mobile/security-permission-content.test.ts)、[実行記録](runs/2026-10-25-mobile-permission-content.md) |
+| T24 | 通知の改ざん・別端末混同・再送・nonce再使用・通知からの判断／他端末設定変更 | HKDFのpushラベル・永続pushSeq・AEAD＋Mac署名・期限・端末内高水位、対象IDは暗号文内のヒントだけ、タップ後の再取得・通常decide、署名済み自分のpush-prefsだけ | SEC-26：[実HTTP・偽Expo・暗号・実FS検査](../../src/server/mobile/security-push-content.test.ts)、[純粋検査](../../src/core/mobile-push-content.test.ts)、[共有暗号vectors](../../src/server/mobile/crypto.test.ts)、[記録](runs/2026-10-26-mobile-push-content.md) |
 
 ## 実行の性質と残る限界
 
@@ -43,4 +44,6 @@
 - 強制した承認モードは、全道具で確認が出ることを意味しない。利用者の Claude の allow rules・Codex の設定による道具ごとの許可はそのまま効く。同じ Mac で人が手動で呼び戻した勇者は通常の Mac の flag で起動する（mobile からの recall はない）。
 - prepare の本文は Mac のクエスト作成と同じく目的（最大8000文字）として保存される。form で編集した本文・補助への依頼はメモリだけで、送った本文はクエストの出来事に残る。`work-departures.json` は1000件で止まり自動では間引かない。
 - 作業の監査は試行の記録で、配送の証拠ではない。同時に生きている勇者の数（端末ごと2人）はメモリで数えるため、再起動で数え直しになる（出陣の1件/分・3件/時は耐久）。
+- A8の復号不能時は、既知の登録ID／kindの固定文言だけを通知する合意。これは認証された通知ではなく、tokenを得た攻撃者／サービスが偽装・反復できる。未認証の名前・対象・要約を使わず高水位も変えない。認証済みの期限切れ／再送は捨て、どの場合もタップ後に窓口から取り直す。URL・判断・contentHashは通知に載せない。復号したプレビューのロック画面表示はOS設定に従うため、端末を見られるリスクは残る。
+- A8の送信連番は独立鍵で暗号化前にfsync予約。失敗も欠番とし、対応版変更で戻さない。スマホ側の登録×kindの受信高水位の原子的保存（別kindの順不同は許す）、背景taskの実行、実配送・OS表示は別アプリで検証が必要。通知サービスにはkind・登録ID・長さ・配送時刻が見える。静的DHのforward secrecyがない制限も継続する。
 - この証跡だけで ASVS L2 全体への適合やリリース承認を主張しない。状態は [checklist.md](checklist.md)、対象コミットと実行環境は `runs/` に残す。
