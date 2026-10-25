@@ -34,6 +34,15 @@ async function decision(phone: TestPhone, card: MobilePermission, decision: "all
   expect(result.status).toBe(status);
   if (status === 400) expect(result.text).toBe('{"error":"rejected"}');
 }
+// The fake agent writes its answer with a non-atomic writeFileSync, so the file can exist before its JSON is complete.
+async function hookDecision(path: string): Promise<string> {
+  let behavior = "";
+  await until(() => {
+    if (!existsSync(path)) return false;
+    try { behavior = JSON.parse(readFileSync(path, "utf8")).hookSpecificOutput.decision.behavior; return true; } catch { return false; }
+  });
+  return behavior;
+}
 function trigger(relay: Relay, launch: FakeLaunch, input: object) {
   const base = join(relay.log, `${launch.name}-${launch.pid}`);
   writeFileSync(base + ".permission-input", JSON.stringify(input));
@@ -78,8 +87,7 @@ describe("SEC-25 permission task/body binding over real HTTP and crypto", () => 
     }
     for (const card of cards) await ok(relay, phone, "decide", { permissionId: card.id, contentHash: card.contentHash, decision: "deny" });
     for (const row of rows) {
-      await until(() => existsSync(row.result));
-      expect(JSON.parse(readFileSync(row.result, "utf8")).hookSpecificOutput.decision.behavior).toBe("deny");
+      expect(await hookDecision(row.result)).toBe("deny");
     }
     const fresh = await launchOnMac(relay, "claude", relay.towns.git);
     const result = trigger(relay, fresh, hook("Edit", { file_path: "unknown.ts", old_string: "before", new_string: "after" }));
@@ -89,8 +97,7 @@ describe("SEC-25 permission task/body binding over real HTTP and crypto", () => 
     await until(async () => { unknown = (await ok(relay, phone, "permissions", {})).permissions[0]; return Boolean(unknown); });
     expect(unknown!.work).toBeNull();
     await ok(relay, phone, "decide", { permissionId: unknown!.id, contentHash: unknown!.contentHash, decision: "allow" });
-    await until(() => existsSync(result));
-    expect(JSON.parse(readFileSync(result, "utf8")).hookSpecificOutput.decision.behavior).toBe("allow");
+    expect(await hookDecision(result)).toBe("allow");
     const wire = JSON.stringify(cards);
     for (const privateValue of [relay.root, "FOREIGN_", "cwd", "branch", "purpose"]) expect(wire).not.toContain(privateValue);
   }, 20000);
