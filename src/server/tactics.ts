@@ -7,17 +7,19 @@ import { serverLanguage, tr } from "./language";
 
 // One automatic run: a review round or the research before the owner starts.
 type Run = { kind: "review" | "research"; round: number; waiting: Set<string>; replies: Map<string, { verdict?: Verdict; text: string }>;
-  request?: string; stopped?: string; done?: boolean };
+  request?: string; stopped?: string; done?: boolean; pending?: Set<string> };
 
 // Moves a party along its tactic by watching hook events (docs/PLATFORM.md stage 24). It only sends what
 // the tactic says, logs every message as a quest event, and stops (returning to the person) when unsure.
 export class QuestTactics {
   private readonly chosen = new Map<string, Tactic>();
+  private readonly relayed = new Map<string, Set<string>>();
   private readonly runs = new Map<string, Run>();
   private readonly ownPrompts = new Set<string>(); // Owner prompts this tactic sent, not the person.
   // What the person wrote for a helper while forming the party; added to that helper's first tactic message.
   private readonly notes = new Map<string, Map<string, string>>();
   constructor(private readonly party: QuestParty) {}
+  forgetSession(session: string): void { this.relayed.delete(session); }
 
   tactic(quest: string): Tactic {
     let tactic = this.chosen.get(quest);
@@ -34,7 +36,7 @@ export class QuestTactics {
   status(quest: string): TacticStatus {
     const tactic = this.tactic(quest), run = this.runs.get(quest), members = this.members(quest);
     const fits = Object.fromEntries(TACTICS.map((item) => [item, tacticFit(item, members)])) as Record<Tactic, ReturnType<typeof tacticFit>>, fit = fits[tactic];
-    const running = Boolean(run && !run.stopped && !run.done && run.waiting.size);
+    const running = Boolean(run && !run.stopped && !run.done && (run.waiting.size || run.pending?.size));
     return { tactic, fit, fits, running, round: run?.round ?? 0, waiting: run?.waiting.size ?? 0, total: (run?.waiting.size ?? 0) + (run?.replies.size ?? 0), stopped: run?.stopped, done: run?.done };
   }
   choose(quest: string, tactic: Tactic, at = Date.now()): TacticStatus {
@@ -59,6 +61,25 @@ export class QuestTactics {
     if (!run.waiting.size) this.stop(quest, tr("調べる役に 頼めなかった", "could not ask any researcher"), at);
     return this.status(quest);
   }
+  // Mobile bulk departure reserves each individual delivery durably. Researchers
+  // already accepted are never sent twice; no owner starts while a delivery is pending.
+  startMobileResearch(quest: string, request: string, deliver: (session: string, text: string) => boolean): void {
+    if (this.tactic(quest) !== "research") throw Error("Research tactic changed");
+    let run = this.runs.get(quest);
+    if (!run) {
+      const fit = tacticFit("research", this.members(quest));
+      if (!fit.ok) throw Error("Research party changed");
+      run = { kind: "research", round: 1, waiting: new Set(), replies: new Map(), request, pending: new Set(fit.inside) };
+      this.runs.set(quest, run);
+    }
+    if (run.kind !== "research" || run.request !== request || !run.pending || run.stopped || run.done) throw Error("Research already ended");
+    for (const session of run.pending) {
+      const note = this.notes.get(quest)?.get(session) ?? this.party.quests.member(session)?.note ?? "";
+      if (!deliver(session, researchRequest(request, note, serverLanguage()))) continue;
+      this.takeNote(quest, session); run.pending.delete(session); run.waiting.add(session);
+    }
+    if (!run.pending.size && !run.waiting.size && run.replies.size) this.finish(quest, Date.now());
+  }
   forgetQuest(quest: string): void { this.chosen.delete(quest); this.runs.delete(quest); this.notes.delete(quest); }
   setNotes(quest: string, notes: Record<string, string>): void {
     const kept = this.notes.get(quest) ?? new Map<string, string>();
@@ -71,6 +92,7 @@ export class QuestTactics {
 
   observe(session: TerminalSession, event: AgentEvent, at: number): void {
     if (event.subagent) return;
+    if (event.hook === "SessionEnd") this.forgetSession(session.id);
     const member = this.party.quests.member(session.id);
     if (!member) return;
     const quest = member.quest, tactic = this.tactic(quest), name = this.party.label(session.id);
@@ -118,6 +140,7 @@ export class QuestTactics {
   }
   private finish(quest: string, at: number): void {
     const run = this.runs.get(quest)!, owner = this.party.quests.party(quest).find((member) => member.writer);
+    if (run.pending?.size) return; // A partial mobile departure must finish dispatching first.
     if (!run.replies.size) { this.stop(quest, tr("返事を した 仲間が いない", "no party member replied"), at); return; }
     if (!owner) { this.stop(quest, tr("担当が いない", "there is no owner"), at); return; }
     const replies = [...run.replies].map(([session, reply]) => ({ name: this.party.label(session), ...reply }));
@@ -143,9 +166,17 @@ export class QuestTactics {
   // "All yours": every other member's report goes to the commander, who decides what happens next.
   private relay(quest: string, session: string, commanding: boolean, event: AgentEvent): void {
     if (commanding || event.hook !== "Stop" || !event.text) return;
+    const key = JSON.stringify([event.ts, event.text]), seen = this.relayed.get(session) ?? new Set<string>();
+    if (event.ts !== undefined && seen.has(key)) return;
     const commander = this.party.quests.party(quest).find((member) => member.role === "command");
     if (!commander || !this.party.pty.agentSession(commander.session)?.active) return;
-    try { this.party.send(quest, commander.session, relayToCommander(this.party.label(session), event.text, serverLanguage()), "tactic"); } catch { /* The report stays in the quest events. */ }
+    try {
+      this.party.send(quest, commander.session, relayToCommander(this.party.label(session), event.text, serverLanguage()), "tactic");
+      if (event.ts !== undefined) {
+        seen.add(key); if (seen.size > 256) seen.delete(seen.values().next().value!);
+        this.relayed.set(session, seen);
+      }
+    } catch { /* The report stays in the quest events. */ }
   }
   private stop(quest: string, reason: string, at: number): void {
     const run: Run = this.runs.get(quest) ?? { kind: "review", round: 0, waiting: new Set(), replies: new Map() };

@@ -4,8 +4,8 @@ export type AgentInfo = { id: string; label: string; hero: boolean; resume: bool
   equipWeapon: boolean; equipAccessory: boolean };
 
 export function codexNotice(): string {
-  return tr("Codex 0.162.1：/hooks で Yushario のフックを確認。最初の依頼と許可への返事は ターミナルから。道具の成否・合格条件の証拠・MP は取得できない。",
-    "Codex 0.162.1: review Yushario hooks in /hooks; send the first request in the terminal. Answer approvals there too. Tool results, check evidence and MP are unavailable.");
+  return tr("Codex 0.164.0：/hooks で Yushario のフックを確認。許可への返事は ターミナルから。道具の成否・合格条件の証拠・MP は取得できない。",
+    "Codex 0.164.0: review Yushario hooks in /hooks. Answer approvals in the terminal. Tool results, check evidence and MP are unavailable.");
 }
 
 export async function loadAgents(): Promise<AgentInfo[]> {

@@ -9,12 +9,18 @@ import { partyRequest, type PartyHero } from "../town/quest-party";
 
 type Scope = { key: string; quest?: string; town: string; session?: string; links: PreviewLink[]; candidates: string[];
   checked: number; loading: boolean; error: string; party: PartyHero[] };
-type Mount = { scope: Scope; full: boolean; signature: string };
+type Mount = { scope: Scope; full: boolean; signature: string; host?: HTMLElement };
 const token = new URLSearchParams(location.search).get("token") ?? "";
 const port = Number(location.port || (location.protocol === "https:" ? 443 : 80));
 
 export function initPreview(tell: (session: string, text: string) => void) {
   const scopes = new Map<string, Scope>(), pages = new Map<string, PreviewPage>(), mounts = new Map<HTMLElement, Mount>();
+  // Only rows actually on screen (inside their scroll container too) refresh; hundreds of quests must not each poll.
+  // A row is watched through its host: an empty shortcut itself takes no space and never counts as visible.
+  const onScreen = new Set<Element>();
+  const seen = new IntersectionObserver((entries) => {
+    for (const entry of entries) if (entry.isIntersecting) onScreen.add(entry.target); else onScreen.delete(entry.target);
+  });
   const script = `<script src="${location.origin}/preview-link.js"></script>`;
   function scope(town: string, quest?: Quest, session?: string): Scope {
     const key = quest?.id ?? `town-${town}`;
@@ -68,7 +74,7 @@ export function initPreview(tell: (session: string, text: string) => void) {
   }
   function mount(value: Scope, full: boolean): HTMLElement {
     const root = document.createElement("div"); root.className = full ? "preview-section" : "preview-shortcut";
-    mounts.set(root, { scope: value, full, signature: "" }); void refresh(value); return root;
+    mounts.set(root, { scope: value, full, signature: "" }); if (full) void refresh(value); return root;
   }
   function openTown(value: Scope): void {
     const dialog = document.createElement("dialog"); dialog.className = "report-window preview-window";
@@ -88,7 +94,8 @@ export function initPreview(tell: (session: string, text: string) => void) {
     paint();
   });
   function decorate(agents: Iterable<RoomAgent>, current: (session: string) => Quest | undefined, town?: string): void {
-    for (const [root] of mounts) if (!root.isConnected) mounts.delete(root);
+    for (const [root, item] of mounts) if (!root.isConnected) { mounts.delete(root); if (item.host) { seen.unobserve(item.host); onScreen.delete(item.host); } }
+    for (const [root, item] of mounts) if (!item.full && !item.host && root.parentElement) { item.host = root.parentElement; seen.observe(item.host); }
     for (const root of document.querySelectorAll<HTMLElement>("[data-quest]")) {
       const id = root.dataset.quest;
       if (!id || root.querySelector(".preview-shortcut")) continue;
@@ -112,7 +119,7 @@ export function initPreview(tell: (session: string, text: string) => void) {
       const button = document.createElement("button"); button.type = "button"; button.className = "preview-town"; button.dataset.town = town;
       button.textContent = tr("▶ 町の プレビュー", "▶ Town preview"); button.onclick = () => openTown(scope(town)); questsRoot.prepend(button);
     }
-    const visible = [...mounts].filter(([root]) => root.getClientRects().length).map(([, item]) => item.scope);
+    const visible = [...mounts].filter(([, item]) => item.host && onScreen.has(item.host)).map(([, item]) => item.scope);
     for (const value of new Set(visible)) if (Date.now() - value.checked > 2000) void refresh(value);
     paint();
   }

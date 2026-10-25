@@ -49,6 +49,16 @@ export function reportTitle(report: TalkReport | undefined, language: Language):
   if (count && report.tests.last === "passed") return en ? `Victory! Files fixed: ${count}` : `しょうり！ ファイル ${count}つを なおした`;
   return report.kind === "scroll" ? (en ? "Returned from exploring" : "しらべて もどってきた") : (en ? "Came to talk" : "はなしかけてきた");
 }
+// Phone headings are Japanese terminal-style text, independent of the PC's RPG language.
+export function mobileReportTitle(report: TalkReport | undefined): string {
+  if (!report) return "返事が届いた";
+  if (report.stopFailure) return "途中で止まった";
+  const count = report.files.length;
+  if (report.tests.last === "failed") return `ファイル ${count}件を変更・テスト失敗`;
+  if (count && report.tests.passed + report.tests.failed === 0) return `ファイル ${count}件を変更・テスト未実行`;
+  if (count && report.tests.last === "passed") return `ファイル ${count}件を変更・テスト成功`;
+  return report.kind === "scroll" ? "調査から戻った" : "返事が届いた";
+}
 export function sortedQuests(quests: Quest[]): Quest[] {
   const order: QuestState[] = ["waiting", "review", "active", "open", "done", "dropped"];
   return [...quests].sort((a, b) => order.indexOf(a.state) - order.indexOf(b.state) || b.updatedAt - a.updatedAt);

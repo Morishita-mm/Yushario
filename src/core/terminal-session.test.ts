@@ -1,7 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { dimensions, outputStart, OUTPUT_LIMIT, sessionInputFields } from "./terminal-session";
+import { conversationText, initialPromptArgs, dimensions, outputStart, OUTPUT_LIMIT, sessionInputFields } from "./terminal-session";
 
 const presets = ["claude", "codex", "pi", "shell"];
+describe("conversation text and initial prompt arguments", () => {
+  it("normalizes CRLF, controls and surrounding whitespace identically for delivery and matching", () => {
+    expect(conversationText("  first\r\nsecond\rthird\x00\x03\x1b\x7f\tlast  ")).toBe("first\nsecond\nthird\tlast");
+    expect(conversationText(" \r\n\x00 ")).toBe("");
+  });
+  it.each(["claude", "codex", "pi"])("ends %s options before the single literal prompt", (preset) => {
+    expect(initialPromptArgs(preset, "- a\n--model other")).toEqual(["--", "- a\n--model other"]);
+    expect(initialPromptArgs(preset)).toEqual([]);
+  });
+  it("keeps pi's @ text out of file arguments without changing the normalized request", () => {
+    const args = initialPromptArgs("pi", "@not-a-file explain this");
+    expect(args).toEqual(["--", " @not-a-file explain this"]);
+    expect(conversationText(args[1])).toBe("@not-a-file explain this");
+    expect(initialPromptArgs("claude", "@literal")).toEqual(["--", "@literal"]);
+  });
+});
 describe("session input fields", () => {
   it.each(presets)("accepts preset %s and an optional cwd", (preset) => {
     expect(sessionInputFields({ preset }, presets)).toEqual({ ok: true, preset });

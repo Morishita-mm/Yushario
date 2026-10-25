@@ -18,11 +18,13 @@ import { initRoster } from "./roster";
 import { initExpedition } from "./expedition";
 import { initTerminals } from "./terminals";
 import { initHelp } from "./help";
+import { initMobile } from "./mobile";
 import { initTitleScreen } from "./title-screen";
 import { initSound, notifySound } from "./sound";
 import { initTalk } from "./talk";
 import { markReviewed, openReview } from "./review-window";
 import { initQuests } from "./quests";
+import { setHeld } from "./pending";
 import { initPreview } from "./preview";
 import "./quests.css";
 import { initNotices } from "./notices";
@@ -59,6 +61,7 @@ function arrived(session: Session, towns: TownRecord[], recalled = false, quiet 
 }
 initRoster((session, towns) => arrived(session, towns, true), scene.townName);
 initHelp();
+initMobile();
 initTerminals((terminal) => {
   const agent = [...room.agents.values()].find((item) => item.terminal === terminal);
   return agent && (scene.names.get(agent.id) ?? agent.name);
@@ -197,7 +200,7 @@ function receiveMessage(message: MessageEvent): void {
       scene.setTowns(data.towns);
     } else if (data.type === "pending" && typeof data.terminal === "string" && Array.isArray(data.texts)
       && data.texts.every((text: unknown) => typeof text === "string")) {
-      talk.setPending(data.terminal, data.texts);
+      talk.setPending(data.terminal, data.texts); setHeld(data.terminal, data.texts);
       equipment.setPending(data.terminal, data.equipment);
     } else if (data.type === "attention" && typeof data.terminal === "string" && data.reason === "trust") {
       if (![...room.agents.values()].some((agent) => agent.terminal === data.terminal)) talk.attention(data.terminal);

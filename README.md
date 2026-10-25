@@ -53,12 +53,12 @@ I wanted the waiting time of an AI agent to be something fun to watch, so I gave
 | --- | :---: | :---: |
 | Claude Code | ✅ | ✅ |
 | [pi](https://pi.dev/) | ✅ | ✅ |
-| Codex 0.162.1 | ✅* | ✅ |
+| Codex 0.164.0 | ✅* | ✅ |
 | shell | — | ✅ |
 
 Hooks are attached only to agents launched from Yushario. Your personal agent settings are not edited.
 
-*Codex: review Yushario's hooks in `/hooks`, then send the first request in the terminal. Town, conversation, quests, reports, party delivery, `resume` and `/compact` are supported; approvals stay in the terminal. Tool completion has no documented exit status: automatic check evidence, successful-edit lists and MP are unavailable. Checks stay unrun, never assumed passed. Hook trust and administrator policy still apply.
+*Codex: review and trust Yushario's hooks in `/hooks` in its own terminal to enable observation. A newly launched quest hero receives the quest text as its initial CLI prompt. Town, conversation, quests, reports, party delivery, `resume` and `/compact` are supported; approvals stay in the terminal. Tool completion has no documented exit status: automatic check evidence, successful-edit lists and MP are unavailable. Checks stay unrun, never assumed passed. Hook trust and administrator policy still apply.
 
 In Claude Code's auto mode, permission windows rarely appear because Claude handles most approvals itself.
 
@@ -76,7 +76,7 @@ No repository clone or global installation is needed. Stop Yushario with **Ctrl+
 
 Your browser opens the town. Choose **Embark**, pick your project folder as the destination, and start an agent. Then click your hero. You can run it from any folder; the folder you start from is offered first.
 
-**Write a quest → assign a hero → send the request → read the report and changes → adopt (or ask for fixes).** A town is a project, a hero is a CLI session, and a quest is work that stays after the hero leaves. The quest card always shows the next thing to do. Read the report, look at the git changes in Review, check the acceptance checks, then adopt the work—or ask the hero for fixes and it works again. HP reflects recent failures, MP is context left, and Lv counts completed work—not code quality. Hooks and the pi extension are attached automatically when you launch from Yushario.
+**Write a quest → assign a hero → read the report and changes → adopt (or ask for fixes).** New heroes (Claude, Codex and pi) start with the quest text as their initial CLI prompt; existing heroes still receive it through Send request. Startup/trust dialogs remain yours to answer in the terminal. A town is a project, a hero is a CLI session, and a quest is work that stays after the hero leaves. The quest card always shows the next thing to do. Read the report, look at the git changes in Review, check the acceptance checks, then adopt the work—or ask the hero for fixes and it works again. HP reflects recent failures, MP is context left, and Lv counts completed work—not code quality. Hooks and the pi extension are attached automatically when you launch from Yushario.
 
 Alternatively, build and run from source:
 

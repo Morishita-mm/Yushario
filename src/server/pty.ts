@@ -7,21 +7,26 @@ import { basename, isAbsolute, join } from "node:path";
 import type { AgentEvent } from "../core/events";
 import { equipmentInput } from "../core/equipment";
 import { WebSocketServer } from "ws";
-import { SESSION_LIMIT, sessionInput, type EquippedMessage, type PendingMessage, type Session, type TerminalSession } from "./pty-session";
+import { SESSION_LIMIT, TerminalLimitError, initialText, sessionInput, type EquippedMessage, type PendingMessage, type Preset, type Session, type TerminalSession } from "./pty-session";
 import { connectTerminal, relayOutput } from "./pty-socket";
 import { worktreeBranch, worktreeRemoving } from "./worktrees";
-import { clearPending, observe as observeSession, pending, say } from "./pty-actions";
+import { clearPending, clearTexts, observe as observeSession, pending, say } from "./pty-actions";
 import { flushEquipment } from "./pty-equipment";
 import { handlePtyAction } from "./pty-api-actions";
 import { addRosterEntry, isClaudeSessionId } from "../core/roster";
 import { readEquipment, readRoster, writeRoster } from "./town-data";
 import { projectIdentity } from "./project";
-import { launchPty, writeClaudeSettings } from "./pty-launch";
+import { launchPty, MOBILE_LAUNCH_ARGS, writeClaudeSettings } from "./pty-launch";
 import { AGENTS, publicAgents } from "./agents";
 import { replacedSession } from "../core/session-actions";
 import { descendants, killTree } from "./pty-process";
 import { authenticatedHookSession } from "./hook-auth";
-import { readJsonBody, SETTINGS_BODY_LIMIT } from "./http-body";
+import { readJsonBody, ACTION_BODY_LIMIT } from "./http-body";
+import { requirePartyConversation, TerminalOnlyError, type QuestParty } from "./party";
+
+// mobile: only Claude/Codex with forced approval flags. beforeLaunch runs after every check, just before spawn.
+export type PtyLaunchOptions = { mobile?: true; beforeLaunch?: (info: { id: string; preset: Preset; cwd: string; project: string }) => void };
+export type PtyManager = ReturnType<typeof createPtyServer>;
 
 function json(response: ServerResponse, status: number, value: unknown): void {
   response.writeHead(status, { "Content-Type": "application/json", "Cache-Control": "no-store" })
@@ -86,8 +91,11 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
     try { process.kill(-pid, signal); } catch { /* Already exited. */ }
   }
 
-  async function create(input: unknown, resume?: string): Promise<TerminalSession> {
+  async function create(input: unknown, resume?: string, launch: PtyLaunchOptions = {}): Promise<TerminalSession> {
     const { preset, cwd: inputCwd = process.env.AGENT_CHARACTER_CWD || process.env.INIT_CWD || process.cwd() } = sessionInput(input);
+    const text = initialText(input);
+    if (text !== undefined) requirePartyConversation(preset);
+    if (launch.mobile && (!MOBILE_LAUNCH_ARGS[preset] || resume !== undefined)) throw new Error(tr("スマホからは この勇者を 起動できない。", "This hero cannot be launched from a phone"));
     let cwd = inputCwd;
     if (!isAbsolute(cwd)) throw new Error(tr("行き先は フォルダの絶対パスで。", "Use an absolute folder path"));
     try {
@@ -101,10 +109,11 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
     if (worktreeRemoving(cwd)) throw new Error(tr("この 拠点は たたんでいる", "This base is folding"));
     // Check after the await too: concurrent requests must not exceed the limit.
     if (disposed) throw new Error(tr("サーバーは 停止処理中。", "Server is stopping"));
-    if (sessions.size >= SESSION_LIMIT) throw new Error(tr("ターミナルは 上限の16個。使わないものを 終了して消そう。", "Terminal limit (16) reached. End and remove unused terminals"));
+    if (sessions.size >= SESSION_LIMIT) throw new TerminalLimitError();
     const id = randomBytes(6).toString("hex");
     const agentToken = randomBytes(32).toString("hex");
-    const terminal = launchPty(preset, cwd, id, port, settings, selectedEquipment, equipment[preset], identity.name, resume, agentToken);
+    launch.beforeLaunch?.({ id, preset, cwd, project: townKey });
+    const terminal = launchPty(preset, cwd, id, port, settings, selectedEquipment, equipment[preset], identity.name, resume, agentToken, launch.mobile === true, text);
     groups.add(terminal.pid);
     let stopped = false;
     function stop(): void {
@@ -132,7 +141,7 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
       info: { id, preset, cwd, project: townKey, branch, projectName: identity.name, projectParent: identity.parent, createdAt: Date.now(), ...(resume ? { recalledHero: resume } : {}), ...selectedEquipment }, terminal,
       agentToken, output: Buffer.alloc(0), modes: new Map(), clients: new Set(), stop, waiting: false, eventAt: -Infinity, texts: [],
       interrupted: false, interrupting: false, departing: false, asking: false, askedAt: -Infinity, agentId: resume,
-      hasPrompt: Boolean(resume), name: basename(cwd), finished, finish,
+      hasMainHook: false, hasPrompt: Boolean(resume), name: basename(cwd), finished, finish,
     };
     sessions.set(id, session);
     const output = (data: string): void => relayOutput(session, data, port, attentionChanged);
@@ -155,7 +164,7 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
     return session.info;
   }
 
-  async function handleRequest(request: IncomingMessage, response: ServerResponse, url: URL): Promise<void> {
+  async function handleRequest(request: IncomingMessage, response: ServerResponse, url: URL, party: QuestParty): Promise<void> {
     if (url.pathname === "/api/equipment" && request.method === "GET") {
       json(response, 200, readEquipment(serverLanguage()));
     } else if (url.pathname === "/api/agents" && request.method === "GET") {
@@ -163,14 +172,14 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
     } else if (url.pathname === "/api/sessions" && request.method === "GET") {
       json(response, 200, [...sessions.values()].map((session) => session.info));
     } else if (url.pathname === "/api/sessions" && request.method === "POST") {
-      const body = await readJsonBody(request, response, SETTINGS_BODY_LIMIT);
+      const body = await readJsonBody(request, response, ACTION_BODY_LIMIT);
       if (!body.ok) return;
       try {
-        const info = await create(body.value);
+        const info = await party.create(body.value);
         json(response, 201, info);
       } catch (error) {
         const message = error instanceof SyntaxError ? tr("起動の設定は JSON で。", "Send launch settings as JSON") : error instanceof Error ? error.message : tr("起動できなかった。", "Could not launch");
-        json(response, message.startsWith(tr("ターミナルの上限", "Terminal limit")) ? 409 : 400, { error: message });
+        json(response, error instanceof TerminalLimitError || error instanceof TerminalOnlyError ? 409 : 400, { error: message });
       }
     } else if (url.pathname === "/api/roster" && request.method === "GET") {
       json(response, 200, roster);
@@ -199,7 +208,7 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
         json(response, 201, info);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        json(response, message.startsWith(tr("ターミナルの上限", "Terminal limit")) ? 409 : 400, { error: message });
+        json(response, error instanceof TerminalLimitError ? 409 : 400, { error: message });
       } finally { recalling.delete(sessionId); }
     } else if (/^\/api\/sessions\/[^/]+\/(say|action|equip)$/.test(url.pathname) && request.method === "POST") {
       const session = sessions.get(url.pathname.split("/")[3]);
@@ -207,6 +216,11 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
       const departed = await handlePtyAction(request, response, url.pathname, session,
         equipment[session.info.preset], pendingChanged, equipmentChanged, recordEvent, requested);
       if (departed) sessions.delete(session.info.id);
+    } else if (/^\/api\/sessions\/[^/]+\/pending$/.test(url.pathname) && request.method === "DELETE") {
+      const session = sessions.get(url.pathname.split("/")[3]);
+      if (!session) { json(response, 404, { error: tr("そのターミナルが 見つからない。", "Terminal not found") }); return; }
+      party.quests.cancelPending(session.info.id);
+      json(response, 200, { ok: true });
     } else if (url.pathname.startsWith("/api/sessions/") && request.method === "DELETE") {
       const id = url.pathname.slice("/api/sessions/".length);
       const session = sessions.get(id);
@@ -245,12 +259,15 @@ export function createPtyServer(port: number, registerTown: (session: TerminalSe
       const session = sessions.get(terminal); if (session) { session.asking = false; session.askedAt = Date.now(); }
     },
     hookSession: (authorization: string | undefined) => disposed ? undefined : authenticatedHookSession(authorization, sessions.values()),
+    clearTexts: (id: string) => { const session = sessions.get(id); if (session) clearTexts(session, pendingChanged); },
     pending: () => [...sessions.values()].filter((session) => session.texts.length || session.pendingEquipment).map(pending),
     attention: () => [...sessions.values()].filter((session) => session.attention && !session.agentId && !session.info.exited)
       .map((session) => ({ type: "attention", terminal: session.info.id, reason: "trust" })),
     create,
     end: (id: string) => { sessions.get(id)?.stop(); sessions.delete(id); },
-    agentSession: (id: string) => { const session = sessions.get(id); return session && { token: session.agentToken, waiting: session.waiting, active: !disposed && !session.ended && !session.departing && !session.info.exited }; },
+    agentSession: (id: string) => { const session = sessions.get(id); return session && { token: session.agentToken, waiting: session.waiting, active: !disposed && !session.ended && !session.departing && !session.info.exited, canSay: !session.interrupting }; },
+    // The same equipment master that create() validates against.
+    gear: (preset: Preset) => equipment[preset],
     say: (id: string, text: string) => { const session = sessions.get(id); if (!session) throw new Error(tr("勇者が みつからない", "Hero not found")); return say(session, text, pendingChanged); },
     sessionLabel: (id: string) => sessions.get(id)?.name,
     getSession: (id: string) => sessions.get(id)?.info,

@@ -20,7 +20,7 @@ export function replacedSession(event: AgentEvent, previous: string | undefined)
 export function hasTrustPrompt(output: string): boolean {
   const plain = output.replace(/\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g, "")
     .replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "").replace(/\s+/g, "");
-  return /(?:Doyoutrust(?:thefilesin)?thisfolder|Yes,Itrustthisfolder|Isthisaprojectyoucreatedoroneyoutrust\?|Trustprojectfolder\?)/i.test(plain);
+  return /(?:Doyoutrust(?:thefilesin)?thisfolder|Yes,Itrustthisfolder|Isthisaprojectyoucreatedoroneyoutrust\?|Trustprojectfolder\?|Trustthisfolder\?)/i.test(plain);
 }
 
 // An old end is not a terminal boundary, even when no stop was requested.
@@ -40,6 +40,9 @@ export function stopRequestAfterEvent(current: number | undefined, event: AgentE
 export function waitingAfterEvent(event: AgentEvent, interrupted = false): boolean | undefined {
   if (event.subagent) return;
   if (event.hook === "Interrupt") return false;
+  // Codex starts/resumes just before UserPromptSubmit, not at an idle editor.
+  // Opening delivery here races the user's first turn (and duplicates held text).
+  if (event.hook === "SessionStart" && event.source === "codex") return false;
   if (["SessionStart", "Stop", "StopFailure", "PostCompact", "InterruptConfirmed"].includes(event.hook ?? "")) return true;
   if (["UserPromptSubmit", "PreToolUse", "PostToolUse", "PostToolUseFailure", "PreCompact"].includes(event.hook ?? "")) {
     // Tool completion/failure hooks can arrive after Esc; only a new prompt starts work again.

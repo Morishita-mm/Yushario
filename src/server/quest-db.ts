@@ -82,6 +82,10 @@ export class QuestDatabase {
     return this.db.prepare("SELECT * FROM quest_events WHERE kind='report' AND session=? AND at>=? AND json_extract(report,'$.startedAt')<=?").all(session, at, at)
       .map((row) => ({ ...row, report: JSON.parse(String(row.report)) })) as unknown as QuestEvent[];
   }
+  recentReports(): QuestEvent[] {
+    return this.db.prepare("SELECT * FROM quest_events WHERE kind='report' ORDER BY at DESC,CAST(id AS TEXT) ASC LIMIT 50").all()
+      .map(row => ({ ...row, report: row.report ? JSON.parse(String(row.report)) : undefined, text: row.text ?? undefined })) as unknown as QuestEvent[];
+  }
   reportLink(hero: string, at: number): (QuestReportLink & { quest: string }) | undefined {
     return this.db.prepare("SELECT e.hero,e.at,e.quest,q.title FROM quest_events e JOIN quests q ON q.id=e.quest WHERE e.kind='report' AND e.hero=? AND e.at=? ORDER BY e.id DESC LIMIT 1")
       .get(hero, at) as (QuestReportLink & { quest: string }) | undefined;

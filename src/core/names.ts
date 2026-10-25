@@ -1,4 +1,5 @@
 import { isClaudeSessionId } from "./roster";
+import type { TownNames } from "./town";
 
 export type HeroNames = Record<string, string>;
 
@@ -17,4 +18,15 @@ export function validHeroNames(input: unknown): input is HeroNames {
 
 export function namedHero(names: Readonly<HeroNames>, id: string): string | undefined {
   return Object.hasOwn(names, id) ? names[id] : undefined;
+}
+
+// Only a town-like automatic base is replaced. Keep TownNames' lifetime numbering,
+// including departed heroes, rather than renumbering the currently visible list.
+export function mobileHeroName(custom: string | undefined, assigned: Pick<TownNames[number], "base" | "name">,
+  townLabels: readonly string[], presetLabel?: string): string {
+  if (custom !== undefined) return custom;
+  if (!townLabels.includes(assigned.base)) return assigned.name;
+  const suffix = assigned.name.slice(assigned.base.length);
+  const number = /^ \(([1-9][0-9]*)\)$/.exec(suffix)?.[1] ?? "1";
+  return `${presetLabel ?? "勇者"} ${number}`;
 }

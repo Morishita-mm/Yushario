@@ -1,5 +1,30 @@
 import { describe, expect, it } from "vitest";
-import { namedHero, normalizeHeroName, validHeroNames } from "./names";
+import { mobileHeroName, namedHero, normalizeHeroName, validHeroNames } from "./names";
+import { Room } from "./room";
+import { townView } from "./town";
+
+describe("mobile hero names", () => {
+  const assigned = (base: string, name = base) => ({ base, name });
+  it("uses chosen names first, replacing only exact town or folder bases", () => {
+    expect(mobileHeroName("testtown", assigned("testtown"), ["testtown"], "pi")).toBe("testtown");
+    expect(mobileHeroName(undefined, assigned("testtown"), ["表示名", "testtown"], "Claude Code")).toBe("Claude Code 1");
+    expect(mobileHeroName(undefined, assigned("表示名", "表示名 (3)"), ["表示名", "testtown"], "Codex")).toBe("Codex 3");
+    expect(mobileHeroName(undefined, assigned("testtown", "testtown (2)"), ["testtown"])).toBe("勇者 2");
+    expect(mobileHeroName(undefined, assigned("worktree", "worktree (2)"), ["testtown"], "pi")).toBe("worktree (2)");
+    expect(mobileHeroName(undefined, assigned("testtown-more"), ["testtown"], "pi")).toBe("testtown-more");
+    expect(mobileHeroName(undefined, assigned("testtown"), [], "pi")).toBe("testtown");
+  });
+  it("keeps TownNames lifetime numbers, not per-kind or visible-list counts", () => {
+    const room = new Room();
+    const add = (id: string) => room.apply({ agent: id, name: "testtown", project: "town", state: "idle" }, 1);
+    add("one"); add("two");
+    const history = townView(room, 1).names;
+    room.apply({ agent: "one", state: "idle", hook: "SessionEnd" }, 2); add("three");
+    const names = townView(room, 3, history).names;
+    expect(mobileHeroName(undefined, names.find(n => n.id === "two")!, ["testtown"], "pi")).toBe("pi 2");
+    expect(mobileHeroName(undefined, names.find(n => n.id === "three")!, ["testtown"], "Codex")).toBe("Codex 3");
+  });
+});
 
 describe("hero names", () => {
   it("trims surrounding whitespace and accepts 1–24 characters", () => {

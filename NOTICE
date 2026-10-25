@@ -29,6 +29,12 @@ Originally forked from (with the author's permission):
   Copyright (c) 2011 Fabrice Bellard
 Copyright (c) Microsoft Corporation. All rights reserved.
 
+qrcode-generator 2.0.4 — MIT
+https://github.com/kazuhikoarase/qrcode-generator
+Copyright (c) 2009 Kazuhiko Arase
+Bundled in the browser for mobile pairing QR codes; no runtime dependencies.
+The word 'QR Code' is registered trademark of DENSO WAVE INCORPORATED.
+
 ws 8.22.0 — MIT
 https://github.com/websockets/ws
 Copyright (c) 2011 Einar Otto Stangvik <einaros@gmail.com>

@@ -10,6 +10,7 @@ import "./party-window.css";
 import { tacticBox } from "./party-tactics";
 import { iconLabel } from "../icons.js";
 import { command, el, heroCard, memberBadge, memberState } from "./party-cards";
+import { heldNotice } from "../rpg/pending";
 import { formingOf, partyMode, setAsk, setOff } from "./party-forming";
 
 // A Dragon Quest style formation window: the party, heroes in town, members who left, a command window
@@ -105,7 +106,8 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
       });
       add.classList.add("pw-card", "pw-add"); add.append(el("span", "pw-plus", "＋"), el("span", undefined, tr("仲間を 足す", "Add a hero"))); slots.append(add);
     }
-    party.replaceChildren(el("h4", undefined, tr(`いまの パーティー（${present.length}）`, `The party (${present.length})`)), slots);
+    party.replaceChildren(el("h4", undefined, tr(`いまの パーティー（${present.length}）`, `The party (${present.length})`)), slots,
+      ...present.map((member) => heldNotice(member.session)));
     // Departed members: folded by default, one line each (name, model and effort), below everyone who is here.
     const fold = el("details", "pw-away-fold"); fold.open = away.dataset.open === "true";
     fold.addEventListener("toggle", () => { away.dataset.open = String(fold.open); });
@@ -117,7 +119,7 @@ export function openPartyWindow(quest: QuestDetail, controls: PartyControls | un
       row.append(card(session.id, session.preset, !canTalk(session) ? tr("ターミナルのみ", "Terminal only") : walking ? tr("町に 向かっている", "Walking into town") : tr("町に いる", "In town"), false, "", () => chooseTownHero(session), true));
     }
     if (controls && mode !== "view") {
-      const embark = command("", () => { exit(); controls.embark(() => openPartyWindow(quest, controls, changed), (session) => openPartyWindow(quest, controls, changed, undefined, session.id)); });
+      const embark = command("", () => { exit(); controls.embark(gathering, () => openPartyWindow(quest, controls, changed), (session) => openPartyWindow(quest, controls, changed, undefined, session.id)); });
       embark.classList.add("pw-card", "small", "pw-add"); embark.append(el("span", "pw-plus", "＋"), el("span", undefined, tr("新しく 出陣させる", "Embark a new hero"))); row.append(embark);
     }
     town.replaceChildren(el("h4", undefined, tr("町に いる 勇者", "Heroes in town")), row);
