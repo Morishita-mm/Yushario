@@ -26,7 +26,7 @@ async function request(path: string, method = "GET", body?: object): Promise<Mob
 
 export const loadMobile = () => request("");
 export const startPairing = (addresses: string[]) => request("/pair", "POST", { addresses });
-export const confirmPairing = (deviceId: string, approve: boolean) => request("/confirm", "POST", { deviceId, approve });
+export const confirmPairing = (deviceId: string, approve: boolean, allowWork = false) => request("/confirm", "POST", { deviceId, approve, allowWork });
 export const cancelPairing = () => request("/cancel", "POST", {});
 export const revokeDevice = (id: string) => request(`/devices/${encodeURIComponent(id)}`, "DELETE");
 export const setDeviceWork = (id: string, enabled: boolean) => request(`/devices/${encodeURIComponent(id)}/work`, "POST", { enabled });

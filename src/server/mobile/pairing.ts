@@ -42,8 +42,9 @@ export class MobilePairing {
     if (this.state.status !== "pending") throw Error("Pairing rejected");
     return new Promise(resolve => { this.pending = { request: request as Pending["request"], packet, resolve }; });
   }
-  confirm(deviceId: string, approve: boolean): boolean {
+  confirm(deviceId: string, approve: boolean, allowWork = false): boolean {
     this.expire();
+    if (typeof allowWork !== "boolean") return false;
     if (!this.state || this.state.status !== "pending" || !this.pending || this.pending.request.deviceId !== deviceId) return false;
     const pending = this.pending;
     const transition = mobilePairingTransition(this.state, { type: approve ? "confirm" : "reject" }, Date.now(), this.store.devices.length);
@@ -52,7 +53,7 @@ export class MobilePairing {
       if (transition.register) {
         const now = Date.now(), { request, packet } = pending;
         this.store.put({ id: request.deviceId, phoneEncryptionKey: packet.phoneEncryptionKey, phoneSigningKey: packet.phoneSigningKey,
-          name: request.body.name, pushToken: request.body.pushToken, lastSeq: request.seq, createdAt: now, lastSeenAt: now });
+          name: request.body.name, pushToken: request.body.pushToken, lastSeq: request.seq, createdAt: now, lastSeenAt: now, allowWork });
       }
       this.settle(transition.register); return true;
     } catch (error) { this.settle(false); throw error; }

@@ -29,20 +29,23 @@ export function initMobile(): void {
   const entry = document.getElementById("mobile") as HTMLButtonElement;
   const dialog = get<HTMLDialogElement>("dialog"), status = get("status");
   const addresses = get<HTMLTextAreaElement>("addresses"), pairingText = get<HTMLInputElement>("string");
-  const qrCanvas = get<HTMLCanvasElement>("qr"), devices = get("devices");
+  const qrCanvas = get<HTMLCanvasElement>("qr"), devices = get("devices"), pairingWork = get<HTMLInputElement>("pair-work");
   let current: MobileState = { enabled: false }, busy = false, timer: ReturnType<typeof setInterval> | undefined;
   let shownQr = "", addressEdited = false, shownNotices = "", version = 0;
-  const rows = new Map<string, { row: HTMLElement; name: HTMLElement; seen: HTMLElement; push: HTMLElement; test: HTMLButtonElement; work: HTMLInputElement }>();
+  const rows = new Map<string, { row: HTMLElement; name: HTMLElement; registered: HTMLElement; seen: HTMLElement; push: HTMLElement; test: HTMLButtonElement; work: HTMLInputElement }>();
   const notices = document.createElement("section"), noticeTitle = document.createElement("h4"), noticeList = document.createElement("ul");
   noticeTitle.textContent = tr("スマホからの依頼・出陣の記録", "Requests and setoff from phones");
   noticeList.className = "mobile-notices"; notices.append(noticeTitle, noticeList); devices.after(notices);
   addresses.addEventListener("input", () => { addressEdited = true; });
   function error(cause: unknown): void { status.textContent = cause instanceof Error ? cause.message : tr("読み込めなかった。", "Could not load."); }
   function render(state: MobileState): void {
+    const previousId = current.enabled ? current.pairing?.deviceId : null;
     current = state; entry.hidden = !state.enabled;
     if (!state.enabled) { if (dialog.open) dialog.close(); return; }
     if (!addressEdited) addresses.value = state.addresses.join("\n");
     const pairing = state.pairing, available = pairing?.status === "available", pending = pairing?.status === "pending";
+    if (!pending || pairing?.deviceId !== previousId) pairingWork.checked = false;
+    get("work-later").hidden = state.devices.length === 0;
     get("start").hidden = !!available || !!pending;
     get<HTMLButtonElement>("pair").disabled = busy || state.devices.length >= 5;
     get("offer").hidden = !available; get("confirm").hidden = !pending;
@@ -70,7 +73,7 @@ export function initMobile(): void {
       let item = rows.get(device.id);
       if (!item) {
         const row = document.createElement("div"), name = document.createElement("strong"), seen = document.createElement("span"), revoke = document.createElement("button");
-        const push = document.createElement("span"), test = document.createElement("button");
+        const registered = document.createElement("span"), push = document.createElement("span"), test = document.createElement("button");
         test.type = "button"; test.className = "mobile-push-test"; test.textContent = tr("テスト通知を送る", "Send test push");
         test.addEventListener("click", () => void mutate(() => testPush(device.id)));
         row.className = "mobile-device"; revoke.type = "button"; revoke.textContent = tr("取り消す", "Revoke");
@@ -89,8 +92,9 @@ export function initMobile(): void {
             `Allow requests and setoff from ${device.name}?\nPhone actions may run commands on this Mac.`))) { work.checked = false; return; }
           void mutate(() => setDeviceWork(device.id, enabled));
         });
-        row.append(name, seen, push, revoke, test, label, caution); devices.append(row); item = { row, name, seen, push, test, work }; rows.set(device.id, item);
+        row.append(name, registered, seen, push, revoke, test, label, caution); devices.append(row); item = { row, name, registered, seen, push, test, work }; rows.set(device.id, item);
       }
+      item.registered.textContent = tr(`登録日時 ${new Date(device.createdAt).toLocaleString()}`, `Registered ${new Date(device.createdAt).toLocaleString()}`);
       item.name.textContent = device.name; item.seen.textContent = tr(`最後の接続 ${new Date(device.lastSeenAt).toLocaleString()}`, `Last seen ${new Date(device.lastSeenAt).toLocaleString()}`);
       item.push.textContent = lastPushLabel(results.get(device.id)); item.test.disabled = busy || state.pushResults === undefined;
       item.work.checked = device.allowWork === true; item.work.disabled = busy;
@@ -152,7 +156,10 @@ export function initMobile(): void {
   for (const [id, approve] of [["approve", true], ["reject", false]] as const) {
     get(id).addEventListener("click", () => {
       const deviceId = current.enabled ? current.pairing?.deviceId : null;
-      if (deviceId) void mutate(() => confirmPairing(deviceId, approve));
+      if (deviceId) {
+        const allowWork = approve && pairingWork.checked;
+        void mutate(() => confirmPairing(deviceId, approve, allowWork));
+      }
     });
   }
   get("copy").addEventListener("click", () => {

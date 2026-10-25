@@ -58,7 +58,7 @@ export class MobileGateway {
     this.server.on("error", () => console.error("Mobile listener error / スマホ窓口でエラー"));
   }
   startPairing(addresses = this.addresses) { this.pairing.start(addresses); return this.snapshot(); }
-  confirm(deviceId: string, approve: boolean): boolean { return this.pairing.confirm(deviceId, approve); }
+  confirm(deviceId: string, approve: boolean, allowWork = false): boolean { return this.pairing.confirm(deviceId, approve, allowWork); }
   cancelPairing(): void { this.pairing.cancel(); }
   permissionViews() { return mobilePermissionViews(this.permissions, this.heroes); }
   snapshot() {
@@ -66,7 +66,7 @@ export class MobileGateway {
       devices: this.store.devices.map(({ id, name, createdAt, lastSeenAt, allowWork }) => ({ id, name, createdAt, lastSeenAt, allowWork })),
       pairing: this.pairing.snapshot(), pushResults: this.push.results(), workNotices: mobileWorkNotices(this.store.directory) };
   }
-  notify(kind: "permission" | "report" | "error"): void { this.push.notify(kind); }
+  notify(kind: "permission" | "report" | "error", expiresAt?: number): void { this.push.notify(kind, undefined, expiresAt); }
   testPush(deviceId: string): boolean {
     if (!this.store.devices.some(device => device.id === deviceId)) return false;
     this.push.notify("permission", deviceId); return true;

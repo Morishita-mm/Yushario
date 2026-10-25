@@ -23,9 +23,11 @@ export async function handleMobileApi(request: IncomingMessage, response: Server
         const addresses = "addresses" in body ? body.addresses : gateway.addresses;
         if (!Array.isArray(addresses) || !addresses.every(value => typeof value === "string")) throw Error("Invalid addresses");
         gateway.startPairing(addresses);
-      } else if (url.pathname === "/api/mobile/confirm" && mobileObject(body, ["deviceId", "approve"])
-        && typeof body.deviceId === "string" && typeof body.approve === "boolean") {
-        if (!gateway.confirm(body.deviceId, body.approve)) throw Error("Pairing no longer pending");
+      } else if (url.pathname === "/api/mobile/confirm"
+        && (mobileObject(body, ["deviceId", "approve"]) || mobileObject(body, ["deviceId", "approve", "allowWork"]))
+        && typeof body.deviceId === "string" && typeof body.approve === "boolean"
+        && (!("allowWork" in body) || typeof body.allowWork === "boolean")) {
+        if (!gateway.confirm(body.deviceId, body.approve, body.allowWork === true)) throw Error("Pairing no longer pending");
       } else if (url.pathname === "/api/mobile/test-push" && mobileObject(body, ["deviceId"]) && mobileBase64url(body.deviceId, 32)) {
         if (!gateway.testPush(body.deviceId)) throw Error("Device not found");
       } else if (work && mobileObject(body, ["enabled"]) && typeof body.enabled === "boolean") {

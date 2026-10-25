@@ -136,11 +136,14 @@
         <p data-en="Approve only if the phone shows the same number.">スマホにも 同じ番号が 出ているときだけ 承認しよう。</p>
         <p id="mobile-device-name" class="name"></p>
         <p id="mobile-sas" class="mobile-sas"></p>
+        <label class="mobile-work"><input id="mobile-pair-work" type="checkbox" aria-describedby="mobile-pair-work-caution" /><span data-en="Also allow requests and setoff from this device">この端末から依頼・出陣も許可する</span></label>
+        <p id="mobile-pair-work-caution" class="mobile-hint" data-en="When checked, phone actions may run commands on this Mac. Leave it off to read reports and answer permission requests only.">オンにすると、スマホの操作で Mac のコマンドが動くことがあります。報告の閲覧・許可への回答だけならオフのままで使えます。</p>
         <div class="actions"><button id="mobile-approve" data-en="▶ Approve" type="button">▶ 承認</button><button id="mobile-reject" data-en="▶ Stop" type="button">▶ やめる</button></div>
       </section>
       <p id="mobile-countdown" class="mobile-hint" hidden></p>
       <div class="actions" id="mobile-offer-actions" hidden><button id="mobile-cancel" data-en="▶ Stop" type="button">▶ やめる</button></div>
       <h4 data-en="Registered phones">登録した スマホ</h4>
+      <p id="mobile-work-later" class="mobile-hint" data-en="You can change this later in Phone → this device." hidden>あとから スマホ → この端末 で変えられます</p>
       <p class="mobile-hint" data-en="Sent means FCM/APNs accepted it, not that the phone displayed or opened it. A test push uses the same fixed text.">配送済みは FCM/APNs の受理で、端末の表示・閲覧の保証ではありません。テスト通知も固定文言です。</p>
       <div id="mobile-devices" class="town-list"></div>
       <div class="actions"><button id="mobile-close" data-en="▶ Close" type="button">▶ とじる</button></div>

@@ -51,6 +51,8 @@ Mac は同時に1つのコードだけを表示する。新しいコードの表
 
 ### 要求から登録まで
 
+A7のMac画面専用 `POST /api/mobile/confirm` は `{deviceId,approve,allowWork?}`（真偽値、省略false）。既定オフの「この端末から依頼・出陣も許可する」の選択を登録と同時に保存する。登録一覧は既存createdAt/lastSeenAtを使う。これはHost/Origin/画面token認可後のローカルAPIであり、スマホのpair bodyにはallowWorkを追加しない。
+
 1. スマホは QR の鍵を pin し、鍵対と `D` を作る。下記の通常の暗号化・署名形式で `pair` を送る。最初の `seq` は1。公開鍵は packet の外側、コード・名前・通知 ID は暗号の内側に入る。
 2. 未登録 `deviceId` の復号は、有効なコードが **available** の時だけ試す。コード、`D` の再計算、鍵、署名、時刻、本文を検査する。失敗はコードごとに累計し、**3回目で locked**。復号／形式／署名の失敗も1回に数える（このため第三者による失効 DoS は残る）。新しいコードだけが回数をリセットする。
 3. 正しい要求1件を **pending** として予約し、Mac に端末名と SAS を出す。スマホも自分で SAS を計算して表示する。他の要求は予約を横取りできない。pending 中の不正要求は予約や失敗回数を変えず、一般拒否する。
@@ -321,16 +323,18 @@ Mac は現在の同じ12値から hash を再計算し、decide の hash が一�
 {"priority":"high","channelId":"alerts","title":"Yushario","body":"確認が必要です","data":{"kind":"permission"}}
 ```
 
-`priority` は時間制約のある利用者向け通知のため常に `"high"`（配送の優先度だけで、到達や表示の保証ではない）。`channelId` は合意した `"alerts"` を常に指定する。Android の channel importance は配送優先度と別で、別アプリ側が `alerts` を HIGH の重要度で作成する。`title/body` はこの固定文字列のみ。`data` は `kind` だけ（`permission|report|error` のいずれか）、または省略。勇者名・コマンド・パス・端末 ID・許可 ID・報告 ID・URL・暗号文を載せない。Expo への配送用 `to` は別途保存した通知 ID で、本文を足す場所ではない。通知から直接判断せず、開いた後に窓口へ取りに行く。取り消しで通知 ID も消す。
+`priority` は時間制約のある利用者向け通知のため常に `"high"`（配送の優先度だけで、到達や表示の保証ではない）。`channelId` は合意した `"alerts"` を常に指定する。Android の channel importance は配送優先度と別で、別アプリ側が `alerts` を HIGH の重要度で作成する。`title` はYushario、`body` はpermission「確認が必要です」、report「報告が届きました」、error「勇者が止まりました」の種類ごとの固定文言だけ。`data` は `kind` だけ（`permission|report|error` のいずれか）、または省略。作業内容・町名・勇者名・コマンド・パス・端末 ID・許可 ID・報告 ID・URL・暗号文を載せない。Expo への配送用 `to` は別途保存した通知 ID で、本文を足す場所ではない。通知から直接判断せず、開いた後に窓口へ取りに行く。取り消しで通知 ID も消す。
+
+A7では自動通知を端末別・kind別にticketのok後から次の認証済み窓口要求まで抑止する（同じ連番の送信中も重複しない）。署名不正やreplayでは解除しない。印は既存state.jsonの端末内notifiedKindsへ重複なし最大3種類だけ保存し、再起動でも継続。欄のない旧記録は空として読む。ネットワーク／ticket失敗時は印を付けず、接続後の遅いticketで再抑止しない。Macの明示テスト通知は毎回送れ、印を付けない。これはv1の要求／応答／署名入力を変えず、共有暗号vectorsの更新は不要。
 
 ### Expo の配送確認（Mac 内の診断。スマホ v1 の wire は変更しない）
 
-- `POST https://exp.host/--/api/v2/push/send` に `{to:<通知 ID 1件>,priority:"high",channelId:"alerts",title,body,data}` を送る。`to` は文字列で、本文・kind は上記の固定値だけ。ticket は `data` が1オブジェクトでも要素1個の配列でも受け付ける。ticket の `ok` は Expo の受付であり、配送成功と表示しない。
+- `POST https://exp.host/--/api/v2/push/send` に `{to:<通知 ID 1件>,priority:"high",channelId:"alerts",title,body,data}` を送る。permissionだけ `ttl`（送信開始時のexpiresAtまでの残り秒を切り捨て、最大120秒）も付ける。残り1秒未満／期限切れは送信しない。report/errorにttlは付けない。`to` は文字列で、本文・kind は上記の固定値だけ。ticket は `data` が1オブジェクトでも要素1個の配列でも受け付ける。ticket の `ok` は Expo の受付であり、配送成功と表示しない。
 - ticket の ID を使い、5秒後に `POST https://exp.host/--/api/v2/push/getReceipts`、本文 `{"ids":["<ticket ID>"]}` で照会する。結果は `data[ticket ID]`。未確認／照会の失敗なら追加で30秒後・120秒後（送信後およそ5／35／155秒、各 HTTP は最大10秒）に照会し、それでも不明なら未確認で止める。通知自体の自動再送はしない。
 - receipt の `ok` は APNs/FCM の受理までで、スマホの表示・音・閲覧の証拠ではない。ticket／receipt の `DeviceNotRegistered` は、まだ同じ token を持つ登録だけから通知 ID を消す。照会中に更新された新しい token は消さない。
 - 診断ログは `{time,deviceId,kind,ticketStatus,receiptStatus,errorCode}` の6項目だけ。time は試行の開始時刻で、同じ試行の進行でも保持する。ticketStatus は `pending|ok|error|skipped`、receiptStatus は `none|pending|ok|error|unknown`。errorCode は `src/core/mobile-push.ts` の許可リストか null だけで、未知の provider error は `UnknownExpoError`。token・ticket ID・provider message・題／本文・許可 ID は記録しない。
 - メモリの履歴は50件、0600の JSONL は32KiBで1世代の backup を更新する。保持範囲の端末別最新試行を Mac 画面へ返し、古い試行の遅い receipt で新しい結果を上書きしない。token なしは `NoPushToken`、処理中の終了／再起動は `GatewayStopped/Interrupted` の未確認。ticket ID はメモリだけなので再起動後に照会を再開しない。同時処理も最大50件で、上限は `QueueFull` として記録する。
-- 画面用の認可済み `POST /api/mobile/test-push` は `{deviceId}` だけを取り、その登録1件へ kind=`permission` の同じ固定通知を送る。新しい許可要求やスマホ側操作は作らない。これは既存の画面 API であり、窓口の操作には追加しない。
+- 画面用の認可済み `POST /api/mobile/test-push` は `{deviceId}` だけを取り、その登録1件へ kind=`permission` の同じ固定通知（ttlは120秒以下）を送る。新しい許可要求やスマホ側操作は作らない。これは既存の画面 API であり、窓口の操作には追加しない。
 
 ## 共有テスト用データと実装の境界
 

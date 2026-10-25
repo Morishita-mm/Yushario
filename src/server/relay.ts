@@ -47,7 +47,7 @@ function refreshMobile(): void {
 }
 function broadcast(message: object): void {
   const type = (message as { type?: string }).type;
-  if (type === "permission") mobile?.notify("permission");
+  if (type === "permission") mobile?.notify("permission", (message as { expiresAt: number }).expiresAt);
   if (["names", "towns", "quests"].includes(type ?? "")) refreshMobile();
   const json = JSON.stringify(message);
   for (const client of sockets.clients) {
