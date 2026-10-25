@@ -1,30 +1,38 @@
 import { serverLanguage, tr } from "./language";
 import { writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { delimiter, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node-pty";
 import { AGENTS, agentExecutables, executable, type Preset } from "./agents";
 import { isClaudeSessionId } from "../core/roster";
 import { equipmentArgs, type AgentEquipment, type Equipment } from "../core/equipment";
 import { CODEX_HOOKS } from "../core/codex";
+import { prependPath, windowsLaunch } from "./windows-command";
 import { initialPromptArgs } from "../core/terminal-session";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
 // Keep user configuration, but not server secrets or inherited child-session markers.
 const serverOnlyEnvironment = ["AGENT_CHARACTER_TOKEN", "AGENT_CHARACTER_AGENT_TOKEN", "CLAUDE_CODE_CHILD_SESSION", "CLAUDECODE"];
+const windows = process.platform === "win32";
 
 // Both shells and Claude's hook runner interpret this command; quote absolute paths safely.
-function quote(value: string): string { return `'${value.replaceAll("'", "'\\''")}'`; }
+// Codex runs hooks with cmd.exe on Windows, where only double quotes group (paths cannot contain them).
+function quote(value: string): string { return windows ? `"${value}"` : `'${value.replaceAll("'", "'\\''")}'`; }
 
 export function writeClaudeSettings(port: number, temporary: string): string {
   const settings = join(temporary, "claude-settings.json");
-  writeFileSync(join(temporary, "yushario"), `#!/bin/sh\nexec ${quote(process.execPath)} ${quote(join(root, "scripts/yushario.mjs"))} "$@"\n`, { mode: 0o700 });
-  const command = `${quote(process.execPath)} ${quote(join(root, "adapters/claude-code/hook.mjs"))}`;
+  const tool = join(root, "scripts/yushario.mjs");
+  if (windows) writeFileSync(join(temporary, "yushario.cmd"), `@${quote(process.execPath)} ${quote(tool)} %*\r\n`);
+  else writeFileSync(join(temporary, "yushario"), `#!/bin/sh\nexec ${quote(process.execPath)} ${quote(tool)} "$@"\n`, { mode: 0o700 });
+  const script = join(root, "adapters/claude-code/hook.mjs");
+  // Windows hooks run in Git Bash or PowerShell; exec form starts node without either.
+  const hook = windows ? { type: "command", command: process.execPath, args: [script], timeout: 1 }
+    : { type: "command", command: `${quote(process.execPath)} ${quote(script)}`, timeout: 1 };
   const hooks = Object.fromEntries([
     "SessionStart", "SessionEnd", "UserPromptSubmit", "PreToolUse", "PostToolUse", "PostToolUseFailure",
     "Notification", "SubagentStart", "SubagentStop", "TaskCreated", "TaskCompleted", "PreCompact", "PostCompact",
     "Stop", "StopFailure",
-  ].map((event) => [event, [{ matcher: "*", hooks: [{ type: "command", command, timeout: 1 }] }]]));
+  ].map((event) => [event, [{ matcher: "*", hooks: [hook] }]]));
   writeFileSync(settings, JSON.stringify({ hooks: { ...hooks,
     PermissionRequest: [{ matcher: "*", hooks: [{
       type: "http", url: `http://127.0.0.1:${port}/hooks/permission`, timeout: 125,
@@ -70,7 +78,10 @@ export function launchPty(preset: Preset, cwd: string, id: string, port: number,
   if (agentToken) env.AGENT_CHARACTER_AGENT_TOKEN = agentToken;
   env.AGENT_CHARACTER_QUEST_TOOL = join(root, "scripts/yushario.mjs");
   env.AGENT_CHARACTER_QUEST_SKILL = join(root, "skills/yushario-party/SKILL.md");
-  env.PATH = `${dirname(settings)}:${env.PATH ?? ""}`;
-  try { return spawn(path, args, { name: "xterm-256color", cols: 80, rows: 24, cwd, env }); }
+  prependPath(env, dirname(settings), delimiter);
+  try {
+    const launch = windows ? windowsLaunch(path, args) : { file: path, args };
+    return spawn(launch.file, launch.args, { name: "xterm-256color", cols: 80, rows: 24, cwd, env });
+  }
   catch { throw new Error(tr(`${agent.label} を起動できない。インストールとフォルダの権限を たしかめよう。`, `Could not launch ${agent.label}. Check installation and folder permissions`)); }
 }
