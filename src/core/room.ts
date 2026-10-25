@@ -22,6 +22,7 @@ export const MOOD_RULES = {
 const TALK_LIMIT = 30;
 const LOG_LIMIT = 50;
 const TASK_LIMIT = 50;
+export const LIVE_HELPER_LIMIT = 64;
 const HISTORY_LIMIT = 20;
 
 export type { TalkEntry, TalkReport } from "./turns";
@@ -162,6 +163,8 @@ function updateHelper(agent: RoomAgent, event: AgentEvent, at: number, stopped: 
     if (index >= 0) agent.helpers.splice(index, 1);
     return;
   }
+  // Existing helpers and stops still work at capacity; discard only new arrivals.
+  if (index < 0 && agent.helpers.length >= LIVE_HELPER_LIMIT) return;
   const endedAt = stopped.get(id);
   if (endedAt !== undefined) {
     if (event.hook !== "SubagentStart" || at <= endedAt) return;

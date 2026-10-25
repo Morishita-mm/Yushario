@@ -33,8 +33,9 @@ export async function receiveHook(request: IncomingMessage, response: ServerResp
   const owner = result.event.agent && (quests.sessionForHero(result.event.agent) ?? pty.sessionForAgent(result.event.agent)?.id);
   if (sender && owner && owner !== sender.id && !canRecallHero(sender.recalledHero, result.event.agent, !pty.getSession(owner) || Boolean(pty.getSession(owner)?.exited))) sender = undefined;
   const event = hookEventForTerminal(result.event, sender?.id);
-  response.writeHead(204).end();
-  if (!record(event)) return;
+  const recorded = record(event);
+  response.writeHead(!recorded && !sender ? 429 : 204).end();
+  if (!recorded) return;
   if (sender) permissions.observe(event);
   // Git must never delay hook ordering; the refreshed badge is used by the next event/list.
   if (event.terminal && !event.subagent && ["SessionStart", "UserPromptSubmit", "Stop", "StopFailure"].includes(event.hook ?? "")) void pty.refreshBranch(event.terminal);
