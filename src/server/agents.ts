@@ -1,8 +1,9 @@
 import { accessSync, constants, statSync } from "node:fs";
-import { delimiter, isAbsolute, join, resolve } from "node:path";
+import { delimiter, extname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
+const windows = process.platform === "win32";
 
 // The only agent catalogue: CLI arguments, town capabilities, and PTY controls.
 // $settings is replaced with this server's temporary Claude hook configuration.
@@ -26,7 +27,7 @@ export const AGENTS = {
     modelArg: "--model", thinkingArg: "--thinking", modelCommand: "/model", thinkingCommand: "/thinking",
   },
   shell: {
-    label: "shell", command: process.env.SHELL || "/bin/sh", args: [], source: "shell",
+    label: "shell", command: windows ? process.env.COMSPEC || "cmd.exe" : process.env.SHELL || "/bin/sh", args: [], source: "shell",
     hero: false, resume: false, resumeArgs: [], compact: false, compactCommand: "",
     interrupt: "\x03", clearDraft: "\x03", restoresDraft: false, farewell: "exit",
     modelArg: "", thinkingArg: "", modelCommand: "", thinkingCommand: "",
@@ -34,10 +35,13 @@ export const AGENTS = {
 };
 export type Preset = keyof typeof AGENTS;
 export const PRESETS = Object.keys(AGENTS) as Preset[];
+// Windows needs a PATHEXT extension: npm also installs an extensionless sh script there.
+const extensions = windows ? (process.env.PATHEXT || ".COM;.EXE;.BAT;.CMD").split(";").filter(Boolean) : [""];
 export function executable(command: string): string | undefined {
-  const paths = command.includes("/") ? [resolve(command)]
+  const names = windows && extname(command) ? [command] : extensions.map((extension) => command + extension);
+  const paths = command.includes("/") || isAbsolute(command) ? names.map((name) => resolve(name))
     // Relative PATH entries would depend on the launch folder; skip them.
-    : (process.env.PATH ?? "").split(delimiter).filter(isAbsolute).map((directory) => join(directory, command));
+    : (process.env.PATH ?? "").split(delimiter).filter(isAbsolute).flatMap((directory) => names.map((name) => join(directory, name)));
   return paths.find((path) => {
     try { accessSync(path, constants.X_OK); return statSync(path).isFile(); } catch { return false; }
   });
