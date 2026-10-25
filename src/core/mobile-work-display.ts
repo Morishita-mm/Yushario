@@ -2,8 +2,8 @@
 import { mobileObject, mobileText } from "./mobile-protocol";
 import {
   MOBILE_TACTICS, MOBILE_WORK_MEMBERS, MOBILE_WORK_TEXT, isMobileFormMember, mobileFormMemberValues,
-  mobileId, mobileNullableId, mobileOneOf, mobileRows,
-  type MobileChoice, type MobileWorkBase, type MobileWorkDraft, type MobileWorkFit, type MobileWorkHero, type MobileWorkPreset, type MobileWorkStep,
+  mobileId, mobileNullableId, mobileOneOf, mobileRows, mobileModel, mobileEffort,
+  type MobileChoice, type MobileWeaponChoice, type MobileAccessoryChoice, type MobileWorkBase, type MobileWorkDraft, type MobileWorkFit, type MobileWorkHero, type MobileWorkPreset, type MobileWorkStep,
 } from "./mobile-work";
 
 export type MobileDelivery = "none" | "sent" | "held";
@@ -19,18 +19,24 @@ export const MOBILE_WORK_STEPS = 17;
 const label = (value: unknown): value is string => mobileText(value, 200);
 const byId = (row: { id: string }) => row.id;
 
-function isChoice(value: unknown): value is MobileChoice {
-  return mobileObject(value, ["id", "name"]) && mobileId(value.id) && label(value.name);
+function isWeapon(value: unknown): value is MobileWeaponChoice {
+  return mobileObject(value, ["id", "name", "model"]) && mobileId(value.id) && label(value.name)
+    && (value.model === null || mobileModel(value.model));
+}
+function isAccessory(value: unknown): value is MobileAccessoryChoice {
+  return mobileObject(value, ["id", "name", "effort"]) && mobileId(value.id) && label(value.name)
+    && (value.effort === null || mobileEffort(value.effort));
 }
 function isBase(value: unknown): value is MobileWorkBase {
   return mobileObject(value, ["id", "name", "townId"]) && mobileId(value.id) && label(value.name) && mobileNullableId(value.townId);
 }
 function isPreset(value: unknown): value is MobileWorkPreset {
   return mobileObject(value, ["id", "name", "weapons", "accessories"]) && mobileId(value.id) && label(value.name)
-    && mobileRows(value.weapons, 100, isChoice, byId) && mobileRows(value.accessories, 100, isChoice, byId);
+    && mobileRows(value.weapons, 100, isWeapon, byId) && mobileRows(value.accessories, 100, isAccessory, byId);
 }
 function isHero(value: unknown): value is MobileWorkHero {
-  return mobileObject(value, ["id", "name", "preset", "weapon", "accessory", "busy", "canTalk", "active", "questId", "permissionGate", "townId"])
+  return mobileObject(value, ["id", "name", "preset", "weapon", "accessory", "busy", "canTalk", "active", "questId", "permissionGate", "townId", "model", "effort"])
+    && (value.model === null || mobileModel(value.model)) && (value.effort === null || mobileEffort(value.effort))
     && mobileNullableId(value.townId) && mobileId(value.id) && label(value.name) && label(value.preset)
     && (value.weapon === null || label(value.weapon)) && (value.accessory === null || label(value.accessory))
     && typeof value.busy === "boolean" && typeof value.canTalk === "boolean" && typeof value.active === "boolean"
@@ -88,10 +94,11 @@ export function mobileChoiceValues(value: MobileChoice): unknown[] {
   return [value.id, value.name];
 }
 export function mobileWorkPresetValues(value: MobileWorkPreset): unknown[] {
-  return [value.id, value.name, value.weapons.map(mobileChoiceValues), value.accessories.map(mobileChoiceValues)];
+  return [value.id, value.name, value.weapons.map(item => [...mobileChoiceValues(item), item.model]),
+    value.accessories.map(item => [...mobileChoiceValues(item), item.effort])];
 }
 export function mobileWorkHeroValues(value: MobileWorkHero): unknown[] {
-  return [value.id, value.name, value.preset, value.weapon, value.accessory, value.busy, value.canTalk, value.active, value.questId, value.permissionGate, value.townId];
+  return [value.id, value.name, value.preset, value.weapon, value.accessory, value.busy, value.canTalk, value.active, value.questId, value.permissionGate, value.townId, value.model, value.effort];
 }
 export function mobileWorkFitValues(value: MobileWorkFit): unknown[] {
   return [value.tactic, value.ok, value.gaps, value.inside, value.outside];

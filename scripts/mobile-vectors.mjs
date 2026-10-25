@@ -104,10 +104,11 @@ const questCases = [
   ["reports", { questId: quest.id, cursor: null }, [quest.id, null], { reports: [report], nextCursor: report.id }, [[[...rv, report.text, report.townId]], report.id]],
 ];
 // Work operations: every nested object is written in its canonical member order.
-const choice = { id: "gear-1", name: "盾" };
-const preset = { id: "preset-1", name: "Claude", weapons: [choice], accessories: [] };
+const choice = { id: "gear-1", name: "盾", model: "opus" };
+const accessory = { id: "gear-2", name: "はちまき", effort: "high" };
+const preset = { id: "preset-1", name: "Claude", weapons: [choice], accessories: [accessory] };
 const workHero = { id: "hero-1", name: "勇者", preset: "Claude", weapon: "盾", accessory: null,
-  busy: false, canTalk: true, active: true, questId: null, permissionGate: true, townId: town.id };
+  busy: false, canTalk: true, active: true, questId: null, permissionGate: true, townId: town.id, model: "opus", effort: null };
 const launch = { baseId: "base-1", presetId: preset.id, weaponId: choice.id, accessoryId: null };
 const lv = [launch.baseId, launch.presetId, launch.weaponId, launch.accessoryId];
 const member = { heroId: workHero.id, role: "implement", writer: true, ask: "実装して\n" };
@@ -121,8 +122,8 @@ const workId = `${header.timestamp}.${b64(Buffer.alloc(16, 0x11))}`;
 questCases.push(
   ["quest-options", { townId: town.id }, [town.id],
     { allowWork: true, heroes: [workHero], bases: [{ id: "base-1", name: "拠点", townId: town.id }], presets: [preset] },
-    [true, [[workHero.id, workHero.name, "Claude", "盾", null, false, true, true, null, true, workHero.townId]], [["base-1", "拠点", town.id]],
-      [[preset.id, preset.name, [[choice.id, choice.name]], []]]]],
+    [true, [[workHero.id, workHero.name, "Claude", "盾", null, false, true, true, null, true, workHero.townId, workHero.model, workHero.effort]], [["base-1", "拠点", town.id]],
+      [[preset.id, preset.name, [[choice.id, choice.name, choice.model]], [[accessory.id, accessory.name, accessory.effort]]]]]],
   ["quest-draft", { questId: quest.id }, [quest.id], { draft }, [dv]],
   ["quest-prepare", { requestId: workId, townId: town.id, text: draft.text, mode: "send", heroId: null, launch },
     [workId, town.id, draft.text, "send", null, lv], { draft, heroId: "hero-2", delivery: "none" }, [dv, "hero-2", "none"]],
@@ -153,6 +154,16 @@ for (const [index, item] of changes.entries()) {
   p.contentHash = b64(hash(json(["yushario.permission.v1", ...pv(p)])));
   questCases.push(["permissions", {}, [], { permissions: [p] }, [[[...pv(p), p.contentHash]]]]);
 }
+// A5: custom provider/model identifiers, effort and unknown display values (null).
+const equipmentPreset = { id: "preset-custom", name: "登録したそうび", weapons: [
+  { id: "gear-provider", name: "武器", model: "openai-codex/gpt-6-astra" },
+  { id: "gear-colon", name: "武器", model: "Provider:Model-1.0" }, { id: "gear-unknown", name: "武器", model: null },
+], accessories: [{ id: "acc-off", name: "はちまき", effort: "off" }, { id: "acc-null", name: "はちまき", effort: null }] };
+questCases.push(["quest-options", { townId: town.id }, [town.id],
+  { allowWork: false, heroes: [{ ...workHero, model: null, effort: "minimal" }], bases: [], presets: [equipmentPreset] },
+  [false, [[workHero.id, workHero.name, "Claude", "盾", null, false, true, true, null, true, town.id, null, "minimal"]], [],
+    [[equipmentPreset.id, equipmentPreset.name, equipmentPreset.weapons.map(w => [w.id, w.name, w.model]),
+      equipmentPreset.accessories.map(a => [a.id, a.name, a.effort])]]]]);
 const vectors = {
   description: "Yushario mobile v1 PUBLIC TEST KEYS; raw X25519 private scalars / Ed25519 seeds; ciphertext includes the final 16-byte tag.",
   keys: { gatewayX25519: gatewayX.vector, gatewayEd25519: gatewayEd.vector, phoneX25519: phoneX.vector, phoneEd25519: phoneEd.vector },

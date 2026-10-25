@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { realpathSync, statSync } from "node:fs";
 import type { MobileHero } from "../../core/mobile-display";
-import type { MobileChoice, MobileWorkBase, MobileLaunch, MobileWorkHero, MobileWorkPreset } from "../../core/mobile-work";
+import { mobileModel, mobileEffort, type MobileChoice, type MobileWorkBase, type MobileLaunch, type MobileWorkHero, type MobileWorkPreset } from "../../core/mobile-work";
 import { townKey, type TownRecord } from "../../core/town-ledger";
 import type { Equipment } from "../../core/equipment";
 import { AGENTS, agentExecutables, type Preset } from "../agents";
@@ -93,30 +93,35 @@ export class MobileWorkCatalog {
         id: this.issue(this.gear, { preset, kind, item: item.id }, gear => gear.preset === preset && gear.kind === kind && gear.item === item.id),
         name: mobileShort(item.name, 200, "そうび") });
       return { id: this.issue(this.presets, preset, item => item === preset), name: AGENTS[preset].label,
-        weapons: AGENTS[preset].modelArg ? master.weapons.slice(0, 100).map(choice("weapon")) : [],
-        accessories: AGENTS[preset].thinkingArg ? master.accessories.slice(0, 100).map(choice("accessory")) : [] };
+        weapons: AGENTS[preset].modelArg ? master.weapons.slice(0, 100).map(item => ({ ...choice("weapon")(item),
+          model: mobileModel(item.model) ? item.model : null })) : [],
+        accessories: AGENTS[preset].thinkingArg ? master.accessories.slice(0, 100).map(item => ({ ...choice("accessory")(item),
+          effort: mobileEffort(item.value) ? item.value : null })) : [] };
     });
   }
   private heroViews(town: string): MobileWorkHero[] {
     const room = new Map(this.getHeroes().map(hero => [hero.id, hero]));
     const sessions = this.pty.listSessions().filter(info => AGENTS[info.preset].hero && info.project === town);
     const counts = new Map<string, number>();
-    const views = sessions.map(info => {
+    const views: MobileWorkHero[] = sessions.map(info => {
       const hero = this.hero(this.heroId(info.id), town), master = this.pty.gear(info.preset);
       let name = info.hero ? room.get(info.hero)?.name : undefined;
       if (!name) {
         const label = mobileShort(this.pty.sessionLabel(info.id) ?? AGENTS[info.preset].label, 190, "勇者"), count = (counts.get(label) ?? 0) + 1;
         counts.set(label, count); name = count > 1 ? `${label} #${count}` : label;
       }
-      const label = (items: { id: string; name: string }[], id?: string) => { const item = items.find(entry => entry.id === id); return item ? mobileShort(item.name, 200, "そうび") : null; };
-      return { id: this.heroId(info.id), name, townId: hero.active ? this.townId(town) : null, preset: AGENTS[info.preset].label, weapon: label(master.weapons, info.weapon),
-        accessory: label(master.accessories, info.accessory), busy: hero.busy, canTalk: hero.canTalk, active: hero.active,
+      const weapon = master.weapons.find(item => item.id === info.weapon), accessory = master.accessories.find(item => item.id === info.accessory);
+      const model = weapon?.model, effort = accessory?.value;
+      const label = (item: { name: string } | undefined) => item ? mobileShort(item.name, 200, "そうび") : null;
+      return { id: this.heroId(info.id), name, townId: hero.active ? this.townId(town) : null, preset: AGENTS[info.preset].label, weapon: label(weapon),
+        accessory: label(accessory), model: mobileModel(model) ? model : null, effort: mobileEffort(effort) ? effort : null,
+        busy: hero.busy, canTalk: hero.canTalk, active: hero.active,
         questId: this.ledger.current(info.id)?.id ?? null, permissionGate: info.preset !== "pi" };
     });
     // Heroes seen in the room without a PTY on this Mac are shown but cannot be talked to.
     for (const hero of room.values()) {
       if (this.pty.sessionForAgent(hero.id) || this.quests.agentTown(hero.id) !== town) continue;
-      views.push({ id: this.heroId(hero.id), name: hero.name, townId: null, preset: "外部の勇者", weapon: null, accessory: null, busy: false,
+      views.push({ id: this.heroId(hero.id), name: hero.name, townId: null, preset: "外部の勇者", weapon: null, accessory: null, model: null, effort: null, busy: false,
         canTalk: false, active: false, questId: null, permissionGate: false });
     }
     return views.slice(0, 16);

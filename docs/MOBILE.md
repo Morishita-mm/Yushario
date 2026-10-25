@@ -164,6 +164,14 @@ A1 の前提「スマホからは札を作るだけで実行に進まない」�
 - Mac は鍵の attestation（ハードウェア証明）を受け取らず、「直前に本人確認した」ことを検証できない。改造・侵害されたアプリは本人確認を飛ばして署名できる。
 - このため Keystore に結び付けた Ed25519 は採用せず、本人確認は `LocalAuthentication.authenticateAsync`（`disableDeviceFallback:false`、`biometricsSecurityLevel:'strong'`、`requireConfirmation:true`）によるアプリ内の確認にとどめる。新しい native module・development build は不要で、既存の Expo クライアントで動く。安全性の主な支えは Mac 側の既定 off の許可・件数制限・強制した承認モード・取り消しである。実機でのこの確認の安全性は検証していない。
 
+### 装備のモデル／effort の表示（A5）
+
+- quest-options の武器は `{id,name,model:string|null}`、はちまきは `{id,name,effort:MobileEffort|null}`。共通Choiceや拠点は変更しない。WorkHeroにも model/effort を平坦な必須欄として加え、既存の武器／はちまきの名前を残す。
+- 値は読み込み済みの本体装備マスタ（equipment.json、既存の利用者上書きを含む）の model/value からそのまま取る。名前から推測しない。勇者の値は既知の選択済み装備であり、CLIの現在値／既定値を観測した値ではない。
+- model は英数字から始まる1〜64 ASCII文字（英大小文字・数字・`.` `_` `:` `/` `-`）。URL、ドライブパス、`.`/`..` のパス成分も拒否する。effort は off/minimal/low/medium/high/xhigh/max の7値（最大7文字）だけ。詳細はMOBILE-PROTOCOLのA5節。
+- 不明・不適合なら **その欄だけnull**。選択肢と名前を消さず、既存の装備選択を妨げない。モデル名はグローバルな固定一覧で制限せず、利用者登録済みの短いprovider/modelも扱う。任意の入力値を起動へ使う欄は増やさず、起動要求は従来どおり発行済み不透明IDだけ。
+- 追加値とnullはすべて応答署名の対象。Permissionは変えないためA4のcontentHashは不変。v1をその場で同時更新し、共有vectors・両側の純粋検査とSEC-22の実HTTP検査を拡張する（新SEC番号なし）。[検証記録](security/runs/2026-10-25-mobile-equipment.md)。画面担当向けの表示・null・ID送信の注意はアプリ側MOBILE-PROTOCOLに記載。
+
 ### 許可の理由と変更本文（A4）
 
 - `work: {questId,title} | null` は認証済み端末の現担当クエストを許可受信時に固定したもの。台帳 `QuestLedger.current` の確定した ID／題を使い、端末・町・勇者を照合する。request 本文は保存設定や複数メンバーの依頼と混同しないため追加しない。不明・未割当・終了済みは null。パス・cwd・branch から作業を推測しない。

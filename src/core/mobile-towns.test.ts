@@ -8,7 +8,7 @@ const permission = { id: "p", heroId: "h", heroName: "勇者", town: "町", tool
 const quest = { id: "q", title: "題", town: "町", state: "open", updatedAt: 123, townId: "town-a" };
 const report = { id: "r", questId: "q", questTitle: "題", title: "報告", success: null, at: 123, excerpt: "", text: null, townId: "town-a" };
 const workHero = { id: "h", name: "勇者", preset: "Pi", weapon: null, accessory: null, busy: false, canTalk: false,
-  active: false, questId: null, permissionGate: false, townId: "town-a" };
+  active: false, questId: null, permissionGate: false, townId: "town-a", model: null, effort: null };
 const base = { id: "b", name: "本拠地", townId: "town-a" };
 const draft = { questId: "q", text: "", tactic: "obey", members: [], fits: [], editable: true, draftLost: false,
   departure: { state: "not-started", steps: [] }, townId: "town-a" };

@@ -19,6 +19,8 @@
 
 - [P25：A4 の許可の作業・本文（SEC-25）](../../src/server/mobile/security-permission-content.test.ts)。実 HTTP の4ケースで認証済み端末の作業snapshot・別勇者/別町非混同、本文と作業のhash束縛、省略/欠落時の承認拒否、16件の最悪escape応答を確認。[抽出の純粋検査](../../src/core/permission-change.test.ts)、[両実装の契約検査](../../src/core/mobile-permission.test.ts)、[実行記録](runs/2026-10-25-mobile-permission-content.md)。本体864件・アプリ80件成功。
 
+- [E：A5の装備表示（SEC-22拡張）](../../src/server/mobile/security-work-equipment.test.ts)。実relay/HTTP/cryptoの2ケースで既定/上書きマスタと勇者のmodel/effort、64文字/7値/不適合null、選択肢維持、表示値や未知IDでの起動拒否を確認。[純粋契約検査](../../src/core/mobile-work-equipment.test.ts)、[実行記録](runs/2026-10-25-mobile-equipment.md)。Permissionのhashと起動権限の規則は変更しない。
+
 ## 窓口に該当する管理策
 
 | ASVS の該当範囲 | 確認すること | 状態 | 証拠／残ること |

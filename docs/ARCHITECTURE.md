@@ -224,6 +224,8 @@ A3 の所属は `MobileQuests` の1つのプロセス内 UUID 対応表を全モ
 
 A4 は許可受信時の認証済み端末の `QuestLedger.current` から担当クエストの ID/題を固定し、Write 本文・Edit/MultiEdit の before/after/replaceAll と共にモバイルだけへ返す。追加本文は `PermissionWaiter` の待機項目内に分けて保持し、Mac の `Permission`／WS／画面を変えず台帳にも保存しない。本文合計2000文字・既存contentとの合計3000文字・置換16組・応答16件。追加欄全体を表示hashに含め、不明／省略された本文は窓口で承認拒否（拒否可）。作業は不明ならnull、最新依頼の本文を推測／転用しない。詳細・固定配列・SEC-25はMOBILEとMOBILE-PROTOCOLが正。
 
+A5 は quest-options の武器に model、はちまきに effort、WorkHero に両値を追加する。読み込み済み装備マスタの model/value だけを使い、名前から推測しない。短い安全なモデル識別子（provider/modelを含む）と7種のeffortだけを表示し、不適合なら値だけnullにして選択肢は維持する。共通Choice・拠点・起動要求・Permissionのhashは変更せず、追加表示値は応答署名に束縛する。SEC-22を拡張して検査する。
+
 ### web 内: 描画データと端末の接続
 
 本番・モックは `src/web/rpg/app.html` と `rpg/main.ts`（Scene・Status・会話・クエスト・本番CSS）を共用する。モック用の偽データとHTTP／WS応答は `src/web/art/*` に閉じ、モック専用のサイドバーや詳細の開閉処理は作らない。モックが置き換えるのは既存HTTP／WS境界だけで、本番のコードはモックの通信処理を読み込まない。紹介サイトは本体リポジトリの管理・配布対象に含めない。

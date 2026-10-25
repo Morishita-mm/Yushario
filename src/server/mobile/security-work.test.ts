@@ -10,7 +10,7 @@ describe("mobile work real relay, PTY, CLI process, crypto and SQLite", () => {
     await launchOnMac(relay, "pi", relay.towns.git);
     const git = await options(relay, phone, towns.git);
     expect(git.allowWork).toBe(true); expect(git.heroes).toHaveLength(1);
-    expect(Object.keys(git.heroes[0]).sort()).toEqual(["accessory", "active", "busy", "canTalk", "id", "name", "permissionGate", "preset", "questId", "townId", "weapon"]);
+    expect(Object.keys(git.heroes[0]).sort()).toEqual(["accessory", "active", "busy", "canTalk", "effort", "id", "model", "name", "permissionGate", "preset", "questId", "townId", "weapon"]);
     expect(git.heroes[0]).toMatchObject({ permissionGate: false, canTalk: true, busy: false, active: true, questId: null });
     expect(git.presets.map(item => item.name).join(" ")).not.toMatch(/\bpi\b/i);
     expect(git.presets.map(item => item.name)).toEqual(expect.arrayContaining([expect.stringMatching(/claude/i), expect.stringMatching(/codex/i)]));

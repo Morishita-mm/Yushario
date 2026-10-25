@@ -1,7 +1,8 @@
 // Wire validation only. Cryptography and durable sequence storage belong to server.
-import { MOBILE_WORK_OPERATIONS, mobileWorkRequestValues, parseMobileWorkRequest, type MobileWorkRequestBody } from "./mobile-work";
+import { mobileWorkRequestValues, parseMobileWorkRequest, type MobileWorkRequestBody } from "./mobile-work";
 
 export const MOBILE_VERSION = 1;
+export const MOBILE_WORK_OPERATIONS = ["quest-options", "quest-draft", "quest-prepare", "quest-form", "quest-embark", "quest-depart"] as const;
 export const MOBILE_OPERATIONS = ["pair", "status", "permissions", "decide", "reports", "push-token", "unpair", "towns", "quests", "quest-create",
   ...MOBILE_WORK_OPERATIONS] as const;
 export type MobileOperation = typeof MOBILE_OPERATIONS[number];

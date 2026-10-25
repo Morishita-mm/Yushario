@@ -236,10 +236,14 @@ Choice = {id, name}
 choiceValues = [id, name]
 WorkBase = {id, name, townId}
 baseValues = [id, name, townId]
-WorkPreset = {id, name, weapons:[Choice,...], accessories:[Choice,...]}
-presetValues = [id, name, [choiceValues,...], [choiceValues,...]]
-WorkHero = {id, name, preset, weapon, accessory, busy, canTalk, active, questId, permissionGate, townId}
-workHeroValues = [id, name, preset, weapon, accessory, busy, canTalk, active, questId, permissionGate, townId]
+WeaponChoice = {id, name, model}
+weaponValues = [id, name, model]
+AccessoryChoice = {id, name, effort}
+accessoryValues = [id, name, effort]
+WorkPreset = {id, name, weapons:[WeaponChoice,...], accessories:[AccessoryChoice,...]}
+presetValues = [id, name, [weaponValues,...], [accessoryValues,...]]
+WorkHero = {id, name, preset, weapon, accessory, busy, canTalk, active, questId, permissionGate, townId, model, effort}
+workHeroValues = [id, name, preset, weapon, accessory, busy, canTalk, active, questId, permissionGate, townId, model, effort]
 FormMember = {heroId, role, writer, ask}
 memberValues = [heroId, role, writer, ask]
 WorkFit = {tactic, ok, gaps, inside, outside}
@@ -251,7 +255,7 @@ draftValues = [questId, text, tactic, [memberValues,...], [fitValues,...], edita
 ```
 
 - 構造上、パス・コマンド・引数・環境変数・session・cwd・branch を渡す欄はない。要求・応答のどのオブジェクトも列挙したメンバーだけで、足したものは一般拒否／応答の不採用。ID は空でない200文字以内。townId/heroId/baseId/presetId/weaponId/accessoryId と Choice.id・inside/outside の勇者 ID は窓口がプロセス内で発行した不透明 ID だけを解決する（再起動で無効）。questId は既存台帳の永続 UUID、gaps は不足条件の短いコードであり、プロセス内 ID ではない。町・拠点・勇者・preset・装備の内部の鍵やパスを直接書いても解決しない。
-- null 可は prepare の `heroId`（要求・応答）と `launch`、Launch の `weaponId/accessoryId`、WorkHero の `weapon/accessory/questId` と各 DTO の `townId`。WorkHero の `preset/weapon/accessory` と各 `name` は1〜200文字の表示ラベルで、実パスではない。
+- null 可は prepare の `heroId`（要求・応答）と `launch`、Launch の `weaponId/accessoryId`、WorkHero の `weapon/accessory/questId/model/effort`、WeaponChoice.model、AccessoryChoice.effort と各 DTO の `townId`。WorkHero の `preset/weapon/accessory` と各 `name` は1〜200文字の表示ラベルで、実パスではない。
 - `requestId` は quest-create と同じ形式・時刻判定。変更系の5操作（create・prepare・form・embark・depart）は同じ `quest-requests.json` の名前空間を共有し、10分有効・未来60秒まで。同じ ID は操作・本文・端末を変えても拒否する。
 - prepare・form の `text` は1〜8000文字（UTF-16）で trim 後が空でないこと（検査・署名は trim しない）。`ask` は0〜8000文字。`draft.text` は0〜8000文字。
 - `mode` は `only|send|party`、`role` は `implement|research|review|command`、`tactic` は `obey|review|research|delegate`、`delivery` は `none|sent|held`、`departure.state` は `not-started|partial|complete|uncertain`、`step.kind` は `request|ask|research`、`step.state` は `pending|sent|held|deferred|unknown`。
@@ -261,6 +265,17 @@ draftValues = [questId, text, tactic, [memberValues,...], [fitValues,...], edita
 - 効果の分類（窓口）：launch・embark は出陣、depart は出発、勇者つきの `mode:"send"` は送信。prepare・form のうち command 役の付与、忙しい勇者、送信待ちの本文／装備変更が残る勇者、別クエストからの付け替えを含むものも送信と同じ扱い。それ以外（札だけ、空の form、待機中で未割当の勇者を command 以外で置く）は作業許可 off でも受け付ける。出陣・送信・出発は作業許可が必要で、端末ごと合計2件/分（出陣は1件/分・3件/時）。変更系は全体で5件/分。
 - 失敗はすべて既存の一般拒否（HTTP 400）。部分的な結果を返すのは depart の成功応答（`departure.state:"partial"` と各 step の状態）だけ。
 - 最大の draft（16人×ask 8000＋text 8000）は通常の本文なら暗号文512KiB以内だが、制御文字だらけの極端な本文ではエスケープで超え得る。その場合は送信前のローカルエラーか一般拒否になる。
+
+### 装備のモデルと effort（A5）
+
+- `WeaponChoice.model: string|null` と `AccessoryChoice.effort: MobileEffort|null` は必須（null も明示）。共通 Choice や拠点には足さない。WorkHero にも必須の `model` / `effort` を最小限の平坦な欄として追加し、既存 weapon/accessory の名前は維持する。
+- 出どころは本体が既に読み込んだ装備マスタ（`src/server/equipment.json` と、既存の利用者設定によるエージェント単位の上書き）。武器の model、はちまきの value をそのまま返す。名前や装備 ID から推測しない。勇者の値はその端末が選んだ装備 ID で同じマスタを引く。外部勇者・未選択・不明は null。CLI 内での変更や CLI 既定値を観測した値ではない。
+- model は **1〜64 ASCII文字**、`^[A-Za-z0-9][A-Za-z0-9._:/-]{0,63}$`。provider/model と provider:model、大文字も許可する（例 `openai-codex/gpt-6-astra`、`Provider:Model-1.0`）。加えて `://`、先頭の Windows ドライブ形 `^[A-Za-z]:/`、区切り `/` または `:` 間の `.` / `..` 成分を不可とする。絶対パス、引数、空白、制御文字、URLを表示用値にしない。型の合う任意の名前を世界共通のモデル一覧で検証するものではなく、サーバーの読み込み済みマスタにある短い識別子を返す。
+- effort は **off|minimal|low|medium|high|xhigh|max** の7値だけ（ASCII小文字、最大7文字）。未知の文字列や大文字変種は返さない。これは表示用の列挙で、全エージェントが全値を使えるという意味ではない。
+- **不適合な値でも選択肢は消さない**。id/name を従来どおり返し、model/effort だけ null にする（勇者表示も同じ）。切り詰め・正規化・ラベルからの補完はしない。null は既定値や「off」と同義ではなく、未選択または表示可能な値が不明。装備を選んでいたら名前は残る。
+- model/effort は表示専用。Launch は従来の不透明 weaponId/accessoryId だけで、要求に model/effort を足す、値を ID の代わりに使う、未知の装備 ID を使うことは拒否する。null の装備も利用者登録済みの ID として従来どおり選べる。既存の起動引数・承認モードは変更しない。
+- 全追加値と null を quest-options 応答署名の上記固定配列に含める。Permission の欄は変更しないため **A4 の contentHash は変更なし**（装備の値を許可内容に混ぜない）。共有 vectors は quest-options の署名・平文・AEADを更新し、provider、大小文字、effort、null のケースを加えた。v1 のまま両側を同時更新する。
+- SEC-22 の既存の装備／入力制限を拡張し、実HTTP・relay・CLIでマスタとの一致、未選択、不正／未知値のnull化と選択肢の維持、任意値／未知IDの起動拒否を確かめる。新SEC番号は作らない。
 
 ### 許可の表示内容の hash
 

@@ -1,23 +1,28 @@
 // Quest work operations (options, draft, prepare, form, embark, depart): types, request checks and signed values.
 // Only opaque IDs, fixed enums and bounded text cross the wire; never paths, commands or session names.
 // Imports from mobile-protocol are used only at call time, so the module cycle is harmless.
-import { mobileObject, mobileQuestRequestTime, mobileText } from "./mobile-protocol";
+import { MOBILE_WORK_OPERATIONS, mobileObject, mobileQuestRequestTime, mobileText } from "./mobile-protocol";
 
-export const MOBILE_WORK_OPERATIONS = ["quest-options", "quest-draft", "quest-prepare", "quest-form", "quest-embark", "quest-depart"] as const;
+export { MOBILE_WORK_OPERATIONS };
 export type MobileWorkOperation = typeof MOBILE_WORK_OPERATIONS[number];
 export const MOBILE_TACTICS = ["obey", "review", "research", "delegate"] as const;
 export type MobileTactic = typeof MOBILE_TACTICS[number];
 export const MOBILE_WORK_ROLES = ["implement", "research", "review", "command"] as const;
 export type MobileWorkRole = typeof MOBILE_WORK_ROLES[number];
 
+export const MOBILE_EFFORTS = ["off", "minimal", "low", "medium", "high", "xhigh", "max"] as const;
+export type MobileEffort = typeof MOBILE_EFFORTS[number];
 export type MobileChoice = { id: string; name: string };
+export type MobileWeaponChoice = MobileChoice & { model: string | null };
+export type MobileAccessoryChoice = MobileChoice & { effort: MobileEffort | null };
 export type MobileWorkBase = MobileChoice & { townId: string | null };
-export type MobileWorkPreset = { id: string; name: string; weapons: MobileChoice[]; accessories: MobileChoice[] };
+export type MobileWorkPreset = { id: string; name: string; weapons: MobileWeaponChoice[]; accessories: MobileAccessoryChoice[] };
 // preset/weapon/accessory are display labels, never raw paths.
 // permissionGate=false means tool use is not checked before it runs (e.g. a Mac-started pi); warn before sending.
 export type MobileWorkHero = {
   id: string; name: string; townId: string | null; preset: string; weapon: string | null; accessory: string | null;
   busy: boolean; canTalk: boolean; active: boolean; questId: string | null; permissionGate: boolean;
+  model: string | null; effort: MobileEffort | null; // Known equipped values, not a live CLI probe.
 };
 export type MobileLaunch = { baseId: string; presetId: string; weaponId: string | null; accessoryId: string | null };
 export type MobileFormMember = { heroId: string; role: MobileWorkRole; writer: boolean; ask: string };
@@ -43,6 +48,16 @@ export type MobileWorkRequestBody =
 
 export const MOBILE_WORK_MEMBERS = 16;
 export const MOBILE_WORK_TEXT = 8000;
+
+// Display identifiers from the equipment master, never launch arguments supplied by a phone.
+// Provider/model and provider:model are supported; obvious paths and URLs are not.
+export function mobileModel(value: unknown): value is string {
+  return typeof value === "string" && /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,63}$/.test(value)
+    && !value.includes("://") && !/^[A-Za-z]:\//.test(value) && !/(^|[/:])\.{1,2}($|[/:])/.test(value);
+}
+export function mobileEffort(value: unknown): value is MobileEffort {
+  return mobileOneOf(value, MOBILE_EFFORTS);
+}
 
 export function mobileId(value: unknown): value is string {
   return mobileText(value, 200);
